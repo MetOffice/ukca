@@ -340,6 +340,7 @@ INTEGER, PARAMETER :: stashcode_ukca_atmos_co = 0
 INTEGER, PARAMETER :: stashcode_ukca_atmos_h2 = 0
 INTEGER, PARAMETER :: stashcode_ukca_atmos_n2o = 0
 INTEGER, PARAMETER :: stashcode_ukca_chem_diag = 0
+INTEGER, PARAMETER :: stashcode_ukca_h_plus = 0
 INTEGER, PARAMETER :: stashcode_ukca_nat = 0
 INTEGER, PARAMETER :: stashcode_ukca_so4_sad = 0
 INTEGER, PARAMETER :: stashcode_ukca_strat_ch4 = 0
@@ -759,10 +760,10 @@ LOGICAL, OPTIONAL, INTENT(IN) :: first
 segment_size = 0
 END SUBROUTINE autotune_entry
 
-SUBROUTINE autotune_init(this, NAME, tag, start_size)
+SUBROUTINE autotune_init(this, region_name, tag, start_size)
 IMPLICIT NONE
 TYPE(autotune_type), INTENT(OUT) :: this
-CHARACTER(LEN=*),    INTENT(IN)  :: NAME
+CHARACTER(LEN=*),    INTENT(IN)  :: region_name 
 CHARACTER(LEN=*),    INTENT(IN)  :: tag
 INTEGER,             INTENT(IN)  :: start_size
 this%dummy_value = 0
