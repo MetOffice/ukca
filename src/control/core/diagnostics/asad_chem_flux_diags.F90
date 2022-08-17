@@ -1062,11 +1062,10 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_CHEMICAL_DIAGNOSTICS'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ierr = -1
-
-IF (first_pass) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_chemical_diagnostics_init)
+IF (first_pass) THEN
   IF (firstcall) THEN
 
     ! Set up locations of reactions using (an altered version of)
@@ -1304,8 +1303,8 @@ IF (first_pass) THEN
     firstcall=.FALSE.
   END IF   ! firstcall
   first_pass=.FALSE.
-!$OMP END CRITICAL (asad_chemical_diagnostics_init)
 END IF     ! first_pass
+!$OMP END CRITICAL (asad_chemical_diagnostics_init)
 
 ! Go through and pick up fluxes from ASAD arrays
 ! prk is in units of molecules.cm^-3.s^-1

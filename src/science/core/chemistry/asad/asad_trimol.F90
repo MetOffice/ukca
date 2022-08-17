@@ -114,11 +114,10 @@ idmsoho2_a = 0
 idmsoho2_b = 0
 CALL oneover_v(n_points, t, inv_t)
 
-
-IF (first_pass) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_trimol_init)
+IF (first_pass) THEN
   IF (first) THEN
     ! Calculate the N factor to be used in broadening factor
     ALLOCATE(nf(jptk))
@@ -133,8 +132,8 @@ IF (first_pass) THEN
     first = .FALSE.
   END IF
   first_pass = .FALSE.
-!$OMP END CRITICAL (asad_trimol_init)
 END IF
+!$OMP END CRITICAL (asad_trimol_init)
 
 DO j = 1, jptk
   jr = ntrkx(j)

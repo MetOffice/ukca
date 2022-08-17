@@ -361,11 +361,10 @@ WHERE (f<f_min) f = f_min
 ! Call ASAD_STEADY at start of step to initialise deriv properly
 IF (nstst /= 0)  CALL asad_steady( n_points )
 
-
-IF (first_pass) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (setup_jacobian_init)
+IF (first_pass) THEN
   IF (first) THEN
     ! Determine number and positions of nonzero elements in sparse
     ! full Jacobian
@@ -373,8 +372,8 @@ IF (first_pass) THEN
     first = .FALSE.
   END IF
   first_pass = .FALSE.
-!$OMP END CRITICAL (setup_jacobian_init)
 END IF
+!$OMP END CRITICAL (setup_jacobian_init)
 
 CALL spfuljac(n_points,cdt,nonzero_map,spfj)
 

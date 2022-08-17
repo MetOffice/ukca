@@ -177,10 +177,10 @@ CALL oneover_v(n_points, t, inv_t)
 
 !       Check if H2O is an advected tracer
 
-IF (first_pass) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_bimol_init)
+IF (first_pass) THEN
   IF (first) THEN
     first = .FALSE.
     DO jtr = 1, jpcspf
@@ -331,8 +331,8 @@ IF (first_pass) THEN
     END DO  ! end of loop (j) over jpbk
   END IF    ! first
   first_pass = .FALSE.
-!$OMP END CRITICAL (asad_bimol_init)
 END IF      ! first_pass
+!$OMP END CRITICAL (asad_bimol_init)
 
 !       1.2  Compute rates
 

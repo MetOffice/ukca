@@ -222,10 +222,10 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_FTOY'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                          &
                         zhook_in,zhook_handle)
-IF ( first_pass ) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_ftoy_init)
+IF ( first_pass ) THEN
   IF ( gonce ) THEN
     gonce  = .FALSE.
     istmin = 0
@@ -264,8 +264,8 @@ IF ( first_pass ) THEN
 
   END IF   ! End of IF (gonce) statement
   first_pass = .FALSE.
-!$OMP END CRITICAL (asad_ftoy_init)
 END IF     ! End of IF (first_pass) statement
+!$OMP END CRITICAL (asad_ftoy_init)
 
 !       1.1 Set concentrations/initialise species
 

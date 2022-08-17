@@ -167,10 +167,10 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_BEDRIV'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-IF (first_pass) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_bedriv_init)
+IF (first_pass) THEN
   IF (first) THEN
     first = .FALSE.
     ! find N2O5, NO3, and NO2 species in species array
@@ -349,8 +349,8 @@ IF (first_pass) THEN
     END DO
   END IF
   first_pass = .FALSE.
-!$OMP END CRITICAL (asad_bedriv_init)
 END IF  ! End of initialization
+!$OMP END CRITICAL (asad_bedriv_init)
 
 ! find parameters needed in chemistry, special reactions etc
 ! Assign sensible values to species array y

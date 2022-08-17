@@ -135,10 +135,10 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_FYINIT'
 !           ------- ----------- ---- -- ----- -- --------- -----
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-IF ( first_pass ) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_fyinit_init)
+IF ( first_pass ) THEN
   IF ( gonce ) THEN
 
     !         Build lists for this routine. This lot should really be a
@@ -176,8 +176,8 @@ IF ( first_pass ) THEN
 
   END IF
   first_pass = .FALSE.
-!$OMP END CRITICAL (asad_fyinit_init)
 END IF           ! End of IF (gonce) statement
+!$OMP END CRITICAL (asad_fyinit_init)
 
 IF ( ofirst ) THEN
   peps10 = 10.0 * peps

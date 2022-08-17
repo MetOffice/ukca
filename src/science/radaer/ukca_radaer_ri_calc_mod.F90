@@ -122,7 +122,7 @@ INTEGER :: i_cmpt
 INTEGER :: this_cpnt, this_cpnt_type
 !
 ! Switch controlling if MG mixing is required
-LOGICAL :: l_mg_mix = .FALSE.
+LOGICAL :: l_mg_mix
 
 !
 ! Dr Hook is not used to caliper this routine because the overheads
@@ -132,6 +132,7 @@ LOGICAL :: l_mg_mix = .FALSE.
 re_m = 0.0e+00
 im_m = 0.0e+00
 ukca_modal_bc_vol = 0.0e+00
+l_mg_mix = .FALSE.
 
 DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 

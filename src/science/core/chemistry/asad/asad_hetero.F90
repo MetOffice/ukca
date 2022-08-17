@@ -112,11 +112,10 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 !       1. Identify equations and calculate fractional dissociation
 !          --------------------------------------------------------
-
-IF (first_pass) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_hetero_init)
+IF (first_pass) THEN
   IF (first) THEN
 
     IF (ukca_config%l_ukca_achem) THEN
@@ -247,8 +246,8 @@ IF (first_pass) THEN
     first = .FALSE.
 
   END IF      ! first
-!$OMP END CRITICAL (asad_hetero_init)
 END IF        ! first_pass
+!$OMP END CRITICAL (asad_hetero_init)
 
 ! calculate fraction of dissolved species for online NR and offline BE
 IF ((ukca_config%l_ukca_nr_aqchem .OR. ukca_config%l_ukca_offline_be) .AND.    &

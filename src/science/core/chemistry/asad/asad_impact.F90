@@ -170,17 +170,17 @@ DO jl = 1, n_points
   END IF
 END DO
 
-IF ( first_pass ) THEN
-  ! OMP CRITICAL will only allow one thread through this code at a time,
-  ! while the other threads are held until completion.
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
 !$OMP CRITICAL (asad_impact_init)
+IF ( first_pass ) THEN
   IF ( gfirst ) THEN
     gfirst = .FALSE.
     CALL asad_inimpct
   END IF
   first_pass = .FALSE.
-!$OMP END CRITICAL (asad_impact_init)
 END IF
+!$OMP END CRITICAL (asad_impact_init)
 
 !       1.1  Do the linearised first guess to give first approx.
 !            solution at y(n+1).
