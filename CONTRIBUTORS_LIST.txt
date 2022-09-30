@@ -5,4 +5,4 @@ NAME				INSTITUTION
 Nathan Luke Abraham		National Centre for Atmospheric Science and
                                 University of Cambridge
 John Hemmings                   Met Office
-Sam Cusworth                    Met Office
+Sara Cusworth                   Met Office

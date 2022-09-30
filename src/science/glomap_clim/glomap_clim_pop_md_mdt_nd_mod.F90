@@ -191,7 +191,7 @@ END DO
 !==============================================================================
 ! Calculate md and mdt
 
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(m, imode, icp, i)     &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(m, imode, icp, i)                         &
 !$OMP SHARED(n_points, ncp_list_local, component_list_by_mode_local,           &
 !$OMP        component_list_by_cp_local, mask, md, mmr1d, mm, aird, nd,        &
 !$OMP        mmid, mfrac_0, mdt)
@@ -199,6 +199,7 @@ DO m = 1, ncp_list_local
   imode = component_list_by_mode_local(m)
   icp = component_list_by_cp_local(m)
 
+!$OMP DO SCHEDULE(STATIC)
   DO i = 1, n_points
     IF (mask(i,imode)) THEN
       md(i,imode,icp) = mmr1d(i,imode,icp) * ( m_air / mm(icp) ) * aird(i) /   &
@@ -210,8 +211,9 @@ DO m = 1, ncp_list_local
     ! Set total mass array MDT from SUM over individual component MDs
     mdt(i,imode) = mdt(i,imode) + md(i,imode,icp)
   END DO
+!$OMP END DO
 END DO
-!$OMP END PARALLEL DO
+!$OMP END PARALLEL
 
 !==============================================================================
 ! Force minimum values of mdt and nd
