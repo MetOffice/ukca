@@ -43,6 +43,7 @@ USE yomhook,             ONLY: lhook, dr_hook
 USE parkind1,            ONLY: jprb, jpim
 
 USE ukca_fieldname_mod,  ONLY:                                                 &
+  maxlen_fieldname,                                                            &
   fldname_sin_declination,                                                     &
   fldname_equation_of_time,                                                    &
   fldname_atmospheric_ch4,                                                     &
@@ -333,7 +334,8 @@ USE ukca_environment_req_mod, ONLY: environ_field_index,                       &
 USE ukca_environment_rdim_mod, ONLY: set_env_2d_from_0d_real,                  &
                                      set_env_2d_from_0d_integer,               &
                                      set_env_2d_from_0d_logical,               &
-                                     set_env_3d_from_1d_real
+                                     set_env_3d_from_1d_real,                  &
+                                     set_env_4d_from_2d_real
 
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_env_req_uninit, errcode_env_field_unknown,   &
@@ -699,11 +701,35 @@ INTEGER, OPTIONAL, INTENT(OUT) :: field_index
 
 ! Local variables
 
+! List of 3-D fields that can be populated from 1D real data arrays
+! Have to use DATA statement as names are not of uniform length
+CHARACTER(LEN=maxlen_fieldname), DIMENSION(56) :: fldnames_3d_real
+
+DATA fldnames_3d_real / fldname_stcon, fldname_theta, fldname_q, fldname_qcf,  &
+  fldname_conv_cloud_amount, fldname_rho_r2, fldname_qcl,                      &
+  fldname_exner_rho_levels, fldname_area_cloud_fraction, fldname_cloud_frac,   &
+  fldname_cloud_liq_frac, fldname_exner_theta_levels, fldname_p_rho_levels,    &
+  fldname_p_theta_levels, fldname_rhokh_rdz, fldname_dtrdz, fldname_we_lim,    &
+  fldname_t_frac, fldname_zrzi, fldname_we_lim_dsc, fldname_t_frac_dsc,        &
+  fldname_zrzi_dsc, fldname_ls_rain3d, fldname_ls_snow3d, fldname_autoconv,    &
+  fldname_accretion, fldname_pv_on_theta_mlevs, fldname_conv_rain3d,           &
+  fldname_conv_snow3d, fldname_so4_sa_clim, fldname_so4_aitken,                &
+  fldname_so4_accum, fldname_soot_fresh, fldname_soot_aged,                    &
+  fldname_ocff_fresh, fldname_ocff_aged, fldname_biogenic, fldname_dust_div1,  &
+  fldname_dust_div2, fldname_dust_div3, fldname_dust_div4, fldname_dust_div5,  &
+  fldname_dust_div6, fldname_sea_salt_film, fldname_sea_salt_jet,              &
+  fldname_co2_interactive, fldname_rim_cry, fldname_rim_agg, fldname_vertvel,  &
+  fldname_bl_tke, fldname_interf_z, fldname_h2o2_offline,                      &
+  fldname_ho2_offline, fldname_no3_offline, fldname_o3_offline,                &
+  fldname_oh_offline /
+
 INTEGER :: i_field  ! Index of field in required fields array
 
 ! Required bounds of environment field data
 INTEGER :: i1
 INTEGER :: i2
+INTEGER :: k1
+INTEGER :: k2
 
 ! Dr Hook
 REAL(KIND=jprb) :: zhook_handle
@@ -729,13 +755,8 @@ END IF
 i_field = environ_field_index(varname)
 IF (PRESENT(field_index)) field_index = i_field
 
-! If field is required, check the supplied field data array is allocated and
-! that its bounds are compatible with the UKCA configuration.
-! The field data supplied must fill the required domain but may extend beyond
-! it to avoid the need for pre-trimming by the parent model.
-! Allow for the possibility that the expected bounds for land only fields may
-! undefined if the UKCA environment field 'land_sea_mask' has not been set.
 IF (i_field /= 0) THEN
+  ! Check the supplied field data array is allocated
   IF (.NOT. ALLOCATED(field_data)) THEN
     error_code = errcode_env_field_mismatch
     IF (PRESENT(error_message)) error_message =                                &
@@ -744,6 +765,44 @@ IF (i_field /= 0) THEN
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN
   END IF
+
+  ! If field is required, check whether this might be a 1-D field to populate a
+  ! 3-D field
+  IF ( ANY(fldnames_3d_real == varname) ) THEN
+    ! Verify that the input array is not smaller than the last dimension
+    k1 = environ_field_info(i_field)%lbound_dim3
+    k2 = environ_field_info(i_field)%ubound_dim3
+    IF (LBOUND(field_data,DIM=1) > k1 .OR. UBOUND(field_data,DIM=1) < k2) THEN
+      error_code = errcode_env_field_mismatch
+      IF (PRESENT(error_message)) error_message =                              &
+        'input 1D real environment field for 3-D field ''' // TRIM(varname) // &
+        ''' has one or more invalid array bounds'
+    END IF
+    IF (error_code /= 0) THEN
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+      IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                    &
+                              zhook_out, zhook_handle)
+      RETURN
+    END IF
+
+    CALL set_env_3d_from_1d_real(varname, i_field, field_data, error_code)
+    IF ( error_code /= 0 ) THEN
+      IF (PRESENT(error_message)) error_message =                              &
+       'Error populating 3-D field from 1-D real : ''' // TRIM(varname) // ''' '
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+    ELSE
+      l_environ_field_available(i_field) = .TRUE.
+    END IF
+    ! Return in any case with/ without errors
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    RETURN
+  END IF
+  ! Check that the data bounds are compatible with the UKCA configuration.
+  ! The field data supplied must fill the required domain but may extend beyond
+  ! it to avoid the need for pre-trimming by the parent model.
+  ! Allow for the possibility that the expected bounds for land only fields may
+  ! undefined if the UKCA environment field 'land_sea_mask' has not been set.
+
   i1 = environ_field_info(i_field)%lbound_dim1
   i2 = environ_field_info(i_field)%ubound_dim1
   IF (i2 == no_bound_value) THEN
@@ -833,17 +892,15 @@ CASE (fldname_inferno_so2)
     inferno_so2 = field_data(i1:i2)
   END IF
 CASE DEFAULT
-  ! The named field may be a 3D field internally
-  CALL set_env_3d_from_1d_real(varname, i_field, field_data, error_code)
+  ! Field not a recognised 1-D (or 3-D) field
+  IF ( .NOT. (ANY(fldnames_3d_real == varname)) ) THEN
+    IF (PRESENT(error_message)) error_message =                                &
+      'Unknown name for 1D environmental input field: ''' //TRIM(varname)// ''''
+    IF (PRESENT(error_routine)) error_routine = RoutineName
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    RETURN
+  END IF
 END SELECT
-
-IF (error_code == errcode_env_field_unknown) THEN
-  IF (PRESENT(error_message)) error_message =                                  &
-    'Unknown name for 1D environmental input field: ''' // TRIM(varname) // ''''
-  IF (PRESENT(error_routine)) error_routine = RoutineName
-  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-  RETURN
-END IF
 
 ! Update status to show that the field is available
 IF (i_field /= 0) l_environ_field_available(i_field) = .TRUE.
@@ -878,6 +935,10 @@ INTEGER, OPTIONAL, INTENT(OUT) :: field_index
 
 ! Local variables
 
+! List of 4-D fields that can be populated from 2D real arrays
+CHARACTER(LEN=maxlen_fieldname), DIMENSION(1) :: fldnames_4d_real
+DATA fldnames_4d_real / fldname_photol_rates /
+
 INTEGER :: i_field  ! Index of field in required fields array
 
 ! Required bounds of environment field data
@@ -885,6 +946,10 @@ INTEGER :: i1
 INTEGER :: i2
 INTEGER :: j1
 INTEGER :: j2
+INTEGER :: k1
+INTEGER :: k2
+INTEGER :: n1
+INTEGER :: n2
 
 ! Dr Hook
 REAL(KIND=jprb) :: zhook_handle
@@ -910,13 +975,9 @@ END IF
 i_field = environ_field_index(varname)
 IF (PRESENT(field_index)) field_index = i_field
 
-! If field is required, check the supplied field data array is allocated and
-! that its bounds are compatible with the UKCA configuration.
-! The field data supplied must fill the required domain but may extend beyond
-! it to avoid the need for pre-trimming (e.g. halo removal) by the parent model.
-! Allow for the possibility that the expected bounds for land only fields may
-! undefined if the UKCA environment field 'land_sea_mask' has not been set.
 IF (i_field /= 0) THEN
+
+  ! Check the supplied field data array is allocated
   IF (.NOT. ALLOCATED(field_data)) THEN
     error_code = errcode_env_field_mismatch
     IF (PRESENT(error_message)) error_message =                                &
@@ -925,6 +986,52 @@ IF (i_field /= 0) THEN
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN
   END IF
+
+  ! If field is required, check whether this might be a 2-D field to populate a
+  ! 4-D field
+  IF ( ANY(fldnames_4d_real == varname) ) THEN
+
+    ! Verify that the spatial dimensions of the input array are not smaller than
+    ! the corresponding dimensions of the target variable. The 4th dimension
+    ! (usu. non-spatial, e.g. photol species) should match the bounds exactly.
+    k1 = environ_field_info(i_field)%lbound_dim3
+    k2 = environ_field_info(i_field)%ubound_dim3
+    n1 = environ_field_info(i_field)%lbound_dim4
+    n2 = environ_field_info(i_field)%ubound_dim4
+
+    IF (LBOUND(field_data,DIM=1) > k1 .OR. UBOUND(field_data,DIM=1) < k2 .OR.  &
+       LBOUND(field_data,DIM=2) /= n1 .OR. UBOUND(field_data,DIM=2) /= n2) THEN
+      error_code = errcode_env_field_mismatch
+      IF (PRESENT(error_message)) error_message =                              &
+        'input 2D real environment field for 4-D field ''' // TRIM(varname) // &
+        ''' has one or more invalid array bounds'
+    END IF
+    IF (error_code /= 0) THEN
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+      IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                    &
+        zhook_out, zhook_handle)
+      RETURN
+    END IF
+
+    CALL set_env_4d_from_2d_real(varname, i_field, field_data, error_code)
+    IF ( error_code /= 0 ) THEN
+      IF (PRESENT(error_message)) error_message =                              &
+       'Error populating 4-D field from 2-D real : ''' // TRIM(varname) // ''' '
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+    ELSE
+      l_environ_field_available(i_field) = .TRUE.
+    END IF
+    ! Return in any case with/ without errors
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    RETURN
+  END IF
+
+  ! Check that the input data bounds are compatible with the UKCA configuration.
+  ! The field data supplied must fill the required domain but may extend beyond
+  ! it to avoid the need for pre-trimming (e.g. halo removal) by the parent model.
+  ! Allow for the possibility that the expected bounds for land only fields may
+  ! undefined if the UKCA environment field 'land_sea_mask' has not been set.
+
   i1 = environ_field_info(i_field)%lbound_dim1
   i2 = environ_field_info(i_field)%ubound_dim1
   j1 = environ_field_info(i_field)%lbound_dim2
@@ -1137,14 +1244,16 @@ CASE (fldname_ext_ic_flash)
     ext_ic_flash = field_data(i1:i2,j1:j2)
   END IF
 CASE DEFAULT
-  ! Error: Not a recognised field
-  error_code = errcode_env_field_unknown
-  IF (PRESENT(error_message)) error_message =                                  &
-    'Unknown name for 2D real environmental input field: ''' //                &
-    TRIM(varname) // ''''
-  IF (PRESENT(error_routine)) error_routine = RoutineName
-  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-  RETURN
+  ! Error: Not a recognised 2-D (or 4-D) field
+  IF ( .NOT. (ANY(fldnames_4d_real == varname)) ) THEN
+    error_code = errcode_env_field_unknown
+    IF (PRESENT(error_message)) error_message =                                &
+      'Unknown name for 2D real environmental input field: ''' //              &
+      TRIM(varname) // ''''
+    IF (PRESENT(error_routine)) error_routine = RoutineName
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    RETURN
+  END IF
 END SELECT
 
 ! Update status to show that the field is available
@@ -1906,7 +2015,7 @@ IF (i_field /= 0) THEN
   IF (LBOUND(field_data,DIM=1) > i1 .OR. UBOUND(field_data,DIM=1) < i2 .OR.    &
       LBOUND(field_data,DIM=2) > j1 .OR. UBOUND(field_data,DIM=2) < j2 .OR.    &
       LBOUND(field_data,DIM=3) > k1 .OR. UBOUND(field_data,DIM=3) < k2 .OR.    &
-      LBOUND(field_data,DIM=4) > l1 .OR. UBOUND(field_data,DIM=4) < l2) THEN
+      LBOUND(field_data,DIM=4) /= l1 .OR. UBOUND(field_data,DIM=4) /= l2) THEN
     error_code = errcode_env_field_mismatch
     IF (PRESENT(error_message)) error_message =                                &
       '4D real environment field for ''' // TRIM(varname) //                   &

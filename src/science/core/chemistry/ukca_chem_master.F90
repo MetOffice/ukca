@@ -50,7 +50,7 @@ USE yomhook,     ONLY: lhook, dr_hook
 USE parkind1,    ONLY: jprb, jpim
 USE ereport_mod, ONLY: ereport
 USE errormessagelength_mod, ONLY: errormessagelength
-USE umPrintMgr,  ONLY: umPrint, umMessage
+USE umPrintMgr,  ONLY: umPrint, umMessage, PrintStatus, PrStatus_Min
 
 IMPLICIT NONE
 
@@ -8632,18 +8632,20 @@ DO i=1,n_chch_master
   END IF
 END DO
 
-WRITE (umMessage,'(A9,I4)') 'jpspec = ',jpspec
-CALL umPrint(umMessage,src=RoutineName)
-WRITE (umMessage,'(A4)') 'CHCH'
-CALL umPrint(umMessage,src=RoutineName)
-DO i=1,jpspec
-  WRITE (umMessage,'(I3,1X,A10,1X,A2,2(1X,I1),1X,I3)')                         &
-         chch_defs_new(i)%item_no,                                             &
-         chch_defs_new(i)%speci,chch_defs_new(i)%ctype,                        &
-         chch_defs_new(i)%switch1,chch_defs_new(i)%switch2,                    &
-         chch_defs_new(i)%version
+IF ( PrintStatus > PrStatus_Min ) THEN
+  WRITE (umMessage,'(A9,I4)') 'jpspec = ',jpspec
   CALL umPrint(umMessage,src=RoutineName)
-END DO
+  WRITE (umMessage,'(A4)') 'CHCH'
+  CALL umPrint(umMessage,src=RoutineName)
+  DO i=1,jpspec
+    WRITE (umMessage,'(I3,1X,A10,1X,A2,2(1X,I1),1X,I3)')                       &
+           chch_defs_new(i)%item_no,                                           &
+           chch_defs_new(i)%speci,chch_defs_new(i)%ctype,                      &
+           chch_defs_new(i)%switch1,chch_defs_new(i)%switch2,                  &
+           chch_defs_new(i)%version
+    CALL umPrint(umMessage,src=RoutineName)
+  END DO
+END IF
 
 ! Pick out bimolecular reactions needed
 j=0
@@ -8839,87 +8841,99 @@ WRITE(umMessage,'(A8,I4)') 'jpcspf  = ',jpcspf
 CALL umPrint(umMessage,src=RoutineName)
 WRITE(umMessage,'(A8,I4)') 'jpbk   = ',jpbk
 CALL umPrint(umMessage,src=RoutineName)
-WRITE(umMessage,'(A4)') 'ratb'
-CALL umPrint(umMessage,src=RoutineName)
-DO i=1,jpbk
-  WRITE (umMessage,'(I3,1X,6(A10,1X))')                                        &
-                       ratb_defs_new(i)%item_no,ratb_defs_new(i)%react1,       &
-                       ratb_defs_new(i)%react2,ratb_defs_new(i)%prod1,         &
-                       ratb_defs_new(i)%prod2,ratb_defs_new(i)%prod3,          &
-                       ratb_defs_new(i)%prod4
+IF ( PrintStatus > PrStatus_Min ) THEN
+  WRITE(umMessage,'(A4)') 'ratb'
   CALL umPrint(umMessage,src=RoutineName)
-  WRITE (umMessage,'(I3,3(1X,E15.6))')                                         &
-                       ratb_defs_new(i)%version,                               &
-                       ratb_defs_new(i)%k0   ,ratb_defs_new(i)%alpha,          &
-                       ratb_defs_new(i)%beta
-  CALL umPrint(umMessage,src=RoutineName)
-END DO
+  DO i=1,jpbk
+    WRITE (umMessage,'(I3,1X,6(A10,1X))')                                      &
+                         ratb_defs_new(i)%item_no,ratb_defs_new(i)%react1,     &
+                         ratb_defs_new(i)%react2,ratb_defs_new(i)%prod1,       &
+                         ratb_defs_new(i)%prod2,ratb_defs_new(i)%prod3,        &
+                         ratb_defs_new(i)%prod4
+    CALL umPrint(umMessage,src=RoutineName)
+    WRITE (umMessage,'(I3,3(1X,E15.6))')                                       &
+                         ratb_defs_new(i)%version,                             &
+                         ratb_defs_new(i)%k0   ,ratb_defs_new(i)%alpha,        &
+                         ratb_defs_new(i)%beta
+    CALL umPrint(umMessage,src=RoutineName)
+  END DO
+END IF
 WRITE (umMessage,'(A8,I4)') 'jppj   = ',jppj
 CALL umPrint(umMessage,src=RoutineName)
-WRITE (umMessage,'(A4)') 'ratj'
-CALL umPrint(umMessage,src=RoutineName)
-DO i=1,jppj
-  WRITE (umMessage,'(I3,1X,7(A10,1X),F9.4,1X,I3)')ratj_defs_new(i)%item_no,    &
-    ratj_defs_new(i)%react1,ratj_defs_new(i)%react2,ratj_defs_new(i)%prod1,    &
-    ratj_defs_new(i)%prod2,ratj_defs_new(i)%prod3,ratj_defs_new(i)%prod4,      &
-    ratj_defs_new(i)%fname,ratj_defs_new(i)%jfacta,                            &
-    ratj_defs_new(i)%version
-  CALL umPrint(umMessage,src='ukca_chem_master')
-END DO
+IF ( PrintStatus > PrStatus_Min ) THEN
+  WRITE (umMessage,'(A4)') 'ratj'
+  CALL umPrint(umMessage,src=RoutineName)
+  DO i=1,jppj
+    WRITE (umMessage,'(I3,1X,7(A10,1X),F9.4,1X,I3)')ratj_defs_new(i)%item_no,  &
+      ratj_defs_new(i)%react1,ratj_defs_new(i)%react2,ratj_defs_new(i)%prod1,  &
+      ratj_defs_new(i)%prod2,ratj_defs_new(i)%prod3,ratj_defs_new(i)%prod4,    &
+      ratj_defs_new(i)%fname,ratj_defs_new(i)%jfacta,                          &
+      ratj_defs_new(i)%version
+    CALL umPrint(umMessage,src='ukca_chem_master')
+  END DO
+END IF
 WRITE (umMessage,'(A8,I4)') 'jptk   = ',jptk
 CALL umPrint(umMessage,src=RoutineName)
-WRITE(umMessage,'(A4)') 'ratt'
-CALL umPrint(umMessage,src=RoutineName)
-DO i=1,jptk
-  WRITE(umMessage,'(I3,1X,4(A10,1X))') ratt_defs_new(i)%item_no,               &
-    ratt_defs_new(i)%react1,ratt_defs_new(i)%react2,ratt_defs_new(i)%prod1,    &
-    ratt_defs_new(i)%prod2
+IF ( PrintStatus > PrStatus_Min ) THEN
+  WRITE(umMessage,'(A4)') 'ratt'
   CALL umPrint(umMessage,src=RoutineName)
-  WRITE(umMessage,'(2(E15.6,1X,F10.6,1X,F12.6,1X),I3)')                        &
-    ratt_defs_new(i)%k1,                                                       &
-    ratt_defs_new(i)%alpha1,ratt_defs_new(i)%beta1,ratt_defs_new(i)%k2,        &
-    ratt_defs_new(i)%alpha2,ratt_defs_new(i)%beta2,ratt_defs_new(i)%version
-  CALL umPrint(umMessage,src=RoutineName)
-END DO
+  DO i=1,jptk
+    WRITE(umMessage,'(I3,1X,4(A10,1X))') ratt_defs_new(i)%item_no,             &
+      ratt_defs_new(i)%react1,ratt_defs_new(i)%react2,ratt_defs_new(i)%prod1,  &
+      ratt_defs_new(i)%prod2
+    CALL umPrint(umMessage,src=RoutineName)
+    WRITE(umMessage,'(2(E15.6,1X,F10.6,1X,F12.6,1X),I3)')                      &
+      ratt_defs_new(i)%k1,                                                     &
+      ratt_defs_new(i)%alpha1,ratt_defs_new(i)%beta1,ratt_defs_new(i)%k2,      &
+      ratt_defs_new(i)%alpha2,ratt_defs_new(i)%beta2,ratt_defs_new(i)%version
+    CALL umPrint(umMessage,src=RoutineName)
+  END DO
+END IF
 WRITE(umMessage,'(A8,I4)') 'jphk   = ',jphk
 CALL umPrint(umMessage,src=RoutineName)
-WRITE(umMessage,'(A4)') 'rath'
-CALL umPrint(umMessage,src=RoutineName)
-DO i=1,jphk
-  WRITE(umMessage,'(I3,1X,6(A10,1X),I3)') rath_defs_new(i)%item_no,            &
-    rath_defs_new(i)%react1,rath_defs_new(i)%react2,rath_defs_new(i)%prod1,    &
-    rath_defs_new(i)%prod2,rath_defs_new(i)%prod3,rath_defs_new(i)%prod4,      &
-    rath_defs_new(i)%version
+IF ( PrintStatus > PrStatus_Min ) THEN
+  WRITE(umMessage,'(A4)') 'rath'
   CALL umPrint(umMessage,src=RoutineName)
-END DO
-
+  DO i=1,jphk
+    WRITE(umMessage,'(I3,1X,6(A10,1X),I3)') rath_defs_new(i)%item_no,          &
+      rath_defs_new(i)%react1,rath_defs_new(i)%react2,rath_defs_new(i)%prod1,  &
+      rath_defs_new(i)%prod2,rath_defs_new(i)%prod3,rath_defs_new(i)%prod4,    &
+      rath_defs_new(i)%version
+    CALL umPrint(umMessage,src=RoutineName)
+  END DO
+END IF
 WRITE(umMessage,'(A8,I4)') 'jpdd   = ',jpdd
 CALL umPrint(umMessage,src=RoutineName)
-j=0
-DO i=1,jpspec
-  IF (chch_defs_new(i)%switch1 == 1) THEN
-    j=j+1
-    WRITE(umMessage,'(A10)') chch_defs_new(i)%speci
-    CALL umPrint(umMessage,src=RoutineName)
-    DO k=1,jddepc
-      WRITE(umMessage,'(6(F10.6))') depvel_defs_new(:,k,j)
+
+IF ( PrintStatus > PrStatus_Min ) THEN
+  j=0
+  DO i=1,jpspec
+    IF (chch_defs_new(i)%switch1 == 1) THEN
+      j=j+1
+      WRITE(umMessage,'(A10)') chch_defs_new(i)%speci
       CALL umPrint(umMessage,src=RoutineName)
-    END DO
-  END IF
-END DO
+      DO k=1,jddepc
+        WRITE(umMessage,'(6(F10.6))') depvel_defs_new(:,k,j)
+        CALL umPrint(umMessage,src=RoutineName)
+      END DO
+    END IF
+  END DO
+END IF
 
 j=0
 WRITE(umMessage,'(A8,I4)') 'jpdw   = ',jpdw
 CALL umPrint(umMessage,src=RoutineName)
-DO i=1,jpspec
-  IF (chch_defs_new(i)%switch2 == 1) THEN
-    j=j+1
-    WRITE(umMessage,'(A10)') chch_defs_new(i)%speci
-    CALL umPrint(umMessage,src=RoutineName)
-    WRITE(umMessage,'(6(E15.6))') henry_defs_new(:,j)
-    CALL umPrint(umMessage,src=RoutineName)
-  END IF
-END DO
+IF ( PrintStatus > PrStatus_Min ) THEN
+  DO i=1,jpspec
+    IF (chch_defs_new(i)%switch2 == 1) THEN
+      j=j+1
+      WRITE(umMessage,'(A10)') chch_defs_new(i)%speci
+      CALL umPrint(umMessage,src=RoutineName)
+      WRITE(umMessage,'(6(E15.6))') henry_defs_new(:,j)
+      CALL umPrint(umMessage,src=RoutineName)
+    END IF
+  END DO
+END IF
 
 IF (ierr > 1) THEN
   CALL ereport(RoutineName,ierr,cmessage)

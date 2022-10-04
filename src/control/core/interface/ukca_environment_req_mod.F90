@@ -260,6 +260,8 @@ INTEGER, PARAMETER :: group_landtile_real = 12    ! 2D real on land pt. tiles
 INTEGER, PARAMETER :: group_landtile_logical = 13 ! 2D logical on land pt. tiles
 INTEGER, PARAMETER :: group_landpft_real = 14     ! 2D real on PFT tiles on
                                                   ! land points
+INTEGER, PARAMETER :: group_fullhtphot_real = 15  ! 4D: spatial on all model
+                                                  ! levels and photolysis reacn
 ! Any environmental driver not assigned to a group will be ignored by
 ! API routines 'ukca_get_envgroup_varlists' and 'ukca_step_control' but will
 ! appear in the full list returned by 'ukca_get_environment_varlist' and must be
@@ -315,6 +317,9 @@ CHARACTER(LEN=maxlen_fieldname), ALLOCATABLE, TARGET, SAVE ::                  &
   environ_field_varnames_landpft_real(:)     ! Field names of 2D reals on plant
                                              ! functional type tiles on land
                                              ! points
+CHARACTER(LEN=maxlen_fieldname), ALLOCATABLE, TARGET, SAVE ::                  &
+  environ_field_varnames_fullhtphot_real(:)  ! Field names of full height 3D
+                                             ! spatial + photol species reals
 
 ! Dr Hook parameters
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -1427,7 +1432,7 @@ IF (ukca_config%i_ukca_photol /= i_ukca_nophot) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_photol_rates
-    fld_info(n)%group = group_undefined
+    fld_info(n)%group = group_fullhtphot_real
     fld_info(n)%ubound_dim1 = ukca_config%row_length
     fld_info(n)%ubound_dim2 = ukca_config%rows
     fld_info(n)%ubound_dim3 = ukca_config%model_levels
@@ -1527,6 +1532,7 @@ SUBROUTINE ukca_get_envgroup_varlists(error_code,                              &
                                       varnames_landtile_real_ptr,              &
                                       varnames_landtile_logical_ptr,           &
                                       varnames_landpft_real_ptr,               &
+                                      varnames_fullhtphot_real_ptr,            &
                                       error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
@@ -1575,6 +1581,8 @@ CHARACTER(LEN=maxlen_fieldname), POINTER, OPTIONAL, INTENT(OUT) ::             &
   varnames_landtile_logical_ptr(:)
 CHARACTER(LEN=maxlen_fieldname), POINTER, OPTIONAL, INTENT(OUT) ::             &
   varnames_landpft_real_ptr(:)
+CHARACTER(LEN=maxlen_fieldname), POINTER, OPTIONAL, INTENT(OUT) ::             &
+  varnames_fullhtphot_real_ptr(:)
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 
@@ -1610,6 +1618,8 @@ IF (.NOT. l_environ_req_available) THEN
   IF (PRESENT(varnames_landtile_logical_ptr))                                  &
     NULLIFY(varnames_landtile_logical_ptr)
   IF (PRESENT(varnames_landpft_real_ptr)) NULLIFY(varnames_landpft_real_ptr)
+  IF (PRESENT(varnames_fullhtphot_real_ptr))                                   &
+    NULLIFY(varnames_fullhtphot_real_ptr)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF
@@ -1728,6 +1738,14 @@ IF (PRESENT(varnames_landpft_real_ptr)) THEN
                                 environ_field_varnames_landpft_real)
   END IF
   varnames_landpft_real_ptr => environ_field_varnames_landpft_real
+END IF
+
+IF (PRESENT(varnames_fullhtphot_real_ptr)) THEN
+  IF (.NOT. ALLOCATED(environ_field_varnames_fullhtphot_real)) THEN
+    CALL setup_envgroup_varlist(group_fullhtphot_real,                         &
+                                environ_field_varnames_fullhtphot_real)
+  END IF
+  varnames_fullhtphot_real_ptr => environ_field_varnames_fullhtphot_real
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -1979,6 +1997,8 @@ IF (ALLOCATED(environ_field_varnames_landtile_logical))                        &
   DEALLOCATE(environ_field_varnames_landtile_logical)
 IF (ALLOCATED(environ_field_varnames_landpft_real))                            &
   DEALLOCATE(environ_field_varnames_landpft_real)
+IF (ALLOCATED(environ_field_varnames_fullhtphot_real))                         &
+  DEALLOCATE(environ_field_varnames_fullhtphot_real)
 
 IF (ALLOCATED(environ_field_info)) DEALLOCATE(environ_field_info)
 IF (ALLOCATED(l_environ_field_available)) DEALLOCATE(l_environ_field_available)

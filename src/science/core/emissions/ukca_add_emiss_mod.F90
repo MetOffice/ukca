@@ -754,97 +754,101 @@ DO k = 1, jpctr
         IF (advt(k) == lbc_spec(l)) THEN
 
           IF (advt(k) == 'CH4       ') THEN
-            ! Diagnose methane surface emissions for full-cycle methane budget;
-            ! implemented as in-situ diagnostics that take samples directly
-            ! at the point in the code where emissions are added to the tracers
-            ! (see above). Whatever is currently stored in "em_field", the array
-            ! that stores the sum of all emissions for each emitted species, is
-            ! *directly* written to a corresponding diagnostic in section 50.
-            ! In-situ emission flux diagnostics for full-cycle methane budget
-            ! CH4 surface emissions from global wetlands (kg m-2 s-1)
-            ! STASHitem m1s50i420
-            section =  50
-            item    = 420
+            IF ( ukca_config%l_enable_diag_um ) THEN
+              ! Diagnose methane surface emissions for full-cycle methane
+              ! budget;
+              ! implemented as in-situ diagnostics that take samples directly
+              ! at the point in the code where emissions are added to the
+              ! tracers (see above). Whatever is currently stored in "em_field",
+              ! the array that stores the sum of all emissions for each emitted
+              ! species, is *directly* written to a corresponding diagnostic in
+              ! section 50.
+              ! In-situ emission flux diagnostics for full-cycle methane budget
+              ! CH4 surface emissions from global wetlands (kg m-2 s-1)
+              ! STASHitem m1s50i420
+              section =  50
+              item    = 420
 
-            IF (sf(item,section)) THEN
-              CALL copydiag (                                                  &
-                stashwork50(si(item,section,1):si_last(item,section,1)),       &
-                emissions(ich4_wetl)%values (:,:,1),                           &
-                row_length,rows)
-            END IF
+              IF (sf(item,section)) THEN
+                CALL copydiag (                                                &
+                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
+                  emissions(ich4_wetl)%values (:,:,1),                         &
+                  row_length,rows)
+              END IF
 
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! CH4 surface emissions from anthropogenic sources (kg m-2 s-1)
-            ! STASHitem m1s50i421
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
-
-
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! CH4 surface emissions from pyrogenic sources (kg m-2 s-1)
-            ! STASHitem m1s50i422
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! CH4 surface emissions from anthropogenic sources (kg m-2 s-1)
+              ! STASHitem m1s50i421
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
 
 
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! CH4 surface emissions from biogenic sources (kg m-2 s-1)
-            ! STASHitem m1s50i423
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! CH4 surface emissions from pyrogenic sources (kg m-2 s-1)
+              ! STASHitem m1s50i422
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
 
 
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! CH4 surface emissions from oceanic/hydrates sources (kg m-2 s-1)
-            ! STASHitem m1s50i424
-            ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! CH4 surface emissions from biogenic sources (kg m-2 s-1)
+              ! STASHitem m1s50i423
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
 
 
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! CH4 surface emissions from all residual sources (kg m-2 s-1)
-            ! STASHitem m1s50i425
-            section =  50
-            item    = 425
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! CH4 surface emissions from oceanic/hydrates sources (kg m-2 s-1)
+              ! STASHitem m1s50i424
+              ! +++ placeholder +++ === +++ placeholder +++ === +++
 
-            IF (sf(item,section)) THEN
-              CALL copydiag(                                                   &
-                stashwork50(si(item,section,1):si_last(item,section,1)),       &
-                (lbc_mmr(l) - tracers(:,:,surface_level,k)) *                  &
-                mass(:,:,surface_level) / surf_area(:,:) / timestep,           &
-                row_length,rows)
-            END IF
 
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! Sum over all prescribed CH4 surface emissions (kg m-2 s-1)
-            ! >prescribed< indicates emissions are >provided by an ancillary
-            ! file.
-            ! calculated as >total - wetland< CH4 emissions
-            ! STASHitem m1s50i426
-            section =  50
-            item    = 426
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! CH4 surface emissions from all residual sources (kg m-2 s-1)
+              ! STASHitem m1s50i425
+              section =  50
+              item    = 425
 
-            IF (sf(item,section)) THEN
-              CALL copydiag(                                                   &
-                stashwork50(si(item,section,1):si_last(item,section,1)),       &
-                em_field (:,:,surface_level,k) -                               &
-                emissions(ich4_wetl)%values (:,:,1),                           &
-                row_length,rows)
-            END IF
+              IF (sf(item,section)) THEN
+                CALL copydiag(                                                 &
+                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
+                  (lbc_mmr(l) - tracers(:,:,surface_level,k)) *                &
+                  mass(:,:,surface_level) / surf_area(:,:) / timestep,         &
+                  row_length,rows)
+              END IF
 
-            ! In-situ emission flux diagnostic for full-cycle methane budget
-            ! Sum over all CH4 surface emissions (kg m-2 s-1)
-            ! STASHitem m1s50i427
-            section =  50
-            item    = 427
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! Sum over all prescribed CH4 surface emissions (kg m-2 s-1)
+              ! >prescribed< indicates emissions are >provided by an ancillary
+              ! file.
+              ! calculated as >total - wetland< CH4 emissions
+              ! STASHitem m1s50i426
+              section =  50
+              item    = 426
 
-            IF (sf(item,section)) THEN
-              CALL copydiag(                                                   &
-                stashwork50(si(item,section,1):si_last(item,section,1)),       &
-                em_field (:,:,surface_level,k),                                &
-                row_length,rows)
-            END IF
-            ! End of full-cycle methane budget diagnostics
+              IF (sf(item,section)) THEN
+                CALL copydiag(                                                 &
+                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
+                  em_field (:,:,surface_level,k) -                             &
+                  emissions(ich4_wetl)%values (:,:,1),                         &
+                  row_length,rows)
+              END IF
+
+              ! In-situ emission flux diagnostic for full-cycle methane budget
+              ! Sum over all CH4 surface emissions (kg m-2 s-1)
+              ! STASHitem m1s50i427
+              section =  50
+              item    = 427
+
+              IF (sf(item,section)) THEN
+                CALL copydiag(                                                 &
+                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
+                  em_field (:,:,surface_level,k),                              &
+                  row_length,rows)
+              END IF
+              ! End of full-cycle methane budget diagnostics
+            END IF    ! l_enable_diag_um
 
           ELSE
             em_field (:,:,:,            k) = 0
@@ -874,14 +878,14 @@ END DO  ! jpctr
 ! (Skip this step to avoid tracer updates if suppressing emissions.)
 
 IF (.NOT. ukca_config%l_suppress_ems) THEN
-! This parallel region has to set default the data-sharing attribute to SHARED
-! rather than NONE in order to work around a subtle interaction between the
-! OpenMP 3.1 and Fortran 2008 standards.
-! The procedure pointer `bl_tracer_mix` is a procedure and not a variable
-! according to F2008.
-! As such, it can not be in the data-sharing SHARED clause according to
-! OpenMP 3.1.
-! However, it still has to be declared inside the PARALLEL region.
+  ! This parallel region has to set default the data-sharing attribute to SHARED
+  ! rather than NONE in order to work around a subtle interaction between the
+  ! OpenMP 3.1 and Fortran 2008 standards.
+  ! The procedure pointer `bl_tracer_mix` is a procedure and not a variable
+  ! according to F2008.
+  ! As such, it can not be in the data-sharing SHARED clause according to
+  ! OpenMP 3.1.
+  ! However, it still has to be declared inside the PARALLEL region.
 
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(SHARED)                             &
 !$OMP PRIVATE(ilev, k)                                                         &

@@ -120,7 +120,8 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_dust_div6,                                                           &
   fldname_interf_z,                                                            &
   fldname_grid_surf_area,                                                      &
-  fldname_lscat_zhang
+  fldname_lscat_zhang,                                                         &
+  fldname_photol_rates
 
 USE ukca_environment_fields_mod, ONLY:                                         &
   environ_field_info,                                                          &
@@ -212,9 +213,11 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   dust_div6,                                                                   &
   interf_z,                                                                    &
   grid_surf_area,                                                              &
-  lscat_zhang
+  lscat_zhang,                                                                 &
+  photol_rates
 
-USE ukca_error_mod, ONLY: errcode_env_field_unknown
+USE ukca_error_mod,  ONLY: errcode_env_field_unknown,                          &
+                           errcode_env_field_mismatch
 
 IMPLICIT NONE
 
@@ -222,7 +225,8 @@ PRIVATE
 
 ! Public procedures
 PUBLIC set_env_2d_from_0d_real, set_env_2d_from_0d_integer,                    &
-       set_env_2d_from_0d_logical, set_env_3d_from_1d_real
+       set_env_2d_from_0d_logical, set_env_3d_from_1d_real,                    &
+       set_env_4d_from_2d_real
 
 ! Dr Hook parameters
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -593,11 +597,10 @@ SUBROUTINE set_env_3d_from_1d_real(varname, i_field, field_data, error_code)
 !
 ! Method:
 !   The field to be set is identified by 'varname'. The argument 'i_field'
-!   is expected to give its position in the list of required fields or be
-!   zero if it is not a required field.
-!   Irrespective of whether the field is required, a non-zero error code
-!   is returned if 'varname' does not refer to a valid 3D field that can be
-!   set in this this way.
+!   is expected to give its position in the list of required fields.
+!   If i_field is zero, control is returned without any action.
+!   A non-zero error code is returned if 'varname' does not refer to a valid 3D
+!   field that can be set in this this way.
 ! ----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -627,534 +630,423 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 error_code = 0
 
-! Get bounds for the 3D internal field
-IF (i_field /= 0) THEN
-  i1 = environ_field_info(i_field)%lbound_dim1
-  i2 = environ_field_info(i_field)%ubound_dim1
-  j1 = environ_field_info(i_field)%lbound_dim2
-  j2 = environ_field_info(i_field)%ubound_dim2
-  k1 = environ_field_info(i_field)%lbound_dim3
-  k2 = environ_field_info(i_field)%ubound_dim3
+! The routine should not be called if i_field is 0, but check anyway.
+IF (i_field == 0) THEN
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
 END IF
 
-! Copy 1D real field to the appropriate UKCA internal array if required.
+! Get bounds for the 3D internal field
+i1 = environ_field_info(i_field)%lbound_dim1
+i2 = environ_field_info(i_field)%ubound_dim1
+j1 = environ_field_info(i_field)%lbound_dim2
+j2 = environ_field_info(i_field)%ubound_dim2
+k1 = environ_field_info(i_field)%lbound_dim3
+k2 = environ_field_info(i_field)%ubound_dim3
+
+! Copy 1D real field to the appropriate UKCA internal array.
 ! Any data outside the required bounds are discarded.
 SELECT CASE (varname)
 CASE (fldname_stcon)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(stcon)) ALLOCATE(stcon(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        stcon(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(stcon)) ALLOCATE(stcon(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      stcon(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_theta)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(theta)) ALLOCATE(theta(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        theta(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(theta)) ALLOCATE(theta(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      theta(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_q)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(q)) ALLOCATE(q(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        q(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(q)) ALLOCATE(q(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      q(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_qcf)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(qcf)) ALLOCATE(qcf(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        qcf(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(qcf)) ALLOCATE(qcf(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      qcf(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_conv_cloud_amount)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_cloud_amount))                                    &
-      ALLOCATE(conv_cloud_amount(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        conv_cloud_amount(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(conv_cloud_amount))                                      &
+    ALLOCATE(conv_cloud_amount(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      conv_cloud_amount(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_rho_r2)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rho_r2)) ALLOCATE(rho_r2(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        rho_r2(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(rho_r2)) ALLOCATE(rho_r2(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      rho_r2(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_qcl)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(qcl)) ALLOCATE(qcl(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        qcl(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(qcl)) ALLOCATE(qcl(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      qcl(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_exner_rho_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(exner_rho_levels))                                     &
-      ALLOCATE(exner_rho_levels(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        exner_rho_levels(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(exner_rho_levels))                                       &
+    ALLOCATE(exner_rho_levels(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      exner_rho_levels(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_area_cloud_fraction)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(area_cloud_fraction))                                  &
-      ALLOCATE(area_cloud_fraction(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        area_cloud_fraction(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(area_cloud_fraction))                                    &
+    ALLOCATE(area_cloud_fraction(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      area_cloud_fraction(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_cloud_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(cloud_frac)) ALLOCATE(cloud_frac(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        cloud_frac(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(cloud_frac)) ALLOCATE(cloud_frac(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      cloud_frac(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_cloud_liq_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(cloud_liq_frac))                                       &
-      ALLOCATE(cloud_liq_frac(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        cloud_liq_frac(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(cloud_liq_frac))                                         &
+    ALLOCATE(cloud_liq_frac(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      cloud_liq_frac(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_exner_theta_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(exner_theta_levels))                                   &
-      ALLOCATE(exner_theta_levels(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        exner_theta_levels(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(exner_theta_levels))                                     &
+    ALLOCATE(exner_theta_levels(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      exner_theta_levels(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_p_rho_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(p_rho_levels)) ALLOCATE(p_rho_levels(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        p_rho_levels(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(p_rho_levels)) ALLOCATE(p_rho_levels(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      p_rho_levels(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_p_theta_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(p_theta_levels))                                       &
-      ALLOCATE(p_theta_levels(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        p_theta_levels(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(p_theta_levels))                                         &
+    ALLOCATE(p_theta_levels(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      p_theta_levels(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_rhokh_rdz)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rhokh_rdz)) ALLOCATE(rhokh_rdz(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        rhokh_rdz(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(rhokh_rdz)) ALLOCATE(rhokh_rdz(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      rhokh_rdz(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dtrdz)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dtrdz))                                                &
-      ALLOCATE(dtrdz(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dtrdz(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dtrdz)) ALLOCATE(dtrdz(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dtrdz(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_we_lim)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(we_lim)) ALLOCATE(we_lim(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        we_lim(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(we_lim)) ALLOCATE(we_lim(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      we_lim(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_t_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(t_frac)) ALLOCATE(t_frac(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        t_frac(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(t_frac)) ALLOCATE(t_frac(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      t_frac(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_zrzi)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(zrzi)) ALLOCATE(zrzi(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        zrzi(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(zrzi)) ALLOCATE(zrzi(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      zrzi(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_we_lim_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(we_lim_dsc)) ALLOCATE(we_lim_dsc(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        we_lim_dsc(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(we_lim_dsc)) ALLOCATE(we_lim_dsc(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      we_lim_dsc(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_t_frac_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(t_frac_dsc)) ALLOCATE(t_frac_dsc(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        t_frac_dsc(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(t_frac_dsc)) ALLOCATE(t_frac_dsc(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      t_frac_dsc(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_zrzi_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(zrzi_dsc)) ALLOCATE(zrzi_dsc(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        zrzi_dsc(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(zrzi_dsc)) ALLOCATE(zrzi_dsc(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      zrzi_dsc(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_ls_rain3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ls_rain3d)) ALLOCATE(ls_rain3d(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        ls_rain3d(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(ls_rain3d)) ALLOCATE(ls_rain3d(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      ls_rain3d(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_ls_snow3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ls_snow3d)) ALLOCATE(ls_snow3d(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        ls_snow3d(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(ls_snow3d)) ALLOCATE(ls_snow3d(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      ls_snow3d(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_autoconv)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(autoconv)) ALLOCATE(autoconv(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        autoconv(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(autoconv)) ALLOCATE(autoconv(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      autoconv(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_accretion)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(accretion)) ALLOCATE(accretion(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        accretion(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(accretion)) ALLOCATE(accretion(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      accretion(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_pv_on_theta_mlevs)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(pv_on_theta_mlevs))                                    &
-      ALLOCATE(pv_on_theta_mlevs(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        pv_on_theta_mlevs(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(pv_on_theta_mlevs))                                      &
+    ALLOCATE(pv_on_theta_mlevs(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      pv_on_theta_mlevs(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_conv_rain3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_rain3d)) ALLOCATE(conv_rain3d(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        conv_rain3d(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(conv_rain3d)) ALLOCATE(conv_rain3d(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      conv_rain3d(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_conv_snow3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_snow3d)) ALLOCATE(conv_snow3d(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        conv_snow3d(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(conv_snow3d)) ALLOCATE(conv_snow3d(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      conv_snow3d(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_so4_sa_clim)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(so4_sa_clim)) ALLOCATE(so4_sa_clim(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        so4_sa_clim(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(so4_sa_clim)) ALLOCATE(so4_sa_clim(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      so4_sa_clim(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_so4_aitken)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(so4_aitken)) ALLOCATE(so4_aitken(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        so4_aitken(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(so4_aitken)) ALLOCATE(so4_aitken(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      so4_aitken(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_so4_accum)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(so4_accum)) ALLOCATE(so4_accum(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        so4_accum(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(so4_accum)) ALLOCATE(so4_accum(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      so4_accum(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_soot_fresh)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(soot_fresh)) ALLOCATE(soot_fresh(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        soot_fresh(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(soot_fresh)) ALLOCATE(soot_fresh(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      soot_fresh(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_soot_aged)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(soot_aged)) ALLOCATE(soot_aged(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        soot_aged(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(soot_aged)) ALLOCATE(soot_aged(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      soot_aged(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_ocff_fresh)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ocff_fresh)) ALLOCATE(ocff_fresh(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        ocff_fresh(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(ocff_fresh)) ALLOCATE(ocff_fresh(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      ocff_fresh(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_ocff_aged)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ocff_aged)) ALLOCATE(ocff_aged(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        ocff_aged(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(ocff_aged)) ALLOCATE(ocff_aged(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      ocff_aged(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_biogenic)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(biogenic)) ALLOCATE(biogenic(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        biogenic(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(biogenic)) ALLOCATE(biogenic(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      biogenic(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dust_div1)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div1)) ALLOCATE(dust_div1(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dust_div1(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dust_div1)) ALLOCATE(dust_div1(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dust_div1(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dust_div2)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div2)) ALLOCATE(dust_div2(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dust_div2(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dust_div2)) ALLOCATE(dust_div2(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dust_div2(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dust_div3)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div3)) ALLOCATE(dust_div3(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dust_div3(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dust_div3)) ALLOCATE(dust_div3(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dust_div3(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dust_div4)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div4)) ALLOCATE(dust_div4(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dust_div4(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dust_div4)) ALLOCATE(dust_div4(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dust_div4(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dust_div5)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div5)) ALLOCATE(dust_div5(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dust_div5(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dust_div5)) ALLOCATE(dust_div5(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dust_div5(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_dust_div6)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div6)) ALLOCATE(dust_div6(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        dust_div6(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(dust_div6)) ALLOCATE(dust_div6(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      dust_div6(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_sea_salt_film)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(sea_salt_film))                                        &
-      ALLOCATE(sea_salt_film(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        sea_salt_film(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(sea_salt_film)) ALLOCATE(sea_salt_film(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      sea_salt_film(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_sea_salt_jet)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(sea_salt_jet)) ALLOCATE(sea_salt_jet(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        sea_salt_jet(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(sea_salt_jet)) ALLOCATE(sea_salt_jet(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      sea_salt_jet(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_co2_interactive)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(co2_interactive))                                      &
-      ALLOCATE(co2_interactive(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        co2_interactive(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(co2_interactive))                                        &
+    ALLOCATE(co2_interactive(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      co2_interactive(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_rim_cry)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rim_cry)) ALLOCATE(rim_cry(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        rim_cry(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(rim_cry)) ALLOCATE(rim_cry(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      rim_cry(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_rim_agg)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rim_agg)) ALLOCATE(rim_agg(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        rim_agg(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(rim_agg)) ALLOCATE(rim_agg(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      rim_agg(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_vertvel)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(vertvel)) ALLOCATE(vertvel(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        vertvel(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(vertvel)) ALLOCATE(vertvel(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      vertvel(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_bl_tke)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(bl_tke)) ALLOCATE(bl_tke(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        bl_tke(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(bl_tke)) ALLOCATE(bl_tke(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      bl_tke(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_interf_z)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(interf_z)) ALLOCATE(interf_z(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        interf_z(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(interf_z)) ALLOCATE(interf_z(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      interf_z(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_h2o2_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(h2o2_offline))                                         &
-      ALLOCATE(h2o2_offline(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        h2o2_offline(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(h2o2_offline)) ALLOCATE(h2o2_offline(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      h2o2_offline(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_ho2_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ho2_offline)) ALLOCATE(ho2_offline(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        ho2_offline(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(ho2_offline)) ALLOCATE(ho2_offline(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      ho2_offline(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_no3_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(no3_offline)) ALLOCATE(no3_offline(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        no3_offline(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(no3_offline)) ALLOCATE(no3_offline(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      no3_offline(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_o3_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(o3_offline)) ALLOCATE(o3_offline(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        o3_offline(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(o3_offline)) ALLOCATE(o3_offline(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      o3_offline(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE (fldname_oh_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(oh_offline)) ALLOCATE(oh_offline(i1:i2,j1:j2,k1:k2))
-    DO i = i1,i2
-      DO j = j1,j2
-        oh_offline(i,j,:) = field_data(k1:k2)
-      END DO
+  IF (.NOT. ALLOCATED(oh_offline)) ALLOCATE(oh_offline(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      oh_offline(i,j,:) = field_data(k1:k2)
     END DO
-  END IF
+  END DO
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown
@@ -1163,6 +1055,89 @@ END SELECT
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE set_env_3d_from_1d_real
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_env_4d_from_2d_real(varname, i_field, field_data, error_code)
+! ----------------------------------------------------------------------
+! Description:
+! Set a 4D environment field from a 2D input field of type real.
+!
+! Method:
+!   The field to be set is identified by 'varname'. The argument 'i_field'
+!   is expected to give its position in the list of required fields.
+!   If i_field is zero control is returned wthout any action.
+!   A non-zero error code is returned if 'varname' does not refer to a valid 4D
+!   field that can be set in this this way.
+!   Currently the only 4-D environment variable active is 'photol_rates'
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+CHARACTER(LEN=*), INTENT(IN) :: varname
+INTEGER, INTENT(IN) :: i_field
+REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:)
+INTEGER, INTENT(OUT) :: error_code
+
+! Local variables
+
+INTEGER :: i1
+INTEGER :: i2
+INTEGER :: j1
+INTEGER :: j2
+INTEGER :: k1
+INTEGER :: k2
+INTEGER :: n1
+INTEGER :: n2
+INTEGER :: i
+INTEGER :: j
+INTEGER :: k
+
+! Dr Hook
+REAL(KIND=jprb) :: zhook_handle
+CHARACTER(LEN=*), PARAMETER :: RoutineName = 'SET_ENV_4D_FROM_2D_REAL'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+error_code = 0
+
+! The routine should not called if i_field is 0, but check anyway.
+IF (i_field == 0) THEN
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
+
+! Get bounds for the 4D internal field
+i1 = environ_field_info(i_field)%lbound_dim1
+i2 = environ_field_info(i_field)%ubound_dim1
+j1 = environ_field_info(i_field)%lbound_dim2
+j2 = environ_field_info(i_field)%ubound_dim2
+k1 = environ_field_info(i_field)%lbound_dim3
+k2 = environ_field_info(i_field)%ubound_dim3
+n1 = environ_field_info(i_field)%lbound_dim4
+n2 = environ_field_info(i_field)%ubound_dim4
+
+! Copy 2D real field to the appropriate UKCA internal array (currently only
+!  photol_rates). Any data outside the required bounds are discarded.
+SELECT CASE (varname)
+CASE (fldname_photol_rates)
+  IF (.NOT. ALLOCATED(photol_rates))                                           &
+    ALLOCATE(photol_rates(i1:i2,j1:j2,k1:k2,n1:n2))
+  DO i = i1,i2
+    DO j = j1,j2
+      DO k = k1,k2
+        photol_rates(i,j,k,:) = field_data(k,n1:n2)
+      END DO
+    END DO
+  END DO
+CASE DEFAULT
+  ! Error: Not a recognised field
+  error_code = errcode_env_field_unknown
+END SELECT
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE set_env_4d_from_2d_real
 
 END MODULE ukca_environment_rdim_mod
 

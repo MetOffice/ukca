@@ -191,66 +191,66 @@ DO loop = 1, ndepd
   END DO
 END DO
 
-!     Now write dry deposition velocities for each tile
-!     to diagnostic stream into STASHitem m1s50i434
-
-DO loop = 1, ndepd
-  ! process vd diagnostics for CH4 (m1s50i432), O3 (m1s50i433), and
-  ! HONO2 (m1s50i434). These diagnostics are mainly for the purpose of
-  ! model debugging.
-  IF (speci(nldepd(loop)) == 'CH4       ') THEN
-    ! vd on tiles for CH4
-    IF (sf(432,50)) THEN
-      CALL set_pseudo_list(ntype,len_stlist,                                   &
-        stlist(:,stindex(1,432,50,1)),                                         &
-        plltile,stash_pseudo_levels,num_stash_pseudo)
-      pslevel_out=0
-      DO pslevel = 1, ntype
-        IF (plltile(pslevel)) THEN
-          pslevel_out=pslevel_out+1
-          si_start = si(432,50,1)+(pslevel_out-1)*pdims%i_end*pdims%j_end
-          si_stop  = si(432,50,1)+(pslevel_out)*pdims%i_end*pdims%j_end-1
-          CALL copydiag(stashwork(si_start:si_stop),vd(:,:,pslevel,loop),      &
-            pdims%i_end,pdims%j_end)
-        END IF
-      END DO
+! Now write dry deposition velocities for each tile to respective STASH items
+IF ( ukca_config%l_enable_diag_um ) THEN
+  DO loop = 1, ndepd
+    ! process vd diagnostics for CH4 (m1s50i432), O3 (m1s50i433), and
+    ! HONO2 (m1s50i434). These diagnostics are mainly for the purpose of
+    ! model debugging.
+    IF (speci(nldepd(loop)) == 'CH4       ') THEN
+      ! vd on tiles for CH4
+      IF (sf(432,50)) THEN
+        CALL set_pseudo_list(ntype,len_stlist,                                 &
+          stlist(:,stindex(1,432,50,1)),                                       &
+          plltile,stash_pseudo_levels,num_stash_pseudo)
+        pslevel_out=0
+        DO pslevel = 1, ntype
+          IF (plltile(pslevel)) THEN
+            pslevel_out=pslevel_out+1
+            si_start = si(432,50,1)+(pslevel_out-1)*pdims%i_end*pdims%j_end
+            si_stop  = si(432,50,1)+(pslevel_out)*pdims%i_end*pdims%j_end-1
+            CALL copydiag(stashwork(si_start:si_stop),vd(:,:,pslevel,loop),    &
+              pdims%i_end,pdims%j_end)
+          END IF
+        END DO
+      END IF
+    ELSE IF (speci(nldepd(loop)) == 'O3        ') THEN
+      ! vd on tiles for O3
+      IF (sf(433,50)) THEN
+        CALL set_pseudo_list(ntype,len_stlist,                                 &
+          stlist(:,stindex(1,433,50,1)),                                       &
+          plltile,stash_pseudo_levels,num_stash_pseudo)
+        pslevel_out=0
+        DO pslevel = 1, ntype
+          IF (plltile(pslevel)) THEN
+            pslevel_out=pslevel_out+1
+            si_start = si(433,50,1)+(pslevel_out-1)*pdims%i_end*pdims%j_end
+            si_stop  = si(433,50,1)+(pslevel_out)*pdims%i_end*pdims%j_end-1
+            CALL copydiag(stashwork(si_start:si_stop),vd(:,:,pslevel,loop),    &
+              pdims%i_end,pdims%j_end)
+          END IF
+        END DO
+      END IF
+    ELSE IF (speci(nldepd(loop)) == 'HONO2     ') THEN
+      ! vd on tiles for HONO2
+      IF (sf(434,50)) THEN
+        CALL set_pseudo_list(ntype,len_stlist,                                 &
+          stlist(:,stindex(1,434,50,1)),                                       &
+          plltile,stash_pseudo_levels,num_stash_pseudo)
+        pslevel_out=0
+        DO pslevel = 1, ntype
+          IF (plltile(pslevel)) THEN
+            pslevel_out=pslevel_out+1
+            si_start = si(434,50,1)+(pslevel_out-1)*pdims%i_end*pdims%j_end
+            si_stop  = si(434,50,1)+(pslevel_out)*pdims%i_end*pdims%j_end-1
+            CALL copydiag(stashwork(si_start:si_stop),vd(:,:,pslevel,loop),    &
+              pdims%i_end,pdims%j_end)
+          END IF
+        END DO
+      END IF
     END IF
-  ELSE IF (speci(nldepd(loop)) == 'O3        ') THEN
-    ! vd on tiles for O3
-    IF (sf(433,50)) THEN
-      CALL set_pseudo_list(ntype,len_stlist,                                   &
-        stlist(:,stindex(1,433,50,1)),                                         &
-        plltile,stash_pseudo_levels,num_stash_pseudo)
-      pslevel_out=0
-      DO pslevel = 1, ntype
-        IF (plltile(pslevel)) THEN
-          pslevel_out=pslevel_out+1
-          si_start = si(433,50,1)+(pslevel_out-1)*pdims%i_end*pdims%j_end
-          si_stop  = si(433,50,1)+(pslevel_out)*pdims%i_end*pdims%j_end-1
-          CALL copydiag(stashwork(si_start:si_stop),vd(:,:,pslevel,loop),      &
-            pdims%i_end,pdims%j_end)
-        END IF
-      END DO
-    END IF
-  ELSE IF (speci(nldepd(loop)) == 'HONO2     ') THEN
-    ! vd on tiles for HONO2
-    IF (sf(434,50)) THEN
-      CALL set_pseudo_list(ntype,len_stlist,                                   &
-        stlist(:,stindex(1,434,50,1)),                                         &
-        plltile,stash_pseudo_levels,num_stash_pseudo)
-      pslevel_out=0
-      DO pslevel = 1, ntype
-        IF (plltile(pslevel)) THEN
-          pslevel_out=pslevel_out+1
-          si_start = si(434,50,1)+(pslevel_out-1)*pdims%i_end*pdims%j_end
-          si_stop  = si(434,50,1)+(pslevel_out)*pdims%i_end*pdims%j_end-1
-          CALL copydiag(stashwork(si_start:si_stop),vd(:,:,pslevel,loop),      &
-            pdims%i_end,pdims%j_end)
-        END IF
-      END DO
-    END IF
-  END IF
-END DO
+  END DO  ! loop ndepd
+END IF    ! l_enable_diag_um
 
 !     VD() now contains dry deposition velocities for each tile
 !     in each grid sq. Calculate overall first-order loss rate
@@ -286,36 +286,38 @@ END DO
 !     STASHitem m1s50i435-37
 !     This is a special diagnostic, mainly for debugging
 
-DO loop = 1, ndepd
-  ! process ddep diagnostics for CH4
-  IF (speci(nldepd(loop)) == 'CH4       ') THEN
-    ! zdryrt on gridbox for CH4
-    IF (sf(435,50)) THEN
-      CALL copydiag (                                                          &
-        stashwork(si(435,50,1):si_last(435,50,1)),                             &
-        zdryrt(:,:,loop),                                                      &
-        row_length,rows)
+IF ( ukca_config%l_enable_diag_um ) THEN
+  DO loop = 1, ndepd
+    ! process ddep diagnostics for CH4
+    IF (speci(nldepd(loop)) == 'CH4       ') THEN
+      ! zdryrt on gridbox for CH4
+      IF (sf(435,50)) THEN
+        CALL copydiag (                                                        &
+          stashwork(si(435,50,1):si_last(435,50,1)),                           &
+          zdryrt(:,:,loop),                                                    &
+          row_length,rows)
+      END IF
+      ! process ddep diagnostics for O3
+    ELSE IF (speci(nldepd(loop)) == 'O3        ') THEN
+      ! zdryrt on gridbox for O3
+      IF (sf(436,50)) THEN
+        CALL copydiag (                                                        &
+          stashwork(si(436,50,1):si_last(436,50,1)),                           &
+          zdryrt(:,:,loop),                                                    &
+          row_length,rows)
+      END IF
+      ! process ddep diagnostics for HONO2
+    ELSE IF (speci(nldepd(loop)) == 'HONO2     ') THEN
+      ! zdryrt on gridbox for HONO2
+      IF (sf(437,50)) THEN
+        CALL copydiag (                                                        &
+          stashwork(si(437,50,1):si_last(437,50,1)),                           &
+          zdryrt(:,:,loop),                                                    &
+          row_length,rows)
+      END IF
     END IF
-    ! process ddep diagnostics for O3
-  ELSE IF (speci(nldepd(loop)) == 'O3        ') THEN
-    ! zdryrt on gridbox for O3
-    IF (sf(436,50)) THEN
-      CALL copydiag (                                                          &
-        stashwork(si(436,50,1):si_last(436,50,1)),                             &
-        zdryrt(:,:,loop),                                                      &
-        row_length,rows)
-    END IF
-    ! process ddep diagnostics for HONO2
-  ELSE IF (speci(nldepd(loop)) == 'HONO2     ') THEN
-    ! zdryrt on gridbox for HONO2
-    IF (sf(437,50)) THEN
-      CALL copydiag (                                                          &
-        stashwork(si(437,50,1):si_last(437,50,1)),                             &
-        zdryrt(:,:,loop),                                                      &
-        row_length,rows)
-    END IF
-  END IF
-END DO
+  END DO   ! loop over ndepd
+END IF     ! l_enable_diag_um
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

@@ -80,6 +80,8 @@ SUBROUTINE ukca_step_control(timestep_number, current_time,                    &
                              envgroup_landtile_real,                           &
                              envgroup_landpft_real,                            &
                              envgroup_landtile_logical,                        &
+                             ! 2D environment fields (spatial + photol species)
+                             envgroup_fullhtphot_real,                         &
                              ! Error return info
                              error_message, error_routine)
 ! ----------------------------------------------------------------------
@@ -108,6 +110,7 @@ SUBROUTINE ukca_step_control(timestep_number, current_time,                    &
 USE ukca_environment_req_mod, ONLY: ukca_get_envgroup_varlists
 USE ukca_environment_mod, ONLY: ukca_set_environment
 USE ukca_emiss_api_mod, ONLY: get_registered_ems_info, ukca_set_emission
+USE ukca_chem_defs_mod, ONLY: ratj_defs ! for dimension of photol_rates array
 USE ukca_step_mod, ONLY: ukca_step
 USE ukca_fieldname_mod, ONLY: maxlen_fieldname
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
@@ -164,6 +167,8 @@ REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: envgroup_bllev_real(:,:)
 REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: envgroup_entlev_real(:,:)
 REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: envgroup_land_real(:,:)
 REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: emissions_fullht(:,:)
+! Photolysis rates: 2D fields= 1D spatial, no. photolysis reactions, n_fields
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: envgroup_fullhtphot_real(:,:,:)
 
 ! 2D fields (land-point tile groups)
 
@@ -605,6 +610,37 @@ IF (error_code == 0 .AND. PRESENT(envgroup_landpft_real)) THEN
       DEALLOCATE(tmp_2d_real)
     END IF
   END IF
+END IF
+
+! Set environmental field for photolysis rates - full-height grid+no. reactions
+! Input values are 1D spatially , 2nd dimension is no. of reactions and 3rd
+! is no. of fields in the group (currently 1).
+
+IF (error_code == 0 .AND. PRESENT(envgroup_fullhtphot_real)) THEN
+  CALL ukca_get_envgroup_varlists(error_code,                                  &
+                                  varnames_fullhtphot_real_ptr=varnames,       &
+                                  error_message=error_message,                 &
+                                  error_routine=error_routine)
+  IF (error_code == 0) THEN
+    n = SIZE(envgroup_fullhtphot_real,DIM=3)
+    IF (n /= SIZE(varnames)) THEN
+      error_code = errcode_env_field_mismatch
+      IF (PRESENT(error_message))                                              &
+        WRITE(error_message, '(A,I0,A,I0,A)')                                  &
+          'Wrong number of environment fields (', n,                           &
+          ') for real group on fullht photol. Expecting ', SIZE(varnames)
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+    ELSE IF (n > 0) THEN
+      ALLOCATE(tmp_2d_real(SIZE(envgroup_fullhtphot_real,DIM=1),               &
+                           SIZE(envgroup_fullhtphot_real,DIM=2)))
+      DO i = 1, n
+        tmp_2d_real = envgroup_fullhtphot_real(:,:,i)
+        CALL ukca_set_environment(varnames(i), tmp_2d_real,                    &
+                                  error_code, error_message=error_message,     &
+                                  error_routine=error_routine)
+      END DO
+    END IF      ! n > 0
+  END IF        ! error_code
 END IF
 
 ! Get information about registered emissions
