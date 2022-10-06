@@ -1668,22 +1668,28 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
         MINVAL(t_theta_levels(:,:,k))
       CALL umPrint(umMessage,src=RoutineName)
     END DO
-    DO k=1,model_levels
-      WRITE(umMessage,'(A,I6)') 'WET LEVEL: ',k
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I8, I6, 2E12.4)') 'rel_humid_frac: ',mype,k,         &
-        MAXVAL(rel_humid_frac(:,:,k)),                                         &
-        MINVAL(rel_humid_frac(:,:,k))
-      CALL umPrint(umMessage,src=RoutineName)
-    END DO
-    DO k=1,ukca_config%bl_levels
-      WRITE(umMessage,'(A,I6)') 'BL LEVEL: ',k
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I8, I6, 2E12.4)') 'z_half:     ',mype,k,             &
-        MAXVAL(z_half(:,:,k)),                                                 &
-        MINVAL(z_half(:,:,k))
-      CALL umPrint(umMessage,src=RoutineName)
-    END DO
+    ! This array is not allocated on jnr
+    IF (ALLOCATED(rel_humid_frac)) THEN
+      DO k=1,model_levels
+        WRITE(umMessage,'(A,I6)') 'WET LEVEL: ',k
+        CALL umPrint(umMessage,src=RoutineName)
+        WRITE(umMessage,'(A,I8, I6, 2E12.4)') 'rel_humid_frac: ',mype,k,       &
+            MAXVAL(rel_humid_frac(:,:,k)),                                     &
+            MINVAL(rel_humid_frac(:,:,k))
+        CALL umPrint(umMessage,src=RoutineName)
+      END DO
+    END IF
+    ! This array may not be allocated
+    IF (ALLOCATED(z_half)) THEN
+      DO k=1,ukca_config%bl_levels
+        WRITE(umMessage,'(A,I6)') 'BL LEVEL: ',k
+        CALL umPrint(umMessage,src=RoutineName)
+        WRITE(umMessage,'(A,I8, I6, 2E12.4)') 'z_half:     ',mype,k,           &
+            MAXVAL(z_half(:,:,k)),                                             &
+            MINVAL(z_half(:,:,k))
+        CALL umPrint(umMessage,src=RoutineName)
+      END DO
+    END IF
     WRITE(umMessage,'(A16,I5,2E12.4)') 'land_fraction: ', mype,                &
       MAXVAL(land_fraction), MINVAL(land_fraction)
   END IF
