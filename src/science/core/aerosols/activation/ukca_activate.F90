@@ -1120,6 +1120,9 @@ USE ukca_mode_setup,        ONLY:                                              &
     nmodes,                                                                    &
     mode
 
+USE missing_data_mod,       ONLY:                                              &
+    rmdi
+
 USE umPrintMgr,             ONLY:                                              &
     newline
 
@@ -1157,6 +1160,9 @@ CHARACTER(LEN=*), PARAMETER       :: RoutineName='UKCA_ACTIVATE_CALC_ZRDRY'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+! Initialise zrdry
+zrdry(:,:,:) = rmdi
+
 ! Fill zrdry from drydiam
 IF (ALLOCATED(drydiam)) THEN
 
@@ -1171,7 +1177,8 @@ IF (ALLOCATED(drydiam)) THEN
             !Calculate vector position
             l = l + 1
 
-            zrdry(l,k,imode) = drydiam(i,j,k,imode)
+            ! Convert values from diameter to radius as expected by ARG method
+            zrdry(l,k,imode) = drydiam(i,j,k,imode) * 0.5
 
           END DO
         END DO
@@ -1182,8 +1189,6 @@ IF (ALLOCATED(drydiam)) THEN
 
   DEALLOCATE(drydiam)
 
-  ! Convert values from diameter to radius as expected by ARG method
-  zrdry(:,:,:) = zrdry(:,:,:) * 0.5
 
 ELSE
   cmessage = 'Aerosol Dry diameter not available from GLOMAP.' //newline//     &
