@@ -586,7 +586,11 @@ END IF
 !
 IF (ichem == 1) THEN
   !
-  !      Calculate aqueous chemistry
+  ! Calculate aqueous chemistry
+  ! Initialise variables
+  frac_aq_acc(:) = 0.0
+  frac_aq_cor(:) = 0.0
+
   IF (wetox_on == 1) THEN
     !
     !       Initialise variables for aqueous chemistry

@@ -132,7 +132,7 @@ USE parkind1,            ONLY: jprb, jpim
 IMPLICIT NONE
 
 INTEGER, INTENT(IN)  :: n_points
-REAL, INTENT(IN OUT) :: f(1:n_points,1:jpcspf)
+REAL, INTENT(OUT)    :: f(1:n_points,1:jpcspf)
 REAL, INTENT(IN)     :: f_initial(1:n_points,1:jpcspf)
 REAL, INTENT(IN)     :: f_min
 INTEGER, INTENT(IN)  :: nonzero_map(1:jpcspf,1:jpcspf)
@@ -291,7 +291,8 @@ INTEGER :: i
 INTEGER :: itr
 INTEGER :: count_negatives
 REAL :: ztmp
-REAL :: f_max
+! The maximum concentration allowed was previously f_max = 1.0/f_min
+REAL, PARAMETER :: f_max = 1.0E30
 REAL :: f_min
 REAL :: RelTol_residual_error
 REAL :: RelTol_error
@@ -339,7 +340,6 @@ LOGICAL, SAVE :: first_pass = .TRUE.
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 f_min = SQRT(peps) ! Minimum species concentration
-f_max = 1.0/f_min  ! Maximum species concentration
 
 RelTol_residual_error = 1.0e-10 ! Relative tolerance for |G(f)|
 RelTol_error = 10*ptol          ! Relative tolerance for |f_incr|
@@ -375,7 +375,7 @@ IF (first_pass) THEN
 END IF
 !$OMP END CRITICAL (setup_jacobian_init)
 
-CALL spfuljac(n_points,cdt,nonzero_map,spfj)
+CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
 
 ! Call forward Euler to make first guess, f_0 for f(t=n+1) (next timestep)
 CALL forward_euler(n_points, f, f_initial, f_min, nonzero_map, spfj)
@@ -448,7 +448,7 @@ DO iter=1,ukca_config%nrsteps
     CALL spresolv2(n_points,G_f,f_incr,f_min,modified_map,spfj)
   ELSE
 
-    CALL spfuljac(n_points,cdt,nonzero_map,spfj)
+    CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
 
     IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
       WRITE(umMessage,"('Iteration ',i4)") iter

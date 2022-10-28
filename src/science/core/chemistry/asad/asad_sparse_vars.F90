@@ -459,7 +459,7 @@ END SUBROUTINE setup_spfuljac
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE spfuljac(n_points,cdt,nonzero_map,spfj)
+SUBROUTINE spfuljac(n_points,cdt,min_pivot,nonzero_map,spfj)
 !
 !  Routine to calculate the Jacobian in sparse format
 !
@@ -476,6 +476,7 @@ IMPLICIT NONE
 ! Subroutine interface
 INTEGER, INTENT(IN) :: n_points
 REAL, INTENT(IN)    :: cdt
+REAL, INTENT(IN)    :: min_pivot
 INTEGER, INTENT(IN) :: nonzero_map(jpcspf,jpcspf)
 REAL, INTENT(OUT)   :: spfj(n_points,spfjsize_max)
 
@@ -505,6 +506,16 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='SPFULJAC'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! At the bottom of this routine we divide by f, so ensure that
+! f is not too small.
+DO jl = 1, jpcspf
+  DO i = 1, n_points
+    IF (f(i, jl) < min_pivot) THEN
+      f(i, jl) = min_pivot
+    END IF
+  END DO
+END DO
 
 deltt=1.0/cdt
 
