@@ -545,6 +545,107 @@ INTEGER, INTENT(IN) :: i_minute
 REAL, INTENT(IN) :: amp
 END SUBROUTINE trsrce
 
+! Subroutine for JULES-based dry deposition required by ukca_chemistry_ctl,
+! ukca_chemistry_ctl_BE_mod & ukca_chemistry_ctl_col_mod
+
+SUBROUTINE deposition_from_ukca_chemistry(                                     &
+             secs_per_step, bl_levels, row_length, rows, ntype, npft,          &
+             jpspec_ukca, ndepd_ukca, nldepd_ukca, speci_ukca,                 &
+             land_points, land_index, tile_pts, tile_index,                    &
+             seaice_frac, fland, sinlat,                                       &
+             p_surf, rh, t_surf, surf_hf, surf_wetness,                        &
+             z0tile_lp, stcon, laift_lp, canhtft_lp, t0tile_lp,                &
+             soilmc_lp, zbl, dzl, frac_types, u_s,                             &
+             dep_loss_rate_ij, nlev_with_ddep, len_stashwork50, stashwork50)
+
+IMPLICIT NONE
+
+INTEGER, INTENT(IN) ::                                                         &
+  row_length, rows, bl_levels,                                                 &
+   ! size of UKCA x, y dimensions and no. of atmospheric boundary layer levels
+  ntype, npft,                                                                 &
+   ! no. of surface types and no. of plant functional types
+  jpspec_ukca,                                                                 &
+   ! no. of chemical species in the UKCA mechanism
+  ndepd_ukca,                                                                  &
+   ! no. of chemical species that are deposited
+   ! Equal to and used interchangeably with jpdd
+  land_points
+
+INTEGER, INTENT(IN) ::                                                         &
+  land_index(land_points),                                                     &
+  tile_pts(ntype),                                                             &
+  tile_index(land_points,ntype),                                               &
+  nldepd_ukca(jpspec_ukca)
+    ! Holds array elements of speci, identifying those chemical species
+    ! in the chemical mechanism that are deposited
+
+REAL, INTENT(IN) ::                                                            &
+  secs_per_step,                                                               &
+   ! time step (in s)
+  sinlat(row_length, rows),                                                    &
+   ! sin(latitude)
+  p_surf(row_length, rows),                                                    &
+   ! surface pressure
+  dzl(row_length, rows, bl_levels),                                            &
+   ! separation of boundary-layer levels
+  u_s(row_length, rows),                                                       &
+   ! surface friction velocity (m s-1)
+  t_surf(row_length, rows),                                                    &
+   ! surface temperature
+  rh(row_length, rows),                                                        &
+   ! relative humidity (-)
+  surf_wetness(row_length, rows),                                              &
+   ! surface wetness
+  frac_types(land_points,ntype),                                               &
+   ! surface tile fractions (-)
+  zbl(row_length,rows),                                                        &
+   ! boundary-layer height (m)
+  surf_hf(row_length,rows),                                                    &
+   ! sensible heat flux (W m-2)
+  seaice_frac(row_length,rows),                                                &
+   ! grid-cell sea ice fraction
+  stcon(row_length,rows,npft),                                                 &
+   ! stomatal conductance (s m-1)
+  soilmc_lp(land_points),                                                      &
+   ! soil moisture
+  fland(land_points),                                                          &
+   ! grid-cell land fraction
+  laift_lp(land_points,npft),                                                  &
+   ! leaf area index (m2 m-2)
+  canhtft_lp(land_points,npft),                                                &
+   ! canopy height (m)
+  z0tile_lp(land_points,ntype),                                                &
+   ! roughness length for heat and moisture (m) by surface type
+  t0tile_lp(land_points,ntype)
+   ! surface temperature (K) by surface type
+
+CHARACTER(LEN=10), INTENT(IN) :: speci_ukca(jpspec_ukca)
+                                   ! Names of all the chemical species
+                                   ! in the UKCA chemical mechanism
+
+! IN JULES-based code, INTENT(IN OUT) but make INRTENT(IN) here
+INTEGER, INTENT(IN)  :: len_stashwork50
+REAL, INTENT(IN)     :: stashwork50 (len_stashwork50)
+                          ! Diagnostics array (UKCA stashwork50)
+
+! Output variables
+INTEGER, INTENT(OUT) ::                                                        &
+  nlev_with_ddep(row_length, rows)
+    ! Number of levs with deposition in boundary layer
+
+REAL, INTENT(OUT) ::                                                           &
+  dep_loss_rate_ij(row_length, rows, ndepd_ukca)
+    ! dry deposition loss rate (s-1)
+
+! Initialise output variables
+nlev_with_ddep(:,:) = 0
+dep_loss_rate_ij(:,:,:) = 0.0
+
+RETURN
+
+END SUBROUTINE deposition_from_ukca_chemistry
+
 ! Ozone column calculation subroutine required by ukca_chem_diags_allts_mod
 
 SUBROUTINE ukca_calc_ozonecol(row_length, rows, model_levels, z_top_of_model,  &

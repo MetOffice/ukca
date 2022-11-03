@@ -130,6 +130,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_ddepo3_ocean,                                     &
                       l_ukca_ddep_lev1,                                        &
                       l_ukca_dry_dep_so2wet,                                   &
+                      l_deposition_jules,                                      &
                       l_ukca_quasinewton,                                      &
                       l_ukca_ro2_ntp,                                          &
                       l_ukca_ro2_perm,                                         &
@@ -386,6 +387,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_intdd
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ddepo3_ocean
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ddep_lev1
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_dry_dep_so2wet
+LOGICAL, OPTIONAL, INTENT(IN) :: l_deposition_jules
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_quasinewton
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ro2_ntp
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ro2_perm
@@ -687,6 +689,8 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
       ukca_config%l_ukca_ddep_lev1 = l_ukca_ddep_lev1
     IF (PRESENT(l_ukca_dry_dep_so2wet))                                        &
       ukca_config%l_ukca_dry_dep_so2wet = l_ukca_dry_dep_so2wet
+    IF (PRESENT(l_deposition_jules))                                           &
+      ukca_config%l_deposition_jules = l_deposition_jules
   END IF
 
   ! -- Chemistry - Heterogeneous chemistry --

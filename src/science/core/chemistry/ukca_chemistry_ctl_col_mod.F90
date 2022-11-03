@@ -92,7 +92,7 @@ USE asad_mod,             ONLY: advt, cdt, ctype, dpd, dpw,                    &
                                 o3p_in_ss, prk, specf, speci, sph2o,           &
                                 sphno3, spj, spro2, spt, rk,                   &
                                 tnd, y, za, jpctr, jpspec, jpro2, jpcspf,      &
-                                jppj, jptk, jpdd, jpdw, jpnr
+                                jppj, jptk, jpdd, jpdw, jpnr, nldepd
 
 USE asad_chem_flux_diags, ONLY: l_asad_use_chem_diags,                         &
                                 l_asad_use_drydep,                             &
@@ -119,7 +119,8 @@ USE ukca_config_specification_mod, ONLY: ukca_config, i_top_2levH2O,           &
                                          i_top_1lev, i_top_BC
 
 USE ukca_ntp_mod,       ONLY: ntp_type, dim_ntp, name2ntpindex
-USE ukca_environment_fields_mod, ONLY: co2_interactive, h2o2_offline
+USE ukca_environment_fields_mod, ONLY: co2_interactive, h2o2_offline,          &
+                                       surf_wetness
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -153,9 +154,13 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     autotune_return,                                                           &
     autotune_start_region,                                                     &
     autotune_stop_region,                                                      &
-    pi_over_180
+    pi_over_180,                                                               &
+    ! For JULES-based atmospheric deposition
+    deposition_from_ukca_chemistry
 #else
-USE ukca_um_legacy_mod, ONLY: pi_over_180
+USE ukca_um_legacy_mod, ONLY: pi_over_180,                                     &
+                              ! For JULES-based atmospheric deposition
+                              deposition_from_ukca_chemistry
 #endif
 
 IMPLICIT NONE
@@ -485,13 +490,29 @@ IF (ndepd /= 0) THEN
 
   IF (ukca_config%l_ukca_intdd) THEN           ! Call interactive dry dep
 
-    CALL ukca_ddepctl(row_length, rows, bl_levels, ntype, npft,                &
-      land_points, land_index, tile_pts, tile_index,                           &
-      secs_per_step, sinlat, frac_types, t_surf,                               &
-      p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                       &
-      rh, stcon, soilmc_lp, fland, seaice_frac, laift_lp,                      &
-      canhtft_lp, z0tile_lp, t0tile_lp,                                        &
-      nlev_with_ddep, zdryrt, len_stashwork, stashwork)
+    IF (ukca_config%l_deposition_jules) THEN   ! Use JULES-based routines
+
+      CALL deposition_from_ukca_chemistry(                                     &
+        secs_per_step, bl_levels, row_length, rows, ntype, npft,               &
+        jpspec, ndepd, nldepd, speci,                                          &
+        land_points, land_index, tile_pts, tile_index,                         &
+        seaice_frac, fland, sinlat,                                            &
+        p_layer_boundaries(:,:,0), rh(:,:,1), t_surf, surf_hf, surf_wetness,   &
+        z0tile_lp, stcon, laift_lp, canhtft_lp, t0tile_lp,                     &
+        soilmc_lp, zbl, dzl, frac_types, u_s,                                  &
+        zdryrt, nlev_with_ddep, len_stashwork, stashwork)
+
+    ELSE                                       ! Use exising UKCA routines
+
+      CALL ukca_ddepctl(row_length, rows, bl_levels, ntype, npft,              &
+        land_points, land_index, tile_pts, tile_index,                         &
+        secs_per_step, sinlat, frac_types, t_surf,                             &
+        p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                     &
+        rh, stcon, soilmc_lp, fland, seaice_frac, laift_lp,                    &
+        canhtft_lp, z0tile_lp, t0tile_lp,                                      &
+        nlev_with_ddep, zdryrt, len_stashwork, stashwork)
+
+    END IF
 
   ELSE                             ! Call prescribed dry dep
 

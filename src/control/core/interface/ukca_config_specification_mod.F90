@@ -151,6 +151,8 @@ TYPE :: ukca_config_spec_type
                                        ! only in level 1
   LOGICAL :: l_ukca_dry_dep_so2wet     ! True if considering the impact of
                                        ! surface wetness on dry deposition
+  LOGICAL :: l_deposition_jules        ! True when using JULES-based interactive
+                                       ! dry deposition routines
   INTEGER :: nit                       ! Number of iterations for B-E Solver
   LOGICAL :: l_ukca_quasinewton        ! True to use quasi-Newton (Broyden)
                                        ! method to reduce no. of iterations
@@ -742,6 +744,7 @@ ukca_config%l_ukca_intdd = .FALSE.
 ukca_config%l_ukca_ddepo3_ocean = .FALSE.
 ukca_config%l_ukca_ddep_lev1 = .FALSE.
 ukca_config%l_ukca_dry_dep_so2wet = .FALSE.
+ukca_config%l_deposition_jules = .FALSE.
 ukca_config%nit = imdi
 ukca_config%l_ukca_quasinewton = .FALSE.
 ukca_config%i_ukca_quasinewton_start = imdi
@@ -990,6 +993,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_asad_columns,                                                        &
    l_ukca_debug_asad,                                                          &
    l_ukca_intdd, l_ukca_ddepo3_ocean, l_ukca_ddep_lev1, l_ukca_dry_dep_so2wet, &
+   l_deposition_jules,                                                         &
    l_ukca_quasinewton,                                                         &
    l_ukca_ro2_ntp, l_ukca_ro2_perm,                                            &
    l_ukca_intph,ph_fit_coeff_a,ph_fit_coeff_b,ph_fit_intercept,                &
@@ -1167,6 +1171,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_intdd
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ddepo3_ocean
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ddep_lev1
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_dry_dep_so2wet
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_deposition_jules
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_quasinewton
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ro2_ntp
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ro2_perm
@@ -1342,6 +1347,8 @@ IF (PRESENT(l_ukca_ddepo3_ocean))                                              &
 IF (PRESENT(l_ukca_ddep_lev1)) l_ukca_ddep_lev1 = ukca_config%l_ukca_ddep_lev1
 IF (PRESENT(l_ukca_dry_dep_so2wet))                                            &
   l_ukca_dry_dep_so2wet = ukca_config%l_ukca_dry_dep_so2wet
+IF (PRESENT(l_deposition_jules))                                               &
+  l_deposition_jules = ukca_config%l_deposition_jules
 IF (PRESENT(nit)) nit = ukca_config%nit
 IF (PRESENT(l_ukca_quasinewton))                                               &
   l_ukca_quasinewton = ukca_config%l_ukca_quasinewton

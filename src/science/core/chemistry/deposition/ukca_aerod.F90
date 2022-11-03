@@ -170,7 +170,10 @@ USE ukca_constants,          ONLY:                                             &
     m_dhpr12ooh,                                                               &
     m_dhcarb9,                                                                 &
     m_ru12no3,                                                                 &
-    m_ru10no3
+    m_ru10no3,                                                                 &
+    m_ra13no3,                                                                 &
+    m_ra16no3,                                                                 &
+    m_ra19no3
 
 USE ukca_um_legacy_mod,      ONLY: rmol, vkman, gg => g
 USE parkind1,                ONLY: jprb, jpim
@@ -569,8 +572,14 @@ IF (first) THEN
       d0(j) = d_h2o * SQRT(m_h2o / m_ru10no3)
       ! RU12OOH happens to have same mass as default (150g/mol)
     CASE ('RU12OOH   ')
-         ! m_cri = 150 (same as sec_org) => d0(j) = 0.72e-5
+      ! m_cri = 150 (same as sec_org) => d0(j) = 0.72e-5
       d0(j) = d_h2o * SQRT(m_h2o / m_cri)
+    CASE ('RA13NO3   ')
+      d0(j) = d_h2o * SQRT(m_h2o / m_ra13no3)
+    CASE ('RA16NO3   ')
+      d0(j) = d_h2o * SQRT(m_h2o / m_ra16no3)
+    CASE ('RA19NO3   ')
+      d0(j) = d_h2o * SQRT(m_h2o / m_ra19no3)
     END SELECT
   END DO
   !

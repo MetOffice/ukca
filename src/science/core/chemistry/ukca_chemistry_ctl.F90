@@ -92,7 +92,9 @@ SUBROUTINE ukca_chemistry_ctl(                                                 &
                 H_plus_3d_arr                                                  &
                 )
 
-USE ukca_um_legacy_mod,   ONLY: pi_over_180, rgas => r
+USE ukca_um_legacy_mod,   ONLY: pi_over_180, rgas => r,                        &
+                                ! For JULES-based atmospheric deposition
+                                deposition_from_ukca_chemistry
 USE asad_mod,             ONLY: advt, cdt, ihso3_h2o2, ihso3_o3,               &
                                 ih2so4_hv, iso2_oh, iso3_o3,                   &
                                 jpctr, jpcspf, jpro2,                          &
@@ -105,7 +107,7 @@ USE asad_mod,             ONLY: advt, cdt, ihso3_h2o2, ihso3_o3,               &
                                 o1d_in_ss, o3p_in_ss, rk,                      &
                                 speci, sph2o, sphno3, spj, spt,                &
                                 spro2, ctype,                                  &
-                                tnd, y, za, specf, nlnaro2
+                                tnd, y, za, specf, nlnaro2, nldepd
 USE asad_chem_flux_diags, ONLY: l_asad_use_chem_diags,                         &
                                 l_asad_use_drydep,                             &
                                 l_asad_use_flux_rxns,                          &
@@ -138,7 +140,8 @@ USE ukca_ntp_mod,       ONLY: ntp_type, dim_ntp, name2ntpindex
 USE ukca_chemco_raq_mod,    ONLY: ukca_chemco_raq
 USE ukca_deriv_raqaero_mod, ONLY: ukca_deriv_raqaero
 
-USE ukca_environment_fields_mod, ONLY: co2_interactive, h2o2_offline
+USE ukca_environment_fields_mod, ONLY: co2_interactive, h2o2_offline,          &
+                                       surf_wetness
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -575,13 +578,29 @@ IF (ndepd /= 0) THEN
 
   IF (ukca_config%l_ukca_intdd) THEN           ! Call interactive dry dep
 
-    CALL ukca_ddepctl(row_length, rows, bl_levels, ntype, npft,                &
-      land_points, land_index, tile_pts, tile_index,                           &
-      secs_per_step, sinlat, frac_types, t_surf,                               &
-      p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                       &
-      rh, stcon, soilmc_lp, fland, seaice_frac, laift_lp,                      &
-      canhtft_lp, z0tile_lp, t0tile_lp,                                        &
-      nlev_with_ddep, zdryrt, len_stashwork, stashwork)
+    IF (ukca_config%l_deposition_jules) THEN   ! Use JULES-based routines
+
+      CALL deposition_from_ukca_chemistry(                                     &
+        secs_per_step, bl_levels, row_length, rows, ntype, npft,               &
+        jpspec, ndepd, nldepd, speci,                                          &
+        land_points, land_index, tile_pts, tile_index,                         &
+        seaice_frac, fland, sinlat,                                            &
+        p_layer_boundaries(:,:,0), rh(:,:,1), t_surf, surf_hf, surf_wetness,   &
+        z0tile_lp, stcon, laift_lp, canhtft_lp, t0tile_lp,                     &
+        soilmc_lp, zbl, dzl, frac_types, u_s,                                  &
+        zdryrt, nlev_with_ddep, len_stashwork, stashwork)
+
+    ELSE                                       ! Use exising UKCA routines
+
+      CALL ukca_ddepctl(row_length, rows, bl_levels, ntype, npft,              &
+        land_points, land_index, tile_pts, tile_index,                         &
+        secs_per_step, sinlat, frac_types, t_surf,                             &
+        p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                     &
+        rh, stcon, soilmc_lp, fland, seaice_frac, laift_lp,                    &
+        canhtft_lp, z0tile_lp, t0tile_lp,                                      &
+        nlev_with_ddep, zdryrt, len_stashwork, stashwork)
+
+    END IF
 
   ELSE                             ! Call prescribed dry dep
 

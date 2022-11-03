@@ -630,11 +630,19 @@ IF (ukca_config%l_ukca_ddepo3_ocean .AND. .NOT. ukca_config%l_ukca_intdd) THEN
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
+! JULES-based deposition only available for interactive dry deposition
+IF (ukca_config%l_deposition_jules .AND. .NOT. ukca_config%l_ukca_intdd) THEN
+  WRITE(cmessage,'(A)')                                                        &
+       ' l_deposition_jules is .true. but l_ukca_intdd is .false.'
+  errcode = 28
+  CALL ereport(routinename,errcode,cmessage)
+END IF
+
 IF ((glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) .AND.    &
     ((glomap_config%i_ukca_nwbins < 1) .OR.                                    &
      (glomap_config%i_ukca_nwbins > 20))) THEN
   cmessage = 'Cannot set i_ukca_nwbins less than one or greater than 20.'
-  errcode  = 28
+  errcode  = 29
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -647,7 +655,7 @@ IF ( ukca_config%i_ukca_chem == i_ukca_chem_strat      .OR.                    &
      ukca_config%i_ukca_chem == i_ukca_chem_cristrat ) THEN
   IF ( ukca_config%i_ukca_chem_version < 107 ) THEN
     cmessage = 'Value of i_ukca_chem_version cannot be less than 107.'
-    errcode  = 29
+    errcode  = 30
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -657,12 +665,12 @@ END IF
 IF (ukca_config%l_ukca_classic_hetchem .AND.                                   &
     ukca_config%i_ukca_chem /= i_ukca_chem_raq) THEN
   cmessage = 'Heterogeneous chemistry on CLASSIC aerosols requires RAQ'
-  errcode  = 30
+  errcode  = 31
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 IF (ukca_config%l_ukca_classic_hetchem .AND. ukca_config%l_ukca_chem_aero) THEN
   cmessage = 'Heterogeneous chemistry is not supported in RAQ-Aero'
-  errcode  = 31
+  errcode  = 32
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -673,7 +681,7 @@ IF (ukca_config%l_ukca_het_psc .AND.                                           &
     ukca_config%i_ukca_chem /= i_ukca_chem_cristrat) THEN
   cmessage = 'PSC heterogeneous chemistry requires a scheme with'              &
              // newline // 'stratospheric chemistry'
-  errcode  = 32
+  errcode  = 33
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -684,7 +692,7 @@ IF (ukca_config%l_ukca_trophet .AND.                                           &
     ukca_config%i_ukca_chem /= i_ukca_chem_cristrat) THEN
   cmessage = 'Tropospheric heterogeneous chemistry requires an N-R scheme with'&
              // newline // 'tropospheric chemistry'
-  errcode  = 33
+  errcode  = 34
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -695,7 +703,7 @@ IF (ukca_config%l_use_classic_so4 .AND.                                        &
           ukca_config%l_ukca_classic_hetchem)) THEN
   cmessage = 'CLASSIC SO4 can only be used with PSC heterogeneous chemistry'   &
              // newline // 'or heterogeneous chemistry on CLASSIC aerosols'
-  errcode  = 34
+  errcode  = 35
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 IF ((ukca_config%l_use_classic_soot .OR. ukca_config%l_use_classic_ocff .OR.   &
@@ -704,7 +712,7 @@ IF ((ukca_config%l_use_classic_soot .OR. ukca_config%l_use_classic_ocff .OR.   &
      .NOT. ukca_config%l_ukca_classic_hetchem) THEN
   cmessage = 'CLASSIC aerosols other than SO4 can only be used with'           &
              // newline // 'heterogeneous chemistry on CLASSIC aerosols'
-  errcode  = 35
+  errcode  = 36
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -715,7 +723,7 @@ IF (.NOT. ukca_config%l_use_gridbox_mass .AND.                                 &
   cmessage = 'Cannot run without mass of air in grid box as it is needed'      &
              // newline // 'for UM diagnostics and/or a stratospheric'         &
              // newline // 'chemistry scheme'
-  errcode  = 36
+  errcode  = 37
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -727,21 +735,21 @@ IF (ukca_config%l_ukca_intph) THEN
   IF (ukca_config%ph_fit_coeff_a < -10.0 .OR.                                  &
       ukca_config%ph_fit_coeff_a > 10.0) THEN
     cmessage='Check ph_fit_coeff_a value as should be between -10.0 - 10.0'
-    errcode = 37
+    errcode = 38
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   ! Cloud pH Fitting parameter b
   IF (ukca_config%ph_fit_coeff_b < -10.0 .OR.                                  &
       ukca_config%ph_fit_coeff_b > 10.0) THEN
     cmessage='Check ph_fit_coeff_b value as should be between -10.0 - 10.0'
-    errcode = 38
+    errcode = 39
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   ! Cloud pH intercept
   IF (ukca_config%ph_fit_intercept < 0.0 .OR.                                  &
       ukca_config%ph_fit_intercept > 14.0) THEN
     cmessage='Check ph_fit_intercept as should be between 0.0 - 14.0'
-    errcode = 39
+    errcode = 40
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -751,22 +759,22 @@ IF (.NOT. l_um_infrastructure) THEN
   IF (ukca_config%i_ukca_light_param == i_light_param_pr .OR.                  &
       ukca_config%i_ukca_light_param == i_light_param_luhar) THEN
     cmessage = 'Lightning NOx parameterization is only supported for UM grids'
-    errcode  = 40
+    errcode  = 41
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF (ukca_config%l_enable_diag_um) THEN
     cmessage = 'No support for UM diagnostics outside the UM'
-    errcode  = 41
+    errcode  = 42
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF (ukca_config%l_use_gridbox_mass) THEN
     cmessage = 'Calculation of gridbox mass is only supported for UM grids'
-    errcode  = 42
+    errcode  = 43
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF (ukca_config%l_environ_z_top) THEN
     cmessage = 'Override of top-of-model height is not allowed outside the UM'
-    errcode  = 43
+    errcode  = 44
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -778,7 +786,7 @@ IF ((.NOT. l_um_emissions_updates) .OR. (.NOT. ASSOCIATED(bl_tracer_mix))) THEN
       (.NOT. (ukca_config%l_ukca_emissions_off .OR.                            &
              ukca_config%l_suppress_ems))) THEN
     cmessage = 'No support code available for tracer updates from emissions'
-    errcode  = 44
+    errcode  = 45
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
