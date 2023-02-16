@@ -240,7 +240,6 @@ SUBROUTINE ukca_aero_ctl(i_month, i_day_number,                                &
                 row_length, rows, model_levels,                                &
                 n_chemistry_tracers,                                           &
                 n_mode_tracers,                                                &
-                area,                                                          &
                 pres,                                                          &
                 temp,                                                          &
                 q,                                                             &
@@ -456,7 +455,6 @@ INTEGER, INTENT(IN) :: dryox_in_aer      ! 0 external, 1 internal
 INTEGER, INTENT(IN) :: wetox_in_aer      ! 0 external, 1 internal
 
 REAL, INTENT(IN) :: dtc                                ! timestep(s)
-REAL, INTENT(IN) :: area(row_length,rows,model_levels) ! area (m^2)
 REAL, INTENT(IN) :: pres(row_length,rows,model_levels) ! pressure
 REAL, INTENT(IN) :: temp(row_length,rows,model_levels) ! temperature
 REAL, INTENT(IN) :: q(row_length,rows,model_levels)    ! sp humidity
@@ -969,9 +967,6 @@ IF (verbose > 1) THEN
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 
   WRITE(umMessage,'(A40)') 'Array:     MIN        MAX         MEAN'
-  CALL umPrint(umMessage,src='ukca_aero_ctl')
-  WRITE(umMessage,'(A8,3E12.3)') 'area: ',MINVAL(area),MAXVAL(area),           &
-             SUM(area)/REAL(SIZE(area))
   CALL umPrint(umMessage,src='ukca_aero_ctl')
   l=0
   WRITE(umMessage,'(A9,I6)') 'Level: ',l

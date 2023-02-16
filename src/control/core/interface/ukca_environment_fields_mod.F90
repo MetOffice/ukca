@@ -359,6 +359,8 @@ REAL, ALLOCATABLE, SAVE, PUBLIC :: bl_tke(:,:,:)
   ! turbulent kinetic energy (m2/s2) {UM:03473}
 REAL, ALLOCATABLE, SAVE, PUBLIC :: interf_z(:,:,:)
   ! Altitude of grid-cell interfaces (m)
+REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_area_fullht(:,:,:)
+  ! Grid cell area (m^2) - all levels
 
 ! --- Oxidant species for Offline Oxidants chemistry - 3-D of type Real ---
 ! Note: These fields can also be used for other chemistry schemes if needed

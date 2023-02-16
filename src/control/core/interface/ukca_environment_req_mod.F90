@@ -191,7 +191,8 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_inferno_nox,                                                         &
   fldname_inferno_oc,                                                          &
   fldname_inferno_so2,                                                         &
-  fldname_lscat_zhang
+  fldname_lscat_zhang,                                                         &
+  fldname_grid_area_fullht
 
 USE ukca_environment_fields_mod, ONLY: environ_field_info,                     &
                                        l_environ_field_available,              &
@@ -392,7 +393,7 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 
 ! Field counts
-INTEGER, PARAMETER :: n_max = 142  ! Maximum number of environment fields
+INTEGER, PARAMETER :: n_max = 143  ! Maximum number of environment fields
 INTEGER :: n                       ! Count of environment fields selected
 INTEGER :: i                       ! Counter for loops
 
@@ -1142,6 +1143,14 @@ IF (glomap_config%l_2bin_dust_no3) THEN
   IF (n <= n_max) fld_names(n) = fldname_dust_div1
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_dust_div2
+END IF
+
+! Grid box area on model_levels is required for certain MODE diagnostics.
+IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_grid_area_fullht
+  END IF
 END IF
 
 ! -- Environmental drivers in full-height plus zeroth level grid group --

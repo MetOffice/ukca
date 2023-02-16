@@ -105,7 +105,7 @@ USE ukca_environment_fields_mod, ONLY:                                         &
     sin_latitude,           cos_latitude,         tan_latitude,                &
     dust_div1,              dust_div2,            dust_div3,                   &
     dust_div4,              dust_div5,            dust_div6,                   &
-    interf_z,               grid_surf_area,                                    &
+    interf_z,               grid_surf_area,       grid_area_fullht,            &
     photol_rates,           ext_cg_flash,         ext_ic_flash
 
 USE ukca_pr_inputs_mod, ONLY: ukca_pr_inputs
@@ -386,7 +386,6 @@ REAL, SAVE, ALLOCATABLE :: solid_angle(:,:)   ! solid angle
 REAL, SAVE, ALLOCATABLE :: z_half(:,:,:)
 REAL, SAVE, ALLOCATABLE :: z_half_alllevs(:,:,:)
 REAL, SAVE, ALLOCATABLE :: volume(:,:,:)   ! gridbox volume on theta points
-REAL, SAVE, ALLOCATABLE :: area(:,:,:)     ! gridbox area
 REAL, ALLOCATABLE :: delta_r(:,:,:)        ! delta radius
 
 ! 3D array for calulated pH values to use in chem_ctl
@@ -1021,6 +1020,10 @@ IF (ukca_config%l_ukca_chem) THEN
     ALLOCATE(ext_ic_flash(row_length, rows))
     ext_ic_flash = 0.0
   END IF
+  IF ( .NOT. ALLOCATED(grid_area_fullht) ) THEN
+    ALLOCATE(grid_area_fullht(row_length,rows,model_levels))
+    grid_area_fullht = 0.0
+  END IF
 
   ! Required in calls to chemistry control routines (UKCA_CHEMISTRY_CTL etc.)
   ! but may be unallocated
@@ -1136,8 +1139,6 @@ IF (ukca_config%l_ukca_chem) THEN
 
     IF ( .NOT. ALLOCATED(volume) )                                             &
       ALLOCATE(volume(row_length,rows,model_levels))
-    IF ( .NOT. ALLOCATED(area) )                                               &
-      ALLOCATE(area(row_length,rows,model_levels))
     IF ( .NOT. ALLOCATED(mass) )                                               &
       ALLOCATE(mass(row_length, rows, model_levels))
     IF (ukca_config%l_use_gridbox_mass .AND. (.NOT. ALLOCATED(solid_angle)))   &
@@ -1155,7 +1156,7 @@ IF (ukca_config%l_ukca_chem) THEN
 
     IF (ukca_config%l_enable_diag_um .OR. ukca_config%l_use_gridbox_mass) THEN
 
-      ! Calculate grid box area and/or solid angle
+      ! Calculate solid angle
 
       ! For V-At-Poles, V latitude already bounds the grid-cells on both sides
 
@@ -1168,18 +1169,6 @@ IF (ukca_config%l_ukca_chem) THEN
         v_latitude(:,j) = base_phi + (datastart(2)+j-2) * delta_phi
       END DO
       sinv_latitude = SIN(v_latitude)
-
-      IF (ukca_config%l_enable_diag_um) THEN
-        DO k=1,model_levels
-          area(:,:,k) = 2*pi*                                                  &
-            r_theta_levels(1:row_length,1:rows,k)**2 *                         &
-            (sinv_latitude(1:row_length,2:rows+1) -                            &
-             sinv_latitude(1:row_length,1:rows))/                              &
-             global_row_length
-        END DO
-      ELSE
-        area(:,:,:) = 0.0  ! Initialise for safety
-      END IF
 
       IF (ukca_config%l_use_gridbox_mass)                                      &
         solid_angle(:,1:rows) = delta_lambda * (sinv_latitude(:,2:rows+1) -    &
@@ -2030,8 +2019,8 @@ IF (ukca_config%l_ukca_chem) THEN
         land_sea_mask, theta, q, qcl, qcf, exner_rho_levels, rho_r2,           &
         kent, kent_dsc, rhokh_rdz, dtrdz,                                      &
         we_lim, t_frac, zrzi, we_lim_dsc, t_frac_dsc, zrzi_dsc,                &
-        zbl, zhsc, z_half, ch4_wetl_emiss, seaice_frac, area, dust_flux,       &
-        u_scalar_10m, tstar, dms_sea_conc, chloro_sea,                         &
+        zbl, zhsc, z_half, ch4_wetl_emiss, seaice_frac, grid_area_fullht,      &
+        dust_flux, u_scalar_10m, tstar, dms_sea_conc, chloro_sea,              &
         dust_div1, dust_div2, dust_div3, dust_div4, dust_div5, dust_div6,      &
         all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers+n_mode_tracers),     &
         ext_cg_flash, ext_ic_flash,                                            &
@@ -2577,7 +2566,6 @@ IF (ukca_config%l_ukca_mode .AND. do_chemistry) THEN
        row_length, rows, model_levels,                                         &
        n_chem_tracers+n_aero_tracers,                                          &
        n_mode_tracers,                                                         &
-       area,                                                                   &
        p_theta_levels,                                                         &
        t_theta_levels,                                                         &
        q,                                                                      &
@@ -2884,7 +2872,6 @@ IF (ukca_config%l_ukca_persist_off) THEN
   IF (ALLOCATED(p_tropopause))     DEALLOCATE(p_tropopause)
   IF (ALLOCATED(solid_angle))      DEALLOCATE(solid_angle)
   IF (ALLOCATED(mass))             DEALLOCATE(mass)
-  IF (ALLOCATED(area))             DEALLOCATE(area)
   IF (ALLOCATED(volume))           DEALLOCATE(volume)
 END IF
 

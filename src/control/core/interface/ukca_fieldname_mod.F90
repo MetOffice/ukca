@@ -495,6 +495,8 @@ CHARACTER(LEN=*), PARAMETER :: fldname_dust_div6 =                             &
                                       'dust_div6'
 CHARACTER(LEN=*), PARAMETER :: fldname_interf_z =                              &
                                       'interf_z'
+CHARACTER(LEN=*), PARAMETER :: fldname_grid_area_fullht =                      &
+                                      'grid_area_fullht'
 
 ! Oxidants for Offline Oxidants chemistry - 3-D of type Real
 ! (can be used for other chemistry schemes if needed)

@@ -121,7 +121,8 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_interf_z,                                                            &
   fldname_grid_surf_area,                                                      &
   fldname_lscat_zhang,                                                         &
-  fldname_photol_rates
+  fldname_photol_rates,                                                        &
+  fldname_grid_area_fullht
 
 USE ukca_environment_fields_mod, ONLY:                                         &
   environ_field_info,                                                          &
@@ -214,7 +215,8 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   interf_z,                                                                    &
   grid_surf_area,                                                              &
   lscat_zhang,                                                                 &
-  photol_rates
+  photol_rates,                                                                &
+  grid_area_fullht
 
 USE ukca_error_mod,  ONLY: errcode_env_field_unknown,                          &
                            errcode_env_field_mismatch
@@ -1045,6 +1047,14 @@ CASE (fldname_oh_offline)
   DO i = i1,i2
     DO j = j1,j2
       oh_offline(i,j,:) = field_data(k1:k2)
+    END DO
+  END DO
+CASE (fldname_grid_area_fullht)
+  IF (.NOT. ALLOCATED(grid_area_fullht))                                     &
+    ALLOCATE(grid_area_fullht(i1:i2,j1:j2,k1:k2))
+  DO i = i1,i2
+    DO j = j1,j2
+      grid_area_fullht(i,j,:) = field_data(k1:k2)
     END DO
   END DO
 CASE DEFAULT
