@@ -540,7 +540,8 @@ IF (direction) THEN
 
 ELSE    ! direction = F
   ! Set N2O to 0 at the top, to avoid initialization problem
-  IF (n_n2o > 0)                                                               &
+  ! ensure to not do this in case of box model (model_levels==1)
+  IF (n_n2o > 0 .AND. (model_levels /= 1))                                     &
     tracers(:,:,model_levels,n_n2o) = 0.0
 
   ! Adjust tracers to match
