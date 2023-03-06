@@ -60,6 +60,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_step_control(timestep_number, current_time,                    &
                              tracer_data, ntp_data,                            &
+                             r_theta_levels, r_rho_levels,                     &
                              error_code, previous_time,                        &
                              ! Scalar environment field groups
                              envgroup_flat_integer,                            &
@@ -125,6 +126,9 @@ INTEGER, INTENT(IN) :: timestep_number
 
 ! Current model time (year, month, day, hour, minute, second, day of year)
 INTEGER, INTENT(IN) :: current_time(7)
+
+! Height of theta and rho levels from Earth centre
+REAL, INTENT(IN) :: r_theta_levels(:,:,0:), r_rho_levels(:,:,:)
 
 ! UKCA tracers. Dimensions: X,Y,Z,N
 ! where X is row length of tracer field (= no. of columns)
@@ -722,8 +726,8 @@ END IF
 
 ! Do the time step
 CALL ukca_step(timestep_number, current_time,                                  &
-               tracer_data, ntp_data, error_code,                              &
-               previous_time=previous_time,                                    &
+               tracer_data, ntp_data, r_theta_levels, r_rho_levels,            &
+               error_code,  previous_time=previous_time,                       &
                error_message=error_message, error_routine=error_routine)
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

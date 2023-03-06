@@ -59,6 +59,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_main1(timestep_number, current_time,                           &
                       all_tracers, all_ntp,                                    &
+                      r_theta_levels, r_rho_levels,                            &
                       error_code, previous_time,                               &
                       error_message, error_routine)
 ! ----------------------------------------------------------------------
@@ -218,8 +219,7 @@ USE ukca_mode_diags_mod,    ONLY: ukca_mode_diags_alloc, ukca_mode_diags,      &
                                   l_ukca_cmip6_diags,                          &
                                   l_ukca_pm_diags
 USE ukca_age_air_mod,       ONLY: ukca_age_air
-USE level_heights_mod,      ONLY: r_theta_levels, r_rho_levels,                &
-                                eta_theta_levels
+USE level_heights_mod,      ONLY: eta_theta_levels
 USE ereport_mod,            ONLY: ereport
 USE missing_data_mod,       ONLY: imdi
 USE ukca_calc_cloud_ph_mod, ONLY: ukca_calc_cloud_ph
@@ -264,6 +264,9 @@ INTEGER, INTENT(IN) :: timestep_number
 
 ! Current model time (year, month, day, hour, minute, second, day of year)
 INTEGER, INTENT(IN) :: current_time(7)
+
+! Height of theta and rho levels from Earth centre
+REAL, INTENT(IN) :: r_theta_levels(:,:,0:), r_rho_levels(:,:,:)
 
 ! UKCA tracers. Dimensions: X,Y,Z,N
 ! where X is row length of tracer field (= no. of columns)
@@ -1770,7 +1773,7 @@ IF (ukca_config%l_ukca_chem) THEN
   ELSE
     ! Calculate tropopause pressure using a combined
     ! theta and PV surface
-    CALL ukca_calc_tropopause(row_length, rows, model_levels,                  &
+    CALL ukca_calc_tropopause(row_length, rows, model_levels, r_theta_levels,  &
                               latitude, theta, pv_on_theta_mlevs,              &
                               p_layer_boundaries, p_theta_levels)
   END IF

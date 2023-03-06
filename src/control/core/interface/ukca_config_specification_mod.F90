@@ -600,6 +600,7 @@ ABSTRACT INTERFACE
   ! emission(s). This does not have a UKCA default so a parent routine must
   ! be provided if emissions is on with tracer updates enabled.
   SUBROUTINE template_proc_bl_tracer_mix(row_length, rows, bl_levels,          &
+                                         r_theta_levels, r_rho_levels,         &
                                          nlev_ent_tr_mix,                      &
                                          kent, kent_dsc, surf_em, zhnl, zhsc,  &
                                          we_lim, t_frac, zrzi,                 &
@@ -610,6 +611,10 @@ ABSTRACT INTERFACE
   INTEGER :: rows
   INTEGER :: bl_levels
   INTEGER :: nlev_ent_tr_mix
+  REAL, INTENT(IN) :: r_theta_levels(1:row_length,1:rows,0:bl_levels)
+  ! Height of theta levels from Earth centre
+  REAL, INTENT(IN) :: r_rho_levels(1:row_length,1:rows,bl_levels)
+  ! Height of rho levels from Earth centre
   INTEGER, INTENT(IN) :: kent(row_length, rows)
     ! Grid level of surface mixed layer inversion
   INTEGER, INTENT(IN) :: kent_dsc(row_length, rows)

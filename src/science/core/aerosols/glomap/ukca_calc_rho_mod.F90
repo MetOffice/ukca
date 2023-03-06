@@ -24,9 +24,7 @@ CONTAINS
 
 SUBROUTINE ukca_calc_rho(                                                      &
  row_length, rows, model_levels, theta, q, qcl, qcf, exner, rho_r2,            &
- air_density, air_burden)
-
-USE level_heights_mod, ONLY: r_theta_levels, r_rho_levels
+ r_theta_levels, r_rho_levels, air_density, air_burden)
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -48,9 +46,13 @@ REAL, INTENT(IN)       ::                                                      &
                                                  ! Qcf on theta levs
 ,     exner (1:row_length,1:rows,model_levels+1)                               &
                                                  ! exner on rho levs
-,     rho_r2(1:row_length,1:rows,model_levels)
+,     rho_r2(1:row_length,1:rows,model_levels)                                 &
                                                  ! density * r * r
                                                  ! on rho levs
+,     r_theta_levels(row_length, rows, 0:model_levels)                         &
+                                                 ! height of theta levels
+,     r_rho_levels(row_length, rows, model_levels)
+                                                 ! height of rho levels
 
 REAL, INTENT(IN OUT)       ::                                                  &
       air_density (1:row_length,1:rows,model_levels)                           &

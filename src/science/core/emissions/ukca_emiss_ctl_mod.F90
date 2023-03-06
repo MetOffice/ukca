@@ -921,7 +921,7 @@ IF ((glomap_config%l_ukca_fine_no3_prod) .OR.                                  &
   ! Calculate air density and mass burden using trsrce method
   CALL ukca_calc_rho( row_length, rows, model_levels,                          &
                       theta, q, qcl, qcf, exner_rho_levels, rho_r2,            &
-                      air_density, air_burden )
+                      r_theta_levels, r_rho_levels, air_density, air_burden )
 END IF
 
 IF (glomap_config%l_ukca_fine_no3_prod) THEN
@@ -1042,7 +1042,7 @@ CALL ukca_add_emiss (                                                          &
   row_length, rows, model_levels, bl_levels,                                   &
   n_tracers, iyear, imonth, iday, ihour, timestep,                             &
   longitude,                                                                   &
-  r_theta_levels,                                                              &
+  r_theta_levels, r_rho_levels,                                                &
   theta,                                                                       &
   q,                                                                           &
   qcl,                                                                         &

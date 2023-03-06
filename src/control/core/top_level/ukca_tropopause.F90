@@ -34,7 +34,6 @@ USE parkind1,    ONLY: jprb, jpim
 USE yomhook,     ONLY: lhook, dr_hook
 USE errormessagelength_mod, ONLY: errormessagelength
 USE ukca_um_legacy_mod, ONLY: planet_radius
-USE level_heights_mod, ONLY: r_theta_levels
 USE missing_data_mod, ONLY: rmdi, imdi
 
 IMPLICIT NONE
@@ -66,7 +65,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_TROPOPAUSE'
 CONTAINS
 
 SUBROUTINE ukca_calc_tropopause(                                               &
-  row_length, rows, model_levels,                                              &
+  row_length, rows, model_levels, r_theta_levels,                              &
   latitude, theta, pv, pr_boundaries, pr_levels)
 
 !      Description:
@@ -107,6 +106,8 @@ REAL, INTENT(IN):: pr_boundaries(row_length,rows,0:model_levels)
                           ! pressure at layer boundaries
 REAL, INTENT(IN):: pr_levels(row_length,rows,1:model_levels)
                           ! pressure at theta levels
+REAL, INTENT(IN):: r_theta_levels(row_length,rows,0:model_levels)
+                          ! Height of theta levels
 
 !     Local variables
 

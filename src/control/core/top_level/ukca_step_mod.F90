@@ -66,6 +66,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_step_1d_domain(timestep_number, current_time,                  &
                                tracer_data_parent, ntp_data_parent,            &
+                               r_theta_levels, r_rho_levels,                   &
                                error_code, previous_time,                      &
                                error_message, error_routine)
 ! ----------------------------------------------------------------------
@@ -91,6 +92,9 @@ INTEGER, INTENT(IN) :: timestep_number
 
 ! Current model time (year, month, day, hour, minute, second, day of year)
 INTEGER, INTENT(IN) :: current_time(7)
+
+! Height of theta and rho levels from Earth centre
+REAL, INTENT(IN) :: r_theta_levels(:,:,0:), r_rho_levels(:,:,:)
 
 ! UKCA tracers from the parent model. Dimensions: Z,N
 ! where Z is no. of levels in tracer fields
@@ -142,6 +146,7 @@ END IF
 
 ! Do the time step
 CALL ukca_main1(timestep_number, current_time, all_tracers, all_ntp,           &
+                r_theta_levels, r_rho_levels,                                  &
                 error_code, previous_time=previous_time,                       &
                 error_message=error_message, error_routine=error_routine)
 
@@ -161,6 +166,7 @@ END SUBROUTINE ukca_step_1d_domain
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_step_3d_domain(timestep_number, current_time,                  &
                                tracer_data_parent, ntp_data_parent,            &
+                               r_theta_levels, r_rho_levels,                   &
                                error_code, previous_time,                      &
                                error_message, error_routine)
 ! ----------------------------------------------------------------------
@@ -186,6 +192,8 @@ INTEGER, INTENT(IN) :: timestep_number
 
 ! Current model time (year, month, day, hour, minute, second, day of year)
 INTEGER, INTENT(IN) :: current_time(7)
+
+REAL, INTENT(IN) :: r_theta_levels(:,:,0:), r_rho_levels(:,:,:)
 
 ! UKCA tracers from the parent model. Dimensions: X,Y,Z,N
 ! where X is row length of tracer field (= no. of columns)
@@ -241,6 +249,7 @@ END IF
 
 ! Do the time step
 CALL ukca_main1(timestep_number, current_time, all_tracers, all_ntp,           &
+                r_theta_levels, r_rho_levels,                                  &
                 error_code, previous_time, error_message, error_routine)
 
 ! Update the tracer_data_parent and ntp_data_parent arrays from the UKCA state

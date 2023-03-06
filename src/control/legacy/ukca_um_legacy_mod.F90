@@ -521,6 +521,7 @@ END SUBROUTINE lsp_qclear
 ! Tracer update subroutine required by ukca_add_emiss_mod
 
 SUBROUTINE trsrce(rows, row_length, offx, offy, halo_i, halo_j,                &
+                  r_theta_levels, r_rho_levels,                                &
                   theta, q, qcl, qcf, exner, rho, tracer, srce,                &
                   level, timestep, i_hour, i_minute, amp)
 IMPLICIT NONE
@@ -530,6 +531,8 @@ INTEGER, INTENT(IN) :: offx
 INTEGER, INTENT(IN) :: offy
 INTEGER, INTENT(IN) :: halo_i
 INTEGER, INTENT(IN) :: halo_j
+REAL, INTENT(IN) :: r_theta_levels (:,:,0:)
+REAL, INTENT(IN) :: r_rho_levels   (:,:,:)
 REAL, INTENT(IN) :: theta(:,:,:)
 REAL, INTENT(IN) :: q(:,:,:)
 REAL, INTENT(IN) :: qcl(:,:,:)

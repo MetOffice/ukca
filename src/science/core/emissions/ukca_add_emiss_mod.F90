@@ -51,7 +51,7 @@ SUBROUTINE ukca_add_emiss (                                                    &
     row_length, rows, model_levels, bl_levels,                                 &
     n_tracers, iyear, imonth, iday, ihour, timestep,                           &
     longitude,                                                                 &
-    r_theta_levels,     theta,          q,  qcl,  qcf,                         &
+    r_theta_levels,     r_rho_levels, theta,          q,  qcl,  qcf,           &
     exner_rho_levels,   rho_r2,                                                &
     kent,               kent_dsc,                                              &
     rhokh_rdz,          dtrdz,                                                 &
@@ -119,6 +119,7 @@ REAL,    INTENT(IN) :: longitude(1:row_length,1:rows) ! degrees E
 
 ! Input argument needed to get SO2 emiss from explosive volcanic eruptions
 REAL, INTENT(IN) :: r_theta_levels        (1:row_length,1:rows,0:model_levels)
+REAL, INTENT(IN) :: r_rho_levels        (1:row_length,1:rows,model_levels)
 
 ! Input arguments needed to call TSRCE
 REAL, INTENT(IN) :: theta             (1:row_length, 1:rows, 1:model_levels)
@@ -902,7 +903,7 @@ IF (.NOT. ukca_config%l_suppress_ems) THEN
     !   Add emissions over all model layers except at surface
     DO ilev = 2, model_levels
       CALL trsrce(                                                             &
-        rows, row_length, 0, 0, 0, 0,                                          &
+        rows, row_length, 0, 0, 0, 0, r_theta_levels, r_rho_levels,            &
         theta, q, qcl, qcf , exner_rho_levels, rho_r2,                         &
         tracers(:,:,ilev,k), em_field(:,:,ilev,k), ilev,                       &
         timestep, 1, 1, 0.0)
@@ -915,6 +916,7 @@ IF (.NOT. ukca_config%l_suppress_ems) THEN
     !   application via the ukca_setup API call.
     IF (nm_tracer(k) /= 'H2O       ') THEN
       CALL bl_tracer_mix(row_length, rows, bl_levels,                          &
+                         r_theta_levels, r_rho_levels,                         &
                          ukca_config%nlev_ent_tr_mix,                          &
                          kent, kent_dsc,                                       &
                          em_field (:,:,surface_level,k),                       &
