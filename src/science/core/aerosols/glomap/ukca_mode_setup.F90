@@ -57,10 +57,9 @@ MODULE ukca_mode_setup
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE umPrintMgr, ONLY: umPrint, umMessage
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_config_specification_mod, ONLY: glomap_config, i_ukca_bc_tuned, i_ukca_bc_mg_mix
 USE chemistry_constants_mod, ONLY: avogadro, rho_so4
-USE ukca_um_legacy_mod,  ONLY: pi, l_glomap_clim_radaer, l_glomap_clim_tune_bc
-
+USE ukca_um_legacy_mod,  ONLY: pi, l_glomap_clim_radaer, i_glomap_clim_tune_bc
 IMPLICIT NONE
 
 PUBLIC
@@ -172,8 +171,19 @@ INTEGER :: component_list_by_cp_sussbcocdu_7mode(ncp_list_sussbcocdu_7mode) =  &
 
 REAL, PARAMETER :: rho_nacl = 2165.0       ! Correct NaCl density (kg m^-3)
 !
-! Revised BC density based on Bond and Bergstrom (2006)
-REAL, PARAMETER :: rho_bc_Bond = 1800.0  ! (Kg m^-3)
+! The default value for BC set in rhocomp is 1500.0 Kg m^-3 but two 
+! alternative estimates can be used as tuning options to reduce BC absorption
+! efficiency
+!
+! Estimate for BC density within the range given by Bond and Bergstrom (2006) 
+! tuned for use with the Maxwell-Garnet mixing approximation in RADAER
+REAL, PARAMETER :: rho_bc_mg_mix = 1800.0  ! (Kg m^-3)
+
+! High estimate for BC density based on Bond and Bergstrom (2006)
+! tuned for use with the volume-mixing approximation in RADAER
+REAL, PARAMETER :: rho_bc_tuned = 1900.0  ! (Kg m^-3)
+
+INTEGER :: i_tune_bc_loc ! local copy of i_tune_ukca_bc or i_glomap_clim_tune_bc
 
 ! Fraction of bc ems to go into each mode
 REAL :: fracbcem(nmodes)
@@ -317,11 +327,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune density of BC
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -450,11 +472,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune density of BC
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -582,11 +616,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -716,11 +762,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -850,11 +908,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -983,11 +1053,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -1114,6 +1196,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
+END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
+
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -1242,11 +1341,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -1374,11 +1485,23 @@ mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
 
 DO imode=1,nmodes
@@ -1521,11 +1644,23 @@ rhocomp=[1769.0, 1500.0, 1500.0, 1600.0, 2650.0, 1500.0,                       &
 !         h2so4   bc      oc      nacl    dust    so
 !         no3     nano3   nh4
 
-IF ((glomap_config%l_ukca_radaer .AND. glomap_config%l_ukca_tune_bc) .OR.      &
-     (l_glomap_clim_radaer .AND. l_glomap_clim_tune_bc)) THEN
-  rhocomp(cp_bc) = rho_bc_Bond
+! Adjust the density of BC?
+IF (glomap_config%l_ukca_radaer) THEN
+   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
+ELSE IF (l_glomap_clim_radaer) THEN
+   i_tune_bc_loc =  i_glomap_clim_tune_bc
+ELSE
+   ! Do not tune BC density
+   i_tune_bc_loc = 0 
 END IF
+SELECT CASE (i_tune_bc_loc)
+   CASE (i_ukca_bc_tuned)
+      rhocomp(cp_bc) = rho_bc_tuned
+   CASE (i_ukca_bc_mg_mix)
+      rhocomp(cp_bc) = rho_bc_mg_mix
+END SELECT
 
+! Adjust the density of NaCl (sea-salt)
 IF (glomap_config%l_fix_nacl_density) THEN
   rhocomp(cp_cl) = rho_nacl
   rhocomp(cp_nn) = rho_nacl

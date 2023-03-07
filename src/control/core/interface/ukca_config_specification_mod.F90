@@ -411,8 +411,9 @@ TYPE :: glomap_config_spec_type
   LOGICAL :: l_ukca_radaer             ! Provide output for calculating direct
                                        ! radiative effects of aerosols using
                                        ! RADAER
-  LOGICAL :: l_ukca_tune_bc            ! Reduces BC absorption by increasing
-                                       ! mass density and using MG mixing rule
+  INTEGER :: i_ukca_tune_bc            ! Options for tuning BC absorption
+                                       ! via adjusting BC mass density and 
+                                       ! refractive index mixing approximations
   INTEGER :: i_ukca_activation_scheme  ! Activation scheme to use
   INTEGER :: i_ukca_nwbins             ! Value of nwbins in Activate (1-20)
                                        ! See Rosalind West paper for details
@@ -527,6 +528,12 @@ INTEGER, PARAMETER :: i_top_BC_H2O  = 4   ! Boundary condition for NO, CO, O3
 INTEGER, PARAMETER :: i_liss_merlivat = 1   ! Liss & Merlivat (1986)
 INTEGER, PARAMETER :: i_wanninkhof = 2      ! Wanninkhof (1992)
 INTEGER, PARAMETER :: i_nightingale = 3     ! Nightingale et al. (2000)
+
+! Option codes for 'i_ukca_tune_bc'
+! No tuning (no action to be taken) when i_ukca_tune_bc is 0.
+INTEGER, PARAMETER :: i_ukca_bc_tuned       = 1   ! BC density tuned
+INTEGER, PARAMETER :: i_ukca_bc_mg_mix      = 2   ! BC density tuned, plus 
+                                                  ! Maxwell-Garnet mixing method
 
 ! -- Data structures specifying details of the active UKCA configuration --
 TYPE(ukca_config_spec_type), SAVE :: ukca_config
@@ -889,7 +896,7 @@ glomap_config%marine_pom_ems_scaling = rmdi
 
 ! -- GLOMAP feedback configuration options --
 glomap_config%l_ukca_radaer = .FALSE.
-glomap_config%l_ukca_tune_bc = .FALSE.
+glomap_config%i_ukca_tune_bc = imdi
 glomap_config%i_ukca_activation_scheme = imdi
 glomap_config%i_ukca_nwbins = imdi
 glomap_config%sigwmin = rmdi
@@ -966,6 +973,7 @@ SUBROUTINE ukca_get_config(                                                    &
    i_ukca_dms_flux,                                                            &
    i_ukca_light_param,                                                         &
    i_strat_lbc_source,                                                         &
+   i_ukca_tune_bc,                                                             &
    ukca_int_method,                                                            &
    timesteps_per_day, timesteps_per_hour,                                      &
    i_mode_nzts, ukca_mode_seg_size,                                            &
@@ -1054,7 +1062,6 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_scale_sea_salt_ems,                                                  &
    l_ukca_scale_marine_pom_ems,                                                &
    l_ukca_radaer,                                                              &
-   l_ukca_tune_bc,                                                             &
    l_ntpreq_n_activ_sum,                                                       &
    l_ntpreq_dryd_nuc_sol,                                                      &
    l_ukca_sfix,                                                                &
@@ -1141,6 +1148,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_activation_scheme
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_nwbins
 INTEGER, OPTIONAL, INTENT(OUT) :: n_dust_emissions
 INTEGER, OPTIONAL, INTENT(OUT) :: i_dust_scheme
+INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_tune_bc
 
 REAL, OPTIONAL, INTENT(OUT) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(OUT) :: timestep
@@ -1260,7 +1268,6 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_coarse_no3_prod
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_sea_salt_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_marine_pom_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_radaer
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_tune_bc
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ntpreq_n_activ_sum
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ntpreq_dryd_nuc_sol
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_sfix
@@ -1556,7 +1563,7 @@ IF (PRESENT(marine_pom_ems_scaling))                                           &
 
 ! -- GLOMAP feedback configuration options --
 IF (PRESENT(l_ukca_radaer)) l_ukca_radaer = glomap_config%l_ukca_radaer
-IF (PRESENT(l_ukca_tune_bc)) l_ukca_tune_bc = glomap_config%l_ukca_tune_bc
+IF (PRESENT(i_ukca_tune_bc)) i_ukca_tune_bc = glomap_config%i_ukca_tune_bc
 IF (PRESENT(i_ukca_activation_scheme))                                         &
   i_ukca_activation_scheme = glomap_config%i_ukca_activation_scheme
 IF (PRESENT(i_ukca_nwbins)) i_ukca_nwbins = glomap_config%i_ukca_nwbins

@@ -97,6 +97,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_dust_slinn_impc_scav,                                  &
                       i_ukca_activation_scheme,                                &
                       i_ukca_nwbins,                                           &
+                      i_ukca_tune_bc,                                          &
                       dzsoil_layer1,                                           &
                       timestep,                                                &
                       max_ageair_reset_height,                                 &
@@ -193,7 +194,6 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_scale_sea_salt_ems,                               &
                       l_ukca_scale_marine_pom_ems,                             &
                       l_ukca_radaer,                                           &
-                      l_ukca_tune_bc,                                          &
                       l_ntpreq_n_activ_sum,                                    &
                       l_ntpreq_dryd_nuc_sol,                                   &
                       l_ukca_sfix,                                             &
@@ -352,6 +352,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: i_mode_bln_param_method
 INTEGER, OPTIONAL, INTENT(IN) :: i_mode_nucscav
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_activation_scheme
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_nwbins
+INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_tune_bc
 
 REAL, OPTIONAL, INTENT(IN) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(IN) :: timestep
@@ -450,7 +451,6 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_coarse_no3_prod
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_sea_salt_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_marine_pom_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_radaer
-LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_tune_bc
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ntpreq_n_activ_sum
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ntpreq_dryd_nuc_sol
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_sfix
@@ -1017,7 +1017,7 @@ IF (ukca_config%l_ukca_mode) THEN
 
   IF (PRESENT(l_ukca_radaer)) glomap_config%l_ukca_radaer = l_ukca_radaer
   IF (glomap_config%l_ukca_radaer) THEN
-    IF (PRESENT(l_ukca_tune_bc)) glomap_config%l_ukca_tune_bc = l_ukca_tune_bc
+    IF (PRESENT(i_ukca_tune_bc)) glomap_config%i_ukca_tune_bc = i_ukca_tune_bc
   END IF
 
   glomap_config%i_ukca_activation_scheme = i_ukca_activation_off

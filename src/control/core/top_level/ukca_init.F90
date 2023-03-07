@@ -791,6 +791,14 @@ IF ((.NOT. l_um_emissions_updates) .OR. (.NOT. ASSOCIATED(bl_tracer_mix))) THEN
   END IF
 END IF
 
+IF ( (glomap_config%i_ukca_tune_bc < 0 .OR.                                    &
+      glomap_config%i_ukca_tune_bc > 2)  .AND.                                 &
+     glomap_config%l_ukca_radaer) THEN
+  cmessage='i_ukca_tune_bc should be 0, 1 or 2'
+  errcode = 46
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE check_settings

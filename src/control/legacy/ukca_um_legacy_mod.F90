@@ -165,7 +165,7 @@ INTEGER, PARAMETER :: i_glomap_clim_activation_scheme = 0  ! Dummy value
 INTEGER, PARAMETER :: i_glomap_clim_setup = 0              ! Dummy value
 
 LOGICAL, PARAMETER :: l_glomap_clim_radaer = .FALSE.
-LOGICAL, PARAMETER :: l_glomap_clim_tune_bc = .FALSE.
+INTEGER, PARAMETER :: i_glomap_clim_tune_bc = 0      
 
 ! Required by ukca_activate
 REAL, POINTER :: gc_acc_sol_bc(:,:,:)

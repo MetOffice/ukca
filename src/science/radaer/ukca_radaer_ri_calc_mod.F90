@@ -26,6 +26,7 @@ MODULE ukca_radaer_ri_calc_mod
 
 USE parkind1, ONLY: jpim, jprb
 USE yomhook,  ONLY: lhook, dr_hook
+USE ukca_config_specification_mod, ONLY: i_ukca_bc_mg_mix
 
 IMPLICIT NONE
 
@@ -47,8 +48,8 @@ SUBROUTINE ukca_radaer_ri_calc(                                                &
      i_mode, n_ukca_cpnt,                                                      &
      ! Stratospheric aerosol treated as sulphuric acid?
      l_in_stratosphere,                                                        &
-     ! Logical control switches
-     l_ukca_tune_bc, l_glomap_clim_tune_bc,                                    &
+     ! Integer control switches
+     i_ukca_tune_bc, i_glomap_clim_tune_bc,                                    &
      ! Output refractive index real and imag parts
      re_m, im_m )
 
@@ -101,8 +102,8 @@ REAL, INTENT(IN) :: ukca_water_volume
 LOGICAL, INTENT(IN) :: l_in_stratosphere
 !
 
-LOGICAL, INTENT(IN) :: l_glomap_clim_tune_bc
-LOGICAL, INTENT(IN) :: l_ukca_tune_bc
+INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
+INTEGER, INTENT(IN) :: i_ukca_tune_bc
 
 REAL, INTENT(OUT) :: re_m
 REAL, INTENT(OUT) :: im_m
@@ -123,7 +124,6 @@ INTEGER :: this_cpnt, this_cpnt_type
 !
 ! Switch controlling if MG mixing is required
 LOGICAL :: l_mg_mix
-
 !
 ! Dr Hook is not used to caliper this routine because the overheads
 ! are too large.
@@ -158,8 +158,12 @@ DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
   !
   ! Work out if Maxwell-Garnett mixing approach will be required
+  ! The decision is based on the integer value of 
+  ! i_ukca_tune_bc or i_ukca_glomap_clim_tune_bc being set to 
+  ! i_ukca_bc_mg_mix, and this component being BC with non-zero mass
   !
-  IF ((l_ukca_tune_bc .OR. l_glomap_clim_tune_bc) .AND.                        &
+  IF ((i_ukca_tune_bc == i_ukca_bc_mg_mix .OR.                            &
+       i_glomap_clim_tune_bc == i_ukca_bc_mg_mix) .AND.                   &
        this_cpnt_type == cp_bc .AND.                                           &
        ukca_cpnt_volume(this_cpnt) > 0.0) THEN
 
@@ -190,8 +194,8 @@ END IF ! l_soluble
 !
 ! Mix in the BC via Maxwell-Garnett?
 ! Only if the BC component type is allowed in this mode
-! and is present with non-zero volume, and l_ukca_tune_bc
-! or l_glomap_clim_tune_bc is set
+! and is present with non-zero volume, and i_ukca_tune_bc
+! or i_glomap_clim_tune_bc are set to i_ukca_bc_mg_mix
 !
 IF (l_mg_mix) THEN
 

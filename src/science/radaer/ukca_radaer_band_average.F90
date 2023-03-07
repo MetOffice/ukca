@@ -55,7 +55,7 @@ SUBROUTINE ukca_radaer_band_average(                                           &
       ! Model level of tropopause
    ,  trindxrad                                                                &
       ! Logical control switches
-   ,  l_ukca_tune_bc, l_glomap_clim_tune_bc                                    &
+   ,  i_ukca_tune_bc, i_glomap_clim_tune_bc                                    &
       ! Band-averaged optical properties (outputs)
    ,  ukca_absorption, ukca_scattering, ukca_asymmetry                         &
    )
@@ -184,8 +184,8 @@ LOGICAL, INTENT(IN) :: l_inverted
 !
 INTEGER, INTENT(IN) :: trindxrad (npd_profile)
 
-LOGICAL, INTENT(IN) :: l_glomap_clim_tune_bc
-LOGICAL, INTENT(IN) :: l_ukca_tune_bc
+INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
+INTEGER, INTENT(IN) :: i_ukca_tune_bc
 
 !
 ! Arguments with intent(out)
@@ -398,7 +398,8 @@ DO i_band = 1, n_band
 
              ! Compute the modal complex refractive index via
              ! volume-weighting for non-BC components. If
-             ! l_tune_bc is set add the BC component
+             ! i_ukca_tune_bc or i_glomap_clim_tune_bc are set to
+             ! i_ukca_bc_mg_mix then the BC component will be added
              ! via the Maxwell-Garnet mixing approach, otherwise use
              ! volume-weighting for BC also.
              !
@@ -419,7 +420,7 @@ DO i_band = 1, n_band
                  ! Stratospheric aerosol treated as sulphuric acid?
                  l_in_stratosphere,                                            &
                  ! Logical control switches
-                 l_ukca_tune_bc, l_glomap_clim_tune_bc,                        &
+                 i_ukca_tune_bc, i_glomap_clim_tune_bc,                        &
                  ! Output refractive index real and imag parts
                  re_m(i_intg), im_m(i_intg) )
 

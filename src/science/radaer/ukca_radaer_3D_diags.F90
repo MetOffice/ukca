@@ -96,10 +96,10 @@ USE ukca_radaer_ri_calc_mod, ONLY:                                             &
     ukca_radaer_ri_calc
 
 USE ukca_option_mod,         ONLY:                                             &
-    l_ukca_tune_bc
+    i_ukca_tune_bc
 
 USE glomap_clim_option_mod,  ONLY:                                             &
-    l_glomap_clim_tune_bc
+    i_glomap_clim_tune_bc
 
 IMPLICIT NONE
 
@@ -300,9 +300,9 @@ DO i_mode = 1, n_ukca_mode
         n_x_dry = MIN(nx, MAX(1, n_x_dry))
 
         ! Compute the modal complex refractive index via
-        ! volume-weighting for non-BC components. If
-        ! l_ukca_tune_bc is set add the BC component
-        ! via the Maxwell-Garnett mixing approach, otherwise use
+        ! volume-weighting for non-BC components. If i_glomap_clim_tune_bc or
+        ! i_ukca_tune_bc are set to i_ukca_bc_mg_mix the BC component will be
+        ! incorporated via the Maxwell-Garnett mixing approach, otherwise use
         ! volume-weighting for BC also.
         !
         CALL ukca_radaer_ri_calc(                                              &
@@ -328,7 +328,7 @@ DO i_mode = 1, n_ukca_mode
              ! Stratospheric aerosol treated as sulphuric acid?
              l_in_stratosphere,                                                &
              ! Logical control switches
-             l_ukca_tune_bc, l_glomap_clim_tune_bc,                            &
+             i_ukca_tune_bc, i_glomap_clim_tune_bc,                            &
              ! Output refractive index real and imag parts
              re_m, im_m )
 
