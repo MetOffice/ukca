@@ -134,6 +134,14 @@ INTEGER :: moment_step = moment_mass - moment_number
 INTEGER :: imode
 INTEGER :: imoment
 
+! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
+! represented by the H2SO4 index. Other aerosol species (OC, BC, SS)
+! are emitted into cp_so4. The variables this_cp_* are used to determine
+! the active component which this component is emitted into
+INTEGER :: this_cp_cl
+INTEGER :: this_cp_bc
+INTEGER :: this_cp_oc
+
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1
 REAL    (KIND=jprb)            :: zhook_handle
@@ -245,6 +253,19 @@ IF (ukca_config%l_ukca_ibvoc) THEN
   END IF
 END IF
 
+! In the soluble/insoluble configuration of GLOMAP, seasalt
+! and carbonaceous aerosols are emitted into the soluble component,
+! which is hosted by sulfate.
+IF (glomap_config%i_mode_setup == 11) THEN
+  this_cp_cl = cp_su
+  this_cp_bc = cp_su
+  this_cp_oc = cp_su
+ELSE
+  this_cp_cl = cp_cl
+  this_cp_bc = cp_bc
+  this_cp_oc = cp_oc
+END IF
+
 ! Interactive emissions of fire emissions from INFERNO
 IF (ukca_config%l_ukca_inferno) THEN
   cmessage='WARNING: INFERNO fire interactive emissions have'//       newline//&
@@ -306,7 +327,7 @@ IF (ukca_config%l_ukca_inferno) THEN
   END IF
 
   IF (ANY (em_chem_spec == 'OM_biomass')) THEN
-    num_ioc_modes = COUNT(component(:,cp_oc))
+    num_ioc_modes = COUNT(component(:,this_cp_oc))
     ioc_inferno = num_cdf_em_flds + num_onln_em_flds + 1
     num_onln_em_flds = num_onln_em_flds + 2*num_ioc_modes
   ELSE
@@ -319,7 +340,7 @@ IF (ukca_config%l_ukca_inferno) THEN
   END IF
 
   IF (ANY (em_chem_spec == 'BC_biomass')) THEN
-    num_ibc_modes = COUNT(component(:,cp_bc))
+    num_ibc_modes = COUNT(component(:,this_cp_bc))
     ibc_inferno = num_cdf_em_flds + num_onln_em_flds + 1
     num_onln_em_flds = num_onln_em_flds + 2*num_ibc_modes
   ELSE
@@ -344,7 +365,7 @@ END IF
 ! Add index for online seasalt emissions
 ! Make space for mass and number for every seasalt mode
 IF (glomap_config%l_ukca_primss) THEN
-  num_seasalt_modes = COUNT(component(:,cp_cl))
+  num_seasalt_modes = COUNT(component(:,this_cp_cl))
   iseasalt_first = num_cdf_em_flds + num_onln_em_flds + 1
   num_onln_em_flds = num_onln_em_flds + 2*num_seasalt_modes
 ELSE
@@ -359,7 +380,7 @@ IF (glomap_config%l_ukca_prim_moc) THEN
     ierror = 1
     CALL ereport('UKCA_EMISS_INIT',ierror,cmessage)
   END IF
-  num_pmoc_modes = COUNT(component(:,cp_oc))
+  num_pmoc_modes = COUNT(component(:,this_cp_oc))
   ipmoc_first = num_cdf_em_flds + num_onln_em_flds + 1
   num_onln_em_flds = num_onln_em_flds + 2*num_pmoc_modes
 ELSE
@@ -388,7 +409,7 @@ ELSE
 END IF
 ! Add indices for online coarse nitrate emissions
 IF (glomap_config%l_ukca_coarse_no3_prod) THEN
-  num_seasalt_modes = COUNT(component(:,cp_cl))
+  num_seasalt_modes = COUNT(component(:,this_cp_cl))
   iseasalt_hno3 = num_cdf_em_flds + num_onln_em_flds + 1
   num_onln_em_flds = num_onln_em_flds + 2*num_seasalt_modes
   num_nn_modes = COUNT(component(:,cp_nn))
@@ -727,7 +748,7 @@ IF (ukca_config%l_ukca_inferno) THEN
     ecount = ioc_inferno - 1
     DO imode = 1, nmodes
       DO imoment = moment_number, moment_mass, moment_step
-        IF (mode(imode) .AND. component(imode,cp_oc)) THEN
+        IF (mode(imode) .AND. component(imode,this_cp_oc)) THEN
           ecount = ecount + 1
           emissions(ecount)%var_name    = 'inferno_OM_biomass'
           emissions(ecount)%tracer_name = 'OM_biomass'
@@ -737,7 +758,7 @@ IF (ukca_config%l_ukca_inferno) THEN
           emissions(ecount)%l_online  = .TRUE.
           emissions(ecount)%mode      = imode
           emissions(ecount)%moment    = imoment
-          emissions(ecount)%component = cp_oc
+          emissions(ecount)%component = this_cp_oc
           emissions(ecount)%units      = 'kg m-2 s-1'
 
           emissions(ecount)%lng_name   =                                       &
@@ -766,7 +787,7 @@ IF (ukca_config%l_ukca_inferno) THEN
     ecount = ibc_inferno - 1
     DO imode = 1, nmodes
       DO imoment = moment_number, moment_mass, moment_step
-        IF (mode(imode) .AND. component(imode,cp_bc)) THEN
+        IF (mode(imode) .AND. component(imode,this_cp_bc)) THEN
           ecount = ecount + 1
           emissions(ecount)%var_name    = 'inferno_BC_biomass'
           emissions(ecount)%tracer_name = 'BC_biomass'
@@ -776,7 +797,7 @@ IF (ukca_config%l_ukca_inferno) THEN
           emissions(ecount)%l_online  = .TRUE.
           emissions(ecount)%mode      = imode
           emissions(ecount)%moment    = imoment
-          emissions(ecount)%component = cp_bc
+          emissions(ecount)%component = this_cp_bc
           emissions(ecount)%units      = 'kg m-2 s-1'
 
           emissions(ecount)%lng_name   =                                       &
@@ -840,7 +861,7 @@ IF (glomap_config%l_ukca_primss) THEN
   ecount = iseasalt_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
-      IF (mode(imode) .AND. component(imode,cp_cl)) THEN
+      IF (mode(imode) .AND. component(imode,this_cp_cl)) THEN
         ecount = ecount + 1
         emissions(ecount)%var_name    = 'seasalt_online_emissions'
         emissions(ecount)%tracer_name = 'mode_emiss'
@@ -850,7 +871,7 @@ IF (glomap_config%l_ukca_primss) THEN
         emissions(ecount)%l_online  = .TRUE.
         emissions(ecount)%mode      = imode
         emissions(ecount)%moment    = imoment
-        emissions(ecount)%component = cp_cl
+        emissions(ecount)%component = this_cp_cl
 
         IF (imoment == moment_number) THEN
           emissions(ecount)%units      = 'kg(air) m-2 s-1'
@@ -886,7 +907,7 @@ IF (glomap_config%l_ukca_prim_moc) THEN
   ecount = ipmoc_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
-      IF (mode(imode) .AND. component(imode,cp_oc)) THEN
+      IF (mode(imode) .AND. component(imode,this_cp_oc)) THEN
         ecount = ecount + 1
         emissions(ecount)%var_name    = 'pmoc_online_emissions'
         emissions(ecount)%tracer_name = 'mode_emiss'
@@ -896,7 +917,7 @@ IF (glomap_config%l_ukca_prim_moc) THEN
         emissions(ecount)%l_online  = .TRUE.
         emissions(ecount)%mode      = imode
         emissions(ecount)%moment    = imoment
-        emissions(ecount)%component = cp_oc
+        emissions(ecount)%component = this_cp_oc
 
         IF (imoment == moment_number) THEN
           emissions(ecount)%units      = 'kg(air) m-2 s-1'
@@ -1065,7 +1086,7 @@ IF (glomap_config%l_ukca_coarse_no3_prod) THEN
   ecount = iseasalt_hno3 - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
-      IF (mode(imode) .AND. component(imode,cp_cl)) THEN
+      IF (mode(imode) .AND. component(imode,this_cp_cl)) THEN
         ecount = ecount + 1
         emissions(ecount)%var_name    = 'seasalt_cnvtd_to_nitrate'
         emissions(ecount)%tracer_name = 'mode_emiss'
@@ -1075,7 +1096,7 @@ IF (glomap_config%l_ukca_coarse_no3_prod) THEN
         emissions(ecount)%l_online   = .TRUE.
         emissions(ecount)%mode       = imode
         emissions(ecount)%moment     = imoment
-        emissions(ecount)%component  = cp_cl
+        emissions(ecount)%component  = this_cp_cl
 
         IF (imoment == moment_number) THEN
           emissions(ecount)%units      = 'kg(air) m-2 s-1'
@@ -1221,6 +1242,14 @@ INTEGER :: moment_step = moment_mass - moment_number
 INTEGER :: imode
 INTEGER :: imoment
 
+! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
+! represented by the H2SO4 index. Other aerosol species (OC, BC, SS)
+! are emitted into cp_so4. The variables this_cp_* are used to determine
+! the active component which this component is emitted into
+INTEGER :: this_cp_cl
+INTEGER :: this_cp_bc
+INTEGER :: this_cp_oc
+
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1
 REAL    (KIND=jprb)            :: zhook_handle
@@ -1230,6 +1259,19 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_EMISS_SPATIAL_VARS_INIT'
 ! End of header
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+! In the soluble/insoluble configuration of GLOMAP, seasalt
+! and carbonaceous aerosols are emitted into the soluble component,
+! which is hosted by sulfate.
+IF (glomap_config%i_mode_setup == 11) THEN
+  this_cp_cl = cp_su
+  this_cp_bc = cp_su
+  this_cp_oc = cp_su
+ELSE
+  this_cp_cl = cp_cl
+  this_cp_bc = cp_bc
+  this_cp_oc = cp_oc
+END IF
 
 ! Initialise fields for lightning NOx in the emissions structure
 ! (Note that there is no need to update file_name, update_freq
@@ -1329,7 +1371,7 @@ IF (ukca_config%l_ukca_inferno) THEN
     ecount = ioc_inferno - 1
     DO imode = 1, nmodes
       DO imoment = moment_number, moment_mass, moment_step
-        IF (mode(imode) .AND. component(imode,cp_oc)) THEN
+        IF (mode(imode) .AND. component(imode,this_cp_oc)) THEN
           ecount = ecount + 1
           ALLOCATE (emissions(ecount)%values(row_length, rows, model_levels))
           ALLOCATE (emissions(ecount)%diags (row_length, rows, model_levels))
@@ -1344,7 +1386,7 @@ IF (ukca_config%l_ukca_inferno) THEN
     ecount = ibc_inferno - 1
     DO imode = 1, nmodes
       DO imoment = moment_number, moment_mass, moment_step
-        IF (mode(imode) .AND. component(imode,cp_bc)) THEN
+        IF (mode(imode) .AND. component(imode,this_cp_bc)) THEN
           ecount = ecount + 1
           ALLOCATE (emissions(ecount)%values(row_length, rows, model_levels))
           ALLOCATE (emissions(ecount)%diags (row_length, rows, model_levels))
@@ -1374,7 +1416,7 @@ IF (glomap_config%l_ukca_primss) THEN
   ecount = iseasalt_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
-      IF (mode(imode) .AND. component(imode,cp_cl)) THEN
+      IF (mode(imode) .AND. component(imode,this_cp_cl)) THEN
         ecount = ecount + 1
         ALLOCATE (emissions(ecount)%values(row_length, rows, 1))
         ALLOCATE (emissions(ecount)%diags (row_length, rows, 1))
@@ -1394,7 +1436,7 @@ IF (glomap_config%l_ukca_prim_moc) THEN
   ecount = ipmoc_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
-      IF (mode(imode) .AND. component(imode,cp_oc)) THEN
+      IF (mode(imode) .AND. component(imode,this_cp_oc)) THEN
         ecount = ecount + 1
         ALLOCATE (emissions(ecount)%values(row_length, rows, 1))
         ALLOCATE (emissions(ecount)%diags (row_length, rows, 1))
@@ -1463,7 +1505,7 @@ IF (glomap_config%l_ukca_coarse_no3_prod) THEN
   ecount = iseasalt_hno3 - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
-      IF (mode(imode) .AND. component(imode,cp_cl)) THEN
+      IF (mode(imode) .AND. component(imode,this_cp_cl)) THEN
         ecount = ecount + 1
         ALLOCATE (emissions(ecount)%values(row_length, rows, model_levels))
         ALLOCATE (emissions(ecount)%diags (row_length, rows, model_levels))

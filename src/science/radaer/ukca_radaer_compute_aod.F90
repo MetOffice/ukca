@@ -27,6 +27,8 @@ CONTAINS
 SUBROUTINE ukca_radaer_compute_aod(                                            &
       ! Actual array dimensions
       n_profile, n_layer, n_ukca_mode, n_ukca_cpnt, n_aod_wavel,               &
+      ! Prescribed ssa dimensions (Fixed array)
+      npd_prof_ssa, npd_layr_ssa, npd_naod_ssa,                                &
       ! UKCA_RADAER structure
       ukca_radaer,                                                             &
       ! Modal diameters from UKCA module
@@ -43,8 +45,12 @@ SUBROUTINE ukca_radaer_compute_aod(                                            &
       ukca_modal_number,                                                       &
       ! Type selection
       type_wanted, soluble_wanted,                                             &
+      ! Logical for if prescribed SSA is on
+      l_ukca_radaer_prescribe_ssa,                                             &
       ! Model level of the tropopause
       trindxrad,                                                               &
+      ! Prescription of single-scattering albedo
+      ukca_radaer_presc_ssa_aod,                                               &
       ! Modal extinction aerosol optical depths:
       !   full column and stratosphere
       ukca_modal_aod, ukca_modal_strat_aod,                                    &
@@ -109,6 +115,13 @@ INTEGER :: n_profile,                                                          &
         n_ukca_cpnt,                                                           &
         n_aod_wavel
 
+!
+! Fixed array dimensions for prescribed SSA
+!
+INTEGER :: npd_prof_ssa,                                                       &
+        npd_layr_ssa,                                                          &
+        npd_naod_ssa
+
 ! Structure for UKCA/radiation interaction
 TYPE (ukca_radaer_struct) :: ukca_radaer
 
@@ -141,8 +154,16 @@ REAL :: ukca_modal_number(npd_profile, npd_layer, n_ukca_mode)
 INTEGER :: type_wanted
 LOGICAL :: soluble_wanted
 
+!
+! When true, use a prescribed single scattering albedo field
+!
+LOGICAL :: l_ukca_radaer_prescribe_ssa
+
 ! Model level of the tropopause
 INTEGER :: trindxrad(npd_profile)
+
+! Prescription of single-scattering albedo
+REAL :: ukca_radaer_presc_ssa_aod(npd_prof_ssa, npd_layr_ssa, npd_naod_ssa)
 
 !
 ! Arguments with intent out
@@ -174,6 +195,7 @@ REAL :: re_m
 INTEGER :: n_nr
 REAL :: im_m
 INTEGER :: n_ni
+INTEGER, PARAMETER :: n_ni_fix = 1
 
 !
 ! Values at given wavelength
@@ -182,6 +204,11 @@ REAL :: loc_abs
 REAL :: loc_sca
 REAL :: loc_vol
 REAL :: factor
+
+!
+! Single-scattering albedo to prescribe
+!
+REAL :: this_ssa
 
 !
 ! Local copies of typedef members
@@ -343,57 +370,117 @@ DO i_mode = 1, n_ukca_mode
               l_in_stratosphere,                                               &
               ! Logical control switches
               i_ukca_tune_bc, i_glomap_clim_tune_bc,                           &
+              l_ukca_radaer_prescribe_ssa,                                     &
               ! Output refractive index real and imag parts
               re_m, im_m )
 
             n_nr = NINT( (re_m - nrmin) / incr_nr ) + 1
             n_nr = MIN(nnr, MAX(1, n_nr))
 
-            CALL ukca_radaer_get_lut_index(                                    &
-                 nni, im_m, ni_min, ni_max, ni_c, n_ni)
+            ! The AOD calculations depend on whether SSA is prescribed
+            IF (l_ukca_radaer_prescribe_ssa) THEN
 
-            loc_abs = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                &
-                      ukca_absorption(n_x, n_ni, n_nr)
+              ! Fix the imaginary index to 1 (no absorption) as absorptivity
+              ! is prescribed
+              n_ni = n_ni_fix
 
-            loc_sca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                &
-                      ukca_scattering(n_x, n_ni, n_nr)
+              loc_sca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%              &
+                        ukca_scattering(n_x, n_ni, n_nr)
 
-            loc_vol = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                &
-                      volume_fraction(n_x_dry)
+              loc_vol = ukca_lut(this_mode_type, ip_ukca_lut_sw)%              &
+                        volume_fraction(n_x_dry)
 
-            factor = (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *   &
-                      precalc%aod_wavel(n))
+              factor = (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol * &
+                        precalc%aod_wavel(n))
 
-            loc_abs = loc_abs / factor
-            loc_sca = loc_sca / factor
+              loc_sca = loc_sca / factor
 
-            !
-            ! aerosol optical depth for extinction
-            !
-            ukca_modal_aod(i_prof, n) =                                        &
-            ukca_modal_aod(i_prof, n) +                                        &
-            ukca_modal_mmr(i_prof, i_layr, i_mode) *                           &
-            d_mass(i_prof, i_layr) * (loc_abs + loc_sca)
+              !
+              ! The single-scattering albedo is prescribed by distributing
+              ! extinction (which is equal to scattering in the non-absorption
+              ! case) to absorption and scattering coefficients in the
+              ! proportion indicated by the prescription.
+              !
+              this_ssa = ukca_radaer_presc_ssa_aod(i_prof, i_layr, n)
 
-            !
-            ! absorption aerosol optical depth
-            !
-            ukca_modal_aaod(i_prof, n) =                                       &
-            ukca_modal_aaod(i_prof, n) +                                       &
-            ukca_modal_mmr(i_prof, i_layr, i_mode) *                           &
-            d_mass(i_prof, i_layr) * loc_abs
+              !
+              ! aerosol optical depth for extinction with prescribed SSA
+              !
+              ukca_modal_aod(i_prof, n) =                                      &
+                ukca_modal_aod(i_prof, n) +                                    &
+                ukca_modal_mmr(i_prof, i_layr, i_mode) *                       &
+                d_mass(i_prof, i_layr) * loc_sca
 
-            !
-            ! aerosol optical depth for extinction in the stratosphere
-            !
-            IF (l_in_stratosphere) THEN
+              !
+              ! absorption aerosol optical depth with prescribed SSA
+              !
+              ukca_modal_aaod(i_prof, n) =                                     &
+                ukca_modal_aaod(i_prof, n) +                                   &
+                ukca_modal_mmr(i_prof, i_layr, i_mode) *                       &
+                d_mass(i_prof, i_layr) * loc_sca * (1.0 - this_ssa)
 
-              ukca_modal_strat_aod(i_prof, n) =                                &
-              ukca_modal_strat_aod(i_prof, n) +                                &
+              !
+              ! aerosol optical depth for extinction in the stratosphere
+              ! with prescribed SSA
+              !
+              IF (l_in_stratosphere) THEN
+
+                ukca_modal_strat_aod(i_prof, n) =                              &
+                  ukca_modal_strat_aod(i_prof, n) +                            &
+                  ukca_modal_mmr(i_prof, i_layr, i_mode) *                     &
+                  d_mass(i_prof, i_layr) * loc_sca
+
+              END IF
+
+            ELSE
+
+              CALL ukca_radaer_get_lut_index(                                  &
+                   nni, im_m, ni_min, ni_max, ni_c, n_ni)
+
+              loc_abs = ukca_lut(this_mode_type, ip_ukca_lut_sw)%              &
+                        ukca_absorption(n_x, n_ni, n_nr)
+
+              loc_sca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%              &
+                        ukca_scattering(n_x, n_ni, n_nr)
+
+              loc_vol = ukca_lut(this_mode_type, ip_ukca_lut_sw)%              &
+                        volume_fraction(n_x_dry)
+
+              factor = (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol * &
+                        precalc%aod_wavel(n))
+
+              loc_abs = loc_abs / factor
+              loc_sca = loc_sca / factor
+
+              !
+              ! aerosol optical depth for extinction
+              !
+              ukca_modal_aod(i_prof, n) =                                      &
+              ukca_modal_aod(i_prof, n) +                                      &
               ukca_modal_mmr(i_prof, i_layr, i_mode) *                         &
               d_mass(i_prof, i_layr) * (loc_abs + loc_sca)
 
-            END IF
+              !
+              ! absorption aerosol optical depth
+              !
+              ukca_modal_aaod(i_prof, n) =                                     &
+              ukca_modal_aaod(i_prof, n) +                                     &
+              ukca_modal_mmr(i_prof, i_layr, i_mode) *                         &
+              d_mass(i_prof, i_layr) * loc_abs
+
+              !
+              ! aerosol optical depth for extinction in the stratosphere
+              !
+              IF (l_in_stratosphere) THEN
+
+                ukca_modal_strat_aod(i_prof, n) =                              &
+                ukca_modal_strat_aod(i_prof, n) +                              &
+                ukca_modal_mmr(i_prof, i_layr, i_mode) *                       &
+                d_mass(i_prof, i_layr) * (loc_abs + loc_sca)
+
+              END IF
+
+            END IF ! IF (l_ukca_radaer_prescribe_ssa)
 
           END DO ! n
 

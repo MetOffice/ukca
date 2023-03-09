@@ -22,6 +22,7 @@
 !      UKCA_MODE_SUSSBCOCDU_7MODE
 !      UKCA_MODE_SUSSBCOCDU_4MODE
 !      UKCA_MODE_SUSSBCOCNTNH_5MODE_7CPT
+!      UKCA_MODE_SOLINSOL_6MODE
 !    which define modes and components for different components/modes setup.
 !
 !  The internal routine: UKCA_MODE_ALLOCATE_CTL_VARS
@@ -1719,6 +1720,136 @@ END DO
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt
+
+SUBROUTINE ukca_mode_solinsol_6mode
+! ---------------------------------------------------------------------|
+!  Subroutine to define modes and components for version with
+!  soluble and insoluble components in 6 modes.
+!  Uses 12 aerosol tracers
+! ---------------------------------------------------------------------|
+IMPLICIT NONE
+
+INTEGER :: imode
+INTEGER :: icp
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SOLINSOL_6MODE'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+ncp = 6
+CALL ukca_mode_allocate_ctl_vars()
+! Component names
+component_names =                                                              &
+        ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
+! Mode switches (1=on, 0=0ff)
+mode_choice=[1,1,1,1,0,1,1]
+! Specify which modes are soluble
+modesol=[1,1,1,1,0,0,0]
+! Component switches (1=on, 0=off)
+component_choice=[1,0,0,0,1,0]
+! *** n.b. only have soluble (as h2so4) and insoluble (as dust) in this setup
+! Components that are soluble
+soluble_choice=[1,0,0,0,0,0]
+! Components allowed in each mode (must be consistent with coag_mode)
+component_mode(1,1:ncp)=[1,0,0,0,0,0]       !allowed in nuc_sol
+component_mode(2,1:ncp)=[1,0,0,0,0,0]       !allowed in ait_sol
+component_mode(3,1:ncp)=[1,0,0,0,0,0]       !allowed in acc_sol
+component_mode(4,1:ncp)=[1,0,0,0,0,0]       !allowed in cor_sol
+component_mode(5,1:ncp)=[0,0,0,0,0,0]       !allowed in ait_ins
+component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
+component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+
+! Specify size limits of geometric mean diameter for each mode
+!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
+ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+
+! Specify fixed geometric standard deviation for each mode
+sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+
+DO imode=1,nmodes
+  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+END DO
+!
+! Specify threshold for ND (per cc) below which don't do calculations
+num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+
+! Initial fractions of mass in each mode among components
+mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
+mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
+mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
+mfrac_0(4,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !coarse soluble
+mfrac_0(5,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Aitken insoluble
+mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
+mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+
+! Molar masses of components (kg mol-1)
+mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!          h2so4  bc     oc    nacl   dust    so
+! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+! Mass density of components (kg m^-3)
+rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+
+DO imode=1,nmodes
+  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
+  rhommav=0.0
+  DO icp=1,ncp
+   rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
+  END DO
+  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
+  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
+  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+END DO
+
+! Modes resulting when two modes coagulate
+coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
+! 1 coagulating with:    1,2,3,4,5,6,7 produces...
+coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
+! 2 coagulating with:    1,2,3,4,5,6,7
+coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
+! 3 coagulating with:    1,2,3,4,5,6,7
+coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
+! 4 coagulating with:    1,2,3,4,5,6,7
+coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
+! 5 coagulating with:    1,2,3,4,5,6,7
+coag_mode(6,1:nmodes)=[6,6,6,6,6,6,7]
+! 6 coagulating with:    1,2,3,4,5,6,7
+coag_mode(7,1:nmodes)=[7,7,7,7,7,7,7]
+! 7 coagulating with:    1,2,3,4,5,6,7
+
+! number of dissociating ions in soluble components
+no_ions=[3.0,0.0,0.0,0.0,0.0,0.0]
+!
+fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+! fractions of primary BC/POM emissions to go to each mode at emission
+! (emit into soluble Aitken for this setup).
+!
+! Set logical variables
+mode=(mode_choice > 0)
+component=.FALSE.
+soluble=.FALSE.
+DO imode=1,nmodes
+  DO icp=1,ncp
+    IF (((component_mode(imode,icp) == 1) .AND.                                &
+          (component_choice(icp) == 1)) .AND.                                  &
+          (mode_choice(imode) == 1)) THEN
+      component(imode,icp)=.TRUE.
+    END IF
+    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+  END DO
+END DO
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE ukca_mode_solinsol_6mode
 
 ! ############################################################################
 

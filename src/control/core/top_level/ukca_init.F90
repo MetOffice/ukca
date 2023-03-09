@@ -52,7 +52,8 @@ USE ukca_mode_setup,       ONLY: nmodes,                                       &
                                  ukca_mode_sussbcocso_4mode,                   &
                                  ukca_mode_duonly_2mode,                       &
                                  ukca_mode_sussbcocdu_7mode,                   &
-                                 ukca_mode_sussbcocntnh_5mode_7cpt
+                                 ukca_mode_sussbcocntnh_5mode_7cpt,            &
+                                 ukca_mode_solinsol_6mode
 USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_suss_4mode,                      &
                                  ukca_indices_orgv1_soto3,                     &
@@ -65,7 +66,9 @@ USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_sussbcocso_4mode,                &
                                  ukca_indices_duonly_2mode,                    &
                                  ukca_indices_sussbcocdu_7mode,                &
-                                 ukca_indices_sussbcocntnh_5mode
+                                 ukca_indices_sussbcocntnh_5mode,              &
+                                 ukca_indices_orgv1_soto3_solinsol,            &
+                                 ukca_indices_solinsol_6mode
 
 USE umPrintMgr,            ONLY: umPrint, umMessage,                           &
                                  PrintStatus, PrStatus_Oper
@@ -229,6 +232,10 @@ IF (ukca_config%l_ukca_mode) THEN
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcocntnh_5mode
     CALL ukca_mode_sussbcocntnh_5mode_7cpt
+  ELSE IF (glomap_config%i_mode_setup == 11) THEN
+    CALL ukca_indices_orgv1_soto3_solinsol
+    CALL ukca_indices_solinsol_6mode
+    CALL ukca_mode_solinsol_6mode
   ELSE
     cmessage=' i_mode_setup has unrecognised value'
     WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup

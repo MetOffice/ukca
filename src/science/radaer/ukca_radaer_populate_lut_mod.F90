@@ -23,6 +23,9 @@ USE parkind1,                ONLY:                                             &
 USE ukca_radaer_lut,         ONLY:                                             &
     ukca_lut
 
+USE ukca_option_mod,         ONLY:                                             &
+    l_ukca_radaer_prescribe_ssa
+
 USE yomhook,                 ONLY:                                             &
     lhook,                                                                     &
     dr_hook
@@ -134,9 +137,18 @@ ukca_lut(aerosol_band,wavelength_band)%stdev = stdev
 ! All calculations within UKCA_RADAER expect array indexing starting
 ! at 1.
 !
+! If l_ukca_radaer_prescribe_ssa is .true., then the n_ni dimension
+! becomes 1 and only the first LUT element in that dimension, which
+! corresponds to a purely scattering case, is read in. Absorption
+! coefficients are not stored, since they are all zero.
+!
 n_x = n_x + 1
 n_nr = n_nr + 1
-n_ni = n_ni + 1
+IF (l_ukca_radaer_prescribe_ssa) THEN
+  n_ni = 1
+ELSE
+  n_ni = n_ni + 1
+END IF
 
 ukca_lut(aerosol_band,wavelength_band)%n_x  = n_x
 ukca_lut(aerosol_band,wavelength_band)%n_nr = n_nr
@@ -147,28 +159,71 @@ ukca_lut(aerosol_band,wavelength_band)%x_max  = x_max
 ukca_lut(aerosol_band,wavelength_band)%nr_min = nr_min
 ukca_lut(aerosol_band,wavelength_band)%nr_max = nr_max
 ukca_lut(aerosol_band,wavelength_band)%incr_nr=(nr_max - nr_min) / REAL(n_nr-1)
-ukca_lut(aerosol_band,wavelength_band)%ni_min = ni_min
-ukca_lut(aerosol_band,wavelength_band)%ni_max = ni_max
-ukca_lut(aerosol_band,wavelength_band)%ni_c   = ni_c
+
+IF (l_ukca_radaer_prescribe_ssa) THEN
+  ukca_lut(aerosol_band,wavelength_band)%ni_min = 0.0
+  ukca_lut(aerosol_band,wavelength_band)%ni_max = 0.0
+  ukca_lut(aerosol_band,wavelength_band)%ni_c   = 0.0
+ELSE
+  ukca_lut(aerosol_band,wavelength_band)%ni_min = ni_min
+  ukca_lut(aerosol_band,wavelength_band)%ni_max = ni_max
+  ukca_lut(aerosol_band,wavelength_band)%ni_c   = ni_c
+END IF
 
 ! Allocate the dynamic arrays
-ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%ukca_absorption(n_x,n_ni,n_nr))
-ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%ukca_scattering(n_x,n_ni,n_nr))
-ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%ukca_asymmetry( n_x,n_ni,n_nr))
-ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%volume_fraction(n_x))
+IF (l_ukca_radaer_prescribe_ssa) THEN
 
-DO k = 1, n_nr
-  DO j = 1, n_ni
-    DO i = 1, n_x
-      ukca_lut(aerosol_band,wavelength_band)%ukca_absorption( i,   j,   k ) =  &
-                                             ukca_absorption( i-1, j-1, k-1 )
-      ukca_lut(aerosol_band,wavelength_band)%ukca_scattering( i,   j,   k ) =  &
-                                             ukca_scattering( i-1, j-1, k-1 )
-      ukca_lut(aerosol_band,wavelength_band)%ukca_asymmetry(  i,   j,   k ) =  &
-                                             ukca_asymmetry(  i-1, j-1, k-1 )
+  ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%ukca_absorption(1,1,1))
+                                               ! Unused, so smallest allocation
+  ALLOCATE(ukca_lut(aerosol_band,                                              &
+                    wavelength_band)%ukca_scattering(n_x,n_ni,n_nr))
+  ALLOCATE(ukca_lut(aerosol_band,                                              &
+                    wavelength_band)%ukca_asymmetry( n_x,n_ni,n_nr))
+  ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%volume_fraction(n_x))
+
+ELSE
+
+  ALLOCATE(ukca_lut(aerosol_band,                                              &
+                    wavelength_band)%ukca_absorption(n_x,n_ni,n_nr))
+  ALLOCATE(ukca_lut(aerosol_band,                                              &
+                    wavelength_band)%ukca_scattering(n_x,n_ni,n_nr))
+  ALLOCATE(ukca_lut(aerosol_band,                                              &
+                    wavelength_band)%ukca_asymmetry( n_x,n_ni,n_nr))
+  ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%volume_fraction(n_x))
+
+END IF
+
+
+! Populate the dynamic arrays
+IF (l_ukca_radaer_prescribe_ssa) THEN
+
+  DO k = 1, n_nr
+    DO j = 1, n_ni
+      DO i = 1, n_x
+        ukca_lut(aerosol_band,wavelength_band)%ukca_scattering(i,j,k) =        &
+            ukca_scattering( i-1, j-1, k-1 )
+        ukca_lut(aerosol_band,wavelength_band)%ukca_asymmetry(i,j,k)  =        &
+            ukca_asymmetry(  i-1, j-1, k-1 )
+      END DO
     END DO
   END DO
-END DO
+
+ELSE
+
+  DO k = 1, n_nr
+    DO j = 1, n_ni
+      DO i = 1, n_x
+        ukca_lut(aerosol_band,wavelength_band)%ukca_absorption(i,j,k) =        &
+            ukca_absorption( i-1, j-1, k-1 )
+        ukca_lut(aerosol_band,wavelength_band)%ukca_scattering(i,j,k) =        &
+            ukca_scattering( i-1, j-1, k-1 )
+        ukca_lut(aerosol_band,wavelength_band)%ukca_asymmetry(i,j,k)  =        &
+            ukca_asymmetry(  i-1, j-1, k-1 )
+      END DO
+    END DO
+  END DO
+
+END IF
 
 DO i = 1, n_x
   ukca_lut(aerosol_band,wavelength_band)%volume_fraction(i) =                  &

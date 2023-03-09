@@ -84,7 +84,7 @@ USE ukca_config_defs_mod, ONLY: n_chem_emissions, n_3d_emissions, em_chem_spec,&
 USE ukca_emiss_diags_mod, ONLY: ukca_emiss_diags
 USE ukca_emiss_diags_mode_mod, ONLY: ukca_emiss_diags_mode
 USE ukca_mode_setup,      ONLY: nmodes, mm, component, cp_cl, cp_du,           &
-                                cp_no3, cp_nh4, cp_nn
+                                cp_no3, cp_nh4, cp_nn, cp_su
 USE ukca_prod_no3_mod,    ONLY: ukca_prod_no3_fine, ukca_prod_no3_coarse,      &
                                 ukca_no3_check_values
 USE ukca_calc_rho_mod,    ONLY: ukca_calc_rho
@@ -293,6 +293,12 @@ REAL :: lightningem_no2_to_air (1:row_length, 1:rows, 1:model_levels)
 
 !  Molar mass of dry air (kg/mol) =avogadro*boltzmann/rgas
 REAL    :: mm_da
+
+! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
+! represented by the H2SO4 index. Other aerosol species (OC, BC, SS)
+! are emitted into cp_so4. The variables this_cp_* are used to determine
+! the active component which this component is emitted into
+INTEGER :: this_cp_cl
 
 INTEGER                            :: errcode    ! Error code for ereport
 CHARACTER (LEN=errormessagelength) :: cmessage   ! Error message
@@ -827,6 +833,15 @@ END IF  ! (l_ukca_inferno)
 
 ! Online emissions for sea salt
 IF (glomap_config%l_ukca_primss) THEN
+  !
+  ! In the soluble/insoluble configuration of GLOMAP, seasalt aerosols
+  ! are emitted into the soluble component, which is hosted by sulfate
+  !
+  IF (glomap_config%i_mode_setup == 11) THEN
+    this_cp_cl = cp_su
+  ELSE
+    this_cp_cl = cp_cl
+  END IF
   aer_emmas(:,:,:,:) = 0.0
   aer_emnum(:,:,:,:) = 0.0
   CALL ukca_prim_ss(row_length, rows, model_levels,                            &
@@ -836,13 +851,13 @@ IF (glomap_config%l_ukca_primss) THEN
   ! Convert mass emission to kg(component)/m2/s
   mm_da = avogadro*boltzmann/rgas  ! Molar mass of dry air (kg/mol)
   aer_emmas = aer_emmas * mm(cp_cl) / mm_da
-  lmode_emiss(:) = component(:,cp_cl)  ! Seasalt emiss covers all ss modes.
-  emiss_levs = 1                       ! Surface emissions.
+  lmode_emiss(:) = component(:,this_cp_cl) ! Seasalt emiss covers all ss modes.
+  emiss_levs = 1                           ! Surface emissions.
 
   ! Map num and mass arrays from ukca_prim_ss to corresponding emissions
   ! structures.
   CALL ukca_emiss_mode_map(row_length, rows, model_levels,                     &
-                           aer_emmas, aer_emnum, emiss_levs, cp_cl,            &
+                           aer_emmas, aer_emnum, emiss_levs, this_cp_cl,       &
                            lmode_emiss, iseasalt_first)
 END IF
 

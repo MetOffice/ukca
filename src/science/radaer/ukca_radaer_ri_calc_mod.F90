@@ -49,7 +49,7 @@ SUBROUTINE ukca_radaer_ri_calc(                                                &
      ! Stratospheric aerosol treated as sulphuric acid?
      l_in_stratosphere,                                                        &
      ! Integer control switches
-     i_ukca_tune_bc, i_glomap_clim_tune_bc,                                    &
+     i_ukca_tune_bc, i_glomap_clim_tune_bc, l_ukca_radaer_prescribe_ssa,       &
      ! Output refractive index real and imag parts
      re_m, im_m )
 
@@ -104,6 +104,10 @@ LOGICAL, INTENT(IN) :: l_in_stratosphere
 
 INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
 INTEGER, INTENT(IN) :: i_ukca_tune_bc
+!
+! When true, use a prescribed single scattering albedo field
+!
+LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
 
 REAL, INTENT(OUT) :: re_m
 REAL, INTENT(OUT) :: im_m
@@ -134,102 +138,144 @@ im_m = 0.0e+00
 ukca_modal_bc_vol = 0.0e+00
 l_mg_mix = .FALSE.
 
-DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
+! If single-scattering albedo is prescribed, then only calculate the
+! real refractive index and do not account for MG mixing
+IF (l_ukca_radaer_prescribe_ssa) THEN
 
-  this_cpnt = i_cpnt_index(i_cmpt, i_mode)
+  DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
-  !
-  ! If requested, switch the refractive index of the
-  ! sulphate component to that for sulphuric acid
-  ! for levels above the tropopause.
-  !
-  IF ( l_sustrat .AND.                                                         &
-       ( i_cpnt_type(this_cpnt) == cp_su ) .AND.                               &
-       l_in_stratosphere .AND.                                                 &
-       ( .NOT. l_nitrate ) ) THEN
+    this_cpnt = i_cpnt_index(i_cmpt, i_mode)
 
-    this_cpnt_type = ip_ukca_h2so4
-
-  ELSE
-
-    this_cpnt_type = i_cpnt_type(this_cpnt)
-
-  END IF
-
-  !
-  ! Work out if Maxwell-Garnett mixing approach will be required
-  ! The decision is based on the integer value of 
-  ! i_ukca_tune_bc or i_ukca_glomap_clim_tune_bc being set to 
-  ! i_ukca_bc_mg_mix, and this component being BC with non-zero mass
-  !
-  IF ((i_ukca_tune_bc == i_ukca_bc_mg_mix .OR.                            &
-       i_glomap_clim_tune_bc == i_ukca_bc_mg_mix) .AND.                   &
-       this_cpnt_type == cp_bc .AND.                                           &
-       ukca_cpnt_volume(this_cpnt) > 0.0) THEN
-
-     ! If yes set the BC volume and the logical switch to later use MG mixing
-     !
-    l_mg_mix = .TRUE.
-    ukca_modal_bc_vol = ukca_cpnt_volume(this_cpnt)
-  ELSE
-    ! If component is not BC, or MG mixing is not requested then
-    ! sum up the RI, weighting by component volume
     !
+    ! If requested, switch the refractive index of the
+    ! sulphate component to that for sulphuric acid
+    ! for levels above the tropopause.
+    !
+    IF ( l_sustrat .AND.                                                       &
+         ( i_cpnt_type(this_cpnt) == cp_su ) .AND.                             &
+         l_in_stratosphere .AND.                                               &
+         ( .NOT. l_nitrate ) ) THEN
+
+      this_cpnt_type = ip_ukca_h2so4
+
+    ELSE
+
+      this_cpnt_type = i_cpnt_type(this_cpnt)
+
+    END IF
+
     re_m = re_m + ukca_cpnt_volume(this_cpnt) * refr_real(this_cpnt_type)
-    im_m = im_m + ukca_cpnt_volume(this_cpnt) * refr_imag(this_cpnt_type)
-  END IF
 
-END DO ! i_cmpt
+  END DO ! i_cmpt
 
-IF ( l_soluble(i_mode) ) THEN
+  IF (l_soluble(i_mode)) THEN
 
-  !
-  ! Account for refractive index of water
-  !
-  re_m = re_m + ukca_water_volume * refr_real(ip_ukca_water)
-  im_m = im_m + ukca_water_volume * refr_imag(ip_ukca_water)
+    !
+    ! Account for refractive index of water
+    !
+    re_m = re_m + ukca_water_volume * refr_real(ip_ukca_water)
 
-END IF ! l_soluble
-
-!
-! Mix in the BC via Maxwell-Garnett?
-! Only if the BC component type is allowed in this mode
-! and is present with non-zero volume, and i_ukca_tune_bc
-! or i_glomap_clim_tune_bc are set to i_ukca_bc_mg_mix
-!
-IF (l_mg_mix) THEN
-
-  ! There is the potential for unphysical values or divide by zero errors in
-  ! refract_mix_mg if ukca_modal_volume =<  ukca_modal_bc_vol
-  ! or the RI assigned to the medium (re_m) <= zero. This would only occur
-  ! if the mode contained only pure BC. Therefore, if either those conditions
-  ! is true assign re_m and im_m to that of BC and do not call refract_mix_mg
-  !
-  IF ((ukca_modal_volume  <=  ukca_modal_bc_vol) .OR. (re_m  <=  0.0e+00)) THEN
-
-    re_m = refr_real(cp_bc)
-    im_m = refr_imag(cp_bc)
-
-  ELSE
-
-    re_m = re_m / (ukca_modal_volume - ukca_modal_bc_vol)
-    im_m = im_m / (ukca_modal_volume - ukca_modal_bc_vol)
-
-    refr_mix = refract_mix_mg(re_m, im_m,                                      &
-         refr_real(cp_bc), refr_imag(cp_bc),                                   &
-         ukca_modal_volume, ukca_modal_bc_vol)
-
-    re_m = REAL(refr_mix)
-    im_m = AIMAG(refr_mix)
-
-  END IF
+  END IF ! l_soluble
 
 ELSE
 
-  re_m = re_m / ukca_modal_volume
-  im_m = im_m / ukca_modal_volume
+  DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
+  
+    this_cpnt = i_cpnt_index(i_cmpt, i_mode)
+  
+    !
+    ! If requested, switch the refractive index of the
+    ! sulphate component to that for sulphuric acid
+    ! for levels above the tropopause.
+    !
+    IF ( l_sustrat .AND.                                                       &
+         ( i_cpnt_type(this_cpnt) == cp_su ) .AND.                             &
+         l_in_stratosphere .AND.                                               &
+         ( .NOT. l_nitrate ) ) THEN
+  
+      this_cpnt_type = ip_ukca_h2so4
+  
+    ELSE
+  
+      this_cpnt_type = i_cpnt_type(this_cpnt)
+  
+    END IF
+  
+    !
+    ! Work out if Maxwell-Garnett mixing approach will be required
+    ! The decision is based on the integer value of 
+    ! i_ukca_tune_bc or i_ukca_glomap_clim_tune_bc being set to 
+    ! i_ukca_bc_mg_mix, and this component being BC with non-zero mass
+    !
+    IF ((i_ukca_tune_bc == i_ukca_bc_mg_mix .OR.                               &
+         i_glomap_clim_tune_bc == i_ukca_bc_mg_mix) .AND.                      &
+         this_cpnt_type == cp_bc .AND.                                         &
+         ukca_cpnt_volume(this_cpnt) > 0.0) THEN
+  
+       ! If yes set the BC volume and the logical switch to later use MG mixing
+       !
+      l_mg_mix = .TRUE.
+      ukca_modal_bc_vol = ukca_cpnt_volume(this_cpnt)
+    ELSE
+      ! If component is not BC, or MG mixing is not requested then
+      ! sum up the RI, weighting by component volume
+      !
+      re_m = re_m + ukca_cpnt_volume(this_cpnt) * refr_real(this_cpnt_type)
+      im_m = im_m + ukca_cpnt_volume(this_cpnt) * refr_imag(this_cpnt_type)
+    END IF
+  
+  END DO ! i_cmpt
+  
+  IF ( l_soluble(i_mode) ) THEN
+  
+    !
+    ! Account for refractive index of water
+    !
+    re_m = re_m + ukca_water_volume * refr_real(ip_ukca_water)
+    im_m = im_m + ukca_water_volume * refr_imag(ip_ukca_water)
+  
+  END IF ! l_soluble
+  
+  !
+  ! Mix in the BC via Maxwell-Garnett?
+  ! Only if the BC component type is allowed in this mode
+  ! and is present with non-zero volume, and l_ukca_tune_bc
+  ! or l_glomap_clim_tune_bc is set
+  !
+  IF (l_mg_mix) THEN
+  
+    ! There is the potential for unphysical values or divide by zero errors in
+    ! refract_mix_mg if ukca_modal_volume =<  ukca_modal_bc_vol
+    ! or the RI assigned to the medium (re_m) <= zero. This would only occur
+    ! if the mode contained only pure BC. Therefore, if either those conditions
+    ! is true assign re_m and im_m to that of BC and do not call refract_mix_mg
+    !
+    IF ((ukca_modal_volume  <=  ukca_modal_bc_vol) .OR. (re_m  <=  0.0e+00)) THEN
+  
+      re_m = refr_real(cp_bc)
+      im_m = refr_imag(cp_bc)
+  
+    ELSE
+  
+      re_m = re_m / (ukca_modal_volume - ukca_modal_bc_vol)
+      im_m = im_m / (ukca_modal_volume - ukca_modal_bc_vol)
+  
+      refr_mix = refract_mix_mg(re_m, im_m,                                      &
+           refr_real(cp_bc), refr_imag(cp_bc),                                   &
+           ukca_modal_volume, ukca_modal_bc_vol)
+  
+      re_m = REAL(refr_mix)
+      im_m = AIMAG(refr_mix)
+  
+    END IF
+  
+  ELSE
+  
+    re_m = re_m / ukca_modal_volume
+    im_m = im_m / ukca_modal_volume
 
-END IF
+  END IF ! l_mg_mix
+END IF ! l_ukca_radaer_prescribe_ssa
 
 RETURN
 END SUBROUTINE ukca_radaer_ri_calc

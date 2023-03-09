@@ -30,6 +30,8 @@ SUBROUTINE ukca_radaer_band_average(                                           &
    ,  n_band, isolir, l_exclude, n_band_exclude, index_exclude                 &
       ! Actual array dimensions
    ,  n_profile, n_layer, n_ukca_mode, n_ukca_cpnt                             &
+      ! Prescribed ssa dimensions (Fixed array)
+   ,  npd_prof_ssa, npd_layr_ssa, npd_band_ssa                                 &
       ! From the structure ukca_radaer for UKCA/radiation interaction
    ,  nmodes                                                                   &
    ,  ncp_max                                                                  &
@@ -52,8 +54,12 @@ SUBROUTINE ukca_radaer_band_average(                                           &
    ,  ukca_water_volume                                                        &
       ! Logical to describe orientation
    ,  l_inverted                                                               &
+      ! Logical for prescribed single scattering albedo array
+   ,  l_ukca_radaer_prescribe_ssa                                              &
       ! Model level of tropopause
    ,  trindxrad                                                                &
+      ! Prescription of single-scattering albedo
+   ,  ukca_radaer_presc_ssa                                                    &
       ! Logical control switches
    ,  i_ukca_tune_bc, i_glomap_clim_tune_bc                                    &
       ! Band-averaged optical properties (outputs)
@@ -121,6 +127,13 @@ INTEGER, INTENT(IN) :: n_profile,                                              &
                        n_ukca_cpnt
 
 !
+! Fixed array dimensions for prescribed SSA
+!
+INTEGER, INTENT(IN) :: npd_prof_ssa,                                           &
+                       npd_layr_ssa,                                           &
+                       npd_band_ssa
+
+!
 ! Variables related to waveband exclusion
 !
 LOGICAL, INTENT(IN) :: l_exclude
@@ -179,6 +192,11 @@ REAL, INTENT(IN) :: ukca_water_volume (npd_profile, npd_layer, n_ukca_mode)
 LOGICAL, INTENT(IN) :: l_inverted
 
 !
+! When true, use a prescribed single scattering albedo field
+!
+LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
+
+!
 ! Model level of tropopause
 ! Note levels are inverted in LFRic so we have to do something different here
 !
@@ -186,6 +204,12 @@ INTEGER, INTENT(IN) :: trindxrad (npd_profile)
 
 INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
 INTEGER, INTENT(IN) :: i_ukca_tune_bc
+
+!
+! Prescription of single-scattering albedo
+!
+REAL, INTENT(IN) :: ukca_radaer_presc_ssa(npd_prof_ssa, npd_layr_ssa,          &
+                                          npd_band_ssa)
 
 !
 ! Arguments with intent(out)
@@ -242,6 +266,11 @@ REAL :: factor
 REAL :: exclflux
 
 !
+! Local copy of single-scattering albedo to prescribe.
+!
+REAL :: this_ssa
+
+!
 ! Local copies of typedef members
 !
 INTEGER :: nx
@@ -255,6 +284,7 @@ REAL :: ni_min
 REAL :: ni_max
 REAL :: ni_c
 REAL :: ni_c_power
+INTEGER, PARAMETER :: n_ni_fix = 1
 
 !
 ! Local copies of mode type, component index and component type
@@ -309,6 +339,15 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 ! In addition, in order to output specific coefficients for absorption
 ! and scattering (in m2/kg from m-1), we need the modal density.
 !
+
+! If the single scattering albedo is prescribed then n_ni == 1
+! and initialise loc_abs to zero
+IF (l_ukca_radaer_prescribe_ssa) THEN
+  DO i_intg = 1, precalc%n_integ_pts
+    n_ni(i_intg) = n_ni_fix
+    loc_abs(i_intg) = 0.0
+  END DO
+END IF
 
 DO i_band = 1, n_band
 
@@ -421,14 +460,19 @@ DO i_band = 1, n_band
                  l_in_stratosphere,                                            &
                  ! Logical control switches
                  i_ukca_tune_bc, i_glomap_clim_tune_bc,                        &
+                 l_ukca_radaer_prescribe_ssa,                                  &
                  ! Output refractive index real and imag parts
                  re_m(i_intg), im_m(i_intg) )
 
           END DO  ! i_intg
 
-          CALL ukca_radaer_get_lut_index(                                      &
-               nni, im_m, ni_min, ni_max, ni_c, n_ni,                          &
-               precalc%n_integ_pts, ni_c_power=ni_c_power)
+          ! Do not calculate the index of the imaginary component if
+          ! SSA is prescribed
+          IF (.NOT. l_ukca_radaer_prescribe_ssa) THEN
+            CALL ukca_radaer_get_lut_index(                                    &
+                 nni, im_m, ni_min, ni_max, ni_c, n_ni,                        &
+                 precalc%n_integ_pts, ni_c_power=ni_c_power)
+          END IF
 
           DO i_intg = 1, precalc%n_integ_pts
 
@@ -461,38 +505,81 @@ DO i_band = 1, n_band
             n_nr = NINT( (re_m(i_intg) - nrmin) / incr_nr ) + 1
             n_nr = MIN(nnr, MAX(1, n_nr))
 
-            !
-            ! Get local copies of the relevant look-up table entries.
-            !
-            loc_abs(i_intg) = ukca_lut(this_mode_type, isolir)%                &
-                         ukca_absorption(n_x, n_ni(i_intg), n_nr)
+            IF (l_ukca_radaer_prescribe_ssa) THEN
 
-            loc_sca(i_intg) = ukca_lut(this_mode_type, isolir)%                &
-                         ukca_scattering(n_x, n_ni(i_intg), n_nr)
+              !
+              ! Get local copies of the relevant look-up table entries.
+              !
+              loc_sca(i_intg) = ukca_lut(this_mode_type, isolir)%              &
+                           ukca_scattering(n_x, n_ni(i_intg), n_nr)
 
-            loc_asy(i_intg) = ukca_lut(this_mode_type, isolir)%                &
-                         ukca_asymmetry(n_x, n_ni(i_intg), n_nr)
+              loc_asy(i_intg) = ukca_lut(this_mode_type, isolir)%              &
+                           ukca_asymmetry(n_x, n_ni(i_intg), n_nr)
 
-            loc_vol = ukca_lut(this_mode_type, isolir)%                        &
-                      volume_fraction(n_x_dry)
+              loc_vol = ukca_lut(this_mode_type, isolir)%                      &
+                        volume_fraction(n_x_dry)
 
-            !
-            ! Offline Mie calculations were integrated using the Mie
-            ! parameter. Compared to an integration using the particle
-            ! radius, extra factors are introduced. Absorption and
-            ! scattering efficiencies must be multiplied by the squared
-            ! wavelength, and the volume fraction by the cubed wavelength.
-            ! Consequently, ratios abs/volfrac and sca/volfrac have then
-            ! to be divided by the wavelength.
-            ! We also weight by the solar irradiance or Planckian
-            ! irradiance.
-            !
-            factor = precalc%irrad(i_intg, i_band, isolir) /                   &
-               (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *         &
-                precalc%wavelength(i_intg, i_band, isolir))
-            loc_abs(i_intg) = loc_abs(i_intg) * factor
-            loc_sca(i_intg) = loc_sca(i_intg) * factor
-            loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
+              !
+              ! Offline Mie calculations were integrated using the Mie
+              ! parameter. Compared to an integration using the particle
+              ! radius, extra factors are introduced. Absorption and
+              ! scattering efficiencies must be multiplied by the squared
+              ! wavelength, and the volume fraction by the cubed wavelength.
+              ! Consequently, ratios abs/volfrac and sca/volfrac have then
+              ! to be divided by the wavelength.
+              ! We also weight by the solar irradiance or Planckian
+              ! irradiance.
+              !
+              factor = precalc%irrad(i_intg, i_band, isolir) /                 &
+                 (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *       &
+                  precalc%wavelength(i_intg, i_band, isolir))
+              !
+              ! The single-scattering albedo is prescribed by distributing
+              ! extinction (which is equal to scattering in the non-absorption
+              ! case) to absorption and scattering coefficients in the
+              ! proportion indicated by the prescription.
+              !
+              this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band)
+              loc_abs(i_intg) = loc_sca(i_intg) * factor * (1.0 - this_ssa)
+              loc_sca(i_intg) = loc_sca(i_intg) * factor * this_ssa
+              loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
+
+            ELSE
+
+              !
+              ! Get local copies of the relevant look-up table entries.
+              !
+              loc_abs(i_intg) = ukca_lut(this_mode_type, isolir)%              &
+                           ukca_absorption(n_x, n_ni(i_intg), n_nr)
+
+              loc_sca(i_intg) = ukca_lut(this_mode_type, isolir)%              &
+                           ukca_scattering(n_x, n_ni(i_intg), n_nr)
+
+              loc_asy(i_intg) = ukca_lut(this_mode_type, isolir)%              &
+                           ukca_asymmetry(n_x, n_ni(i_intg), n_nr)
+
+              loc_vol = ukca_lut(this_mode_type, isolir)%                      &
+                        volume_fraction(n_x_dry)
+
+              !
+              ! Offline Mie calculations were integrated using the Mie
+              ! parameter. Compared to an integration using the particle
+              ! radius, extra factors are introduced. Absorption and
+              ! scattering efficiencies must be multiplied by the squared
+              ! wavelength, and the volume fraction by the cubed wavelength.
+              ! Consequently, ratios abs/volfrac and sca/volfrac have then
+              ! to be divided by the wavelength.
+              ! We also weight by the solar irradiance or Planckian
+              ! irradiance.
+              !
+              factor = precalc%irrad(i_intg, i_band, isolir) /                 &
+                 (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *       &
+                  precalc%wavelength(i_intg, i_band, isolir))
+              loc_abs(i_intg) = loc_abs(i_intg) * factor
+              loc_sca(i_intg) = loc_sca(i_intg) * factor
+              loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
+
+            END IF ! IF (l_ukca_radaer_prescribe_ssa)
 
           END DO ! i_intg
 

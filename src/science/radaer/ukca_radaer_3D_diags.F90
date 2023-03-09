@@ -42,6 +42,8 @@ SUBROUTINE ukca_radaer_3d_diags(                                               &
       nd_profile,  nd_layer, nd_aerosol_mode,                                  &
       ! Actual array dimensions
       n_profile, n_layer, n_ukca_mode, n_ukca_cpnt,                            &
+      ! Prescribed ssa dimensions (Fixed array)
+      nd_prof_ssa, nd_layr_ssa, nd_naod_ssa,                                   &
       ! UKCA_RADAER structure
       ukca_radaer,                                                             &
       ! Modal diameters from UKCA module
@@ -56,8 +58,12 @@ SUBROUTINE ukca_radaer_3d_diags(                                               &
       ukca_modal_mmr,                                                          &
       ! Modal number concentrations
       ukca_modal_number,                                                       &
+      ! Logical for prescribed single scattering albedo array
+      l_ukca_radaer_prescribe_ssa,                                             &
       ! Model level of the tropopause
       trindxrad,                                                               &
+      ! Prescription of single-scattering albedo
+      ukca_radaer_presc_ssa_aod,                                               &
       ! Index of wavelength to consider
       i_wavel,                                                                 &
       ! 3D aerosol extinction and absorption
@@ -120,6 +126,13 @@ INTEGER, INTENT(IN) ::                                                         &
      n_ukca_mode,                                                              &
      n_ukca_cpnt
 !
+! Fixed array dimensions for prescribed SSA
+!
+INTEGER, INTENT(IN) ::                                                         &
+     nd_prof_ssa,                                                              &
+     nd_layr_ssa,                                                              &
+     nd_naod_ssa
+!
 ! Structure for UKCA/radiation interaction
 TYPE (ukca_radaer_struct), INTENT(IN) :: ukca_radaer
 
@@ -145,8 +158,17 @@ REAL, INTENT(IN) ::                                                            &
 ! Modal number concentrations (m-3)
      ukca_modal_number (nd_profile, nd_layer, n_ukca_mode)
 
+!
+! When true, use a prescribed single scattering albedo field
+!
+LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
+
 ! Model level of tropopause
 INTEGER, INTENT(IN) :: trindxrad (nd_profile)
+
+! Prescription of single-scattering albedo
+REAL, INTENT(IN) :: ukca_radaer_presc_ssa_aod(nd_prof_ssa, nd_layr_ssa,        &
+                                              nd_naod_ssa)
 
 ! Index of wavelength to consider
 INTEGER, INTENT(IN) :: i_wavel
@@ -180,6 +202,7 @@ REAL    :: re_m, im_m
 
 ! Indices for accessing refractive index in look-up-table
 INTEGER :: n_nr, n_ni
+INTEGER, PARAMETER :: n_ni_fix = 1
 
 ! Values at given wavelength
 REAL :: loc_abs
@@ -206,6 +229,11 @@ REAL    :: ni_c
 
 ! Local copies of mode type, component index and component type
 INTEGER :: this_mode_type
+
+!
+! Single-scattering albedo to prescribe
+!
+REAL :: this_ssa
 
 ! Thresholds on the modal mass-mixing ratio and modal number
 ! concentrations above which aerosol optical properties are to be
@@ -329,76 +357,157 @@ DO i_mode = 1, n_ukca_mode
              l_in_stratosphere,                                                &
              ! Logical control switches
              i_ukca_tune_bc, i_glomap_clim_tune_bc,                            &
+             l_ukca_radaer_prescribe_ssa,                                      &
              ! Output refractive index real and imag parts
              re_m, im_m )
 
         n_nr = NINT( (re_m - nrmin) / incr_nr ) + 1
         n_nr = MIN(nnr, MAX(1, n_nr))
 
-        CALL ukca_radaer_get_lut_index( nni, im_m, ni_min, ni_max, ni_c, n_ni)
-        !
-        ! Get local copies of the relevant look-up table entries.
-        !
-        loc_abs = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                    &
-             ukca_absorption(n_x, n_ni, n_nr)
+        ! The extinction calculations depend on whether SSA is prescribed
+        IF (l_ukca_radaer_prescribe_ssa) THEN
 
-        loc_sca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                    &
-             ukca_scattering(n_x, n_ni, n_nr)
+          ! Fix the imaginary index to 1 (no absorption) as absorptivity
+          ! is prescribed
+          n_ni = n_ni_fix
 
-        loc_gsca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                   &
-             ukca_asymmetry (n_x, n_ni, n_nr)                                  &
-             * ukca_lut(this_mode_type, ip_ukca_lut_sw)%                       &
-             ukca_scattering(n_x, n_ni, n_nr)
+          !
+          ! Get local copies of the relevant look-up table entries.
+          !
+          loc_sca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                  &
+               ukca_scattering(n_x, n_ni, n_nr)
 
-        loc_vol = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                    &
-             volume_fraction(n_x_dry)
+          loc_gsca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                 &
+               ukca_asymmetry (n_x, n_ni, n_nr)                                &
+               * ukca_lut(this_mode_type, ip_ukca_lut_sw)%                     &
+               ukca_scattering(n_x, n_ni, n_nr)
 
-        ! Offline Mie calculations were integrated using the Mie
-        ! parameter. Compared to an integration using the particle
-        ! radius, extra factors are introduced. Absorption and
-        ! scattering efficiencies must be multiplied by the squared
-        ! wavelength, and the volume fraction by the cubed wavelength.
-        ! Consequently, ratios abs/volfrac and sca/volfrac have then
-        ! to be divided by the wavelength.
-        !
-        factor = (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *       &
-                  precalc%aod_wavel(i_wavel))
+          loc_vol = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                  &
+               volume_fraction(n_x_dry)
 
-        loc_abs = loc_abs / factor
-        loc_sca = loc_sca / factor
-        loc_gsca = loc_gsca / factor
-        !
-        ! aerosol extinction profile
-        !
-        ukca_aerosol_ext(i_prof, i_layr) =                                     &
-             ukca_aerosol_ext(i_prof, i_layr) +                                &
-             ukca_modal_mmr(i_prof, i_layr, i_mode)                            &
-             * air_density(i_prof, i_layr)                                     &
-             * (loc_abs + loc_sca)
+          ! Offline Mie calculations were integrated using the Mie
+          ! parameter. Compared to an integration using the particle
+          ! radius, extra factors are introduced. Absorption and
+          ! scattering efficiencies must be multiplied by the squared
+          ! wavelength, and the volume fraction by the cubed wavelength.
+          ! Consequently, ratios abs/volfrac and sca/volfrac have then
+          ! to be divided by the wavelength.
+          !
+          factor = (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *     &
+                    precalc%aod_wavel(i_wavel))
 
-        !
-        ! aerosol absorption profile
-        !
-        ukca_aerosol_abs(i_prof, i_layr) =                                     &
-             ukca_aerosol_abs(i_prof, i_layr) +                                &
-             ukca_modal_mmr(i_prof, i_layr, i_mode)                            &
-             * air_density(i_prof, i_layr)                                     &
-             * loc_abs
-        !
-        ! aerosol scattering profile
-        !
-        ukca_aerosol_sca(i_prof, i_layr) =                                     &
-             ukca_aerosol_ext(i_prof, i_layr) -                                &
-             ukca_aerosol_abs(i_prof, i_layr)
+          loc_sca = loc_sca / factor
+          loc_gsca = loc_gsca / factor
 
-        !
-        ! aerosol scattering * asymmetry profile
-        !
-        ukca_aerosol_gsca(i_prof, i_layr) =                                    &
-             ukca_aerosol_gsca(i_prof, i_layr) +                               &
-             ukca_modal_mmr(i_prof, i_layr, i_mode)                            &
-             * air_density(i_prof, i_layr)                                     &
-             * loc_gsca
+          !
+          ! The single-scattering albedo is prescribed by distributing
+          ! extinction (which is equal to scattering in the non-absorption
+          ! case) to absorption and scattering coefficients in the
+          ! proportion indicated by the prescription.
+          !
+          this_ssa = ukca_radaer_presc_ssa_aod(i_prof, i_layr, i_wavel)
+
+          !
+          ! aerosol extinction profile
+          !
+          ukca_aerosol_ext(i_prof, i_layr) =                                   &
+               ukca_aerosol_ext(i_prof, i_layr) +                              &
+               ukca_modal_mmr(i_prof, i_layr, i_mode)                          &
+               * air_density(i_prof, i_layr)                                   &
+               * loc_sca
+
+          !
+          ! aerosol absorption profile
+          !
+          ukca_aerosol_abs(i_prof, i_layr) =                                   &
+               ukca_aerosol_abs(i_prof, i_layr) +                              &
+               ukca_modal_mmr(i_prof, i_layr, i_mode)                          &
+               * air_density(i_prof, i_layr)                                   &
+               * loc_sca * (1.0 - this_ssa)
+          !
+          ! aerosol scattering profile
+          !
+          ukca_aerosol_sca(i_prof, i_layr) =                                   &
+               ukca_aerosol_ext(i_prof, i_layr) -                              &
+               ukca_aerosol_abs(i_prof, i_layr)
+
+          !
+          ! aerosol scattering * asymmetry profile
+          !
+          ukca_aerosol_gsca(i_prof, i_layr) =                                  &
+               ukca_aerosol_gsca(i_prof, i_layr) +                             &
+               ukca_modal_mmr(i_prof, i_layr, i_mode)                          &
+               * air_density(i_prof, i_layr)                                   &
+               * loc_gsca
+
+        ELSE
+
+          CALL ukca_radaer_get_lut_index(nni, im_m, ni_min, ni_max, ni_c, n_ni)
+          !
+          ! Get local copies of the relevant look-up table entries.
+          !
+          loc_abs = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                  &
+               ukca_absorption(n_x, n_ni, n_nr)
+
+          loc_sca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                  &
+               ukca_scattering(n_x, n_ni, n_nr)
+
+          loc_gsca = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                 &
+               ukca_asymmetry (n_x, n_ni, n_nr)                                &
+               * ukca_lut(this_mode_type, ip_ukca_lut_sw)%                     &
+               ukca_scattering(n_x, n_ni, n_nr)
+
+          loc_vol = ukca_lut(this_mode_type, ip_ukca_lut_sw)%                  &
+               volume_fraction(n_x_dry)
+
+          ! Offline Mie calculations were integrated using the Mie
+          ! parameter. Compared to an integration using the particle
+          ! radius, extra factors are introduced. Absorption and
+          ! scattering efficiencies must be multiplied by the squared
+          ! wavelength, and the volume fraction by the cubed wavelength.
+          ! Consequently, ratios abs/volfrac and sca/volfrac have then
+          ! to be divided by the wavelength.
+          !
+          factor = (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *     &
+                    precalc%aod_wavel(i_wavel))
+
+          loc_abs = loc_abs / factor
+          loc_sca = loc_sca / factor
+          loc_gsca = loc_gsca / factor
+          !
+          ! aerosol extinction profile
+          !
+          ukca_aerosol_ext(i_prof, i_layr) =                                   &
+               ukca_aerosol_ext(i_prof, i_layr) +                              &
+               ukca_modal_mmr(i_prof, i_layr, i_mode)                          &
+               * air_density(i_prof, i_layr)                                   &
+               * (loc_abs + loc_sca)
+
+          !
+          ! aerosol absorption profile
+          !
+          ukca_aerosol_abs(i_prof, i_layr) =                                   &
+               ukca_aerosol_abs(i_prof, i_layr) +                              &
+               ukca_modal_mmr(i_prof, i_layr, i_mode)                          &
+               * air_density(i_prof, i_layr)                                   &
+               * loc_abs
+          !
+          ! aerosol scattering profile
+          !
+          ukca_aerosol_sca(i_prof, i_layr) =                                   &
+               ukca_aerosol_ext(i_prof, i_layr) -                              &
+               ukca_aerosol_abs(i_prof, i_layr)
+
+          !
+          ! aerosol scattering * asymmetry profile
+          !
+          ukca_aerosol_gsca(i_prof, i_layr) =                                  &
+               ukca_aerosol_gsca(i_prof, i_layr) +                             &
+               ukca_modal_mmr(i_prof, i_layr, i_mode)                          &
+               * air_density(i_prof, i_layr)                                   &
+               * loc_gsca
+
+        END IF ! IF (l_ukca_radaer_prescribe_ssa)
       END IF ! mmr, number and volume thresholds
     END DO ! i_prof
   END DO ! i_layr

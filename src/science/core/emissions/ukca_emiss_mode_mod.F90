@@ -165,6 +165,13 @@ LOGICAL :: l_emfile_bcoc_ff
 INTEGER :: iso2ems        ! determines emission assumptions (see below)
 INTEGER :: jmode          ! loop index
 
+! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
+! represented by H2SO4. Aerosol species other than dust (OC, BC, SS)
+! are emitted into cp_so4. The variables this_cp_* are used to determine
+! the active component which this component is emitted into
+INTEGER :: this_cp_oc
+INTEGER :: this_cp_bc
+
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1
 REAL    (KIND=jprb)            :: zhook_handle
@@ -201,11 +208,22 @@ IF (glomap_config%i_mode_setup == 7) iso2ems=0       ! DUonly_3mode
 IF (glomap_config%i_mode_setup == 8) iso2ems=3       ! SUSSBCOCDU_7mode
 IF (glomap_config%i_mode_setup == 9) iso2ems=3       ! SUSSBCOCDU_4mode
 IF (glomap_config%i_mode_setup == 10) iso2ems=3      ! SUSSBCOCNTNH_5mode_7cpt
+IF (glomap_config%i_mode_setup == 11) iso2ems=3      ! SOL/INSOL
 
 ! Initialise bcoc indicators
 l_emfile_bcoc_bf = .FALSE.
 l_emfile_bcoc_bm = .FALSE.
 l_emfile_bcoc_ff = .FALSE.
+
+! If the soluble/insoluble version of GLOMAP is used, then carbonaceous aerosols
+! are emitted into the soluble component hosted by sulfate.
+IF (glomap_config%i_mode_setup == 11) THEN
+  this_cp_bc = cp_su
+  this_cp_oc = cp_su
+ELSE
+  this_cp_bc = cp_bc
+  this_cp_oc = cp_oc
+END IF
 
 SELECT CASE(iso2ems)
 CASE (3)
@@ -243,9 +261,15 @@ CASE (3)
     mode_diam(:) = [rmdi,60.0,150.0,rmdi,rmdi,rmdi,rmdi]
     mode_stdev(:) = [rmdi,1.59,1.59,rmdi,rmdi,rmdi,rmdi]
   CASE ('PMOC')
-    icp = cp_oc
-    !these settings may change in the future
-    mode_frac(:) = [ 0.0, 0.25, 0.0, 0.0, 0.75, 0.0, 0.0 ]
+    icp = this_cp_oc
+    IF (glomap_config%i_mode_setup == 11) THEN
+      ! In the soluble/insoluble version of GLOMAP, carbonaceous
+      ! aerosols are emitted into soluble modes only.
+      mode_frac(:) = [ 0.0, 1.00, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+    ELSE
+      !these settings may change in the future
+      mode_frac(:) = [ 0.0, 0.25, 0.0, 0.0, 0.75, 0.0, 0.0 ]
+    END IF
     mode_diam(:) = 160.0
     mode_stdev(:) = 2.0
   CASE DEFAULT
@@ -261,10 +285,10 @@ END SELECT
 ! Set mode_frac for all OM, BC species using central oc/bcfracem.
 SELECT CASE(tracer_name(1:3))
 CASE ('OM_')
-  icp = cp_oc
+  icp = this_cp_oc
   mode_frac(:) = fracocem(:)
 CASE ('BC_')
-  icp = cp_bc
+  icp = this_cp_bc
   mode_frac(:) = fracbcem(:)
 END SELECT
 
@@ -286,12 +310,12 @@ lmode_emiss(:) = (mode(:) .AND.                                                &
 ! There are individual logicals which can switch off particular emissions - use
 ! these to override lmode_emiss and issue a warning so that the user knows the
 ! file is not being used.
-IF ((.NOT. glomap_config%l_ukca_primsu .AND. icp == cp_su) .OR.                &
-    (.NOT. glomap_config%l_ukca_primbcoc .AND. icp == cp_bc) .OR.              &
-    (.NOT. glomap_config%l_ukca_primbcoc .AND. icp == cp_oc) .OR.              &
-    (.NOT. glomap_config%l_bcoc_bf .AND. l_emfile_bcoc_bf) .OR.                &
-    (.NOT. glomap_config%l_bcoc_bm .AND. l_emfile_bcoc_bm) .OR.                &
-    (.NOT. glomap_config%l_bcoc_ff .AND. l_emfile_bcoc_ff) ) THEN
+IF ((icp == cp_su .AND. .NOT. glomap_config%l_ukca_primsu) .OR.                &
+    (icp == this_cp_bc .AND. .NOT. glomap_config%l_ukca_primbcoc) .OR.         &
+    (icp == this_cp_oc .AND. .NOT. glomap_config%l_ukca_primbcoc) .OR.         &
+    (l_emfile_bcoc_bf .AND. .NOT. glomap_config%l_bcoc_bf) .OR.                &
+    (l_emfile_bcoc_bm .AND. .NOT. glomap_config%l_bcoc_bm) .OR.                &
+    (l_emfile_bcoc_ff .AND. .NOT. glomap_config%l_bcoc_ff) ) THEN
 
   lmode_emiss(:) = .FALSE.
 

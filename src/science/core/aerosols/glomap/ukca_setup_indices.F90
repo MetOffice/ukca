@@ -14,6 +14,7 @@
 !    set-up in TOMCAT.
 !    Contains public subroutines:
 !      UKCA_INDICES_ORGV1_SOto3
+!      UKCA_INDICES_ORGV1_SOto3_SOLINSOL
 !      UKCA_INDICES_ORGV1_SOto3_COUPL
 !      UKCA_INDICES_ORGV1_SOto6
 !      UKCA_INDICES_ORGV1_SOto6_COUPL
@@ -32,6 +33,7 @@
 !      UKCA_INDICES_SUSSBCOCDU_7MODE
 !      UKCA_INDICES_SUSSBCOCDU_4MODE
 !      UKCA_INDICES_SUSSBCOCNTNH_5MODE
+!      UKCA_INDICES_SOLINSOL_6MODE
 !    which define particular setups.
 !
 !  UKCA is a community model supported by The Met Office and
@@ -1044,6 +1046,259 @@ icosoh  =  7
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE UKCA_INDICES_ORGV1_SOto3
+
+! ######################################################################
+SUBROUTINE UKCA_INDICES_ORGV1_SOto3_SOLINSOL
+
+IMPLICIT NONE
+
+!-----------------------------------------------------------
+!
+! MAIN ARRAY LENGTHS AND SWITCHES
+!
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_ORGV1_SOTO3'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+nchemg=11          ! # of gas phase chemistry tracers
+ichem=1            ! 1/0 = gas phase chemistry tracers on/off
+noffox=3           ! # of offline oxidant species
+nbudchem=26        ! # of gas chem budget fields
+!      GASBUDGET=1        ! 1/0 = gas phase chemistry fluxes on/off
+!      NGASBUDGET=8       ! # of gas phase chemistry fluxes
+gasbudget=0        ! 1/0 = gas phase chemistry fluxes on/off
+ngasbudget=8       ! # of gas phase chemistry fluxes
+!
+nadvg=2+nchemg     ! # of gas phase advected tracers
+ntrag=nadvg+noffox ! total # of gas phase species
+
+! For orgv1, NTRAG=16, NADVG=13
+!
+!-----------------------------------------------------------
+!
+! GAS PHASE TRACER INDICES FOR S0 ARRAY
+!
+!
+! .. below are the 40 tropospheric chemistry species
+mox     = 0 ! not included
+mnox    = 0 ! not included
+mn2o5   = 0 ! not included
+mhno4   = 0 ! not included
+mhno3   = 0 ! not included
+mh2o2   = 0 ! not included
+mch4    = 0 ! not included
+mco     = 0 ! not included
+mch2o   = 0 ! not included
+mmhp    = 0 ! not included
+mhono   = 0 ! not included
+mc2h6   = 0 ! not included
+metooh  = 0 ! not included
+mmecho  = 0 ! not included
+mpan    = 0 ! not included
+mc3h8   = 0 ! not included
+mpnooh  = 0 ! not included
+mpiooh  = 0 ! not included
+metcho  = 0 ! not included
+mme2co  = 0 ! not included
+mmecoh  = 0 ! not included
+mppan   = 0 ! not included
+mmeno3  = 0 ! not included
+moxs    = 0 ! not included
+mnoys   = 0 ! not included
+misop   = 0 ! not included
+mc2h4   = 0 ! not included
+mc2h2   = 0 ! not included
+misooh  = 0 ! not included
+mison   = 0 ! not included
+mmacr   = 0 ! not included
+mmacrooh= 0 ! not included
+mmpan   = 0 ! not included
+mhacet  = 0 ! not included
+mmgly   = 0 ! not included
+mnald   = 0 ! not included
+mhcooh  = 0 ! not included
+mmeco3h = 0 ! not included
+mmeco2h = 0 ! not included
+mmeoh   = 0 ! not included
+!
+! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+msotwo  = 1
+MMeSMe  = 2
+mh2so4  = 3
+mdmso   = 4
+mmsa    = 5
+mcs2    = 6
+mh2s    = 7
+mcos    = 8
+mmonoter= 9
+msec_org=10
+mh2o2f  =11
+mq3d    =12
+mpt     =13
+!
+! .. molar masses (kg/mol) for gases for orgv1
+! .. (8 S species, terp, Sec_Org, H2O2F then 37 dummy values)
+mm_gas=[0.064,0.062,0.098,0.078,0.096,0.076,0.034,0.060,                       &
+         0.136,0.150,0.034,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000]
+!
+condensable_choice=[0,0,1,0,0,0,0,0,0,1,0,0,                                   &
+                     0,0,0,0,0,0,0,0,0,0,0,0,                                  &
+                     0,0,0,0,0,0,0,0,0,0,0,0,                                  &
+                     0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+! .. H2SO4   to condense into 1st aerosol component (CP_SU)
+! .. Sec_Org to condense into 1st aerosol component (CP_SU)
+
+condensable=(condensable_choice > 0)
+!
+dimen=[0.0,0.0,4.5e-10,0.0,0.0,0.0,0.0,0.0,0.0,4.5e-10,0.0,0.0,                &
+        0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                       &
+        0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                       &
+        0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                       &
+        0.0,0.0]
+! Molecular diameters of condensable gas phase species (m)
+!
+!------------------------------------------------------------
+!
+! GAS PHASE TRACER INDICES FOR ST ARRAY
+!
+! .. below are the 60 indices for tropospheric chemistry species (ST)
+no      = 0 ! not included
+no1d    = 0 ! not included
+no3     = 0 ! not included
+nno     = 0 ! not included
+nno3    = 0 ! not included
+nno2    = 0 ! not included
+nn2o5   = 0 ! not included
+nhno4   = 0 ! not included
+nhno3   = 0 ! not included
+noh     = 0 ! not included
+nho2    = 0 ! not included
+nh2o2   = 0 ! not included
+nch4    = 0 ! not included
+nco     = 0 ! not included
+nch2o   = 0 ! not included
+nmeoo   = 0 ! not included
+nh2o    = 0 ! not included
+nmhp    = 0 ! not included
+nhono   = 0 ! not included
+nc2h6   = 0 ! not included
+netoo   = 0 ! not included
+netooh  = 0 ! not included
+nmecho  = 0 ! not included
+nmeco3  = 0 ! not included
+npan    = 0 ! not included
+nc3h8   = 0 ! not included
+npnoo   = 0 ! not included
+npioo   = 0 ! not included
+npnooh  = 0 ! not included
+npiooh  = 0 ! not included
+netcho  = 0 ! not included
+netco3  = 0 ! not included
+nme2co  = 0 ! not included
+nmecoo  = 0 ! not included
+nmecoh  = 0 ! not included
+nppan   = 0 ! not included
+nmeno3  = 0 ! not included
+nos     = 0 ! not included
+no1ds   = 0 ! not included
+no3s    = 0 ! not included
+nnoxs   = 0 ! not included
+nhno3s  = 0 ! not included
+nnoys   = 0 ! not included
+nisop   = 0 ! not included
+nc2h4   = 0 ! not included
+nc2h2   = 0 ! not included
+niso2   = 0 ! not included
+nisooh  = 0 ! not included
+nison   = 0 ! not included
+nmacr   = 0 ! not included
+nmacro2 = 0 ! not included
+nmacrooh= 0 ! not included
+nmpan   = 0 ! not included
+nhacet  = 0 ! not included
+nmgly   = 0 ! not included
+nnald   = 0 ! not included
+nhcooh  = 0 ! not included
+nmeco3h = 0 ! not included
+nmeco2h = 0 ! not included
+nmeoh   = 0 ! not included
+!
+! .. below are the 8 sulphur species, 2 organics
+! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
+nsotwo  = 1
+NMeSMe  = 2
+nh2so4  = 3
+ndmso   = 4
+nmsa    = 5
+ncs2    = 6
+nh2s    = 7
+ncos    = 8
+nmonoter= 9
+nsec_org=10
+nh2o2f  =11
+no3f    =12
+nohf    =13
+nno3f   =14
+nq3d    =15
+npt     =16
+!
+!---------------------------------------------------------------
+!
+! GAS PHASE BUDGET INDICES
+!
+! .. below are 26 gas phase budget quantity indices for orgv1
+ndmsemoc  = 1
+ndmstend  = 2
+nso2eman  = 3
+nso2embm  = 4
+nso2emvl  = 5
+nso2tend  = 6
+nso2ddep  = 7
+nso2wdep  = 8
+nh2so4tend= 9
+nh2so4ddep=10
+ncoseman  =11
+ncosemoc  =12
+ncostend  =13
+ncs2eman  =14
+ncs2emoc  =15
+ncs2tend  =16
+ndmsotend =17
+ndmsoddep =18
+nmsatend  =19
+nmsaddep  =20
+nterp_em  =21
+nterp_tend=22
+nterp_ddep=23
+nsorg_tend=24
+nsorg_ddep=25
+nsorg_wdep=26
+!
+! REACTION INDICES for gas phase chemistry fluxes
+iohdms1 =  1
+iohdms2 =  2
+ino3dms =  4
+idmsooh1=  0
+idmsooh2=  3
+ics2oh  =  5
+ih2soh  =  6
+icosoh  =  7
+!
+!----------------------------------------------------------------
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE UKCA_INDICES_ORGV1_SOto3_SOLINSOL
 
 ! ######################################################################
 SUBROUTINE UKCA_INDICES_ORGV1_SOto3_COUPL
@@ -5035,5 +5290,275 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_sussbcocntnh_5mode
 
+! ######################################################################
+SUBROUTINE ukca_indices_solinsol_6mode
+
+IMPLICIT NONE
+!---------------------------------------------------------------
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_SOLINSOL_6MODE'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Main array lengths and switches
+
+ntraer=12         ! # of aerosol advected tracers
+nbudaer=44        ! # of aerosol budget fields
+
+!
+! This configuration only considers two components:
+! -- soluble, which uses sulfate tracers and diagnostics
+! -- insoluble, which uses dust tracers and diagnostics
+!
+nmasprimsuaitsol= 1
+nmasprimsuaccsol= 2
+nmasprimsucorsol= 3
+nmasprimssaccsol= 0
+nmasprimsscorsol= 0
+nmasprimbcaitsol= 0
+nmasprimbcaitins= 0
+nmasprimocaitsol= 0
+nmasprimocaitins= 0
+!
+nmasddepsunucsol= 4
+nmasddepsuaitsol= 5
+nmasddepsuaccsol= 6
+nmasddepsucorsol= 7
+nmasddepssaccsol= 0
+nmasddepsscorsol= 0
+nmasddepbcaitsol= 0
+nmasddepbcaccsol= 0
+nmasddepbccorsol= 0
+nmasddepbcaitins= 0
+nmasddepocnucsol= 0
+nmasddepocaitsol= 0
+nmasddepocaccsol= 0
+nmasddepoccorsol= 0
+nmasddepocaitins= 0
+nmasddepsonucsol= 0
+nmasddepsoaitsol= 0
+nmasddepsoaccsol= 0
+nmasddepsocorsol= 0
+!
+nmasnuscsunucsol= 8
+nmasnuscsuaitsol= 9
+nmasnuscsuaccsol=10
+nmasnuscsucorsol=11
+nmasnuscssaccsol= 0
+nmasnuscsscorsol= 0
+nmasnuscbcaitsol= 0
+nmasnuscbcaccsol= 0
+nmasnuscbccorsol= 0
+nmasnuscbcaitins= 0
+nmasnuscocnucsol= 0
+nmasnuscocaitsol= 0
+nmasnuscocaccsol= 0
+nmasnuscoccorsol= 0
+nmasnuscocaitins= 0
+nmasnuscsonucsol= 0
+nmasnuscsoaitsol= 0
+nmasnuscsoaccsol= 0
+nmasnuscsocorsol= 0
+!
+nmasimscsunucsol=12
+nmasimscsuaitsol=13
+nmasimscsuaccsol=14
+nmasimscsucorsol=15
+nmasimscssaccsol= 0
+nmasimscsscorsol= 0
+nmasimscbcaitsol= 0
+nmasimscbcaccsol= 0
+nmasimscbccorsol= 0
+nmasimscbcaitins= 0
+nmasimscocnucsol= 0
+nmasimscocaitsol= 0
+nmasimscocaccsol= 0
+nmasimscoccorsol= 0
+nmasimscocaitins= 0
+nmasimscsonucsol= 0
+nmasimscsoaitsol= 0
+nmasimscsoaccsol= 0
+nmasimscsocorsol= 0
+!
+nmasclprsuaitsol1=16
+nmasclprsuaccsol1=17
+nmasclprsucorsol1=18
+nmasclprsuaitsol2=19
+nmasclprsuaccsol2=20
+nmasclprsucorsol2=21
+!
+nmascondsunucsol=22
+nmascondsuaitsol=23
+nmascondsuaccsol=24
+nmascondsucorsol=25
+nmascondsuaitins= 0
+nmasnuclsunucsol=26
+nmascondocnucsol= 0
+nmascondocaitsol= 0
+nmascondocaccsol= 0
+nmascondoccorsol= 0
+nmascondocaitins= 0
+nmascondsonucsol= 0
+nmascondsoaitsol= 0
+nmascondsoaccsol= 0
+nmascondsocorsol= 0
+nmascondsoaitins= 0
+!
+nmascoagsuintr12=27
+nmascoagsuintr13=28
+nmascoagsuintr14=29
+nmascoagsuintr15= 0
+nmascoagocintr12= 0
+nmascoagocintr13= 0
+nmascoagocintr14= 0
+nmascoagocintr15= 0
+nmascoagsointr12= 0
+nmascoagsointr13= 0
+nmascoagsointr14= 0
+nmascoagsointr15= 0
+nmascoagsuintr23=30
+nmascoagbcintr23= 0
+nmascoagocintr23= 0
+nmascoagsointr23= 0
+nmascoagsuintr24=31
+nmascoagbcintr24= 0
+nmascoagocintr24= 0
+nmascoagsointr24= 0
+nmascoagsuintr34=32
+nmascoagbcintr34= 0
+nmascoagocintr34= 0
+nmascoagssintr34= 0
+nmascoagsointr34= 0
+!
+nmascoagbcintr53= 0
+nmascoagocintr53= 0
+nmascoagbcintr54= 0
+nmascoagocintr54= 0
+!
+nmasagedsuintr52= 0
+nmasagedbcintr52= 0
+nmasagedocintr52= 0
+nmasagedsointr52= 0
+!
+nmasmergsuintr12=33
+nmasmergocintr12= 0
+nmasmergsointr12= 0
+nmasmergsuintr23=34
+nmasmergbcintr23= 0
+nmasmergocintr23= 0
+nmasmergsointr23= 0
+nmasmergsuintr34=35
+nmasmergssintr34= 0
+nmasmergbcintr34= 0
+nmasmergocintr34= 0
+nmasmergsointr34= 0
+nmasprocsuintr23=36
+nmasprocbcintr23= 0
+nmasprococintr23= 0
+nmasprocsointr23= 0
+!
+! .. below are new ones for dust & modes 6/7 to be integrated
+nmasprimduaccsol=  0 ! DU only emitted to modes 6/7 here
+nmasprimducorsol=  0 ! DU only emitted to modes 6/7 here
+nmasprimduaccins=37
+nmasprimducorins=38
+nmasddepduaccsol= 0
+nmasddepducorsol= 0
+nmasddepduaccins=39
+nmasddepducorins=40
+nmasnuscduaccsol= 0
+nmasnuscducorsol= 0
+nmasnuscduaccins=41
+nmasnuscducorins=42
+nmasimscduaccsol= 0
+nmasimscducorsol= 0
+nmasimscduaccins=43
+nmasimscducorins=44
+nmascondsuaccins= 0
+nmascondsucorins= 0
+nmascondocaccins= 0
+nmascondoccorins= 0
+nmascondsoaccins= 0
+nmascondsocorins= 0
+nmascoagsuintr16= 0
+nmascoagsuintr17= 0
+nmascoagocintr16= 0
+nmascoagocintr17= 0
+nmascoagsointr16= 0
+nmascoagsointr17= 0
+nmascoagduintr34= 0
+nmascoagduintr64= 0
+nmasagedsuintr63= 0
+nmasagedduintr63= 0
+nmasagedocintr63= 0
+nmasagedsointr63= 0
+nmasagedsuintr74= 0
+nmasagedduintr74= 0
+nmasagedocintr74= 0
+nmasagedsointr74= 0
+nmasmergduintr34= 0
+
+! .. below are new ones for no3, nh4, and nano3 to be integrated
+nmasprimntnucsol= 0
+nmasprimntaitsol= 0
+nmasprimntaccsol= 0
+nmasprimntcorsol= 0
+nmasprimnhnucsol= 0
+nmasprimnhaitsol= 0
+nmasprimnhaccsol= 0
+nmasprimnhcorsol= 0
+nmascondnnaccsol= 0
+nmascondnncorsol= 0
+nmasddepntaitsol= 0
+nmasddepntaccsol= 0
+nmasddepntcorsol= 0
+nmasddepnhaitsol= 0
+nmasddepnhaccsol= 0
+nmasddepnhcorsol= 0
+nmasddepnnaccsol= 0
+nmasddepnncorsol= 0
+nmasnuscntaitsol= 0
+nmasnuscntaccsol= 0
+nmasnuscntcorsol= 0
+nmasnuscnhaitsol= 0
+nmasnuscnhaccsol= 0
+nmasnuscnhcorsol= 0
+nmasnuscnnaccsol= 0
+nmasnuscnncorsol= 0
+nmasimscntaitsol= 0
+nmasimscntaccsol= 0
+nmasimscntcorsol= 0
+nmasimscnhaitsol= 0
+nmasimscnhaccsol= 0
+nmasimscnhcorsol= 0
+nmasimscnnaccsol= 0
+nmasimscnncorsol= 0
+nmascoagntintr23= 0
+nmascoagnhintr23= 0
+nmascoagntintr24= 0
+nmascoagnhintr24= 0
+nmascoagntintr34= 0
+nmascoagnhintr34= 0
+nmascoagnnintr34= 0
+nmasmergntintr23= 0
+nmasmergnhintr23= 0
+nmasmergntintr34= 0
+nmasmergnhintr34= 0
+nmasmergnnintr34= 0
+nmasprocntintr23= 0
+nmasprocnhintr23= 0
+nmasprocntintr23= 0
+nmasprocnhintr23= 0
+
+!
+!----------------------------------------------------------------
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE ukca_indices_solinsol_6mode
 
 END MODULE ukca_setup_indices
