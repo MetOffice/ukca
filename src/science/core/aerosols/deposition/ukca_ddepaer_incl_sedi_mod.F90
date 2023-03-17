@@ -223,15 +223,17 @@ USE parkind1,                ONLY:                                             &
 USE ukca_dcoff_par_av_k_mod, ONLY:                                             &
     ukca_dcoff_par_av_k
 
+USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables
+
 USE ukca_mode_setup,         ONLY:                                             &
-    nmodes, ncp, mode, component,                                              &
-    sigmag, num_eps, cp_su, cp_bc,                                             &
-    cp_oc, cp_cl, cp_du, cp_so,                                                &
+    nmodes,                                                                    &
+    cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_so, cp_no3, cp_nh4, cp_nn,           &
     moment_number, moment_mass,                                                &
     mode_nuc_sol, mode_ait_sol,                                                &
     mode_acc_sol, mode_cor_sol,                                                &
     mode_ait_insol, mode_acc_insol,                                            &
-    mode_cor_insol, cp_no3, cp_nh4, cp_nn
+    mode_cor_insol
 
 USE ukca_setup_indices,      ONLY:                                             &
     nmasddepsunucsol,                                                          &
@@ -296,10 +298,19 @@ REAL, INTENT(IN)    :: dvisc(nbox)
 REAL, INTENT(IN)    :: sm(nbox)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 
 ! .. Local Variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
 
 INTEGER :: imode
 INTEGER :: icp
@@ -343,18 +354,18 @@ REAL    :: pup_up(nbox)
 REAL    :: sm_up(nbox)
 REAL    :: rhoa_up(nbox)
 REAL    :: nd0(nbox,nmodes)
-REAL    :: md0(nbox,nmodes,ncp)
+REAL    :: md0(nbox,nmodes,glomap_variables%ncp)
 REAL    :: nd0_up(nbox,nmodes)
-REAL    :: md0_up(nbox,nmodes,ncp)
+REAL    :: md0_up(nbox,nmodes,glomap_variables%ncp)
 REAL    :: ndnew(nbox)
 REAL    :: termin_1(nbox)
 REAL    :: termin_2(nbox)
 REAL    :: termin_n(nbox)
 REAL    :: termout_n(nbox)
-REAL    :: termin_m(nbox,ncp)
-REAL    :: termout_m(nbox,ncp)
+REAL    :: termin_m(nbox,glomap_variables%ncp)
+REAL    :: termout_m(nbox,glomap_variables%ncp)
 REAL    :: delnsedi(nbox)
-REAL    :: delmsedi(nbox,ncp)
+REAL    :: delmsedi(nbox,glomap_variables%ncp)
 REAL    :: delmddep(nbox)
 REAL    :: vgrav_lim(nbox)
 REAL, PARAMETER :: cfl_fraction = 0.9
@@ -371,6 +382,15 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER   :: RoutineName='UKCA_DDEPAER_INCL_SEDI'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 mask2(:)=(jlabove(:) > 0) ! where using JLABOVE
 

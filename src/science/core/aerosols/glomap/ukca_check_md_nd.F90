@@ -68,8 +68,8 @@ SUBROUTINE ukca_check_md_nd(nbox,process,nd,md,mdt)
 !   COMPONENT : Logical variable defining which cpt are in which dsts
 !   MLO       : Lo-interf masses for initial radius grid
 !-----------------------------------------------------------
-
-USE ukca_mode_setup,   ONLY: nmodes, ncp, mode, component, mlo
+USE ukca_config_specification_mod, ONLY: glomap_variables
+USE ukca_mode_setup,   ONLY: nmodes
 USE parkind1,          ONLY: jprb, jpim
 USE yomhook,           ONLY: lhook, dr_hook
 USE ereport_mod,       ONLY: ereport
@@ -87,10 +87,19 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: nbox
 REAL, INTENT(IN)    :: nd(nbox,nmodes)
 REAL, INTENT(IN)    :: mdt(nbox,nmodes)
-REAL, INTENT(IN)    :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN)    :: md(nbox,nmodes,glomap_variables%ncp)
 CHARACTER(LEN=30), INTENT(IN) :: process
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mlo (:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
 INTEGER :: jl
 INTEGER :: imode
 INTEGER :: icp
@@ -115,6 +124,14 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CHECK_MD_ND'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mlo         => glomap_variables%mlo
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
 
 ! .. also checks if the sum of MD over defined cpts is zero
 summd(:,:)=0.0

@@ -75,17 +75,12 @@ SUBROUTINE ukca_fixeds(kbdim,                                                  &
 ! Abdul-Razzak and Ghan, JGR, 105, D5, 6837-6844, 2000.
 ! Pruppacher and Klett, Kluewer Ac. Pub., 1997.
 
+USE ukca_config_specification_mod, ONLY: glomap_variables
 
-USE ukca_mode_setup,  ONLY: nmodes,                                            &
-                            ncp,                                               &
-                            mm,                                                &
-                            rhocomp,                                           &
-                            no_ions,                                           &
-                            mode,                                              &
-                            component,                                         &
-                            sigmag
+USE ukca_mode_setup,       ONLY: nmodes
 
 USE ukca_um_legacy_mod,    ONLY: rmol         ! molar gas constant
+
 USE ukca_constants,        ONLY: mmw,      &  ! H2O molecular weight kg/mol
                                  zsten,    &  ! surface tension of H2O [J m-2]
                                  zosm         ! Osmotic coefficient
@@ -107,12 +102,27 @@ REAL, INTENT(IN) :: psfix(nsfix)            ! fixed maximum supersaturation
 
 !--- Aerosol tracers mass mixing ratio
 REAL, INTENT(IN) :: pn (kbdim,nmodes)       ! aerosol number concentration
-!                                                 ! for each mode [m-3]
-REAL, INTENT(IN) :: pxtm1(kbdim,nmodes,ncp) ! aerosol tracers mass mixing ratio
+!                                           ! for each mode [m-3]
+
+
+! aerosol tracers mass mixing ratio
+REAL, INTENT(IN) :: pxtm1(kbdim,nmodes,glomap_variables%ncp)
 
 REAL, INTENT(OUT):: pccn(kbdim,nsfix)       ! number of activated particles
 
 !--- Local variables:
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: no_ions(:)
+REAL,    POINTER :: rhocomp(:)
+REAL,    POINTER :: sigmag(:)
+
 
 INTEGER :: jmod                    !
 INTEGER :: jcp                     !
@@ -154,6 +164,17 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_FIXEDS'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mm          => glomap_variables%mm
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+no_ions     => glomap_variables%no_ions
+rhocomp     => glomap_variables%rhocomp
+sigmag      => glomap_variables%sigmag
 
 !--- 0) Initializations:
 

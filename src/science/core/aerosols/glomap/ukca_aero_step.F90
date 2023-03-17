@@ -282,6 +282,9 @@ USE ukca_coagwithnucl_mod,                   ONLY:                             &
 USE ukca_conden_mod,                         ONLY:                             &
     ukca_conden
 
+USE ukca_config_specification_mod,           ONLY:                             &
+    glomap_variables
+
 USE ukca_ddepaer_mod,                        ONLY:                             &
     ukca_ddepaer
 
@@ -296,9 +299,6 @@ USE ukca_impc_scav_dust_mod,                 ONLY:                             &
 
 USE ukca_mode_setup,                         ONLY:                             &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    mm,                                                                        &
-    num_eps,                                                                   &
     cp_su
 
 USE ukca_rainout_mod,                        ONLY:                             &
@@ -431,18 +431,25 @@ REAL, INTENT(IN) :: height(nbox)
 ! .. Outputs
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: drydp(nbox,nmodes)
 REAL, INTENT(IN OUT) :: wetdp(nbox,nmodes)
 REAL, INTENT(IN OUT) :: mdwat(nbox,nmodes)
 REAL, INTENT(IN OUT) :: s0g(nbox,nadvg)
 REAL, INTENT(IN OUT) :: delso2(nbox)
 REAL, INTENT(IN OUT) :: delso2_2(nbox)
-REAL, INTENT(IN OUT) :: pvol(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: pvol(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: pvol_wat(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 !
 !     Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+REAL,    POINTER :: mm(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
 
 INTEGER :: errcode                ! Variable passed to ereport
 
@@ -465,7 +472,7 @@ REAL :: delgc_nucl(nbox,nchemg)
 REAL :: deltas0g(nbox)
 REAL :: delh2so4_nucl(nbox)
 REAL :: ageterm1(nbox,3,nchemg)
-REAL :: ageterm2(nbox,4,3,ncp)
+REAL :: ageterm2(nbox,4,3,glomap_variables%ncp)
 REAL :: s0g_to_gc
 REAL :: s0g_to_gc_sec_org
 REAL :: frac_aq_acc(nbox)
@@ -493,6 +500,14 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_AERO_STEP'
 !     CHECKMD_ND set to 1/0 for whether/not to check for
 !                values of ND, MD and MDT out of range.
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+mm          => glomap_variables%mm
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+
 IF (checkmd_nd == 1) THEN
   process='At start of UKCA_AERO_STEP    '
   CALL ukca_check_md_nd(nbox,process,nd,md,mdt)
@@ -508,18 +523,22 @@ IF (verbose >= 2) THEN
 END IF
 !
 !     Calculate dry diameter & volume for initial remode check
-CALL ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
+CALL ukca_calc_drydiam( nbox, glomap_variables,                                &
+                        nd, md, mdt, drydp, dvol )
 !
 !     Initial remode call (check if advection taken DRYDP out of bounds)
 CALL ukca_remode(nbox,nbudaer,nd,md,mdt,drydp,                                 &
                  imerge,bud_aer_mas,n_merge_1d,pmid)
 !
 !     Recalculate dry and wet diameter and volume after re-moding
-CALL ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
+CALL ukca_calc_drydiam( nbox, glomap_variables,                                &
+                        nd, md, mdt, drydp, dvol )
 !
-CALL ukca_volume_mode(nbox,nd,md,mdt,                                          &
-  RH_clr,wvol,wetdp,rhopar,                                                    &
-  dvol,drydp,mdwat,pvol,pvol_wat,t,pmid,s)
+CALL ukca_volume_mode(glomap_variables,nbox, nd,md,mdt,                        &
+                      RH_clr,dvol,drydp,t,pmid,s,                              &
+                      mdwat,wvol,wetdp,rhopar,pvol,pvol_wat)
+
+
 !
 IF (checkmd_nd == 1) THEN
   process='Done UKCA_REMODE (1st call)   '
@@ -533,11 +552,12 @@ IF (verbose >= 2) THEN
 END IF
 !
 !     Recalculate dry and wet diameter and volume
-CALL ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
+CALL ukca_calc_drydiam( nbox, glomap_variables,                                &
+                        nd, md, mdt, drydp, dvol )
 !
-CALL ukca_volume_mode(nbox,nd,md,mdt,                                          &
-  RH_clr,wvol,wetdp,rhopar,                                                    &
-  dvol,drydp,mdwat,pvol,pvol_wat,t,pmid,s)
+CALL ukca_volume_mode(glomap_variables,nbox, nd,md,mdt,                        &
+                      RH_clr,dvol,drydp,t,pmid,s,                              &
+                      mdwat,wvol,wetdp,rhopar,pvol,pvol_wat)
 !
 !     Calculate impaction scavenging of aerosol (washout)
 IF (imscav_on == 1) THEN
@@ -1075,11 +1095,14 @@ DO imts=1,nmts
   END DO ! end loop over competition subsubtimesteps
   !
   !      Recalculate dry and wet diameter and volume
-  CALL ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
+  CALL ukca_calc_drydiam( nbox, glomap_variables,                              &
+                          nd, md, mdt, drydp, dvol )
   !
-  CALL ukca_volume_mode(nbox,nd,md,mdt,                                        &
-                        RH_clr,wvol,wetdp,rhopar,                              &
-                        dvol,drydp,mdwat,pvol,pvol_wat,t,pmid,s)
+  CALL ukca_volume_mode(glomap_variables,nbox, nd,md,mdt,                      &
+                        RH_clr,dvol,drydp,t,pmid,s,                            &
+                        mdwat,wvol,wetdp,rhopar,pvol,pvol_wat)
+
+
   !
   !      Apply mode-merging where necessary
   CALL ukca_remode(nbox,nbudaer,nd,md,mdt,drydp,                               &
@@ -1097,11 +1120,13 @@ DO imts=1,nmts
   END IF
   !
   ! Recalculate dry and wet diameter and volume after re-moding
-  CALL ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
+  CALL ukca_calc_drydiam( nbox, glomap_variables,                              &
+                          nd, md, mdt, drydp, dvol )
+
   !
-  CALL ukca_volume_mode(nbox,nd,md,mdt,                                        &
-                        RH_clr,wvol,wetdp,rhopar,                              &
-                        dvol,drydp,mdwat,pvol,pvol_wat,t,pmid,s)
+  CALL ukca_volume_mode(glomap_variables,nbox, nd,md,mdt,                      &
+                        RH_clr,dvol,drydp,t,pmid,s,                            &
+                        mdwat,wvol,wetdp,rhopar,pvol,pvol_wat)
 
   IF (ichem == 1) THEN
     !

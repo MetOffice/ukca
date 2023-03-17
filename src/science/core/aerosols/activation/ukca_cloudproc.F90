@@ -115,9 +115,11 @@ SUBROUTINE ukca_cloudproc(nbox,nbudaer,nd,md,mdt,drydp,                        &
 !  Various indices for budget terms in BUD_AER_MAS
 !
 !--------------------------------------------------------------------
-USE ukca_mode_setup,    ONLY: nmodes, ncp, component,                          &
-                              sigmag, mfrac_0, mmid,                           &
-                              num_eps, cp_su, cp_bc, cp_oc, cp_so,             &
+
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,    ONLY: nmodes,                                          &
+                              cp_su, cp_bc, cp_oc, cp_so,                      &
                               cp_no3, cp_nh4, mode_ait_sol, mode_acc_sol
 
 USE ukca_setup_indices, ONLY: nmasprocsuintr23,                                &
@@ -139,10 +141,21 @@ REAL, INTENT(IN)    :: lowcloud(nbox),vfac(nbox)
 REAL, INTENT(IN)    :: act
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
 ! .. Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mmid(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
+
 INTEGER :: jl
 INTEGER :: icp
 REAL    :: f
@@ -156,7 +169,7 @@ REAL    :: dp2
 REAL    :: lnratm
 REAL    :: erfmas
 REAL    :: frac_m
-REAL    :: dm(ncp)
+REAL    :: dm(glomap_variables%ncp)
 REAL    :: newn
 REAL    :: newnp1
 
@@ -168,6 +181,16 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CLOUDPROC'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mfrac_0     => glomap_variables%mfrac_0
+mmid        => glomap_variables%mmid
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 IF (iactmethod == 1) THEN
   DO jl=1,nbox

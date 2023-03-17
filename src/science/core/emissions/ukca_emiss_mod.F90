@@ -34,11 +34,15 @@ MODULE ukca_emiss_mod
 
 USE ukca_emiss_struct_mod, ONLY: ukca_em_struct, ukca_em_struct_init,          &
                                  ncdf_emissions
+
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
-                                         i_light_param_off
+                                         i_light_param_off, glomap_variables,  &
+                                         i_solinsol_6mode
+
 USE ukca_config_defs_mod,  ONLY: em_chem_spec
 USE ukca_emiss_mode_mod,   ONLY: ukca_def_mode_emiss
-USE ukca_mode_setup,       ONLY: nmodes, rhocomp, mode, component,             &
+
+USE ukca_mode_setup,       ONLY: nmodes,                                       &
                                  cp_cl, cp_du, cp_su, cp_oc, cp_bc,            &
                                  cp_no3, cp_nh4, cp_nn,                        &
                                  moment_number, moment_mass
@@ -122,6 +126,12 @@ INTEGER,           INTENT(IN) :: row_length       ! model dimensions
 INTEGER,           INTENT(IN) :: rows
 INTEGER,           INTENT(IN) :: model_levels
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode (:)
+
 ! Local variables
 INTEGER :: ecount          ! Index in emissions array
 
@@ -134,8 +144,8 @@ INTEGER :: moment_step = moment_mass - moment_number
 INTEGER :: imode
 INTEGER :: imoment
 
-! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
-! represented by the H2SO4 index. Other aerosol species (OC, BC, SS)
+! Aerosol mode setup i_solinsol_6mode (SOL/INSOL) has a single aerosol
+! component represented by the H2SO4 index. Other aerosol species (OC, BC, SS)
 ! are emitted into cp_so4. The variables this_cp_* are used to determine
 ! the active component which this component is emitted into
 INTEGER :: this_cp_cl
@@ -151,6 +161,12 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_ONL_EMISS_INIT'
 ! End of header
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
 
 ierror   = 0
 
@@ -256,7 +272,7 @@ END IF
 ! In the soluble/insoluble configuration of GLOMAP, seasalt
 ! and carbonaceous aerosols are emitted into the soluble component,
 ! which is hosted by sulfate.
-IF (glomap_config%i_mode_setup == 11) THEN
+IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN
   this_cp_cl = cp_su
   this_cp_bc = cp_su
   this_cp_oc = cp_su
@@ -1234,6 +1250,9 @@ INTEGER,           INTENT(IN) :: row_length       ! model dimensions
 INTEGER,           INTENT(IN) :: rows
 INTEGER,           INTENT(IN) :: model_levels
 
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode (:)
+
 ! Local variables
 INTEGER :: ecount          ! Index in emissions array
 
@@ -1242,7 +1261,7 @@ INTEGER :: moment_step = moment_mass - moment_number
 INTEGER :: imode
 INTEGER :: imoment
 
-! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
+! Aerosol mode setup i_solinsol_6mode (SOL/INSOL) has a single aerosol component
 ! represented by the H2SO4 index. Other aerosol species (OC, BC, SS)
 ! are emitted into cp_so4. The variables this_cp_* are used to determine
 ! the active component which this component is emitted into
@@ -1260,10 +1279,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_EMISS_SPATIAL_VARS_INIT'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+
 ! In the soluble/insoluble configuration of GLOMAP, seasalt
 ! and carbonaceous aerosols are emitted into the soluble component,
 ! which is hosted by sulfate.
-IF (glomap_config%i_mode_setup == 11) THEN
+IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN
   this_cp_cl = cp_su
   this_cp_bc = cp_su
   this_cp_oc = cp_su
@@ -1656,7 +1678,7 @@ DO imode = 1, nmodes
     ! Total particle volume emission rate (nm3 per m2 per s) in this mode is
     ! the rate of mass emission (kg/m2/s) divided by the density of this mode
     ! (kg/m3) multiplied by 1e27 (1e9^3) to go from m3/m2/s to nm3/m2/s.
-    modevol(:,:,:) = 1e27*modemass(:,:,:)/rhocomp(icp)
+    modevol(:,:,:) = 1e27*modemass(:,:,:)/glomap_variables%rhocomp(icp)
 
     ! Total particle number (particles per m2 per s) * factor.
     ! factor converts from ptcls/m2/s to equivalent kg/m2/s as dry air.

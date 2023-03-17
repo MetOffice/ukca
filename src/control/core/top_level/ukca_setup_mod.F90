@@ -269,7 +269,7 @@ USE asad_mod, ONLY: asad_mod_pre_setup_init, advt, speci, ctype
 USE asad_inrats_mod, ONLY: asad_inrats_set_sp_lists
 USE ukca_config_defs_mod, ONLY: ukca_set_config_defs, em_chem_spec, lbc_spec,  &
                                 cfc_lumped
-USE ukca_mode_setup, ONLY: mode, component
+
 USE ukca_tracers_mod, ONLY: init_tracer_req
 USE ukca_environment_req_mod, ONLY: init_environment_req
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname
@@ -1156,9 +1156,10 @@ IF ( ukca_config%l_chem_environ_gas_scalars ) THEN
 END IF
 
 ! Specify tracer requirement based on details of the configuration
-CALL init_tracer_req(ukca_config, advt, mode, component, error_code,           &
-                     error_message=error_message,                              &
-                     error_routine=error_routine)
+CALL init_tracer_req( ukca_config,                                             &
+                      advt, error_code,                                        &
+                      error_message=error_message,                             &
+                      error_routine=error_routine)
 IF (error_code > 0) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN

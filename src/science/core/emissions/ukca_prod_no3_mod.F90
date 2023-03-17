@@ -41,16 +41,16 @@ SUBROUTINE ukca_prod_no3_fine(                                                 &
                         dust_div1, dust_div2, dust_div3,                       &
                         dmas_no3, dnum_no3, dmas_nh4, dnum_nh4)
 
-USE ukca_mode_setup,         ONLY: nmodes, ncp, rhocomp,                       &
-                                   mode, component, cp_no3, cp_nh4, cp_su, x,  &
+USE ukca_mode_setup,         ONLY: nmodes, cp_no3, cp_nh4, cp_su,              &
                                    mode_ait_sol, mode_acc_sol, mode_cor_sol,   &
-                                   sigmag, ddplim0, ddplim1, mode_acc_insol
+                                   mode_acc_insol
+
 USE ukca_um_legacy_mod,      ONLY: drep, rho_dust => rhop, pi, rgas => r
 USE chemistry_constants_mod, ONLY: avc => avogadro, zboltz => boltzmann,       &
                                    rho_so4
 USE asad_mod,                ONLY: jpctr
 USE ukca_config_defs_mod,          ONLY: n_mode_tracers
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables
 USE ukca_mode_tracer_maps_mod,     ONLY: mmr_index, nmr_index
 USE ereport_mod,              ONLY: ereport
 USE errormessagelength_mod,   ONLY: errormessagelength
@@ -107,6 +107,19 @@ REAL, INTENT(IN OUT) :: dnum_nh4(1:row_length,1:rows,                          &
 
 !*            LOCAL VARIABLES
 !              ---------------
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: ddplim0(:)
+REAL,    POINTER :: ddplim1(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: rhocomp(:)
+REAL,    POINTER :: sigmag(:)
+REAL,    POINTER :: x(:)
+
 ! Molar masses
 REAL, PARAMETER :: zmwnh3  = 17.0e-3 !Kg/mol
 REAL, PARAMETER :: zmwhno3 = 63.0e-3
@@ -116,7 +129,10 @@ REAL, PARAMETER :: zmwso4  = 96.0e-3
 
 ! dummy variables
 INTEGER :: i, j, k, ifirst, icp, imode, updmode, idx
-INTEGER :: midx(1:nmodes,1:ncp)   ! Store the tracer index for mass
+
+! Store the tracer index for mass
+INTEGER :: midx(1:nmodes,1:glomap_variables%ncp)
+
 INTEGER :: nidx(1:nmodes)         ! Store the tracer index for number
 
 ! Variables for main primary production calculation
@@ -194,6 +210,18 @@ REAL    (KIND=jprb)            :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PROD_NO3_FINE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+ddplim0     => glomap_variables%ddplim0
+ddplim1     => glomap_variables%ddplim1
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+rhocomp     => glomap_variables%rhocomp
+sigmag      => glomap_variables%sigmag
+x           => glomap_variables%x
 
 !---------------------------------------
 ! 0. Set up arrays for mode/component mass and number indices in mode_tracers
@@ -748,11 +776,12 @@ SUBROUTINE ukca_prod_no3_coarse(                                               &
 
 USE chemistry_constants_mod,  ONLY: zboltz => boltzmann
 USE ukca_um_legacy_mod,       ONLY: pi, rgas => r
-USE ukca_mode_setup,          ONLY: nmodes, ncp, rhocomp,                      &
-                                    mode, component, x, sigmag,                &
-                                    cp_nn, cp_cl, cp_du, ddplim0, ddplim1,     &
+
+USE ukca_mode_setup,          ONLY: nmodes,                                    &
+                                    cp_nn, cp_cl, cp_du,                       &
                                     mode_acc_sol, mode_cor_sol,                &
                                     mode_acc_insol, mode_cor_insol
+
 USE asad_mod,                 ONLY: jpctr
 USE ukca_aer_no3_mod,         ONLY: aer_no3_2bindu, aer_no3_6bindu,            &
                                     aer_no3_ukcadu
@@ -761,7 +790,8 @@ USE errormessagelength_mod,   ONLY: errormessagelength
 
 USE ukca_mode_tracer_maps_mod,     ONLY: mmr_index, nmr_index
 USE ukca_config_defs_mod,          ONLY: n_mode_tracers
-USE ukca_config_specification_mod, ONLY: glomap_config
+
+USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables
 
 USE parkind1,   ONLY: jpim, jprb      ! DrHook
 USE yomhook,    ONLY: lhook, dr_hook  ! DrHook
@@ -815,6 +845,19 @@ REAL, INTENT(IN OUT) :: dmas_nacl(1:row_length,1:rows,                         &
                               ! Sea-salt mass tendency (kg m-2 s-1)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: ddplim0(:)
+REAL,    POINTER :: ddplim1(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: rhocomp(:)
+REAL,    POINTER :: sigmag(:)
+REAL,    POINTER :: x (:)
+
 REAL :: dmas_hono2(1:row_length,1:rows,1:model_levels)
 REAL :: nano3_mmr(1:row_length,1:rows,1:model_levels)
 REAL :: seasalt_diam(1:row_length,1:rows,1:model_levels,1:2)
@@ -834,7 +877,10 @@ REAL, PARAMETER :: athird = 1.0/3.0
 
 ! Local variables
 INTEGER :: imode, i, j, k, ifirst, icp, idx
-INTEGER :: midx(1:nmodes,1:ncp)   ! Store the tracer index for mass
+
+! Store the tracer index for mass
+INTEGER :: midx(1:nmodes,1:glomap_variables%ncp)
+
 INTEGER :: nidx(1:nmodes)         ! Store the tracer index for number
 
 INTEGER                            :: errcode    ! Error code for ereport
@@ -846,6 +892,18 @@ REAL    (KIND=jprb)            :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PROD_NO3_COARSE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+ddplim0     => glomap_variables%ddplim0
+ddplim1     => glomap_variables%ddplim1
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+rhocomp     => glomap_variables%rhocomp
+sigmag      => glomap_variables%sigmag
+x           => glomap_variables%x
 
 ! Set up arrays for mode/component mass and number indices in mode_tracers
 ifirst = jpctr + 1
@@ -1160,7 +1218,8 @@ SUBROUTINE ukca_no3_check_values(row_length, rows, model_levels,               &
                                  mode_tracers)
 
 USE ukca_mode_tracer_maps_mod, ONLY: nmr_index, mmr_index
-USE ukca_mode_setup,           ONLY: mode, component, ncp, nmodes
+USE ukca_config_specification_mod, ONLY: glomap_variables
+USE ukca_mode_setup,           ONLY: nmodes
 USE ukca_config_defs_mod,      ONLY: n_mode_tracers
 USE asad_mod,                  ONLY: jpctr
 
@@ -1173,6 +1232,13 @@ INTEGER, INTENT(IN)  :: row_length, rows, model_levels
 REAL, INTENT(IN OUT) :: mode_tracers(1:row_length,1:rows,1:model_levels,       &
                                      1:n_mode_tracers)
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
 INTEGER :: ifirst, nitra, mitra, imode, icp
 
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -1181,6 +1247,13 @@ REAL    (KIND=jprb)            :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_NO3_CHECK_VALUES'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
 
 ifirst = jpctr + 1
 DO imode = 1,nmodes

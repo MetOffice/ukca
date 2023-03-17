@@ -95,7 +95,8 @@ SUBROUTINE ukca_activate ( row_length,                                         &
                            n_activ_sum,                                        &
                            cdncwt,                                             &
                            mode_tracers,                                       &
-                           mode_diags                                          &
+                           mode_diags,                                         &
+                           glomap_variables_local                              &
                            )
 
 USE ereport_mod,               ONLY:                                           &
@@ -138,10 +139,8 @@ USE ukca_fixeds_mod,           ONLY:                                           &
     ukca_fixeds
 
 USE ukca_mode_setup,           ONLY:                                           &
-    nmodes,                                                                    &
-    ncp,                                                                       &
-    mode,                                                                      &
-    modesol
+    glomap_variables_type,                                                     &
+    nmodes
 
 USE ukca_config_specification_mod, ONLY:                                       &
     glomap_config,                                                             &
@@ -216,7 +215,16 @@ REAL, INTENT(IN)  :: mode_tracers(row_length,rows,model_levels,n_mode_tracers)
 ! MODE diagnostics array
 REAL, INTENT(IN OUT) :: mode_diags(row_length,rows,model_levels,n_mode_diags)
 
+TYPE(glomap_variables_type), TARGET, INTENT(IN) :: glomap_variables_local
+
 ! Local variables:
+
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
 
 ! Create an array of fixed supersaturations to run the code at:
 INTEGER, PARAMETER :: nsfix=19           ! number of elements in fixed-S array
@@ -252,7 +260,8 @@ REAL :: zcdncactm(kbdim,model_levels,nmodes) ! number concentration of activated
 REAL :: zrdry(kbdim,model_levels,nmodes)     ! dry count median radius [m]
 REAL :: zn(kbdim,model_levels,nmodes)        ! aerosol no. concentration for
                                              ! modes [m-3]
-REAL :: zxtm1(kbdim,model_levels,nmodes,ncp) ! component mass mixing
+REAL :: zxtm1(kbdim,model_levels,nmodes,glomap_variables_local%ncp)! component
+                                                                   ! mass mixing
                                              ! ratio [kg kg-1]
 
 ! updraft velocity array for pdf
@@ -319,6 +328,13 @@ CHARACTER(LEN=errormessagelength) :: cmessage
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables_local%component
+mode        => glomap_variables_local%mode
+ncp         => glomap_variables_local%ncp
+
 icode = 0 ! Initialise error status
 
 IF ( first .AND. PrintStatus >= PrStatus_Oper ) THEN
@@ -327,8 +343,6 @@ IF ( first .AND. PrintStatus >= PrStatus_Oper ) THEN
   WRITE(umMessage,'(A,2I4)') 'nmodes, ncp ', nmodes, ncp
   CALL umPrint(umMessage,src=RoutineName)
   WRITE(umMessage,'(A,7L1)') 'mode ', mode
-  CALL umPrint(umMessage,src=RoutineName)
-  WRITE(umMessage,'(A,7I2)') 'modesol',  modesol
   CALL umPrint(umMessage,src=RoutineName)
 END IF
 
@@ -354,6 +368,9 @@ IF ( glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg ) THEN
                                      n_mode_tracers,                           &
                                      mode_tracers,                             &
                                      zaird,                                    &
+                                     ncp,                                      &
+                                     mode,                                     &
+                                     component,                                &
                                      zn,                                       &
                                      zxtm1 )
 
@@ -362,6 +379,7 @@ IF ( glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg ) THEN
                                   rows,                                        &
                                   model_levels,                                &
                                   kbdim,                                       &
+                                  mode,                                        &
                                   zrdry )
 
   ! Calculate updraft velocity sigw
@@ -380,6 +398,9 @@ ELSE IF ( i_glomap_clim_activation_scheme == i_gc_activation_arg ) THEN
                                    model_levels,                               &
                                    kbdim,                                      &
                                    zaird,                                      &
+                                   ncp,                                        &
+                                   mode,                                       &
+                                   component,                                  &
                                    zn,                                         &
                                    zxtm1 )
 
@@ -388,6 +409,7 @@ ELSE IF ( i_glomap_clim_activation_scheme == i_gc_activation_arg ) THEN
                                   rows,                                        &
                                   model_levels,                                &
                                   kbdim,                                       &
+                                  mode,                                        &
                                   zrdry )
 
   ! Calculate updraft velocity sigw
@@ -543,6 +565,7 @@ IF ( PrintStatus == PrStatus_Diag ) THEN
 END IF     ! Prstatus
 
 CALL ukca_abdulrazzak_ghan(kbdim,   model_levels,                              &
+                           glomap_variables_local,                             &
                            zesw,                                               &
                            zn,      zxtm1,                                     &
                            ztm1,    zapm1,                                     &
@@ -773,6 +796,9 @@ SUBROUTINE ukca_activate_calc_zn_zxtm1 ( row_length,                           &
                                          n_mode_tracers,                       &
                                          mode_tracers,                         &
                                          zaird,                                &
+                                         ncp,                                  &
+                                         mode,                                 &
+                                         component,                            &
                                          zn,                                   &
                                          zxtm1 )
 
@@ -787,10 +813,7 @@ USE parkind1,                  ONLY:                                           &
     jpim
 
 USE ukca_mode_setup,           ONLY:                                           &
-    nmodes,                                                                    &
-    mode,                                                                      &
-    ncp,                                                                       &
-    component
+    nmodes
 
 USE ukca_mode_tracer_maps_mod, ONLY:                                           &
     mmr_index,                                                                 &
@@ -821,6 +844,15 @@ REAL, INTENT(IN)   :: mode_tracers(row_length,rows,model_levels,n_mode_tracers)
 
 ! number concentration of air molecules (/m3)
 REAL, INTENT(IN)  :: zaird(kbdim,model_levels)
+
+! Number of components
+INTEGER, INTENT(IN) :: ncp
+
+! Mode (T/F)
+LOGICAL, INTENT(IN) :: mode ( nmodes )
+
+! Component (T/F)
+LOGICAL, INTENT(IN) :: component( nmodes, ncp )
 
 ! aerosol no. concentration for modes [m-3]
 REAL, INTENT(OUT) :: zn(kbdim,model_levels,nmodes)
@@ -906,6 +938,9 @@ SUBROUTINE gc_activate_calc_zn_zxtm1 ( row_length,                             &
                                        model_levels,                           &
                                        kbdim,                                  &
                                        zaird,                                  &
+                                       ncp,                                    &
+                                       mode,                                   &
+                                       component,                              &
                                        zn,                                     &
                                        zxtm1 )
 
@@ -927,8 +962,7 @@ USE ukca_um_legacy_mod,     ONLY:                                              &
     gc_nd_ait_ins,                                                             &
     gc_ait_ins_bc,                                                             &
     gc_ait_ins_oc,                                                             &
-    i_glomap_clim_setup,                                                       &
-    i_gc_sussocbc_5mode
+    i_glomap_clim_setup
 
 USE ereport_mod,            ONLY:                                              &
     ereport
@@ -942,9 +976,6 @@ USE parkind1,               ONLY:                                              &
 
 USE ukca_mode_setup,        ONLY:                                              &
     nmodes,                                                                    &
-    mode,                                                                      &
-    ncp,                                                                       &
-    component,                                                                 &
     mode_ait_sol,                                                              &
     mode_acc_sol,                                                              &
     mode_cor_sol,                                                              &
@@ -953,6 +984,9 @@ USE ukca_mode_setup,        ONLY:                                              &
     cp_bc,                                                                     &
     cp_oc,                                                                     &
     cp_cl
+
+USE ukca_config_specification_mod, ONLY:                                       &
+    i_sussbcoc_5mode
 
 USE umPrintMgr,             ONLY:                                              &
     newline
@@ -972,6 +1006,15 @@ INTEGER, INTENT(IN) :: kbdim          ! = theta_field_size=row_length*rows
 
 ! number concentration of air molecules (/m3)
 REAL, INTENT(IN)  :: zaird ( kbdim, model_levels )
+
+! Number of components
+INTEGER, INTENT(IN) :: ncp
+
+! Mode (T/F)
+LOGICAL, INTENT(IN) :: mode ( nmodes )
+
+! Component (T/F)
+LOGICAL, INTENT(IN) :: component( nmodes, ncp )
 
 ! aerosol no. concentration for modes [m-3]
 REAL, INTENT(OUT) :: zn ( kbdim, model_levels, nmodes )
@@ -1000,7 +1043,7 @@ REAL(KIND=jprb)               :: zhook_handle
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 SELECT CASE(i_glomap_clim_setup)
-CASE (i_gc_sussocbc_5mode)
+CASE (i_sussbcoc_5mode)
   ! There are 4 modes
   ALLOCATE(znmr3d( 1:row_length, 1:rows, 1:model_levels, nmodes ) )
   znmr3d = 0.0
@@ -1101,7 +1144,8 @@ DEALLOCATE(znmr3d)
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 END SUBROUTINE gc_activate_calc_zn_zxtm1
 
-SUBROUTINE ukca_activate_calc_zrdry (row_length,rows,model_levels,kbdim,zrdry)
+SUBROUTINE ukca_activate_calc_zrdry (row_length,rows,model_levels,kbdim,mode,  &
+                                     zrdry)
 
 USE ereport_mod,            ONLY:                                              &
     ereport
@@ -1117,8 +1161,7 @@ USE ukca_drydiam_field_mod, ONLY:                                              &
     drydiam
 
 USE ukca_mode_setup,        ONLY:                                              &
-    nmodes,                                                                    &
-    mode
+    nmodes
 
 USE missing_data_mod,       ONLY:                                              &
     rmdi
@@ -1140,6 +1183,9 @@ INTEGER, INTENT(IN) :: model_levels
 
 ! = theta_field_size=row_length*rows
 INTEGER, INTENT(IN) :: kbdim
+
+! Mode (T/F)
+LOGICAL, INTENT(IN) :: mode ( nmodes )
 
 ! dry count median radius [m]
 REAL, INTENT(OUT)   :: zrdry ( kbdim, model_levels, nmodes )

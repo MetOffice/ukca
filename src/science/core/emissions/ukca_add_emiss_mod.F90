@@ -74,13 +74,17 @@ USE asad_chem_flux_diags,    ONLY: asad_emissions_diagnostics,                 &
                                    L_asad_use_volc_ems, volcanic_emissions
 USE ukca_constants,          ONLY: m_no, m_so2
 USE ukca_environment_fields_mod, ONLY: atmospheric_ch4
+
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
-                                         int_method_nr, bl_tracer_mix
+                                         int_method_nr, bl_tracer_mix,         &
+                                         glomap_variables
+
 USE ukca_config_defs_mod,    ONLY: n_use_emissions, em_chem_spec,              &
                                    n_boundary_vals, lbc_mmr, lbc_spec
 USE get_molmass_mod,         ONLY: get_molmass
-USE ukca_mode_setup,         ONLY: nmodes, ncp, mode, component, cp_su, mm,    &
-                                   moment_number, moment_mass
+
+USE ukca_mode_setup,         ONLY: nmodes, cp_su, moment_number, moment_mass
+
 USE ukca_mode_tracer_maps_mod, ONLY:  nmr_index, mmr_index
 USE ukca_setup_indices,      ONLY: msotwo, mm_gas
 
@@ -166,6 +170,16 @@ REAL, INTENT(IN OUT) :: tracers (1:row_length, 1:rows, 1:model_levels,         &
                                 1:n_tracers)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm (:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
+
 INTEGER, PARAMETER  :: surface_level = 1
 
 INTEGER, SAVE :: inox                 ! Index for NO/NOx tracer
@@ -244,6 +258,14 @@ INTEGER                            :: item      ! stash item
 ! End of header
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mm          => glomap_variables%mm
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
 
 ! Initialise variables
 

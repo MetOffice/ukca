@@ -118,8 +118,9 @@ SUBROUTINE ukca_impc_scav_dust(nbox,nbudaer,nd,md,mdt,crain,drain,             &
 !
 !----------------------------------------------------------------------
 
-USE ukca_mode_setup,    ONLY: mode, num_eps, component, mmid, mfrac_0,         &
-    cp_du, nmodes, ncp, mode_acc_insol, mode_cor_insol, sigmag
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,    ONLY: cp_du, nmodes, mode_acc_insol, mode_cor_insol
 
 USE ukca_setup_indices, ONLY: nmasimscduaccins, nmasimscducorins
 
@@ -133,11 +134,23 @@ REAL, INTENT(IN)     :: dtc
 REAL, INTENT(IN)     :: crain(nbox)
 REAL, INTENT(IN)     :: drain(nbox)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
 ! .. Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mmid(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
+
 REAL, PARAMETER :: fc=0.3
 REAL, PARAMETER :: fd=1.0
 REAL, PARAMETER :: secs_per_hr=3600.0
@@ -147,9 +160,9 @@ REAL    :: totrain(nbox)
 REAL    :: scavn(2,nbox,nmodes)
 REAL    :: scavm(2,nbox,nmodes)
 REAL    :: deln, deln1, deln2
-REAL    :: dm1(ncp)
-REAL    :: dm2(ncp)
-REAL    :: dm(ncp)
+REAL    :: dm1(glomap_variables%ncp)
+REAL    :: dm2(glomap_variables%ncp)
+REAL    :: dm(glomap_variables%ncp)
 REAL    :: ndnew
 REAL    :: ii, dplow, dpupp, jj, rflow, rfupp
 REAL    :: logdp, logdplow, logdpupp, fac1, fac2
@@ -166,6 +179,17 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_IMPC_SCAV_DUST'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mfrac_0     => glomap_variables%mfrac_0
+mmid        => glomap_variables%mmid
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 ! .. Combine the convective and dynamic rain in an array
 ! .. to loop over and convert rain from kgm-2s-1 to mm/hr

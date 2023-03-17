@@ -25,9 +25,6 @@
 !      UKCA_MODE_SOLINSOL_6MODE
 !    which define modes and components for different components/modes setup.
 !
-!  The internal routine: UKCA_MODE_ALLOCATE_CTL_VARS
-!  is used to allocate arrays after the No. of components (ncp) is defined.
-!
 !  UKCA is a community model supported by The Met Office and
 !  NCAS, with components initially provided by The University of
 !  Cambridge, University of Leeds and The Met Office. See
@@ -58,9 +55,8 @@ MODULE ukca_mode_setup
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE umPrintMgr, ONLY: umPrint, umMessage
-USE ukca_config_specification_mod, ONLY: glomap_config, i_ukca_bc_tuned, i_ukca_bc_mg_mix
 USE chemistry_constants_mod, ONLY: avogadro, rho_so4
-USE ukca_um_legacy_mod,  ONLY: pi, l_glomap_clim_radaer, i_glomap_clim_tune_bc
+
 IMPLICIT NONE
 
 PUBLIC
@@ -98,14 +94,9 @@ INTEGER, PARAMETER :: ip_ukca_mode_aitken     = 1
 INTEGER, PARAMETER :: ip_ukca_mode_accum      = 2
 INTEGER, PARAMETER :: ip_ukca_mode_coarse     = 3
 
-! No. of components
-INTEGER :: ncp
-! Mode switches (1=on, 0=0ff)
-INTEGER :: mode_choice(nmodes)
-! Modes resulting when two modes coagulate
-INTEGER :: coag_mode(nmodes,nmodes)
-! Specify which modes are soluble
-INTEGER :: modesol(nmodes)
+INTEGER, PARAMETER :: i_ukca_bc_tuned         = 1 ! BC density tuned
+INTEGER, PARAMETER :: i_ukca_bc_mg_mix        = 2 ! BC density tuned, plus 
+                                                  ! Maxwell-Garnet mixing method
 
 ! =============================================================================
 ! ukca_mode_sussbcoc_5mode specific settings
@@ -123,17 +114,17 @@ INTEGER, PARAMETER :: ncp_list_sussbcoc_5mode = 15
 ! List of components used by sussbcoc_5mode (by mode)
 INTEGER :: component_list_by_mode_sussbcoc_5mode(ncp_list_sussbcoc_5mode) =    &
             [ mode_nuc_sol,   mode_nuc_sol,                                    &
-               mode_ait_sol,   mode_ait_sol,   mode_ait_sol,                   &
-               mode_acc_sol,   mode_acc_sol,   mode_acc_sol,   mode_acc_sol,   &
-               mode_cor_sol,   mode_cor_sol,   mode_cor_sol,   mode_cor_sol,   &
-               mode_ait_insol, mode_ait_insol ]
+              mode_ait_sol,   mode_ait_sol,   mode_ait_sol,                    &
+              mode_acc_sol,   mode_acc_sol,   mode_acc_sol,   mode_acc_sol,    &
+              mode_cor_sol,   mode_cor_sol,   mode_cor_sol,   mode_cor_sol,    &
+              mode_ait_insol, mode_ait_insol ]
 ! List of components used by sussbcoc_5mode (by component)
 INTEGER :: component_list_by_cp_sussbcoc_5mode(ncp_list_sussbcoc_5mode) =      &
             [ cp_su,          cp_oc,                                           &
-               cp_su,          cp_bc,          cp_oc,                          &
-               cp_su,          cp_bc,          cp_oc,          cp_cl,          &
-               cp_su,          cp_bc,          cp_oc,          cp_cl,          &
-               cp_bc,          cp_oc ]
+              cp_su,          cp_bc,          cp_oc,                           &
+              cp_su,          cp_bc,          cp_oc,          cp_cl,           &
+              cp_su,          cp_bc,          cp_oc,          cp_cl,           &
+              cp_bc,          cp_oc ]
 
 ! =============================================================================
 ! ukca_mode_sussbcocdu_7mode specific settings
@@ -169,6 +160,20 @@ INTEGER :: component_list_by_cp_sussbcocdu_7mode(ncp_list_sussbcocdu_7mode) =  &
      cp_du ]
 
 ! =============================================================================
+! mode coagulation table
+! Modes resulting when two modes coagulate...
+
+INTEGER, PARAMETER :: coag_mode( nmodes, nmodes ) = RESHAPE( [                 &
+                                                         1, 2, 3, 4, 2, 3, 4,  &
+                                                         2, 2, 3, 4, 2, 3, 4,  &
+                                                         3, 3, 3, 4, 3, 3, 4,  &
+                                                         4, 4, 4, 4, 4, 4, 4,  &
+                                                         2, 2, 3, 4, 5, 6, 7,  &
+                                                         3, 3, 3, 4, 6, 6, 7,  &
+                                                         4, 4, 4, 4, 7, 7, 7], &
+                                                           [ nmodes, nmodes ] )
+
+! =============================================================================
 
 REAL, PARAMETER :: rho_nacl = 2165.0       ! Correct NaCl density (kg m^-3)
 !
@@ -183,8 +188,6 @@ REAL, PARAMETER :: rho_bc_mg_mix = 1800.0  ! (Kg m^-3)
 ! High estimate for BC density based on Bond and Bergstrom (2006)
 ! tuned for use with the volume-mixing approximation in RADAER
 REAL, PARAMETER :: rho_bc_tuned = 1900.0  ! (Kg m^-3)
-
-INTEGER :: i_tune_bc_loc ! local copy of i_tune_ukca_bc or i_glomap_clim_tune_bc
 
 ! Fraction of bc ems to go into each mode
 REAL :: fracbcem(nmodes)
@@ -218,35 +221,93 @@ REAL :: rhommav
 ! matching
 CHARACTER(LEN=7), PARAMETER :: mode_names(nmodes) =                            &
     ['Nuc_SOL','Ait_SOL','Acc_SOL','Cor_SOL',                                  &
-                'Ait_INS','Acc_INS','Cor_INS']
+               'Ait_INS','Acc_INS','Cor_INS']
 
-! Modes (T/F)
-LOGICAL     :: mode(nmodes) = .FALSE.
+! =============================================================================
+! -- Type for holding GLOMAP_mode variables --
 
-! Allocatable arrays:
-! -------------------
+TYPE :: glomap_variables_type
+  ! No. of components
+  INTEGER :: ncp
 
-! Component switches (1=on, 0=off)
-INTEGER, ALLOCATABLE :: component_choice(:)
-! Components that are soluble
-INTEGER, ALLOCATABLE :: soluble_choice(:)
-! Components allowed in each mode (must be consistent with coag_mode)
-INTEGER, ALLOCATABLE :: component_mode(:,:)
-! Initial fractions of mass in each mode among components
-REAL, ALLOCATABLE :: mfrac_0(:,:)
-! Molar masses of components (kg mol-1)
-REAL, ALLOCATABLE :: mm(:)
-! Mass density of components (kg m^-3)
-REAL, ALLOCATABLE :: rhocomp(:)
-! Number of dissociating ions in soluble components
-REAL, ALLOCATABLE :: no_ions(:)
-LOGICAL, ALLOCATABLE :: component(:,:)
-! Components that are soluble
-LOGICAL, ALLOCATABLE :: soluble(:)
-! Component names
-CHARACTER(LEN=7),ALLOCATABLE :: component_names(:)
+  ! Mode switches (1=on, 0=0ff)
+  INTEGER :: mode_choice(nmodes)
 
-PRIVATE :: ukca_mode_allocate_ctl_vars
+  ! Specify which modes are soluble
+  INTEGER :: modesol(nmodes)
+
+  ! Fraction of bc ems to go into each mode
+  REAL :: fracbcem(nmodes)
+
+  ! Fraction of om ems to go into each mode
+  REAL :: fracocem(nmodes)
+
+  ! Lower size limits of geometric mean diameter for each mode
+  REAL :: ddplim0(nmodes)
+
+  ! Mid-point of size mode (m)
+  REAL :: ddpmid(nmodes)
+
+  ! Upper size limits of geometric mean diameter for each mode
+  REAL :: ddplim1(nmodes)
+
+  ! Mid-point masses for initial radius grid
+  REAL :: mmid(nmodes)
+
+  ! Lo-interf masses for initial radius grid
+  REAL :: mlo(nmodes)
+
+  ! Hi-interf masses for initial radius grid
+  REAL :: mhi(nmodes)
+
+  ! Threshold for number in mode to carry out calculations
+  REAL :: num_eps(nmodes)
+
+  ! Fixed geometric standard deviation for each mode
+  REAL :: sigmag(nmodes)
+
+  ! Modes (T/F)
+  ! Note this must be declared as .FALSE.
+  ! otherwise it will be unitialised when required by for example AQUM suites
+  LOGICAL :: mode(nmodes) = .FALSE.
+
+  ! Component switches (1=on, 0=off)
+  INTEGER, ALLOCATABLE :: component_choice(:)
+
+  ! Components that are soluble
+  INTEGER, ALLOCATABLE :: soluble_choice(:)
+
+  ! Components allowed in each mode (must be consistent with coag_mode)
+  INTEGER, ALLOCATABLE :: component_mode(:,:)
+
+  ! Initial fractions of mass in each mode among components
+  REAL, ALLOCATABLE :: mfrac_0(:,:)
+
+  ! Molar masses of components (kg mol-1)
+  REAL, ALLOCATABLE :: mm(:)
+
+  ! Mass density of components (kg m^-3)
+  REAL, ALLOCATABLE :: rhocomp(:)
+
+  ! Number of dissociating ions in soluble components
+  REAL, ALLOCATABLE :: no_ions(:)
+
+  ! Component (T/F)
+  LOGICAL, ALLOCATABLE :: component(:,:)
+
+  ! Components that are soluble
+  LOGICAL, ALLOCATABLE :: soluble(:)
+
+  ! Component names
+  CHARACTER(LEN=7), ALLOCATABLE :: component_names(:)
+
+  ! EXP((9/2)*LOG^2(SIGMA_G))
+  REAL :: x(nmodes)
+
+END TYPE glomap_variables_type
+
+
+! =============================================================================
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_MODE_SETUP'
 
@@ -255,15 +316,35 @@ CONTAINS
 
 ! Subroutine Interface:
 
-SUBROUTINE ukca_mode_allcp_4mode
+SUBROUTINE ukca_mode_allcp_4mode ( glomap_variables_local,                     &
+                                   l_radaer_in,                                &
+                                   i_tune_bc_in,                               &
+                                   l_fix_nacl_density_in,                      &
+                                   pi )
+
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components with all components
 !  switched on but only 4 modes used.
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -274,132 +355,156 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_ALLCP_4MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,0,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,0,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,1,0]
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,1,0]
 ! ***n.b. in above have kept all cpts on (not SO) for UM test***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
 ! Set dlim34 here to be 500nm to agree with bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune density of BC
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
+END DO
+
+DO imode=1,nmodes
   rhommav=0.0
   DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
   END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
-END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
-fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into soluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_allcp_4mode
-SUBROUTINE ukca_mode_suss_4mode
+
+SUBROUTINE ukca_mode_suss_4mode( glomap_variables_local,                       &
+                                 l_radaer_in,                                  &
+                                 i_tune_bc_in,                                 &
+                                 l_fix_nacl_density_in,                        &
+                                 pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate and sea-salt only in 4 modes.
@@ -407,8 +512,22 @@ SUBROUTINE ukca_mode_suss_4mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -419,132 +538,156 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSS_4MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,0,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,0,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,0,0,1,0,0]
+glomap_variables_local%component_choice(1:ncp)=[1,0,0,1,0,0]
 ! *** n.b. only have h2so4 and nacl cpts on for this setup ***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!! set dplim34 here to be 500nm to match value found from bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune density of BC
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
+END DO
+
+DO imode=1,nmodes
   rhommav=0.0
   DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
   END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
-END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
-fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into soluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_suss_4mode
-SUBROUTINE ukca_mode_sussbcocdu_4mode
+
+SUBROUTINE ukca_mode_sussbcocdu_4mode( glomap_variables_local,                 &
+                                       l_radaer_in,                            &
+                                       i_tune_bc_in,                           &
+                                       l_fix_nacl_density_in,                  &
+                                       pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  SO4, sea-salt, bc, oc (secondary & primary combined) & du in 4 modes.
@@ -552,8 +695,22 @@ SUBROUTINE ukca_mode_sussbcocdu_4mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -563,133 +720,157 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOCDU_4MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,0,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,0,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,1,0]
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,1,0]
 ! *** n.b. only have h2so4,bc,oc,nacl cpts on for this setup ***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
-  rhommav=0.0
-  DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
-  END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
 END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+DO imode=1,nmodes
+  rhommav=0.0
+  DO icp=1,ncp
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
+  END DO
+
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
-fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into soluble Aitken for this setup).
-!
+
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcocdu_4mode
-SUBROUTINE ukca_mode_sussbcocdu_7mode
+
+SUBROUTINE ukca_mode_sussbcocdu_7mode( glomap_variables_local,                 &
+                                       l_radaer_in,                            &
+                                       i_tune_bc_in,                           &
+                                       l_fix_nacl_density_in,                  &
+                                       pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  SO4, sea-salt, bc, oc (secondary & primary combined) & du in 7 modes.
@@ -697,8 +878,22 @@ SUBROUTINE ukca_mode_sussbcocdu_7mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -708,134 +903,156 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOCDU_7MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
 
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,1,1,1]
+glomap_variables_local%mode_choice=[1,1,1,1,1,1,1]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,1,0]
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,1,0]
 ! *** n.b. only have h2so4,bc,oc,nacl cpts on for this setup ***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
-  rhommav=0.0
-  DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
-  END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
 END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+DO imode=1,nmodes
+  rhommav=0.0
+  DO icp=1,ncp
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
+  END DO
+
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
-fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcocdu_7mode
-SUBROUTINE ukca_mode_sussbcoc_4mode
+
+SUBROUTINE ukca_mode_sussbcoc_4mode( glomap_variables_local,                   &
+                                     l_radaer_in,                              &
+                                     i_tune_bc_in,                             &
+                                     l_fix_nacl_density_in,                    &
+                                     pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc & oc (secondary & primary combined) in 4 modes.
@@ -843,8 +1060,22 @@ SUBROUTINE ukca_mode_sussbcoc_4mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -855,132 +1086,157 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOC_4MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,0,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,0,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,0,0]
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,0,0]
 ! *** n.b. only have h2so4,bc,oc,nacl cpts on for this setup ***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
+END DO
+
+DO imode=1,nmodes
   rhommav=0.0
   DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
   END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
-END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
-fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into soluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
+
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcoc_4mode
-SUBROUTINE ukca_mode_sussbcoc_5mode
+
+SUBROUTINE ukca_mode_sussbcoc_5mode( glomap_variables_local,                   &
+                                     l_radaer_in,                              &
+                                     i_tune_bc_in,                             &
+                                     l_fix_nacl_density_in,                    &
+                                     pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc & oc (secondary & primary combined) in 5 modes.
@@ -988,8 +1244,22 @@ SUBROUTINE ukca_mode_sussbcoc_5mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1000,132 +1270,156 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOC_5MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,1,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,1,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,0,0]
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,0,0]
 ! *** n.b. only have h2so4,bc,oc,nacl cpts on for this setup ***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
+END DO
+
+DO imode=1,nmodes
   rhommav=0.0
   DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
   END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
-END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
-fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcoc_5mode
-SUBROUTINE ukca_mode_sussbcocso_4mode
+
+SUBROUTINE ukca_mode_sussbcocso_4mode( glomap_variables_local,                 &
+                                       l_radaer_in,                            &
+                                       i_tune_bc_in,                           &
+                                       l_fix_nacl_density_in,                  &
+                                       pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, primary oc & secondary oc cpts in 5 modes.
@@ -1133,8 +1427,22 @@ SUBROUTINE ukca_mode_sussbcocso_4mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1144,132 +1452,156 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOCSO_4MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,0,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,0,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,0,1] ! ***all cpts on except dust***
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,0,1]
+! ***all cpts on except dust***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
-  rhommav=0.0
-  DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
-  END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
 END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+DO imode=1,nmodes
+  rhommav=0.0
+  DO icp=1,ncp
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
+  END DO
+
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
-fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into   soluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcocso_4mode
-SUBROUTINE ukca_mode_sussbcocso_5mode
+
+SUBROUTINE ukca_mode_sussbcocso_5mode( glomap_variables_local,                 &
+                                       l_radaer_in,                            &
+                                       i_tune_bc_in,                           &
+                                       l_fix_nacl_density_in,                  &
+                                       pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, primary oc & secondary oc cpts in 5 modes.
@@ -1277,8 +1609,22 @@ SUBROUTINE ukca_mode_sussbcocso_5mode
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1289,131 +1635,157 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOCSO_5MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
+
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,1,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,1,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,0,1] ! ***all cpts on except dust***
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,0,1]
+! ***all cpts on except dust***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
+END DO
+
+DO imode=1,nmodes
   rhommav=0.0
   DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
   END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
-END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
-fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
+
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcocso_5mode
-SUBROUTINE UKCA_MODE_DUonly_2MODE
+
+SUBROUTINE ukca_mode_duonly_2mode( glomap_variables_local,                     &
+                                   l_radaer_in,                                &
+                                   i_tune_bc_in,                               &
+                                   l_fix_nacl_density_in,                      &
+                                   pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  only du cpt in 2 (insoluble) modes.
@@ -1421,8 +1793,22 @@ SUBROUTINE UKCA_MODE_DUonly_2MODE
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1432,136 +1818,157 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_DUONLY_2MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
 
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[0,0,0,0,0,1,1]
+glomap_variables_local%mode_choice=[0,0,0,0,0,1,1]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[0,0,0,0,1,0] ! ***only dust on***
+glomap_variables_local%component_choice(1:ncp)=[0,0,0,0,1,0]! ***only dust on***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1] !allowed in nuc_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1] !allowed in ait_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1] !allowed in acc_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1] !allowed in cor_sol
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0] !allowed in ait_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0] !allowed in acc_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0] !allowed in cor_ins
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Nuc soluble
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Ait soluble
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Acc soluble
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0] !Cor soluble
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0] !Ait insoluble
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Acc insoluble
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Cor insoluble
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
+glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
+!                                 h2so4 bc    oc     nacl    dust  so
 ! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
+
 ! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
-  rhommav=0.0
-  DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
-  END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
 END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+DO imode=1,nmodes
+  rhommav=0.0
+  DO icp=1,ncp
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
+  END DO
+
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
 !
-fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
-fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
-!
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
-END SUBROUTINE UKCA_MODE_DUonly_2MODE
+END SUBROUTINE ukca_mode_duonly_2mode
 
 ! ######################################################################
 
-SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt
+SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt( glomap_variables_local,          &
+                                              l_radaer_in,                     &
+                                              i_tune_bc_in,                    &
+                                              l_fix_nacl_density_in,           &
+                                              pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, oc (secondary & primary combined),
@@ -1572,8 +1979,22 @@ SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt
 ! ---------------------------------------------------------------------|
 IMPLICIT NONE
 
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
+
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1585,135 +2006,161 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SUSSBCOCNTNH_5MODE_7CPT'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! No of components
-ncp = 9
-CALL ukca_mode_allocate_ctl_vars()
+glomap_variables_local%ncp = 9
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org',          &
           'no3    ','nano3  ','nh4    ']
 
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,1,0,0]
+glomap_variables_local%mode_choice=[1,1,1,1,1,0,0]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,1,1,1,0,0,1,1,1]
+glomap_variables_local%component_choice(1:ncp)=[1,1,1,1,0,0,1,1,1]
 ! *** n.b. only have h2so4, bc, oc, nacl, no3, nh4 cpts on for this setup ***
 ! Components that are soluble
-soluble_choice=[1,0,0,1,0,0,1,1,1]
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,1,0,0,1,1,1]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,1,0,0,1,0,0,0]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,1,1,0,0,1,1,0,1]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,1,1,1,1,1,1,1,1]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,1,1,1,1,1,1,1,1]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,1,1,0,0,0,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0,0,0,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0,0,0,0]       !allowed in cor_ins
+!allowed nuc_sol
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,1,0,0,1,0,0,0]
+!allowed ait_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,1,1,0,0,1,1,0,1]
+!allowed acc_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,1,1,1,1,1,1,1,1]
+!allowed cor_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,1,1,1,1,1,1,1,1]
+!allowed ait_ins
+glomap_variables_local%component_mode(5,1:ncp)=[0,1,1,0,0,0,0,0,0]
+!allowed acc_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0,0,0,0]
+!allowed cor_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0,0,0,0]
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
 
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0,0.0,0.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+!NucSol
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+!AitSol
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+!AccSol
+glomap_variables_local%mfrac_0(4,1:ncp)=[0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+!CorSol
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.5,0.5,0.0,0.0,0.0,0.0,0.0,0.0]
+!AitIns
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0]
+!AccIns
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0]
+!CorIns
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098, 0.012, 0.0168, 0.05844, 0.100, 0.0168, 0.062, 0.084, 0.018]
-!    h2so4  bc     oc      nacl     dust   so      no3     nano3   nh4
+glomap_variables_local%mm(1:ncp)=                                              &
+            [0.098, 0.012, 0.0168, 0.05844, 0.100, 0.0168, 0.062, 0.084, 0.018]
+!            h2so4  bc     oc      nacl     dust   so      no3    nano3  nh4
 ! n.b. mm_bc=0.012, mm_oc=0.012*1.4=0.168 (1.4 POM:OC ratio)
 
 ! Mass density of components (kg m^-3)
-rhocomp=[1769.0, 1500.0, 1500.0, 1600.0, 2650.0, 1500.0,                       &
-          1500.0, 1600.0, 1769.0]
-!         h2so4   bc      oc      nacl    dust    so
-!         no3     nano3   nh4
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+       [1769.0, 1500.0, 1500.0, 1600.0, 2650.0, 1500.0, 1500.0, 1600.0, 1769.0]
+!       h2so4   bc      oc      nacl    dust    so      no3     nano3   nh4
 
-! Adjust the density of BC?
-IF (glomap_config%l_ukca_radaer) THEN
-   i_tune_bc_loc = glomap_config%i_ukca_tune_bc
-ELSE IF (l_glomap_clim_radaer) THEN
-   i_tune_bc_loc =  i_glomap_clim_tune_bc
-ELSE
-   ! Do not tune BC density
-   i_tune_bc_loc = 0 
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
 END IF
-SELECT CASE (i_tune_bc_loc)
-   CASE (i_ukca_bc_tuned)
-      rhocomp(cp_bc) = rho_bc_tuned
-   CASE (i_ukca_bc_mg_mix)
-      rhocomp(cp_bc) = rho_bc_mg_mix
-END SELECT
 
-! Adjust the density of NaCl (sea-salt)
-IF (glomap_config%l_fix_nacl_density) THEN
-  rhocomp(cp_cl) = rho_nacl
-  rhocomp(cp_nn) = rho_nacl
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
 END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
-  rhommav=0.0
-  DO icp=1,ncp
-    rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
-  END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
 END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[3,3,3,4,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[4,4,4,4,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+DO imode=1,nmodes
+  rhommav=0.0
+  DO icp=1,ncp
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
+  END DO
+
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
 
 ! Fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
-fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
-fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0]
 
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
 
@@ -1721,16 +2168,35 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt
 
-SUBROUTINE ukca_mode_solinsol_6mode
+SUBROUTINE  ukca_mode_solinsol_6mode( glomap_variables_local,                  &
+                                      l_radaer_in,                             &
+                                      i_tune_bc_in,                            &
+                                      l_fix_nacl_density_in,                   &
+                                      pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  soluble and insoluble components in 6 modes.
 !  Uses 12 aerosol tracers
 ! ---------------------------------------------------------------------|
+
 IMPLICIT NONE
+
+! Arguments
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+LOGICAL,                     INTENT(IN)     :: l_radaer_in
+INTEGER,                     INTENT(IN)     :: i_tune_bc_in
+LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+REAL,                        INTENT(IN)     :: pi
+
+! Local variables
 
 INTEGER :: imode
 INTEGER :: icp
+INTEGER :: ncp
+
+! specifies average (rho/mm) for default composition given by mfrac_0
+REAL :: rhommav
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1740,110 +2206,164 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_SOLINSOL_6MODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ncp = 6
-CALL ukca_mode_allocate_ctl_vars()
+! No of components
+glomap_variables_local%ncp = 6
+ncp = glomap_variables_local%ncp
+
+CALL ukca_mode_allocate_ctl_vars ( ncp , glomap_variables_local )
+
+glomap_variables_local%mode(:) = .FALSE.
+
 ! Component names
-component_names =                                                              &
+glomap_variables_local%component_names(1:ncp) =                                &
         ['h2so4  ','bcarbon','ocarbon','nacl   ','dust   ','sec_org']
 
 ! Mode switches (1=on, 0=0ff)
-mode_choice=[1,1,1,1,0,1,1]
+glomap_variables_local%mode_choice=[1,1,1,1,0,1,1]
+
 ! Specify which modes are soluble
-modesol=[1,1,1,1,0,0,0]
+glomap_variables_local%modesol=[1,1,1,1,0,0,0]
+
 ! Component switches (1=on, 0=off)
-component_choice=[1,0,0,0,1,0]
+glomap_variables_local%component_choice(1:ncp)=[1,0,0,0,1,0]
 ! *** n.b. only have soluble (as h2so4) and insoluble (as dust) in this setup
 ! Components that are soluble
-soluble_choice=[1,0,0,0,0,0]
+
+glomap_variables_local%soluble_choice(1:ncp)=[1,0,0,0,0,0]
 ! Components allowed in each mode (must be consistent with coag_mode)
-component_mode(1,1:ncp)=[1,0,0,0,0,0]       !allowed in nuc_sol
-component_mode(2,1:ncp)=[1,0,0,0,0,0]       !allowed in ait_sol
-component_mode(3,1:ncp)=[1,0,0,0,0,0]       !allowed in acc_sol
-component_mode(4,1:ncp)=[1,0,0,0,0,0]       !allowed in cor_sol
-component_mode(5,1:ncp)=[0,0,0,0,0,0]       !allowed in ait_ins
-component_mode(6,1:ncp)=[0,0,0,0,1,0]       !allowed in acc_ins
-component_mode(7,1:ncp)=[0,0,0,0,1,0]       !allowed in cor_ins
+!allowed nuc_sol
+glomap_variables_local%component_mode(1,1:ncp)=[1,0,0,0,0,0]
+!allowed ait_sol
+glomap_variables_local%component_mode(2,1:ncp)=[1,0,0,0,0,0]
+!allowed acc_sol
+glomap_variables_local%component_mode(3,1:ncp)=[1,0,0,0,0,0]
+!allowed cor_sol
+glomap_variables_local%component_mode(4,1:ncp)=[1,0,0,0,0,0]
+!allowed ait_ins
+glomap_variables_local%component_mode(5,1:ncp)=[0,0,0,0,0,0]
+!allowed acc_ins
+glomap_variables_local%component_mode(6,1:ncp)=[0,0,0,0,1,0]
+!allowed cor_ins
+glomap_variables_local%component_mode(7,1:ncp)=[0,0,0,0,1,0]
+
 
 ! Specify size limits of geometric mean diameter for each mode
-!  set ddplim34 here to be 500nm to match value found by bin-mode comparison
-ddplim0=[1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
-ddplim1=[1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
+! Set dlim34 here to be 500nm to agree with bin-mode comparison
+glomap_variables_local%ddplim0=                                                &
+                             [1.0e-9,1.0e-8,1.0e-7,0.5e-6,1.0e-8,1.0e-7,1.0e-6]
+glomap_variables_local%ddplim1=                                                &
+                             [1.0e-8,1.0e-7,0.5e-6,1.0e-5,1.0e-7,1.0e-6,1.0e-5]
 
 ! Specify fixed geometric standard deviation for each mode
-sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0] ! to match M7, but sigacc=1.4
+glomap_variables_local%sigmag=[1.59,1.59,1.40,2.0,1.59,1.59,2.0]
+! to match M7, but sigacc=1.4
 
 DO imode=1,nmodes
-  x(imode)=EXP(4.5*LOG(sigmag(imode))*LOG(sigmag(imode)))
+  glomap_variables_local%x(imode)=EXP(4.5 *                                    &
+                                 LOG( glomap_variables_local%sigmag(imode) ) * &
+                                 LOG( glomap_variables_local%sigmag(imode) ) )
 END DO
-!
+
 ! Specify threshold for ND (per cc) below which don't do calculations
-num_eps=[1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
+glomap_variables_local%num_eps =                                               &
+                          [1.0e-8,1.0e-8,1.0e-8,1.0e-14,1.0e-8,1.0e-14,1.0e-14]
 
 ! Initial fractions of mass in each mode among components
-mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !nucln. soluble
-mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !Aitken soluble
-mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !accum. soluble
-mfrac_0(4,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0] !coarse soluble
-mfrac_0(5,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !Aitken insoluble
-mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !accum. insoluble
-mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0] !coarse insoluble
+glomap_variables_local%mfrac_0(1,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0]
+!NucSol
+glomap_variables_local%mfrac_0(2,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0]
+!AitSol
+glomap_variables_local%mfrac_0(3,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0]
+!AccSol
+glomap_variables_local%mfrac_0(4,1:ncp)=[1.0,0.0,0.0,0.0,0.0,0.0]
+!CorSol
+glomap_variables_local%mfrac_0(5,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0]
+!AitIns
+glomap_variables_local%mfrac_0(6,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0]
+!AccIns
+glomap_variables_local%mfrac_0(7,1:ncp)=[0.0,0.0,0.0,0.0,1.0,0.0]
+!CorIns
 
 ! Molar masses of components (kg mol-1)
-mm=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
-!          h2so4  bc     oc    nacl   dust    so
-! n.b. mm_bc=0.012, mm_oc=mm_so=0.012*1.4=0.168 (1.4 POM:OC ratio)
-! Mass density of components (kg m^-3)
-rhocomp = [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+glomap_variables_local%mm(1:ncp)=                                              &
+           [ 0.098, 0.012, 0.0168, 0.05844, 0.100, 0.0168]
+!            h2so4  bc     oc      nacl     dust   so
+! n.b. mm_bc=0.012, mm_oc=0.012*1.4=0.168 (1.4 POM:OC ratio)
 
-IF (glomap_config%l_fix_nacl_density) rhocomp(cp_cl) = rho_nacl
+! Mass density of components (kg m^-3)
+glomap_variables_local%rhocomp(1:ncp) =                                        &
+                                    [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+IF ( l_radaer_in ) THEN
+  SELECT CASE (i_tune_bc_in)
+  CASE (i_ukca_bc_tuned)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_tuned
+  CASE (i_ukca_bc_mg_mix)
+    glomap_variables_local%rhocomp(cp_bc) = rho_bc_mg_mix
+  END SELECT
+END IF
+
+IF ( l_fix_nacl_density_in ) THEN
+  glomap_variables_local%rhocomp(cp_cl) = rho_nacl
+END IF
 
 DO imode=1,nmodes
-  ddpmid(imode)=EXP(0.5*(LOG(ddplim0(imode))+LOG(ddplim1(imode))))
-  rhommav=0.0
-  DO icp=1,ncp
-   rhommav=rhommav+mfrac_0(imode,icp)*(rhocomp(icp)/mm(icp))
-  END DO
-  mmid(imode)=(pi/6.0)*(ddpmid (imode)**3)*(rhommav*avogadro)*x(imode)
-  mlo (imode)=(pi/6.0)*(ddplim0(imode)**3)*(rhommav*avogadro)*x(imode)
-  mhi (imode)=(pi/6.0)*(ddplim1(imode)**3)*(rhommav*avogadro)*x(imode)
+  glomap_variables_local%ddpmid(imode) = EXP( 0.5 *                            &
+                               ( LOG(glomap_variables_local%ddplim0(imode) ) + &
+                                 LOG(glomap_variables_local%ddplim1(imode) ) ) )
 END DO
 
-! Modes resulting when two modes coagulate
-coag_mode(1,1:nmodes)=[1,2,3,4,2,3,4]
-! 1 coagulating with:    1,2,3,4,5,6,7 produces...
-coag_mode(2,1:nmodes)=[2,2,3,4,2,3,4]
-! 2 coagulating with:    1,2,3,4,5,6,7
-coag_mode(3,1:nmodes)=[3,3,3,4,3,3,4]
-! 3 coagulating with:    1,2,3,4,5,6,7
-coag_mode(4,1:nmodes)=[4,4,4,4,4,4,4]
-! 4 coagulating with:    1,2,3,4,5,6,7
-coag_mode(5,1:nmodes)=[2,2,3,4,5,6,7]
-! 5 coagulating with:    1,2,3,4,5,6,7
-coag_mode(6,1:nmodes)=[6,6,6,6,6,6,7]
-! 6 coagulating with:    1,2,3,4,5,6,7
-coag_mode(7,1:nmodes)=[7,7,7,7,7,7,7]
-! 7 coagulating with:    1,2,3,4,5,6,7
+DO imode=1,nmodes
+  rhommav=0.0
+  DO icp=1,ncp
+    rhommav = rhommav +                                                        &
+              glomap_variables_local%mfrac_0(imode,icp) *                      &
+              ( glomap_variables_local%rhocomp(icp) /                          &
+                glomap_variables_local%mm(icp) )
+  END DO
+
+  glomap_variables_local%mmid(imode) = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddpmid(imode)**3 ) * &
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mlo(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim0(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+  glomap_variables_local%mhi(imode)  = ( pi / 6.0 ) *                          &
+                                 ( glomap_variables_local%ddplim1(imode)**3 ) *&
+                                 ( rhommav * avogadro ) *                      &
+                                 glomap_variables_local%x(imode)
+
+END DO
+
 
 ! number of dissociating ions in soluble components
-no_ions=[3.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,0.0,0.0,0.0]
 !
-fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
-fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
+glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
-! (emit into soluble Aitken for this setup).
-!
+! (emit into insoluble Aitken for this setup).
+
 ! Set logical variables
-mode=(mode_choice > 0)
-component=.FALSE.
-soluble=.FALSE.
+glomap_variables_local%mode      = ( glomap_variables_local%mode_choice > 0 )
+glomap_variables_local%component = .FALSE.
+glomap_variables_local%soluble   = .FALSE.
 DO imode=1,nmodes
   DO icp=1,ncp
-    IF (((component_mode(imode,icp) == 1) .AND.                                &
-          (component_choice(icp) == 1)) .AND.                                  &
-          (mode_choice(imode) == 1)) THEN
-      component(imode,icp)=.TRUE.
+
+    IF ( ( ( glomap_variables_local%component_mode( imode, icp ) == 1 ) .AND.  &
+           ( glomap_variables_local%component_choice( icp ) == 1 ) )    .AND.  &
+         ( glomap_variables_local%mode_choice(imode) == 1 ) ) THEN
+      glomap_variables_local%component( imode, icp ) = .TRUE.
     END IF
-    IF (soluble_choice(icp) == 1) soluble(icp)=.TRUE.
+
+    IF ( glomap_variables_local%soluble_choice(icp) == 1 ) THEN
+      glomap_variables_local%soluble(icp) = .TRUE.
+    END IF
   END DO
 END DO
 
@@ -1853,12 +2373,20 @@ END SUBROUTINE ukca_mode_solinsol_6mode
 
 ! ############################################################################
 
-SUBROUTINE ukca_mode_allocate_ctl_vars
+SUBROUTINE ukca_mode_allocate_ctl_vars( ncp , glomap_variables_local )
 ! ---------------------------------------------------------------------|
 !  Subroutine to allocate arrays in this module
 ! ---------------------------------------------------------------------|
 
 IMPLICIT NONE
+
+! Arguments
+
+INTEGER, INTENT(IN) :: ncp
+
+TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
+
+! Local variables
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1868,16 +2396,26 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_ALLOCATE_CTL_VARS'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-IF (.NOT. ALLOCATED(component_choice)) ALLOCATE(component_choice(ncp))
-IF (.NOT. ALLOCATED(soluble_choice)) ALLOCATE(soluble_choice(ncp))
-IF (.NOT. ALLOCATED(mm)) ALLOCATE(mm(ncp))
-IF (.NOT. ALLOCATED(rhocomp)) ALLOCATE(rhocomp(ncp))
-IF (.NOT. ALLOCATED(no_ions)) ALLOCATE(no_ions(ncp))
-IF (.NOT. ALLOCATED(component_names)) ALLOCATE(component_names(ncp))
-IF (.NOT. ALLOCATED(soluble)) ALLOCATE(soluble(ncp))
-IF (.NOT. ALLOCATED(component_mode)) ALLOCATE(component_mode(nmodes,ncp))
-IF (.NOT. ALLOCATED(mfrac_0)) ALLOCATE(mfrac_0(nmodes,ncp))
-IF (.NOT. ALLOCATED(component)) ALLOCATE(component(nmodes,ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%component_choice))                  &
+          ALLOCATE( glomap_variables_local%component_choice(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%soluble_choice))                    &
+          ALLOCATE( glomap_variables_local%soluble_choice(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%mm))                                &
+          ALLOCATE( glomap_variables_local%mm(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%rhocomp))                           &
+          ALLOCATE( glomap_variables_local%rhocomp(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%no_ions))                           &
+          ALLOCATE( glomap_variables_local%no_ions(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%component_names))                   &
+          ALLOCATE( glomap_variables_local%component_names(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%soluble))                           &
+          ALLOCATE( glomap_variables_local%soluble(ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%component_mode))                    &
+          ALLOCATE( glomap_variables_local%component_mode(nmodes,ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%mfrac_0))                           &
+          ALLOCATE( glomap_variables_local%mfrac_0(nmodes,ncp))
+IF (.NOT. ALLOCATED(glomap_variables_local%component))                         &
+          ALLOCATE( glomap_variables_local%component(nmodes,ncp))
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

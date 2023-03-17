@@ -27,10 +27,10 @@ MODULE ukca_mode_diags_mod
 
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_constants,         ONLY: mmw, m_air
-USE ukca_mode_setup,        ONLY: nmodes, ncp, ncp_max, mode, modesol,         &
-                                  component, mm, mmid, mfrac_0,                &
+USE ukca_mode_setup,        ONLY: nmodes, ncp_max,                             &
                                   cp_su, cp_bc, cp_oc, cp_cl, cp_du,           &
                                   cp_no3, cp_nh4, cp_nn
+USE ukca_config_specification_mod, ONLY: glomap_variables
 USE errormessagelength_mod, ONLY: errormessagelength
 USE ereport_mod,            ONLY: ereport
 USE umPrintMgr,             ONLY: umPrint, umMessage
@@ -149,6 +149,16 @@ REAL, INTENT(IN OUT) :: stashwork38(len_stashwork38)
 
 ! Local variables
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mm(:)
+REAL,    POINTER :: mmid(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+
 INTEGER :: ifirst         ! index of first mode tracer in nmr_index, mmr_index
 INTEGER :: imode          ! loop counter for modes
 INTEGER :: icp            ! loop counter for components
@@ -159,7 +169,7 @@ REAL    :: tmid(nbox)     ! Temperature at mid-point (K)
 REAL    :: tr_rs(nbox)    ! Local variable to hold re-shaped aerosol tracers
 REAL    :: aird(nbox)     ! Number density of air (cm^-3)
 REAL    :: nd(nbox,nmodes)! Aerosol particle number density for mode (cm^-3)
-REAL    :: md(nbox,nmodes,ncp)
+REAL    :: md(nbox,nmodes,glomap_variables%ncp)
                           ! Average component concentration of aerosol particle
                           ! in mode (molecules.particle^-1)
 LOGICAL (KIND=log_small) :: mask1(nbox)              ! To mask negatives
@@ -173,6 +183,16 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MODE_DIAGS'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mfrac_0     => glomap_variables%mfrac_0
+mm          => glomap_variables%mm
+mmid        => glomap_variables%mmid
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
 
 icode = 0
 
@@ -342,7 +362,7 @@ REAL, INTENT(IN)    :: nd(nbox,nmodes)
 
 ! Average component concentration of aerosol particle in mode
 ! (molecules.particle^-1)
-REAL, INTENT(IN)    :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN)    :: md(nbox,nmodes,glomap_variables%ncp)
 
 ! Height of interface levels above surface (m)
 REAL, INTENT(IN)    :: interf_z(row_length, rows, 0:model_levels)
@@ -354,6 +374,15 @@ INTEGER, INTENT(IN) :: len_stashwork38
 REAL, INTENT(IN OUT) :: stashwork38(len_stashwork38)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm (:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: modesol(:)
+INTEGER, POINTER :: ncp
 
 ! Table to locate STASH item numbers from mode and component
 ! Final components are unused (SO, NO3, NH4, Na, Cl) currently
@@ -495,13 +524,15 @@ REAL    :: field3d(row_length,rows,model_levels)   ! Output field (3D)
 REAL    :: dz(row_length,rows,model_levels) ! Depth of each layer (m)
 
 REAL    :: aerosol_component_density(row_length,rows,model_levels,             &
-                                                          nmodes,ncp+1)
+                                     nmodes,glomap_variables%ncp+1)
                                             ! aerosol cpnt. density (kg.m^-3)
 REAL    :: aerosol_number_density(row_length,rows,model_levels,nmodes)
                                             ! aerosol no. density (m^-3)
-REAL    :: aerosol_component_load(row_length,rows,nmodes,ncp+1)
+REAL    :: aerosol_component_load(row_length,rows,nmodes,                      &
+                                            glomap_variables%ncp+1)
                                             ! integrated aerosol load (kg.m^-2)
-REAL    :: aerosol_total_load(row_length,rows,ncp+1)
+REAL    :: aerosol_total_load(row_length,rows,                                 &
+                                            glomap_variables%ncp+1)
                                             ! total aerosol load of each
                                             ! component + h2o (kg.m^-2)
 
@@ -513,6 +544,15 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='MODE_DIAGS_CMIP6'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mm          => glomap_variables%mm
+mode        => glomap_variables%mode
+modesol     => glomap_variables%modesol
+ncp         => glomap_variables%ncp
 
 im_index = 1
 icode = 0
@@ -851,7 +891,7 @@ REAL, INTENT(IN)    :: nd(nbox,nmodes)
 
 ! Average component concentration of aerosol particle in mode
 ! (molecules.particle^-1)
-REAL, INTENT(IN)    :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN)    :: md(nbox,nmodes,glomap_variables%ncp)
 
 ! Length of diagnostics array
 INTEGER, INTENT(IN) :: len_stashwork38
@@ -927,7 +967,7 @@ tsection = stashcode_glomap_sec*1000
 
 ALLOCATE(pm_request%l_total_dry(n_size_cat))
 ALLOCATE(pm_request%l_total_wet(n_size_cat))
-ALLOCATE(pm_request%l_component(ncp,n_size_cat))
+ALLOCATE(pm_request%l_component(glomap_variables%ncp,n_size_cat))
 pm_request%l_total_dry(:) = .FALSE.
 pm_request%l_total_wet(:) = .FALSE.
 pm_request%l_component(:,:) = .FALSE.

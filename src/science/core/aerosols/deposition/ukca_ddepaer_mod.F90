@@ -202,13 +202,17 @@ SUBROUTINE ukca_ddepaer (nbox,nbudaer,nd,md,mdt,                               &
 
 USE parkind1,                ONLY: jpim, jprb
 USE ukca_dcoff_par_av_k_mod, ONLY: ukca_dcoff_par_av_k
-USE ukca_mode_setup,         ONLY: nmodes, ncp, mode, component, sigmag,       &
-                                   num_eps, cp_su, cp_bc, cp_oc, cp_cl,        &
+
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,         ONLY: nmodes,                                     &
+                                   cp_su, cp_bc, cp_oc, cp_cl,                 &
                                    cp_du, cp_so, moment_number, moment_mass,   &
                                    mode_nuc_sol, mode_ait_sol, mode_acc_sol,   &
                                    mode_cor_sol, mode_ait_insol,               &
                                    mode_acc_insol, mode_cor_insol,             &
                                    cp_no3, cp_nh4, cp_nn
+
 USE ukca_setup_indices,      ONLY: nmasddepbcaccsol,                           &
                                    nmasddepbcaitins, nmasddepbcaitsol,         &
                                    nmasddepbccorsol, nmasddepduaccins,         &
@@ -253,11 +257,20 @@ REAL, INTENT(IN)    :: rhoa(nbox)
 REAL, INTENT(IN)    :: mfpa(nbox)
 REAL, INTENT(IN)    :: dvisc(nbox)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
 !    Local Variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
 
 INTEGER :: imode
 INTEGER :: icp
@@ -304,6 +317,15 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_DDEPAER'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 dzmid(:)=(rgas*t(:)/gg)*LOG(plower(:)/pmid(:))
 dz(:)=(rgas*t(:)/gg)*LOG(plower(:)/pupper(:))

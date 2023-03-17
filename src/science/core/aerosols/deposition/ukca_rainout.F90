@@ -111,14 +111,12 @@ SUBROUTINE ukca_rainout(nbox,nbudaer,nd,md,mdt,fconv_conv,                     &
 !     Various indices for budget terms in BUD_AER_MAS
 !
 !--------------------------------------------------------------------
+
+USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables
+
 USE ukca_mode_setup, ONLY:                                                     &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    mode,                                                                      &
-    component,                                                                 &
-    sigmag,                                                                    &
-    modesol,                                                                   &
-    num_eps,                                                                   &
     cp_su,                                                                     &
     cp_bc,                                                                     &
     cp_oc,                                                                     &
@@ -174,10 +172,21 @@ LOGICAL, INTENT(IN) :: lcvrainout
 
 REAL, INTENT(IN OUT) :: nd (nbox,nmodes)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md (nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md (nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
 ! .. Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: modesol(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
+
 INTEGER, PARAMETER :: i_none = 0     ! defines precipitation type
 INTEGER, PARAMETER :: i_conv = 1
 INTEGER, PARAMETER :: i_dynm = 2
@@ -209,7 +218,7 @@ REAL    :: log2sg
 REAL    :: lnratm
 REAL    :: erfmas
 REAL    :: frac_m
-REAL    :: dm(ncp)
+REAL    :: dm(glomap_variables%ncp)
 REAL    :: scav1
 REAL    :: scav2
 REAL    :: scav1m
@@ -226,6 +235,16 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_RAINOUT'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+modesol     => glomap_variables%modesol
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 maxfracn=0.90
 !

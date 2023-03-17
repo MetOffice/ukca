@@ -69,7 +69,8 @@ USE missing_data_mod, ONLY: rmdi
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
                                          i_ukca_activation_arg,                &
                                          l_ukca_config_available,              &
-                                         int_method_nr, int_method_be_explicit
+                                         int_method_nr, int_method_be_explicit,&
+                                         glomap_variables
 
 USE ukca_environment_req_mod, ONLY: l_environ_req_available
 USE ukca_environment_mod, ONLY: clear_environment_fields
@@ -2648,7 +2649,8 @@ IF (ukca_config%l_ukca_mode .AND. do_chemistry) THEN
         all_tracers(:,:,:,                                                     &
                     n_chem_tracers+n_aero_tracers+1:                           &
                     n_chem_tracers+n_aero_tracers+n_mode_tracers),             &
-        mode_diags                                                             &
+        mode_diags,                                                            &
+        glomap_variables                                                       &
         )
 
     ! Write CDNC to all_ntp structure

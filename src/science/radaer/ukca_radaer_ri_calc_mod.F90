@@ -26,7 +26,7 @@ MODULE ukca_radaer_ri_calc_mod
 
 USE parkind1, ONLY: jpim, jprb
 USE yomhook,  ONLY: lhook, dr_hook
-USE ukca_config_specification_mod, ONLY: i_ukca_bc_mg_mix
+
 
 IMPLICIT NONE
 
@@ -113,9 +113,15 @@ REAL, INTENT(OUT) :: re_m
 REAL, INTENT(OUT) :: im_m
 
 ! Local variables
+
 !
 ! Modal volume of BC
 REAL     :: ukca_modal_bc_vol
+
+!
+! BC density tuned plus Maxwell-Garnet mixing method
+INTEGER, PARAMETER :: i_ukca_bc_mg_mix        = 2
+
 !
 ! Complex refractive index after MG mixing
 COMPLEX :: refr_mix
@@ -239,8 +245,8 @@ ELSE
   !
   ! Mix in the BC via Maxwell-Garnett?
   ! Only if the BC component type is allowed in this mode
-  ! and is present with non-zero volume, and l_ukca_tune_bc
-  ! or l_glomap_clim_tune_bc is set
+  ! and is present with non-zero volume, and i_ukca_tune_bc==2
+  ! or i_glomap_clim_tune_bc==2
   !
   IF (l_mg_mix) THEN
   

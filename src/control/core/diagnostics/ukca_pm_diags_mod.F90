@@ -64,7 +64,9 @@
 
 MODULE ukca_pm_diags_mod
 
-USE ukca_mode_setup, ONLY: nmodes, ncp, mode, component, mm, sigmag
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,               ONLY: nmodes
 
 IMPLICIT NONE
 PRIVATE
@@ -129,12 +131,25 @@ REAL, INTENT(OUT) :: pm_component(:,:,:)  ! Component contributions to PM by
 
 ! Local variables
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: sigmag(:)
+
 INTEGER :: i_size_cat       ! loop counter for PM size category
 INTEGER :: imode            ! loop counter for modes
 INTEGER :: icp              ! loop counter for components
+
 REAL, PARAMETER :: kgpcm3_to_ugpm3 = 1.0e15
                             ! Conversion from kg cm^-3 to ug m^-3
-REAL :: mass_contrib(nbox,ncp) ! Mass contributions from each component in mode
+
+REAL :: mass_contrib(nbox,glomap_variables%ncp)
+                            ! Mass contributions from each component in mode
+
 REAL :: mass_dry(nbox)      ! Sum of mass contributions for mode excluding H2O
 REAL :: mass_wet(nbox)      ! Sum of mass contributions for mode including H20
 REAL :: dbar(nbox)          ! Geometric mean diameter of particles in mode
@@ -150,6 +165,15 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PM_DIAGS'
 ! End of header
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mm          => glomap_variables%mm
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+sigmag      => glomap_variables%sigmag
 
 ! Initialise PM arrays
 pm_dry(:,:) = 0.0

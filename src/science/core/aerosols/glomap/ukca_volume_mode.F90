@@ -34,10 +34,10 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_VOLUME_MODE_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_volume_mode(nbox,nd,md,mdt,                                    &
- rh,wvol,wetdp,rhopar,                                                         &
- dvol,drydp,mdwat,pvol,pvol_wat,                                               &
- t,pmid,s)
+SUBROUTINE ukca_volume_mode( glomap_variables_local, nbox, nd, md, mdt,        &
+                             rh, dvol, drydp, t, pmid, s,                      &
+                             mdwat, wvol, wetdp, rhopar, pvol, pvol_wat )
+
 !----------------------------------------------------------------------
 !
 ! Calculate (wet) volume corresponding to mid-pt particles in each mode.
@@ -73,6 +73,7 @@ SUBROUTINE ukca_volume_mode(nbox,nd,md,mdt,                                    &
 ! Inputs
 ! ------
 ! NBOX     : Number of grid boxes
+! NCP      : Number of possible aerosol components
 ! ND       : Aerosol ptcl no. concentration (ptcls per cc)
 ! MD       : Component median aerosol mass (molecules per ptcl)
 ! MDT      : Total median aerosol mass (molecules per ptcl)
@@ -83,11 +84,22 @@ SUBROUTINE ukca_volume_mode(nbox,nd,md,mdt,                                    &
 ! PMID     : Pressure at mid level (Pa)
 ! S        : Specific humidity
 !
+! Inputs ( via glomap_variables_local )
+! ------
+! MODE     : Logical variable denoting where mode is defined
+! COMPONENT: Logical variable denoting where cpt is defined
+! MFRAC_0  : Initial mass fraction to set when no particles.
+! SOLUBLE  : Logical variable defining which cpts are soluble
+! MM       : Molar masses of components (kg per mole)
+! RHOCOMP  : Densities (dry) of each component (kg/m^3)
+! X        : EXP((9/2)*LOG^2(SIGMA_G))
+
+!
 ! Outputs
 ! ------
+! MDWAT    : Molecular concentration of water (molecules per particle)
 ! WVOL     : Avg wet volume of size mode (m3)
 ! WETDP    : Avg wet diameter of size mode (m)
-! MDWAT    : Molecular concentration of water (molecules per particle)
 ! RHOPAR   : Particle density [incl. H2O & insoluble cpts] (kgm^-3)
 ! PVOL     : Partial volumes of each component in each mode (m3)
 ! PVOL_WAT : Partial volume of water in each mode (m3)
@@ -121,15 +133,7 @@ SUBROUTINE ukca_volume_mode(nbox,nd,md,mdt,                                    &
 ! Inputted by module UKCA_MODE_SETUP
 ! ----------------------------------
 ! NMODES   : Number of possible aerosol modes
-! NCP      : Number of possible aerosol components
-! MODE     : Logical variable denoting where mode is defined
-! COMPONENT: Logical variable denoting where cpt is defined
-! MFRAC_0  : Initial mass fraction to set when no particles.
-! SOLUBLE  : Logical variable defining which cpts are soluble
-! MM       : Molar masses of components (kg per mole)
 ! MODESOL  : Defines which modes are soluble (integer)
-! RHOCOMP  : Densities (dry) of each component (kg/m^3)
-! X        : EXP((9/2)*LOG^2(SIGMA_G))
 ! NUM_EPS  : Value of NEWN below which don't recalculate MD (per cc)
 !                                            or carry out process
 ! NANION   : Number of possible anion species
@@ -151,11 +155,11 @@ USE ukca_types_mod,       ONLY: log_small
 USE water_constants_mod,  ONLY: rho_water
 USE chemistry_constants_mod, ONLY: avogadro, rho_so4
 USE ukca_constants,       ONLY: mmw
-USE ukca_mode_setup,      ONLY: nmodes, ncp, mode, component,                  &
-                                mfrac_0, soluble, mm, modesol,                 &
-                                rhocomp, x, num_eps, nanion,                   &
-                                ncation, cp_su, cp_oc, cp_cl,                  &
+
+USE ukca_mode_setup,      ONLY: nmodes, nanion, ncation,                       &
+                                cp_su, cp_oc, cp_cl,                           &
                                 cp_so, cp_nh4, cp_no3, cp_nn
+
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
 USE ereport_mod,          ONLY: ereport
@@ -166,15 +170,17 @@ USE errormessagelength_mod, ONLY: errormessagelength
 USE ukca_vapour_mod, ONLY: ukca_vapour
 USE ukca_water_content_v_mod, ONLY: ukca_water_content_v
 
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_config_specification_mod, ONLY: glomap_config,                        &
+                                         glomap_variables_type
 
 IMPLICIT NONE
 
 
 ! Subroutine interface
+TYPE(glomap_variables_type), TARGET, INTENT(IN) :: glomap_variables_local
 INTEGER, INTENT(IN) :: nbox
 REAL, INTENT(IN)    :: nd(nbox,nmodes)
-REAL, INTENT(IN)    :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN)    :: md(nbox,nmodes,glomap_variables_local%ncp)
 REAL, INTENT(IN)    :: mdt(nbox,nmodes)
 REAL, INTENT(IN)    :: rh(nbox)
 REAL, INTENT(IN)    :: dvol(nbox,nmodes)
@@ -186,10 +192,25 @@ REAL, INTENT(OUT)   :: mdwat(nbox,nmodes)
 REAL, INTENT(OUT)   :: wvol(nbox,nmodes)
 REAL, INTENT(OUT)   :: wetdp(nbox,nmodes)
 REAL, INTENT(OUT)   :: rhopar(nbox,nmodes)
-REAL, INTENT(OUT)   :: pvol(nbox,nmodes,ncp)
+REAL, INTENT(OUT)   :: pvol(nbox,nmodes,glomap_variables_local%ncp)
 REAL, INTENT(OUT)   :: pvol_wat(nbox,nmodes)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mm(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: modesol(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: rhocomp(:)
+LOGICAL, POINTER :: soluble(:)
+REAL,    POINTER :: x(:)
+
 INTEGER :: errcode                ! Variable passed to ereport
 INTEGER :: i
 INTEGER :: imode
@@ -213,10 +234,10 @@ REAL    :: denom(nbox)
 REAL    :: denom2(nbox)
 REAL    :: piovrsix
 REAL    :: sixovrpix(nmodes)
-REAL    :: mm_ovravc(ncp)
+REAL    :: mm_ovravc(glomap_variables_local%ncp)
 REAL    :: mmwovravc
-REAL    :: mm_ovravcrhocp(ncp)
-REAL    :: mm_rhocp(ncp)
+REAL    :: mm_ovravcrhocp(glomap_variables_local%ncp)
+REAL    :: mm_rhocp(glomap_variables_local%ncp)
 REAL    :: mmwrhow
 REAL    :: f_ao
 REAL    :: cl(nbox,-nanion:ncation) !ION CONCS (MOL/CC OF AIR)
@@ -245,6 +266,20 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_VOLUME_MODE'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component => glomap_variables_local%component
+mfrac_0   => glomap_variables_local%mfrac_0
+mm        => glomap_variables_local%mm
+mode      => glomap_variables_local%mode
+modesol   => glomap_variables_local%modesol
+ncp       => glomap_variables_local%ncp
+num_eps   => glomap_variables_local%num_eps
+rhocomp   => glomap_variables_local%rhocomp
+soluble   => glomap_variables_local%soluble
+x         => glomap_variables_local%x
 
 !at this point in the code, the value of RP does not matter
 rp(:)=100.0e-9 ! dummy value

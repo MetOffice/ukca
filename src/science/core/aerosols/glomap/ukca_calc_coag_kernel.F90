@@ -152,10 +152,11 @@ SUBROUTINE ukca_calc_coag_kernel(nbox,kii_arr,kij_arr,                         &
 !
 !-------------------------------------------------------------------
 
+USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables
+
 USE ukca_mode_setup, ONLY:                                                     &
     nmodes,                                                                    &
-    mode,                                                                      &
-    modesol,                                                                   &
     mode_nuc_sol,                                                              &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
@@ -184,6 +185,13 @@ REAL, INTENT(OUT)   :: kii_arr(nbox,nmodes)
 REAL, INTENT(OUT)   :: kij_arr(nbox,nmodes,nmodes)
 !
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: modesol(:)
+
 INTEGER :: imode
 INTEGER :: jmode
 REAL    :: kii(nbox)
@@ -205,6 +213,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CALC_COAG_KERNEL'
 
 !
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+mode        => glomap_variables%mode
+modesol     => glomap_variables%modesol
+
 mask1(:) = .TRUE. ! set to calculate kernels for all boxes
 mask2(:) = .TRUE. ! set to calculate kernels for all boxes
 !

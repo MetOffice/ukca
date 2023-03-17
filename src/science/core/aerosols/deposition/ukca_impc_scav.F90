@@ -390,8 +390,8 @@ SUBROUTINE ukca_impc_scav(nbox,nbudaer,nd,md,                                  &
 !--------------------------------------------------------------------
 USE ukca_um_legacy_mod, ONLY: pi
 
-USE ukca_mode_setup,    ONLY: mode, num_eps, component,                        &
-    cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_du, nmodes, ncp,                     &
+USE ukca_mode_setup,    ONLY:                                                  &
+    cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_du, nmodes,                          &
     mode_nuc_sol, mode_ait_sol, mode_acc_sol, mode_cor_sol,                    &
     mode_ait_insol, mode_acc_insol, mode_cor_insol,                            &
     cp_no3, cp_nh4, cp_nn
@@ -411,14 +411,14 @@ USE ukca_setup_indices, ONLY:                                                  &
 
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables
 
 IMPLICIT NONE
 
 ! .. Subroutine interface
 INTEGER, INTENT(IN) :: nbox
 INTEGER, INTENT(IN) :: nbudaer
-REAL, INTENT(IN)    :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN)    :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN)    :: wetdp(nbox,nmodes)
 REAL, INTENT(IN)    :: dtc
 REAL, INTENT(IN)    :: crain(nbox)
@@ -430,6 +430,15 @@ REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
 ! .. Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+
 INTEGER :: imode
 INTEGER :: icp
 INTEGER :: jl
@@ -472,7 +481,7 @@ REAL    :: deln1
 REAL    :: deln2
 REAL    :: deln3
 REAL    :: deln4
-REAL    :: dm(ncp)
+REAL    :: dm(glomap_variables%ncp)
 REAL, PARAMETER :: fc=0.3
 REAL, PARAMETER :: fd=1.0
 
@@ -487,6 +496,13 @@ allfrac(2)=fd
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
 
 ! Prior to UM10.4 this routine contained two bugs.
 ! A fixed version of the code is enabled by setting l_fix_ukca_impscav true.

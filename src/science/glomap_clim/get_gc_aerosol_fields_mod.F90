@@ -49,7 +49,6 @@ USE errormessagelength_mod, ONLY:                                              &
     errormessagelength
 
 USE glomap_clim_option_mod, ONLY:                                              &
-    i_gc_sussocbc_5mode,                                                       &
     i_glomap_clim_setup
 
 USE parkind1,               ONLY:                                              &
@@ -66,8 +65,11 @@ USE ukca_mode_setup,        ONLY:                                              &
     mode_acc_sol,                                                              &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
-    nmodes,                                                                    &
-    ncp
+    nmodes
+
+USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables_climatology,                                              &
+    i_sussbcoc_5mode
 
 USE umPrintMgr,             ONLY:                                              &
     newline
@@ -165,7 +167,8 @@ REAL(KIND=real_umphys),INTENT(IN) :: gc_ait_ins_oc(tdims%i_start:tdims%i_end,  &
                                                    tdims%k_start:tdims%k_end)
 
 INTEGER, INTENT(IN)                 :: n_points
-REAL(KIND=real_umphys), INTENT(OUT) :: mmr1d(n_points, nmodes, ncp)
+REAL(KIND=real_umphys), INTENT(OUT) :: mmr1d(n_points, nmodes,                 &
+                                             glomap_variables_climatology%ncp)
 REAL(KIND=real_umphys), INTENT(OUT) :: nmr1d(n_points, nmodes)
 
 ! Local Variables
@@ -186,7 +189,7 @@ nmr1d(:,:)   = 0.0
 mmr1d(:,:,:) = 0.0
 
 SELECT CASE(i_glomap_clim_setup)
-CASE (i_gc_sussocbc_5mode)
+CASE (i_sussbcoc_5mode)
 
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(i,j,k,loop,jj,kk)     &
 !$OMP SHARED(tdims, nmr1d, mmr1d, gc_nd_nuc_sol, gc_nuc_sol_su, gc_nuc_sol_oc, &

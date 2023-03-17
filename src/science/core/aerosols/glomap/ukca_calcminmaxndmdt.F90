@@ -61,7 +61,8 @@ SUBROUTINE ukca_calcminmaxndmdt(nbox, nd, mdt, verbose)
 !     XMINM,XMAXM,XMEANM : min,max,mean of avg total mass per particle
 !
 !--------------------------------------------------------------------
-USE ukca_mode_setup,   ONLY: mode, nmodes
+USE ukca_config_specification_mod, ONLY: glomap_variables
+USE ukca_mode_setup,   ONLY: nmodes
 USE parkind1,          ONLY: jprb, jpim
 USE yomhook,           ONLY: lhook, dr_hook
 USE umPrintMgr, ONLY:                                                          &
@@ -76,6 +77,7 @@ REAL, INTENT(IN)    :: nd(nbox,nmodes)
 REAL, INTENT(IN)    :: mdt(nbox,nmodes)
 
 ! Local variables
+
 INTEGER :: imode
 INTEGER :: jl
 REAL    :: xminn
@@ -102,7 +104,7 @@ IF (verbose > 0) THEN
 END IF
 
 DO imode=1,nmodes
-  IF (mode(imode)) THEN
+  IF (glomap_variables%mode(imode)) THEN
     xminn=1.0e16
     xmaxn=-1.0e16
     xmeann=0.0e0

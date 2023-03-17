@@ -105,9 +105,12 @@ SUBROUTINE ukca_remode(nbox,nbudaer,nd,md,mdt,drydp,                           &
 ! Various indices for budget terms in BUD_AER_MAS
 !
 !--------------------------------------------------------------------
-USE ukca_mode_setup, ONLY: nmodes, ncp, mode, component, ddpmid, mmid,         &
-    mfrac_0, sigmag, ddplim0, num_eps, cp_su, cp_bc, cp_oc, cp_cl,             &
-    cp_so, mode_nuc_sol, mode_ait_sol, mode_acc_sol, cp_no3, cp_nh4, cp_nn
+
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup, ONLY: nmodes,                                             &
+                           cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_no3, cp_nh4,  &
+                           cp_nn, mode_nuc_sol, mode_ait_sol, mode_acc_sol
 
 USE ukca_setup_indices, ONLY: nmasmergbcintr23, nmasmergbcintr34,              &
     nmasmergocintr12, nmasmergocintr23, nmasmergocintr34, nmasmergsointr12,    &
@@ -132,11 +135,25 @@ REAL, INTENT(IN)    :: pmid(nbox)
 
 INTEGER (KIND=integer32), INTENT(IN OUT) :: n_merge_1d(nbox,nmodes)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: ddplim0(:)
+REAL,    POINTER :: ddpmid(:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mmid(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
+
 INTEGER :: jl
 INTEGER :: imode
 INTEGER :: icp
@@ -152,7 +169,7 @@ REAL    :: log2sg
 REAL    :: lnratm
 REAL    :: erfmas
 REAL    :: frac_m
-REAL    :: dm(ncp)
+REAL    :: dm(glomap_variables%ncp)
 REAL    :: dp2
 REAL    :: newn
 REAL    :: newnp1
@@ -167,6 +184,19 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_REMODE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+ddplim0     => glomap_variables%ddplim0
+ddpmid      => glomap_variables%ddpmid
+mfrac_0     => glomap_variables%mfrac_0
+mmid        => glomap_variables%mmid
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 nmodemax_merge(:)=3
 WHERE (pmid(:) < 1.0e4) nmodemax_merge(:)=2

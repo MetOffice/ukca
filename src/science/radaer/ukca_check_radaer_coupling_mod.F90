@@ -34,11 +34,12 @@ CONTAINS
 
 SUBROUTINE ukca_check_radaer_coupling(all_ntp)
 
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables
+
 USE ukca_ntp_mod,      ONLY: ntp_type, dim_ntp,                                &
                              name2ntpindex
-USE ukca_mode_setup,   ONLY: mode, nmodes,                                     &
-                             component, ncp,                                   &
+
+USE ukca_mode_setup,   ONLY: nmodes,                                           &
                              mode_ait_sol,                                     &
                              mode_acc_sol,                                     &
                              mode_cor_sol,                                     &
@@ -60,6 +61,13 @@ IMPLICIT NONE
 ! Non transported prognostics
 TYPE(ntp_type), INTENT(IN) :: all_ntp(dim_ntp)
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
 INTEGER :: imode       ! loop counter for modes
 INTEGER :: icp         ! loop counter for components
 INTEGER :: i           ! index of all_ntp array
@@ -76,6 +84,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName =                                   &
 CHARACTER(LEN=errormessagelength) :: cmessage     ! Error message
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
 
 IF (glomap_config%l_ukca_radaer) THEN
   errcode = 0

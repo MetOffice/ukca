@@ -35,25 +35,31 @@ SUBROUTINE ukca_init
 
 USE ukca_um_legacy_mod,    ONLY: isec_per_day, isec_per_hour
 USE asad_mod,              ONLY: cdt, interval, ncsteps, tslimit
+
 USE ukca_config_specification_mod, ONLY:                                       &
                                  ukca_config, glomap_config,                   &
+                                 glomap_variables,                             &
                                  i_ukca_chem_off, int_method_nr,               &
                                  int_method_be_explicit,                       &
-                                 int_method_impact
+                                 int_method_impact,                            &
+                                 i_suss_4mode,                                 &
+                                 i_sussbcoc_5mode,                             &
+                                 i_sussbcoc_4mode,                             &
+                                 i_sussbcocso_5mode,                           &
+                                 i_sussbcocso_4mode,                           &
+                                 i_du_2mode,                                   &
+                                 i_sussbcocdu_7mode,                           &
+                                 i_sussbcocntnh_5mode_7cpt,                    &
+                                 i_solinsol_6mode
+
+USE ukca_mode_setup_interface_mod, ONLY: ukca_mode_setup_interface
+
 USE ukca_constants,        ONLY: set_derived_constants
 USE ukca_setup_chem_mod,   ONLY: ukca_setup_chem
 USE ukca_config_defs_mod,  ONLY: n_mode_tracers
-USE ukca_mode_setup,       ONLY: nmodes,                                       &
-                                 mode_choice, ncp, mode,                       &
-                                 component, ukca_mode_suss_4mode,              &
-                                 ukca_mode_sussbcoc_5mode,                     &
-                                 ukca_mode_sussbcoc_4mode,                     &
-                                 ukca_mode_sussbcocso_5mode,                   &
-                                 ukca_mode_sussbcocso_4mode,                   &
-                                 ukca_mode_duonly_2mode,                       &
-                                 ukca_mode_sussbcocdu_7mode,                   &
-                                 ukca_mode_sussbcocntnh_5mode_7cpt,            &
-                                 ukca_mode_solinsol_6mode
+
+USE ukca_mode_setup,       ONLY: nmodes
+
 USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_suss_4mode,                      &
                                  ukca_indices_orgv1_soto3,                     &
@@ -80,6 +86,7 @@ USE errormessagelength_mod, ONLY: errormessagelength
 IMPLICIT NONE
 
 ! Local variables
+
 INTEGER                       :: imode     ! loop counter for modes
 INTEGER                       :: icp       ! loop counter for components
 INTEGER                       :: n_reqd_tracers ! no. of required tracers
@@ -190,52 +197,41 @@ END IF
 IF (ukca_config%l_ukca_mode) THEN
 
   ! Call appropriate MODE setup routine
-  IF (glomap_config%i_mode_setup == 1) THEN
+  IF (      glomap_config%i_mode_setup == i_suss_4mode ) THEN ! 1
     CALL ukca_indices_sv1
     CALL ukca_indices_suss_4mode
-    CALL ukca_mode_suss_4mode
-  ELSE IF (glomap_config%i_mode_setup == 2) THEN
+  ELSE IF ( glomap_config%i_mode_setup == i_sussbcoc_5mode ) THEN ! 2
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcoc_5mode
-    CALL ukca_mode_sussbcoc_5mode
-  ELSE IF (glomap_config%i_mode_setup == 3) THEN
+  ELSE IF ( glomap_config%i_mode_setup == i_sussbcoc_4mode ) THEN ! 3
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcoc_4mode
-    CALL ukca_mode_sussbcoc_4mode
-  ELSE IF (glomap_config%i_mode_setup == 4) THEN
+  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocso_5mode ) THEN ! 4
     CALL ukca_indices_orgv1_soto6
     CALL ukca_indices_sussbcocso_5mode
-    CALL ukca_mode_sussbcocso_5mode
-  ELSE IF (glomap_config%i_mode_setup == 5) THEN
+  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocso_4mode ) THEN ! 5
     CALL ukca_indices_orgv1_soto6
     CALL ukca_indices_sussbcocso_4mode
-    CALL ukca_mode_sussbcocso_4mode
-  ELSE IF (glomap_config%i_mode_setup == 6) THEN
+  ELSE IF ( glomap_config%i_mode_setup == i_du_2mode ) THEN ! 6
     !!    CALL ukca_indices_nochem
     !! temporarily run 2-mode dust only with chemistry, though it's not needed
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_duonly_2mode
-    CALL ukca_mode_duonly_2mode
-    !!      ELSE IF(glomap_config%i_mode_setup == 7) THEN
-    !!        CALL ukca_indices_nochem
-    !!        CALL ukca_indices_duonly_3mode
-    !!        CALL ukca_mode_duONLY_3mode
-  ELSE IF (glomap_config%i_mode_setup == 8) THEN
+  !!  ELSE IF ( glomap_config%i_mode_setup == 7 ) THEN
+    !!    CALL ukca_indices_nochem
+    !!    CALL ukca_indices_duonly_3mode
+  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocdu_7mode ) THEN ! 8
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcocdu_7mode
-    CALL ukca_mode_sussbcocdu_7mode
-    !!      ELSE IF(glomap_config%i_mode_setup == 9) THEN
-    !!        CALL ukca_indices_orgv1_soto3
-    !!        CALL ukca_indices_sussbcocdu_4mode
-    !!        CALL ukca_mode_sussbcocdu_4mode
-  ELSE IF (glomap_config%i_mode_setup == 10) THEN
+  !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
+    !!    CALL ukca_indices_orgv1_soto3
+    !!    CALL ukca_indices_sussbcocdu_4mode
+  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN ! 10
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcocntnh_5mode
-    CALL ukca_mode_sussbcocntnh_5mode_7cpt
-  ELSE IF (glomap_config%i_mode_setup == 11) THEN
+  ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
     CALL ukca_indices_orgv1_soto3_solinsol
     CALL ukca_indices_solinsol_6mode
-    CALL ukca_mode_solinsol_6mode
   ELSE
     cmessage=' i_mode_setup has unrecognised value'
     WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup
@@ -244,21 +240,30 @@ IF (ukca_config%l_ukca_mode) THEN
     CALL ereport('UKCA_INIT',errcode,cmessage)
   END IF       ! i_mode_setup
 
+  CALL ukca_mode_setup_interface ( glomap_config%i_mode_setup,                 &
+                                   glomap_config%l_ukca_radaer,                &
+                                   glomap_config%i_ukca_tune_bc,               &
+                                   glomap_config%l_fix_nacl_density )
+
   ! Calculate number of aerosol tracers required for components and number
   n_reqd_tracers = 0
   DO imode=1,nmodes
-    IF (mode(imode)) THEN
-      DO icp=1,ncp
-        IF (component(imode,icp)) n_reqd_tracers = n_reqd_tracers + 1
+    IF (glomap_variables%mode(imode)) THEN
+      DO icp=1,glomap_variables%ncp
+        IF (glomap_variables%component(imode,icp)) THEN
+          n_reqd_tracers = n_reqd_tracers + 1
+        END IF
       END DO
     END IF
   END DO
-  n_mode_tracers = n_reqd_tracers + SUM(mode_choice)
+  n_mode_tracers = n_reqd_tracers + SUM(glomap_variables%mode_choice)
 
 ELSE
   ! Allocate arrays that are referred to outside GLOMAP
   ! to avoid compiler errors
-  IF (.NOT. ALLOCATED(component)) ALLOCATE(component(1,1))
+  IF (.NOT. ALLOCATED(glomap_variables%component)) THEN
+    ALLOCATE(glomap_variables%component(1,1))
+  END IF
 
 END IF    ! ukca_config%_ukca_mode
 

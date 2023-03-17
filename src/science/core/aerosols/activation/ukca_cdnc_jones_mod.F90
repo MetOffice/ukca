@@ -29,6 +29,7 @@ SUBROUTINE ukca_cdnc_jones ( nbox,                                             &
                              act,                                              &
                              drydp,                                            &
                              nd,                                               &
+                             glomap_variables_local,                           &
                              ccn_1,                                            &
                              cdnc )
 
@@ -37,10 +38,8 @@ USE parkind1,         ONLY:                                                    &
     jprb
 
 USE ukca_mode_setup,  ONLY:                                                    &
-    mode,                                                                      &
-    modesol,                                                                   &
-    nmodes,                                                                    &
-    sigmag
+    glomap_variables_type,                                                     &
+    nmodes
 
 USE umErf_mod,        ONLY:                                                    &
     umErf
@@ -55,11 +54,12 @@ USE yomhook,          ONLY:                                                    &
 
 IMPLICIT NONE
 
-! Inputs
+! Arguments
 INTEGER, INTENT(IN)  :: nbox
 REAL,    INTENT(IN)  :: act                ! radius for activation (m)
 REAL,    INTENT(IN)  :: drydp(nbox,nmodes) ! Dry diameter
 REAL,    INTENT(IN)  :: nd(nbox,nmodes)    ! Number density
+TYPE(glomap_variables_type), INTENT(IN) :: glomap_variables_local
 REAL,    INTENT(OUT) :: ccn_1(nbox)        ! CCN concentration
 REAL,    INTENT(OUT) :: cdnc(nbox)         ! Cloud Droplet Number Concentration
 
@@ -86,8 +86,7 @@ CHARACTER(LEN=*), PARAMETER   :: RoutineName='UKCA_CDNC_JONES'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in, zhook_handle)
 
 ! This is the Jones method for calculating CDNC, see doi:10.1038/370450a0
-
-CALL log_v(nmodes,sigmag,log_sigmag)
+CALL log_v(nmodes,glomap_variables_local%sigmag,log_sigmag)
 
 root2 = SQRT(2.0)
 
@@ -100,8 +99,8 @@ END DO
 !$OMP END PARALLEL DO
 
 DO imode=1,nmodes
-  IF (mode(imode)) THEN
-    IF (modesol(imode) == 1) THEN
+  IF (glomap_variables_local%mode(imode)) THEN
+    IF (glomap_variables_local%modesol(imode) == 1) THEN
       ! for CCN_1 take CCN for particles > ACT dry radius
       dp0=2.0*act
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(i,erf_arg, erfterm)   &

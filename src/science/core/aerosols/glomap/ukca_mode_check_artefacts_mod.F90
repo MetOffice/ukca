@@ -60,15 +60,10 @@ SUBROUTINE ukca_mode_check_artefacts(verbose, nbox, nd, md, mdt,               &
 ! it is.
 ! Called from UKCA_AERO_CTL.
 
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
 USE ukca_mode_setup,    ONLY:                                                  &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    mode,                                                                      &
-    component,                                                                 &
-    mlo,                                                                       &
-    mmid,                                                                      &
-    mhi,                                                                       &
-    mfrac_0,                                                                   &
     mode_nuc_sol,                                                              &
     mode_ait_sol,                                                              &
     mode_acc_sol,                                                              &
@@ -104,12 +99,25 @@ REAL, INTENT(IN OUT) :: mdtfixsink(nbox,nmodes)
 
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 ! Each mode's particle number density (ptcls cm^-3)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 ! Each mode's average component mass per particle (molecules ptcle^-1)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 ! Each mode's average total mass per particle (over all cpts) molecules ptcl^-1)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0 (:,:)
+REAL,    POINTER :: mhi (:)
+REAL,    POINTER :: mlo (:)
+REAL,    POINTER :: mmid (:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
+
 INTEGER :: nbadmdt(nbox,nmodes)           ! Count number of bad MDT points
 INTEGER :: icp                            ! Counter for loop over components
 INTEGER :: imode                          ! Counter for loop over modes
@@ -128,6 +136,18 @@ REAL(KIND=jprb)               :: zhook_handle
 !-----------------------------------------------------------------------------
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mfrac_0     => glomap_variables%mfrac_0
+mhi         => glomap_variables%mhi
+mlo         => glomap_variables%mlo
+mmid        => glomap_variables%mmid
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+
 IF (verbose > 1) THEN
   !  Check min, max values of ND, MDT and MD
   WRITE(umMessage,'(A50)') 'BEFORE CALL TO UKCA_AERO_STEP (before fix)'
@@ -322,15 +342,11 @@ SUBROUTINE ukca_mode_check_mdt(nbox, imode, mdt, md, nd, mask1)
 ! it is.
 ! Called from UKCA_COAGWITHNUCL.
 
+USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables
 
 USE ukca_mode_setup,    ONLY:                                                  &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    component,                                                                 &
-    mlo,                                                                       &
-    mmid,                                                                      &
-    mhi,                                                                       &
-    mfrac_0,                                                                   &
     mode_nuc_sol,                                                              &
     mode_ait_sol,                                                              &
     mode_acc_sol,                                                              &
@@ -350,7 +366,7 @@ INTEGER, INTENT(IN) :: imode                ! mode index
 
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 ! Each mode's particle number density (ptcls cm^-3)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 ! Each mode's average component mass per particle (molecules ptcle^-1)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 ! Each mode's average total mass per particle (over all cpts) molecules ptcl^-1)
@@ -359,6 +375,17 @@ LOGICAL (KIND=logical32), INTENT(IN OUT) :: mask1(nbox)
 ! Logical mask array -- gets set false where mdt < mdtmin or > mdtmax
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0 (:,:)
+REAL,    POINTER :: mhi (:)
+REAL,    POINTER :: mlo (:)
+REAL,    POINTER :: mmid (:)
+INTEGER, POINTER :: ncp
+
 INTEGER :: icp                              ! Loop counter for components
 
 REAL    :: mdtmin                  ! min MDT value for each mode
@@ -373,6 +400,16 @@ REAL(KIND=jprb)               :: zhook_handle
 !-----------------------------------------------------------------------------
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mfrac_0     => glomap_variables%mfrac_0
+mhi         => glomap_variables%mhi
+mlo         => glomap_variables%mlo
+mmid        => glomap_variables%mmid
+ncp         => glomap_variables%ncp
 
 ! Below carries out key element of part A of MDT checks within GLOMAP code.
 ! Protects against occasional occurrences found in ukca_coagwithinucl.

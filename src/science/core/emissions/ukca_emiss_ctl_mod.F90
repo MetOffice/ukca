@@ -83,8 +83,10 @@ USE ukca_config_defs_mod, ONLY: n_chem_emissions, n_3d_emissions, em_chem_spec,&
                                 n_chem_tracers, n_aero_tracers, n_mode_tracers
 USE ukca_emiss_diags_mod, ONLY: ukca_emiss_diags
 USE ukca_emiss_diags_mode_mod, ONLY: ukca_emiss_diags_mode
-USE ukca_mode_setup,      ONLY: nmodes, mm, component, cp_cl, cp_du,           &
+
+USE ukca_mode_setup,      ONLY: nmodes, cp_cl, cp_du,                          &
                                 cp_no3, cp_nh4, cp_nn, cp_su
+
 USE ukca_prod_no3_mod,    ONLY: ukca_prod_no3_fine, ukca_prod_no3_coarse,      &
                                 ukca_no3_check_values
 USE ukca_calc_rho_mod,    ONLY: ukca_calc_rho
@@ -99,8 +101,11 @@ USE ukca_constants,       ONLY: L_ukca_diurnal_isopems, m_c, m_ch4, m_dms,     &
                                 m_n, m_no, m_no2, m_s, m_c5h8, m_monoterp,     &
                                 m_ch3oh, m_me2co
 USE chemistry_constants_mod, ONLY: boltzmann, avogadro
+
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
-                                         i_light_param_off
+                                         i_light_param_off, glomap_variables,  &
+                                         i_solinsol_6mode
+
 USE asad_mod,             ONLY: advt, jpctr
 USE asad_chem_flux_diags, ONLY: L_asad_use_chem_diags, L_asad_use_light_ems,   &
                                 asad_3d_emissions_diagnostics,                 &
@@ -243,6 +248,14 @@ REAL, INTENT(IN OUT) :: stashwork38(len_stashwork38)
 REAL, INTENT(IN OUT) :: stashwork50(len_stashwork50)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm (:)
+
+
 INTEGER                 :: i, j, k, l, ilev
 INTEGER                 :: section           ! stash section
 REAL                    :: base_scaling      ! factor to convert emiss units
@@ -314,6 +327,12 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_EMISS_CTL'
 ! End of header
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mm          => glomap_variables%mm
 
 ! Initialisation
 errcode  = 0
@@ -837,7 +856,7 @@ IF (glomap_config%l_ukca_primss) THEN
   ! In the soluble/insoluble configuration of GLOMAP, seasalt aerosols
   ! are emitted into the soluble component, which is hosted by sulfate
   !
-  IF (glomap_config%i_mode_setup == 11) THEN
+  IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN
     this_cp_cl = cp_su
   ELSE
     this_cp_cl = cp_cl

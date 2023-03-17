@@ -665,9 +665,10 @@ USE asad_mod, ONLY: nadvt, O1D_in_ss, O3P_in_ss
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
                                          i_ukca_activation_arg,                &
                                          i_ukca_activation_jones,              &
-                                         int_method_be_explicit
-USE ukca_mode_setup,       ONLY: mode, component,                              &
-                                 mode_nuc_sol, mode_ait_sol, mode_acc_sol,     &
+                                         int_method_be_explicit,               &
+                                         glomap_variables
+
+USE ukca_mode_setup,       ONLY: mode_nuc_sol, mode_ait_sol, mode_acc_sol,     &
                                  mode_cor_sol, mode_ait_insol, mode_acc_insol, &
                                  mode_cor_insol, cp_su, cp_bc, cp_oc, cp_cl,   &
                                  cp_no3, cp_du, cp_so, cp_nh4, cp_nn
@@ -677,11 +678,23 @@ IMPLICIT NONE
 ! Function argument
 CHARACTER(LEN=*), INTENT(IN) :: varname
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode (:)
+
 ! Local variables
 CHARACTER(LEN=*), PARAMETER :: RoutineName = 'NTP_REQ'
 REAL(KIND=jprb) :: zhook_handle
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
 
 ntp_req = .FALSE.
 

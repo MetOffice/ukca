@@ -36,10 +36,18 @@
 !
 MODULE ukca_emiss_mode_mod
 
-USE ukca_mode_setup,     ONLY: nmodes, mode, cp_bc, cp_oc, cp_su,              &
-                               fracbcem, fracocem, ncp,                        &
-                               component
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_mode_setup,     ONLY: nmodes, cp_bc, cp_oc, cp_su
+
+USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables,      &
+                                         i_suss_4mode,                         &
+                                         i_sussbcoc_5mode,                     &
+                                         i_sussbcoc_4mode,                     &
+                                         i_sussbcocso_5mode,                   &
+                                         i_sussbcocso_4mode,                   &
+                                         i_du_2mode,                           &
+                                         i_sussbcocdu_7mode,                   &
+                                         i_sussbcocntnh_5mode_7cpt,            &
+                                         i_solinsol_6mode
 USE ukca_constants,      ONLY: m_s, m_so2
 
 USE ereport_mod,         ONLY: ereport
@@ -148,6 +156,15 @@ LOGICAL, INTENT(IN), OPTIONAL :: lwarn_mismatch
 
 ! Local variables
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: fracbcem(:)
+REAL,    POINTER :: fracocem(:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
 ! Local versions of optional vars mode_frac_out, mode_diam_out, mode_stdev_out,
 ! lwarn_mismatch.
 ! These are used locally and copied to/from subroutine arguments if PRESENT()
@@ -165,7 +182,7 @@ LOGICAL :: l_emfile_bcoc_ff
 INTEGER :: iso2ems        ! determines emission assumptions (see below)
 INTEGER :: jmode          ! loop index
 
-! Aerosol mode setup 11 (SOL/INSOL) has a single aerosol component
+! Aerosol mode setup i_solinsol_6mode (SOL/INSOL) has a single aerosol component
 ! represented by H2SO4. Aerosol species other than dust (OC, BC, SS)
 ! are emitted into cp_so4. The variables this_cp_* are used to determine
 ! the active component which this component is emitted into
@@ -184,6 +201,15 @@ INTEGER                            :: ierror      ! Error code
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+fracbcem    => glomap_variables%fracbcem
+fracocem    => glomap_variables%fracocem
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+
 ! Initialise the arrays to enable check that all are set
 mode_frac(:) = -1.0
 mode_diam(:) = -1.0
@@ -198,17 +224,28 @@ ELSE
 END IF
 
 ! Set ISO2EMS according to i_mode_setup (see subroutine header).
-IF (glomap_config%i_mode_setup == 1) iso2ems=1       ! SUSS_4mode
-IF (glomap_config%i_mode_setup == 2) iso2ems=3       ! SUSSBCOC_5mode
-IF (glomap_config%i_mode_setup == 3) iso2ems=3       ! SUSSBCOC_4mode
-IF (glomap_config%i_mode_setup == 4) iso2ems=3       ! SUSSBCOCSO_5mode
-IF (glomap_config%i_mode_setup == 5) iso2ems=3       ! SUSSBCOCSO_4mode
-IF (glomap_config%i_mode_setup == 6) iso2ems=3       ! DUonly_2mode
-IF (glomap_config%i_mode_setup == 7) iso2ems=0       ! DUonly_3mode
-IF (glomap_config%i_mode_setup == 8) iso2ems=3       ! SUSSBCOCDU_7mode
-IF (glomap_config%i_mode_setup == 9) iso2ems=3       ! SUSSBCOCDU_4mode
-IF (glomap_config%i_mode_setup == 10) iso2ems=3      ! SUSSBCOCNTNH_5mode_7cpt
-IF (glomap_config%i_mode_setup == 11) iso2ems=3      ! SOL/INSOL
+! SUSS_4mode
+IF (glomap_config%i_mode_setup == i_suss_4mode) iso2ems=1
+! SUSSBCOC_5mode
+IF (glomap_config%i_mode_setup == i_sussbcoc_5mode) iso2ems=3
+! SUSSBCOC_4mode
+IF (glomap_config%i_mode_setup == i_sussbcoc_4mode) iso2ems=3
+! SUSSBCOCSO_5mode
+IF (glomap_config%i_mode_setup == i_sussbcocso_5mode) iso2ems=3
+! SUSSBCOCSO_4mode
+IF (glomap_config%i_mode_setup == i_sussbcocso_4mode) iso2ems=3
+! DUonly_2mode
+IF (glomap_config%i_mode_setup == i_du_2mode) iso2ems=3
+! DUonly_3mode
+! i_du_3mode = 7 has not been included yet ! iso2ems=0
+! SUSSBCOCDU_7mode
+IF (glomap_config%i_mode_setup == i_sussbcocdu_7mode) iso2ems=3
+! SUSSBCOCDU_4mode
+! i_sussbcocdu_4mode = 9 has not been included yet ! iso2ems=3
+! SUSSBCOCNTNH_5mode_7cpt
+IF (glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt) iso2ems=3
+! SOL/INSOL
+IF (glomap_config%i_mode_setup == i_solinsol_6mode) iso2ems=3
 
 ! Initialise bcoc indicators
 l_emfile_bcoc_bf = .FALSE.
@@ -217,7 +254,7 @@ l_emfile_bcoc_ff = .FALSE.
 
 ! If the soluble/insoluble version of GLOMAP is used, then carbonaceous aerosols
 ! are emitted into the soluble component hosted by sulfate.
-IF (glomap_config%i_mode_setup == 11) THEN
+IF (glomap_config%i_mode_setup == i_solinsol_6mode) THEN
   this_cp_bc = cp_su
   this_cp_oc = cp_su
 ELSE

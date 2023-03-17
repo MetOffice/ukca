@@ -37,6 +37,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_ABDULRAZZAK_GHAN_MOD'
 CONTAINS
 
 SUBROUTINE ukca_abdulrazzak_ghan(kbdim,   klev,                                &
+                                 glomap_variables_local,                       &
                                  pesw,                                         &
                                  pn,      pxtm1,                               &
                                  ptm1,    papm1,                               &
@@ -44,9 +45,7 @@ SUBROUTINE ukca_abdulrazzak_ghan(kbdim,   klev,                                &
                                  nwbins,  pwarr,                               &
                                  pwpdf,   pwbin,                               &
                                  psmax,   pwchar,                              &
-                                 pcdncactm, pcdncact)
-
-
+                                 pcdncactm, pcdncact )
 
 
 ! *aero_activ* calculates the number of activated aerosol
@@ -78,15 +77,7 @@ SUBROUTINE ukca_abdulrazzak_ghan(kbdim,   klev,                                &
 ! Pruppbacher and Klett, Kluewer Ac. Pub., 1997.
 ! West et al., ACP, 14, 2014. doi:10.5194/acp-14-6369-2014
 
-
-USE ukca_mode_setup,  ONLY: nmodes,                                            &
-                            ncp,                                               &
-                            mm,                                                &
-                            rhocomp,                                           &
-                            no_ions,                                           &
-                            mode,                                              &
-                            component,                                         &
-                            sigmag
+USE ukca_mode_setup,       ONLY: nmodes, glomap_variables_type
 
 USE ukca_activ_mod,        ONLY: activclosest
 USE ukca_um_legacy_mod,    ONLY: rmol,     &  ! gas constant
@@ -112,6 +103,7 @@ IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: kbdim                    !
 INTEGER, INTENT(IN) :: klev                     !
+TYPE(glomap_variables_type), TARGET, INTENT(IN) :: glomap_variables_local
 INTEGER, INTENT(IN) :: nwbins                   !
 
 REAL, INTENT(IN)  :: ptm1(kbdim,klev)         ! temperature
@@ -121,22 +113,39 @@ REAL, INTENT(IN)  :: pesw(kbdim,klev)         ! saturation water vapour pressure
 REAL, INTENT(IN)  :: prdry(kbdim,klev,nmodes) ! dry radius for each mode
 REAL, INTENT(IN)  :: pn (kbdim,klev,nmodes)   ! aerosol number concentration
 !                                                     ! for each mode [m-3]
-REAL, INTENT(IN)  :: pxtm1(kbdim,klev,nmodes,ncp)! aerosol tracers mass
+! aerosol tracers mass
+REAL, INTENT(IN)  :: pxtm1(kbdim,klev,nmodes,glomap_variables_local%ncp)
 !                                                        ! mixing ratio
 ! pdf of updraught velocities:
 REAL,INTENT(IN)     :: pwarr(kbdim,klev,nwbins)  ! lin array of vert vel [m s-1]
 REAL,INTENT(IN)     :: pwpdf(kbdim,klev,nwbins)  ! lin array of pdf of w [m s-1]
 REAL,INTENT(IN)     :: pwbin(kbdim,klev,nwbins)  ! w bin width [m s-1]
 
-REAL, INTENT(OUT)   :: psmax(kbdim,klev)       ! max supersaturation [fraction]
-REAL, INTENT(OUT)   :: pwchar(kbdim,klev)      ! calculated characteristic
-!                                                    ! updraught vel [m s-1]
-REAL, INTENT(OUT)   :: pcdncactm(kbdim,klev,nmodes) ! expected number of
-!                                             ! activated particles in each mode
-REAL, INTENT(OUT)   :: pcdncact(kbdim,klev)    ! expected number of activated
-!                                              ! particles over all modes
+! max supersaturation [fraction]
+REAL, INTENT(OUT)   :: psmax(kbdim,klev)
+
+! calculated characteristic updraught vel [m s-1]
+REAL, INTENT(OUT)   :: pwchar(kbdim,klev)
+
+! expected number of activated particles in each mode
+REAL, INTENT(OUT)   :: pcdncactm(kbdim,klev,nmodes)
+
+! expected number of activated particles over all modes
+REAL, INTENT(OUT)   :: pcdncact(kbdim,klev)
 
 !--- Local variables:
+
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: no_ions(:)
+REAL,    POINTER :: rhocomp(:)
+REAL,    POINTER :: sigmag(:)
+
 REAL :: zsigmaln(nmodes)   ! ln(geometric std dev)
 
 INTEGER :: jmod            ! loop counters
@@ -221,6 +230,17 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_ABDULRAZZAK_GHAN'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables_local%component
+mm          => glomap_variables_local%mm
+mode        => glomap_variables_local%mode
+ncp         => glomap_variables_local%ncp
+no_ions     => glomap_variables_local%no_ions
+rhocomp     => glomap_variables_local%rhocomp
+sigmag      => glomap_variables_local%sigmag
 
 cthomi  = tm-35.0
 lc_sq=lc**2

@@ -136,13 +136,10 @@ SUBROUTINE ukca_conden(nbox,nchemg,nbudaer,ifuchs,idcmfp,icondiam,             &
 !--------------------------------------------------------------------
 USE ukca_constants,       ONLY: conc_eps
 
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
 USE ukca_mode_setup,      ONLY:                                                &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    mode,                                                                      &
-    sigmag,                                                                    &
-    modesol,                                                                   &
-    num_eps,                                                                   &
     cp_su,                                                                     &
     cp_oc,                                                                     &
     cp_so,                                                                     &
@@ -188,15 +185,24 @@ REAL, INTENT(IN)    :: dtz
 REAL, INTENT(IN)    :: wetdp(nbox,nmodes)
 REAL, INTENT(IN)    :: pmid(nbox)
 REAL, INTENT(IN)    :: t(nbox)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: gc(nbox,nchemg)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 REAL, INTENT(OUT)   :: delgc_cond(nbox,nchemg)
 REAL, INTENT(OUT)   :: ageterm1(nbox,3,nchemg)
 REAL, INTENT(OUT)   :: s_cond_s(nbox)
-!
+
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: modesol(:)
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
+
 INTEGER :: icp
 INTEGER :: imode
 INTEGER :: jv
@@ -233,6 +239,14 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CONDEN'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+mode        => glomap_variables%mode
+modesol     => glomap_variables%modesol
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
 
 ageterm1(:,:,:)=0.0
 s_cond_s(:)=0.0

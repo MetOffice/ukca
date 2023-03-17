@@ -31,7 +31,7 @@ PUBLIC :: prepare_fields_for_radaer_openmp
 
 CONTAINS
 
-SUBROUTINE prepare_fields_for_radaer_openmp( n_points,                         &
+SUBROUTINE prepare_fields_for_radaer_openmp( n_points, ncp,                    &
   p_theta_levels_1d, t_theta_levels_1d,                                        &
   gc_nd_nuc_sol_1d, gc_nuc_sol_su_1d, gc_nuc_sol_oc_1d,                        &
   gc_nd_ait_sol_1d, gc_ait_sol_su_1d, gc_ait_sol_bc_1d, gc_ait_sol_oc_1d,      &
@@ -59,8 +59,10 @@ USE parkind1,                           ONLY:                                  &
 USE ukca_calc_drydiam_mod,              ONLY:                                  &
     ukca_calc_drydiam
 
+USE ukca_config_specification_mod,      ONLY:                                  &
+    glomap_variables_climatology
+
 USE ukca_mode_setup,                    ONLY:                                  &
-    ncp,                                                                       &
     nmodes
 
 USE ukca_volume_mode_mod,               ONLY:                                  &
@@ -75,6 +77,7 @@ IMPLICIT NONE
 ! Arguments
 
 INTEGER, INTENT(IN) :: n_points
+INTEGER, INTENT(IN) :: ncp
 REAL(KIND=real_umphys), INTENT(IN) :: p_theta_levels_1d( n_points )
 REAL(KIND=real_umphys), INTENT(IN) :: t_theta_levels_1d( n_points )
 REAL(KIND=real_umphys), INTENT(IN) ::  gc_nd_nuc_sol_1d( n_points )
@@ -177,7 +180,7 @@ CALL glomap_clim_calc_rh_frac_clear( n_points,                                 &
                                      rh_clr_1d )
 
 ! Calculate fields nd, md, mdt
-CALL glomap_clim_calc_md_mdt_nd( n_points, i_glomap_clim_setup,                &
+CALL glomap_clim_calc_md_mdt_nd( n_points, ncp, i_glomap_clim_setup,           &
   p_theta_levels_1d, t_theta_levels_1d,                                        &
   gc_nd_nuc_sol_1d, gc_nuc_sol_su_1d, gc_nuc_sol_oc_1d,                        &
   gc_nd_ait_sol_1d, gc_ait_sol_su_1d, gc_ait_sol_bc_1d, gc_ait_sol_oc_1d,      &
@@ -191,13 +194,14 @@ CALL glomap_clim_calc_md_mdt_nd( n_points, i_glomap_clim_setup,                &
   nd, md, mdt )
 
 ! Calculate the dry diameters and volumes
-CALL ukca_calc_drydiam( n_points, nd, md, mdt, drydp, dvol )
+CALL ukca_calc_drydiam( n_points, glomap_variables_climatology,                &
+                        nd, md, mdt, drydp, dvol )
 
 ! Calculate wet diameters, densities, partial volumes...
-CALL ukca_volume_mode( n_points, nd, md, mdt,                                  &
-                       rh_clr_1d, wvol, wetdp,                                 &
-                       rhopar, dvol, drydp, mdwat, pvol,                       &
-                       pvol_wat, t_theta_levels_1d, p_theta_levels_1d, q_1d )
+CALL ukca_volume_mode( glomap_variables_climatology, n_points, nd, md, mdt,    &
+                       rh_clr_1d, dvol, drydp,                                 &
+                       t_theta_levels_1d, p_theta_levels_1d, q_1d,             &
+                       mdwat, wvol, wetdp, rhopar, pvol, pvol_wat )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

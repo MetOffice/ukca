@@ -27,7 +27,7 @@ PUBLIC :: get_gc_aerosol_fields_1d
 
 CONTAINS
 
-SUBROUTINE get_gc_aerosol_fields_1d( n_points, i_glomap_clim_setup_in,         &
+SUBROUTINE get_gc_aerosol_fields_1d( n_points, ncp, i_glomap_clim_setup_in,    &
   gc_nd_nuc_sol_1d, gc_nuc_sol_su_1d, gc_nuc_sol_oc_1d,                        &
   gc_nd_ait_sol_1d, gc_ait_sol_su_1d, gc_ait_sol_bc_1d, gc_ait_sol_oc_1d,      &
   gc_nd_acc_sol_1d, gc_acc_sol_su_1d, gc_acc_sol_bc_1d, gc_acc_sol_oc_1d,      &
@@ -44,10 +44,6 @@ USE ereport_mod,            ONLY:                                              &
 
 USE errormessagelength_mod, ONLY:                                              &
     errormessagelength
-
-USE glomap_clim_option_mod, ONLY:                                              &
-    i_gc_sussocbc_5mode,                                                       &
-    i_gc_sussocbcdu_7mode
 
 USE parkind1,               ONLY:                                              &
     jprb,                                                                      &
@@ -66,8 +62,11 @@ USE ukca_mode_setup,        ONLY:                                              &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
     mode_cor_insol,                                                            &
-    ncp,                                                                       &
     nmodes
+
+USE ukca_config_specification_mod, ONLY:                                       &
+    i_sussbcoc_5mode,                                                          &
+    i_sussbcocdu_7mode
 
 USE umPrintMgr,             ONLY:                                              &
     newline
@@ -84,6 +83,8 @@ IMPLICIT NONE
 ! Arguments
 
 INTEGER, INTENT(IN) :: n_points
+
+INTEGER, INTENT(IN) :: ncp
 
 INTEGER, INTENT(IN) :: i_glomap_clim_setup_in
 
@@ -159,7 +160,7 @@ nmr1d(:,:)   = 0.0
 mmr1d(:,:,:) = 0.0
 
 SELECT CASE(i_glomap_clim_setup_in)
-CASE (i_gc_sussocbc_5mode, i_gc_sussocbcdu_7mode)
+CASE (i_sussbcoc_5mode, i_sussbcocdu_7mode)
 
   nmr1d(:,mode_nuc_sol) = gc_nd_nuc_sol_1d(:)
   mmr1d(:,mode_nuc_sol,cp_su)   = gc_nuc_sol_su_1d(:)
@@ -192,7 +193,7 @@ END SELECT
 
 
 SELECT CASE(i_glomap_clim_setup_in)
-CASE (i_gc_sussocbcdu_7mode)
+CASE (i_sussbcocdu_7mode)
   mmr1d(:,mode_acc_sol,cp_du)   = gc_acc_sol_du_1d(:)
   mmr1d(:,mode_cor_sol,cp_du)   = gc_cor_sol_du_1d(:)
   nmr1d(:,mode_acc_insol)       = gc_nd_acc_ins_1d(:)

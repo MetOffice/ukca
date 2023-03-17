@@ -26,18 +26,14 @@ CHARACTER(LEN=*),PARAMETER,PRIVATE :: ModuleName='GLOMAP_CLIM_POP_MD_MDT_ND_MOD'
 
 CONTAINS
 
-SUBROUTINE glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup_in, n_points, aird, &
-                                       mmr1d, nmr1d, md, mdt, nd )
+SUBROUTINE glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup_in, n_points,       &
+                                       aird, mmr1d, nmr1d, md, mdt, nd )
 
 USE ereport_mod,                             ONLY:                             &
     ereport
 
 USE errormessagelength_mod,                  ONLY:                             &
     errormessagelength
-
-USE glomap_clim_option_mod,                  ONLY:                             &
-    i_gc_sussocbc_5mode,                                                       &
-    i_gc_sussocbcdu_7mode
 
 USE parkind1,                                ONLY:                             &
     jpim,                                                                      &
@@ -46,24 +42,23 @@ USE parkind1,                                ONLY:                             &
 USE ukca_constants,                          ONLY:                             &
     m_air
 
+USE ukca_config_specification_mod,           ONLY:                             &
+    i_sussbcoc_5mode,                                                          &
+    i_sussbcocdu_7mode,                                                        &
+    glomap_variables_climatology
+
 USE ukca_mode_setup,                         ONLY:                             &
     component_list_by_cp_sussbcoc_5mode,                                       &
     component_list_by_cp_sussbcocdu_7mode,                                     &
     component_list_by_mode_sussbcoc_5mode,                                     &
     component_list_by_mode_sussbcocdu_7mode,                                   &
-    mfrac_0,                                                                   &
-    mlo,                                                                       &
-    mm,                                                                        &
-    mmid,                                                                      &
     mode_list_sussbcoc_5mode,                                                  &
     mode_list_sussbcocdu_7mode,                                                &
-    ncp,                                                                       &
     ncp_list_sussbcoc_5mode,                                                   &
     ncp_list_sussbcocdu_7mode,                                                 &
     nmodes,                                                                    &
     nmodes_list_sussbcoc_5mode,                                                &
-    nmodes_list_sussbcocdu_7mode,                                              &
-    num_eps
+    nmodes_list_sussbcocdu_7mode
 
 USE umPrintMgr,                              ONLY:                             &
     newline
@@ -82,14 +77,24 @@ IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: i_glomap_clim_setup_in
 INTEGER, INTENT(IN) :: n_points
-REAL, INTENT(IN)    :: aird(n_points)
-REAL, INTENT(IN)    :: mmr1d(n_points,nmodes,ncp)
-REAL, INTENT(IN)    :: nmr1d(n_points,nmodes)
-REAL, INTENT(OUT)   :: md(n_points,nmodes,ncp)
-REAL, INTENT(OUT)   :: mdt(n_points,nmodes)
-REAL, INTENT(OUT)   :: nd(n_points,nmodes)
+REAL, INTENT(IN)    :: aird(  n_points )
+REAL, INTENT(IN)    :: mmr1d( n_points,nmodes,glomap_variables_climatology%ncp )
+REAL, INTENT(IN)    :: nmr1d( n_points,nmodes )
+REAL, INTENT(OUT)   :: md(    n_points,nmodes,glomap_variables_climatology%ncp )
+REAL, INTENT(OUT)   :: mdt(   n_points,nmodes )
+REAL, INTENT(OUT)   :: nd(    n_points,nmodes )
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables_climatology%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mlo(:)
+REAL,    POINTER :: mm(:)
+REAL,    POINTER :: mmid(:)
+INTEGER, POINTER :: ncp
 
 LOGICAL :: mask(n_points,nmodes)
 
@@ -117,6 +122,16 @@ CHARACTER(LEN=*), PARAMETER   :: RoutineName='GLOMAP_CLIM_POP_MD_MDT_ND'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+! Caution - pointers to TYPE glomap_variables_climatology%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+num_eps     => glomap_variables_climatology%num_eps
+mfrac_0     => glomap_variables_climatology%mfrac_0
+mlo         => glomap_variables_climatology%mlo
+mm          => glomap_variables_climatology%mm
+mmid        => glomap_variables_climatology%mmid
+ncp         => glomap_variables_climatology%ncp
+
 IF ( ANY ( nmr1d(:,:) < 0.0 ) ) THEN
   ierrcode = 1
   WRITE(cmessage,'(A)') 'nmr1d contains negative values.'                      &
@@ -142,10 +157,10 @@ mask(:,:)=.FALSE.
 ! Define local loops depending on GLOMAP-mode setup
 
 SELECT CASE(i_glomap_clim_setup_in)
-CASE (i_gc_sussocbc_5mode)
+CASE (i_sussbcoc_5mode)
   nmodes_list_local = nmodes_list_sussbcoc_5mode
   ncp_list_local    = ncp_list_sussbcoc_5mode
-CASE (i_gc_sussocbcdu_7mode)
+CASE (i_sussbcocdu_7mode)
   nmodes_list_local = nmodes_list_sussbcocdu_7mode
   ncp_list_local    = ncp_list_sussbcocdu_7mode
 CASE DEFAULT
@@ -161,11 +176,11 @@ ALLOCATE( component_list_by_mode_local(ncp_list_local) )
 ALLOCATE( component_list_by_cp_local(ncp_list_local) )
 
 SELECT CASE(i_glomap_clim_setup_in)
-CASE (i_gc_sussocbc_5mode)
+CASE (i_sussbcoc_5mode)
   mode_list_local              = mode_list_sussbcoc_5mode
   component_list_by_mode_local = component_list_by_mode_sussbcoc_5mode
   component_list_by_cp_local   = component_list_by_cp_sussbcoc_5mode
-CASE (i_gc_sussocbcdu_7mode)
+CASE (i_sussbcocdu_7mode)
   mode_list_local              = mode_list_sussbcocdu_7mode
   component_list_by_mode_local = component_list_by_mode_sussbcocdu_7mode
   component_list_by_cp_local   = component_list_by_cp_sussbcocdu_7mode
@@ -176,7 +191,7 @@ END SELECT
 
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(m, imode, i)          &
 !$OMP SHARED(n_points, mode_list_local, nmodes_list_local, nd, nmr1d, aird,    &
-!$OMP        mask, num_eps)
+!$OMP        num_eps, mask)
 DO m = 1, nmodes_list_local
   imode = mode_list_local(m)
 

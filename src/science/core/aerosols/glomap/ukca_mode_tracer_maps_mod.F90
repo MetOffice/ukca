@@ -57,9 +57,13 @@ USE ereport_mod,               ONLY: ereport
 USE errormessagelength_mod,    ONLY: errormessagelength
 USE parkind1,                  ONLY: jprb, jpim
 USE ukca_tracers_mod,          ONLY: all_tracers_names, n_tracers
-USE ukca_mode_setup,           ONLY: nmodes, ncp, mode_names, cp_su, cp_cl,    &
+
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,           ONLY: nmodes, mode_names, cp_su, cp_cl,         &
                                      cp_bc, cp_oc, cp_du, cp_so, cp_nh4,       &
                                      cp_no3, cp_nn
+
 USE ukca_um_legacy_mod,        ONLY: mype
 USE umprintmgr,                ONLY: umprint, ummessage, printstatus,          &
                                      prstatus_diag
@@ -69,6 +73,7 @@ USE parkind1,                  ONLY: jprb, jpim
 IMPLICIT NONE
 
 ! Local variables
+
 INTEGER :: icp                  ! component index
 INTEGER :: imode                ! mode index
 INTEGER :: icode                ! error code
@@ -98,7 +103,7 @@ END IF
 ! -1 indicates that the component is not active
 ! It is only used if > 0
 IF (.NOT. ALLOCATED(mmr_index)) THEN
-  ALLOCATE(mmr_index(nmodes,ncp))
+  ALLOCATE(mmr_index(nmodes,glomap_variables%ncp))
   mmr_index(:,:) = -1
 END IF
 
@@ -182,7 +187,7 @@ END IF
 IF (printstatus >= prstatus_diag .AND. mype == 0) THEN
   WRITE(umMessage,'(A)') 'mass tracer maps'
   CALL umprint(ummessage,src=routinename)
-  DO j=1, ncp
+  DO j=1, glomap_variables%ncp
     DO i=1,nmodes
       WRITE(ummessage,'(I6,1X,I6,1X,I6)') i, j, mmr_index(i, j)
       CALL umprint(ummessage,src=routinename)

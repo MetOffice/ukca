@@ -146,12 +146,13 @@ SUBROUTINE ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
 !--------------------------------------------------------------------
 USE ukca_constants,   ONLY: nmol, conc_eps, dn_eps
 
-USE ukca_mode_setup,  ONLY: nmodes, ncp, mode, component,                      &
-         coag_mode, mmid, mfrac_0, num_eps,                                    &
-         cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_so,                             &
-         mode_nuc_sol, mode_ait_sol, mode_acc_sol, mode_cor_sol,               &
-         mode_ait_insol, mode_acc_insol, mode_cor_insol,                       &
-         cp_no3, cp_nh4, cp_nn
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,  ONLY: nmodes, coag_mode,                                 &
+                            cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_so,          &
+                            mode_nuc_sol, mode_ait_sol, mode_acc_sol,          &
+                            mode_cor_sol, cp_no3, cp_nh4, cp_nn,               &
+                            mode_ait_insol, mode_acc_insol, mode_cor_insol
 
 USE ukca_setup_indices, ONLY: nmascoagsuintr12,                                &
          nmascoagocintr12, nmascoagsointr12, nmascoagsuintr13,                 &
@@ -192,12 +193,24 @@ REAL, INTENT(IN)    :: dtz
 REAL, INTENT(IN)    :: kii_arr(nbox,nmodes)
 REAL, INTENT(IN)    :: kij_arr(nbox,nmodes,nmodes)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
-REAL, INTENT(OUT)   :: ageterm2(nbox,4,3,ncp)
+REAL, INTENT(OUT)   :: ageterm2(nbox,4,3,glomap_variables%ncp)
 
 !  .. Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mmid(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+
+
 INTEGER :: imode
 INTEGER :: jmode
 INTEGER :: icp
@@ -211,10 +224,10 @@ LOGICAL (KIND=logical32) :: mask4(nbox)
 REAL    :: ndold(nbox,nmodes)
 REAL    :: ndold_v(nbox)
 REAL    :: deln(nbox)
-REAL    :: mdold(nbox,ncp,nmodes)
-REAL    :: mtran(nbox,ncp,nmodes,nmodes)
-REAL    :: mtranfmi(nbox,nmodes,ncp)
-REAL    :: mtrantoi(nbox,nmodes,ncp)
+REAL    :: mdold(nbox,glomap_variables%ncp,nmodes)
+REAL    :: mtran(nbox,glomap_variables%ncp,nmodes,nmodes)
+REAL    :: mtranfmi(nbox,nmodes,glomap_variables%ncp)
+REAL    :: mtrantoi(nbox,nmodes,glomap_variables%ncp)
 REAL    :: mtrannet(nbox)
 REAL    :: mdcpold(nbox)
 REAL    :: mdcpnew(nbox)
@@ -236,6 +249,16 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_COAGWITHNUCL'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mfrac_0     => glomap_variables%mfrac_0
+mmid        => glomap_variables%mmid
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
 
 ageterm2 = 0.0
 

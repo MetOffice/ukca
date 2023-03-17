@@ -47,10 +47,12 @@ MODULE ukca_trop_hetchem_mod
 USE chemistry_constants_mod, ONLY: avogadro
 USE ukca_um_legacy_mod,   ONLY: rmol, pi
 USE ukca_constants,       ONLY: m_ho2, m_n2o5, m_air
-USE ukca_mode_setup,      ONLY: nmodes, ncp, mode, component,                  &
+
+USE ukca_mode_setup,      ONLY: nmodes,                                        &
                                 cp_su, cp_bc, cp_oc, cp_cl,                    &
                                 cp_du, cp_so, cp_no3, cp_nh4, cp_nn
-USE ukca_config_specification_mod, ONLY: ukca_config
+
+USE ukca_config_specification_mod, ONLY: ukca_config, glomap_variables
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
 USE ereport_mod,          ONLY: ereport
@@ -88,7 +90,7 @@ REAL, INTENT(IN)    :: temp(nbox)           ! temperature [K]
 REAL, INTENT(IN)    :: rh(nbox)             ! Relative humidity [fraction]
 ! Total number density [molecules/cm^3]
 REAL, INTENT(IN)    :: aird(nbox)
-REAL, INTENT(IN)    :: pvol(nbox,nmodes,ncp)
+REAL, INTENT(IN)    :: pvol(nbox,nmodes,glomap_variables%ncp)
 ! .. Partial volume of soluble components as fraction of
 ! .. solution volume according to fraction of total mass (including water)
 REAL, INTENT(IN)    :: wetdp(nbox,nmodes)   ! Mean wet radius for the mode [m]
@@ -97,14 +99,27 @@ REAL, INTENT(OUT)   :: het_rates(nbox,nhet) ! rate coefficients
 
 ! Local variables
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+LOGICAL, POINTER :: mode (:)
+INTEGER, POINTER :: ncp
+
 INTEGER :: i                            ! Loop variable
 INTEGER :: imode                        ! mode loop counter
 INTEGER :: icp                          ! component loop counter
 
 REAL    :: molec_weight(nhet)           ! Molecular weights of species
-REAL    :: sticking_cf(nbox,nhet,ncp)   ! Gamma calculated by CAL_* [unitless]
+
+! Gamma calculated by CAL_* [unitless]
+REAL    :: sticking_cf(nbox,nhet,glomap_variables%ncp)
+
 REAL    :: total_vol(nbox,nmodes)       ! Total volume of each mode
-REAL    :: frac_vol(nbox,nmodes,ncp)    ! pvol/total_vol for each mode, unitless
+
+! pvol/total_vol for each mode, unitless
+REAL    :: frac_vol(nbox,nmodes,glomap_variables%ncp)
+
 REAL    :: mode_gamma(nbox,nhet,nmodes) ! Weighted gammas for each mode
 REAL    :: mode_rate(nbox,nhet,nmodes)  ! First order loss rate coefficient
 REAL    :: total_sa(nbox)               ! Total aerosol surface area
@@ -118,6 +133,13 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_TROP_HETCHEM'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
 
 IF (PrintStatus >= PrStatus_Diag) THEN
   WRITE(umMessage,'(A)') 'UKCA_TROP_HETCHEM Routine:'

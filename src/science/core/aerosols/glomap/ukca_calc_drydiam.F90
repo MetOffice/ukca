@@ -36,7 +36,8 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_CALC_DRYDIAM_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
+SUBROUTINE ukca_calc_drydiam( nbox, glomap_variables_local,                    &
+                              nd, md, mdt, drydp, dvol )
 
 !-------------------------------------------------------------
 !
@@ -88,7 +89,7 @@ SUBROUTINE ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
 !     MMSUL     : Molar mass of a pure H2SO4 aerosol (kg per mole)
 !     RHO_SO4    : Mass density of a pure H2SO4 aerosol (kg per m^3)
 !
-!     Inputted by module UKCA_MODE_SETUP
+!     Inputted via argument glomap_variables_local
 !     ----------------------------------
 !     NMODES    : Number of aerosol modes
 !     NCP       : Number of aerosol components
@@ -98,7 +99,7 @@ SUBROUTINE ukca_calc_drydiam(nbox,nd,md,mdt,drydp,dvol)
 !     COMPONENT : Which components are in each of modes
 !     DDPLIM0   : Lower limits for dry diameter for each mode (m)
 !     MFRAC_0   : Initial mass fraction to set when no particles.
-!     X         : EXP((9/2)*LOG^2(SIGMA_G))
+!     X_EQUATION: EXP((9/2)*LOG^2(SIGMA_G))
 !     NUM_EPS   : Value of NEWN below which do not carry out process
 !     MMID      : Mid-point masses for initial radius grid
 !     MLO       : Lo-interf masses for initial radius grid
@@ -110,18 +111,8 @@ USE ukca_um_legacy_mod, ONLY: pi, cubrt_v
 USE ukca_types_mod, ONLY: log_small
 
 USE ukca_mode_setup, ONLY:                                                     &
+    glomap_variables_type,                                                     &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    mm,                                                                        &
-    rhocomp,                                                                   &
-    mode,                                                                      &
-    component,                                                                 &
-    ddplim0,                                                                   &
-    mfrac_0,                                                                   &
-    x,                                                                         &
-    num_eps,                                                                   &
-    mmid,                                                                      &
-    mlo,                                                                       &
     mode_nuc_sol,                                                              &
     mode_acc_sol
 
@@ -138,20 +129,37 @@ IMPLICIT NONE
 
 ! Interface
 INTEGER, INTENT(IN) :: nbox
+TYPE(glomap_variables_type), TARGET, INTENT(IN) :: glomap_variables_local
 REAL, INTENT(IN)    :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables_local%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(OUT)   :: drydp(nbox,nmodes)
 REAL, INTENT(OUT)   :: dvol(nbox,nmodes)
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: ddplim0(:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mlo(:)
+REAL,    POINTER :: mm(:)
+REAL,    POINTER :: mmid(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: rhocomp(:)
+REAL,    POINTER :: x_equation(:)
+
 INTEGER :: jl
 INTEGER :: imode
 INTEGER :: icp
 REAL    :: ddpcub(nbox,nmodes)
 REAL    :: sixovrpix(nmodes)
 LOGICAL (KIND=log_small) :: mask(nbox)
-REAL    :: ratio1(ncp)
+REAL    :: ratio1(glomap_variables_local%ncp)
 REAL    :: ratio2
 REAL    :: dp_thresh1
 REAL    :: dp
@@ -168,6 +176,21 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CALC_DRYDIAM'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+! Caution - pointers to TYPE glomap_variables_local%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables_local%component
+ddplim0     => glomap_variables_local%ddplim0
+mfrac_0     => glomap_variables_local%mfrac_0
+mlo         => glomap_variables_local%mlo
+mm          => glomap_variables_local%mm
+mmid        => glomap_variables_local%mmid
+mode        => glomap_variables_local%mode
+ncp         => glomap_variables_local%ncp
+num_eps     => glomap_variables_local%num_eps
+rhocomp     => glomap_variables_local%rhocomp
+x_equation  => glomap_variables_local%x
+
 ! Below is over ncp
 ratio1(:)=mm(:)/(avogadro*rhocomp(:))
 !
@@ -176,7 +199,7 @@ ratio1(:)=mm(:)/(avogadro*rhocomp(:))
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
 !$OMP PRIVATE(imode,icp,ratio2,mask,i)                                         &
 !$OMP SHARED(mode,ncp,nbox, nd, dvol, mmid,component,md,                       &
-!$OMP sixovrpix,ddpcub,num_eps, ratio1,x)
+!$OMP sixovrpix,ddpcub,num_eps, ratio1,x_equation)
 DO imode=1,nmodes
   IF (mode(imode)) THEN
     DO i=1,nbox
@@ -204,7 +227,7 @@ DO imode=1,nmodes
       dvol(i,imode)=ratio2
     END DO
   END IF
-  sixovrpix(imode)=6.0/(pi*x(imode))
+  sixovrpix(imode)=6.0/(pi*x_equation(imode))
   DO i=1,nbox
     ddpcub(i,imode)=sixovrpix(imode)*dvol(i,imode)
   END DO

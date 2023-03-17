@@ -40,6 +40,8 @@ MODULE ukca_config_specification_mod
 
 USE missing_data_mod, ONLY: imdi, rmdi
 
+USE ukca_mode_setup,  ONLY: glomap_variables_type
+
 IMPLICIT NONE
 PUBLIC
 
@@ -482,6 +484,19 @@ INTEGER, PARAMETER :: i_ukca_chem_cristrat   = 59 ! Common Representative
                                                   ! Intermidiates (CRI) scheme
                                                   ! with stratospheric chem.
 
+! Option codes for 'i_mode_setup'
+INTEGER, PARAMETER :: i_suss_4mode              = 1
+INTEGER, PARAMETER :: i_sussbcoc_5mode          = 2
+INTEGER, PARAMETER :: i_sussbcoc_4mode          = 3
+INTEGER, PARAMETER :: i_sussbcocso_5mode        = 4
+INTEGER, PARAMETER :: i_sussbcocso_4mode        = 5
+INTEGER, PARAMETER :: i_du_2mode                = 6
+! i_du_3mode = 7 has not been included yet
+INTEGER, PARAMETER :: i_sussbcocdu_7mode        = 8
+! i_sussbcocdu_4mode = 9 has not been included yet
+INTEGER, PARAMETER :: i_sussbcocntnh_5mode_7cpt = 10
+INTEGER, PARAMETER :: i_solinsol_6mode          = 11
+
 ! Option codes for 'i_ageair_reset_method', controlling how the near-surface
 ! values of the age-of-air tracer are reset to zero
 INTEGER, PARAMETER :: i_age_reset_by_level = 1    ! Based on model level number
@@ -529,15 +544,18 @@ INTEGER, PARAMETER :: i_liss_merlivat = 1   ! Liss & Merlivat (1986)
 INTEGER, PARAMETER :: i_wanninkhof = 2      ! Wanninkhof (1992)
 INTEGER, PARAMETER :: i_nightingale = 3     ! Nightingale et al. (2000)
 
-! Option codes for 'i_ukca_tune_bc'
-! No tuning (no action to be taken) when i_ukca_tune_bc is 0.
-INTEGER, PARAMETER :: i_ukca_bc_tuned       = 1   ! BC density tuned
-INTEGER, PARAMETER :: i_ukca_bc_mg_mix      = 2   ! BC density tuned, plus 
-                                                  ! Maxwell-Garnet mixing method
-
 ! -- Data structures specifying details of the active UKCA configuration --
-TYPE(ukca_config_spec_type), SAVE :: ukca_config
+! ---------------------------------------------------------------------------
+
+TYPE(ukca_config_spec_type),   SAVE :: ukca_config
 TYPE(glomap_config_spec_type), SAVE :: glomap_config
+
+! ---------------------------------------------------------------------------
+! -- Data structures specifying details of the glomap mode configuration --
+! ---------------------------------------------------------------------------
+
+TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables
+TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables_climatology
 
 ! ---------------------------------------------------------------------------
 ! -- Configurable set of constants used in UKCA --

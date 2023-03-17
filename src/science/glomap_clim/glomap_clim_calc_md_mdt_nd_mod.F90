@@ -30,7 +30,7 @@ CHARACTER(LEN=*),PARAMETER,PRIVATE:: ModuleName='GLOMAP_CLIM_CALC_MD_MDT_ND_MOD'
 
 CONTAINS
 
-SUBROUTINE glomap_clim_calc_md_mdt_nd ( n_points, i_glomap_clim_setup_in,      &
+SUBROUTINE glomap_clim_calc_md_mdt_nd ( n_points, ncp, i_glomap_clim_setup_in, &
   p_theta_levels_1d, t_theta_levels_1d,                                        &
   gc_nd_nuc_sol_1d, gc_nuc_sol_su_1d, gc_nuc_sol_oc_1d,                        &
   gc_nd_ait_sol_1d, gc_ait_sol_su_1d, gc_ait_sol_bc_1d, gc_ait_sol_oc_1d,      &
@@ -57,7 +57,6 @@ USE parkind1,                        ONLY:                                     &
     jpim
 
 USE ukca_mode_setup,                 ONLY:                                     &
-    ncp,                                                                       &
     nmodes
 
 USE yomhook,                         ONLY:                                     &
@@ -68,8 +67,9 @@ IMPLICIT NONE
 
 ! Arguments
 
-
 INTEGER, INTENT(IN) :: n_points
+
+INTEGER, INTENT(IN) :: ncp
 
 INTEGER, INTENT(IN) :: i_glomap_clim_setup_in
 
@@ -144,7 +144,7 @@ REAL(KIND=real_umphys) ::  aird( n_points )
 REAL(KIND=real_umphys) :: nmr1d( n_points, nmodes )
 
 ! Aerosol mass mixing ratio ( kg / kg of air )
-REAL(KIND=real_umphys) :: mmr1d( n_points, nmodes, ncp)
+REAL(KIND=real_umphys) :: mmr1d( n_points, nmodes, ncp )
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -164,7 +164,7 @@ CALL glomap_clim_calc_aird( n_points, p_theta_levels_1d, t_theta_levels_1d,    &
                             aird )
 
 ! Copy required fields from climatology aerosol array pointer into nmr1d & mmr1d
-CALL get_gc_aerosol_fields_1d( n_points, i_glomap_clim_setup_in,               &
+CALL get_gc_aerosol_fields_1d( n_points, ncp, i_glomap_clim_setup_in,          &
   gc_nd_nuc_sol_1d, gc_nuc_sol_su_1d, gc_nuc_sol_oc_1d,                        &
   gc_nd_ait_sol_1d, gc_ait_sol_su_1d, gc_ait_sol_bc_1d, gc_ait_sol_oc_1d,      &
   gc_nd_acc_sol_1d, gc_acc_sol_su_1d, gc_acc_sol_bc_1d, gc_acc_sol_oc_1d,      &

@@ -275,17 +275,15 @@ SUBROUTINE ukca_aero_ctl(i_month, i_day_number,                                &
 
 USE ukca_drydiam_field_mod, ONLY: drydiam
 USE ukca_config_defs_mod, ONLY: nmax_mode_diags
-USE ukca_mode_setup,  ONLY: mode,                                              &
-                            ddplim0, ddplim1, sigmag, mfrac_0,                 &
-                            mode_choice, component,                            &
-                            num_eps, mm, mmid, mlo,                            &
-                            modesol, nmodes, ncp,                              &
+
+USE ukca_mode_setup,  ONLY: nmodes,                                            &
                             mode_nuc_sol,mode_ait_sol,                         &
                             mode_acc_sol, mode_cor_sol,                        &
                             mode_ait_insol, mode_acc_insol,                    &
                             mode_cor_insol, cp_su, cp_bc,                      &
                             cp_oc, cp_so, cp_cl, cp_du,                        &
                             cp_no3, cp_nh4, cp_nn
+
 USE ukca_mode_tracer_maps_mod, ONLY:  nmr_index, mmr_index
 USE ukca_mode_verbose_mod, ONLY: verbose => glob_verbose
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
@@ -302,7 +300,10 @@ USE asad_mod, ONLY: jpctr
 USE ukca_config_specification_mod, ONLY:                                       &
                             ukca_config, glomap_config,                        &
                             i_ukca_activation_arg,                             &
-                            i_ukca_activation_jones
+                            i_ukca_activation_jones,                           &
+                            glomap_variables
+
+
 USE ukca_ntp_mod,     ONLY: ntp_type, dim_ntp, name2ntpindex
 
 USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
@@ -532,6 +533,23 @@ INTEGER, INTENT(IN) :: nbox_s(nseg)   ! the size of each segment (grid-boxes)
 
 ! Local variables
 
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: ddplim0(:)
+REAL,    POINTER :: ddplim1(:)
+REAL,    POINTER :: mfrac_0(:,:)
+REAL,    POINTER :: mlo(:)
+REAL,    POINTER :: mm(:)
+REAL,    POINTER :: mmid(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: modesol(:)
+INTEGER, POINTER :: mode_choice(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+REAL,    POINTER :: sigmag(:)
+
 ! Relate to segmentation
 INTEGER :: lb,ncs,nbs     ! short hand for element of lbase, ncol_s and nbox_s
 INTEGER :: ik,ic          ! loop iterators for segments and columns in a segment
@@ -703,6 +721,24 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_AERO_CTL'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+ddplim0     => glomap_variables%ddplim0
+ddplim1     => glomap_variables%ddplim1
+mfrac_0     => glomap_variables%mfrac_0
+mlo         => glomap_variables%mlo
+mm          => glomap_variables%mm
+mmid        => glomap_variables%mmid
+mode        => glomap_variables%mode
+modesol     => glomap_variables%modesol
+mode_choice => glomap_variables%mode_choice
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
+sigmag      => glomap_variables%sigmag
+
 root2 = SQRT(2.0)
 
 CALL segment_data_nullify(seg)
@@ -1167,7 +1203,7 @@ END IF
 !$OMP delso2_wet_h2o2, delso2_wet_o3, drain, dryox_in_aer, dsnow,              &
 !$OMP dtc, dtm, dtz, firstcall, iactmethod, ibln, inucscav,                    &
 !$OMP jpctr, lbase,                                                            &
-!$OMP ukca_config, glomap_config,                                              &
+!$OMP ukca_config, glomap_config, glomap_variables,                            &
 !$OMP l_ukca_mode_diags, l_ukca_cmip6_diags,                                   &
 !$OMP l_ukca_pm_diags,                                                         &
 !$OMP land_fraction, lcvrainout,  mass, mfrac_0, mh2o2f, mh2so4,               &
@@ -1287,7 +1323,7 @@ END IF  ! nseg > 1
 ! These allocated assuming uniform nbox elements in all segments
 ! therefore allocation ahead of ik loop
 
-CALL segment_data_allocate(seg, nbox, nchemg, nhet, nbudaer, nadvg)
+CALL segment_data_allocate(seg, ncp, nbox, nchemg, nhet, nbudaer, nadvg)
 
 !Each thread acts on its allotted segments. Note that a simple OMP DO
 !SCHEDULE(STATIC) has been found to change answers in certain tests, for as yet
@@ -1308,7 +1344,7 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
   IF ( (.NOT. l_ukca_segment_uniform) .AND. (ik == nseg)) THEN
     ! Ensure first dimension matches true number of boxes on this final segment.
     CALL segment_data_deallocate (seg)
-    CALL segment_data_allocate(seg, nbs, nchemg, nhet, nbudaer, nadvg)
+    CALL segment_data_allocate(seg, ncp, nbs, nchemg, nhet, nbudaer, nadvg)
 
   END IF                                 ! if last segment smaller
   !
@@ -2010,13 +2046,14 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
   END DO
 
   !----------------------------------------------------
-  CALL ukca_cdnc_jones(seg%nbox_this_seg,act,seg%drydp,seg%nd,seg%ccn_1,seg%cdn)
+  CALL ukca_cdnc_jones( seg%nbox_this_seg, act, seg%drydp, seg%nd,             &
+                        glomap_variables, seg%ccn_1, seg%cdn )
   !----------------------------------------------------
 
   !
   ! Update DRYDP and DVOL after AERO_STEP and updation of MD
-  CALL ukca_calc_drydiam(seg%nbox_this_seg,seg%nd,seg%md,seg%mdt,seg%drydp,    &
-                         seg%dvol)
+  CALL ukca_calc_drydiam( seg%nbox_this_seg, glomap_variables,                 &
+                          seg%nd, seg%md, seg%mdt, seg%drydp, seg%dvol )
 
   IF (verbose > 1) THEN
 
@@ -3650,13 +3687,14 @@ NULLIFY(seg%zo3)
 RETURN
 END SUBROUTINE segment_data_nullify
 
-SUBROUTINE segment_data_allocate(seg, nbox, nchemg, nhet, nbudaer, nadvg)
+SUBROUTINE segment_data_allocate(seg, ncp, nbox, nchemg, nhet, nbudaer, nadvg)
 ! Allocates segment data, according to the passed array sizes.
 
-USE ukca_mode_setup,  ONLY: ncp, nmodes
+USE ukca_mode_setup,  ONLY: nmodes
 IMPLICIT NONE
 
 TYPE(segment_data_type), INTENT(IN OUT) :: seg
+INTEGER,                 INTENT(IN)    :: ncp
 INTEGER,                 INTENT(IN)    :: nbox
 INTEGER,                 INTENT(IN)    :: nchemg
 INTEGER,                 INTENT(IN)    :: nhet

@@ -219,7 +219,9 @@ END SUBROUTINE ukca_emiss_diags_mode_init
 SUBROUTINE ukca_emiss_diags_mode (row_length, rows, model_levels, area,        &
     len_stashwork, stashwork)
 
-USE ukca_mode_setup,    ONLY: mm, moment_mass
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,    ONLY: moment_mass
 
 USE ukca_emiss_mod,     ONLY: emissions, num_em_flds
 
@@ -242,6 +244,7 @@ INTEGER, INTENT(IN)    :: len_stashwork     ! Length of diagnostics array
 REAL,    INTENT(IN OUT) :: stashwork (len_stashwork) ! Diagnostics array
 
 ! Local variables
+
 INTEGER    :: k, l         ! counters / indices
 INTEGER    :: section      ! stash section
 INTEGER    :: item         ! stash item
@@ -321,7 +324,7 @@ DO k = 1, num_mode_diags
     END IF
 
     ! Convert from kg/m2/s to mol/gridbox/s
-    em_diags(:,:,:) = em_diags(:,:,:) * area(:,:,:) / mm(icp)
+    em_diags(:,:,:) = em_diags(:,:,:) * area(:,:,:) / glomap_variables%mm(icp)
 
     CALL copydiag_3d (stashwork (si(item,section,im_index):                    &
          si_last(item,section,im_index)),                                      &

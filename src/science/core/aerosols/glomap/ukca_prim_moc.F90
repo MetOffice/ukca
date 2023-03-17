@@ -81,10 +81,11 @@ SUBROUTINE ukca_prim_moc(row_length, rows, model_levels,                       &
 !
 ! Inputted by module UKCA_MODE_SETUP
 ! ----------------------------------
-! mode      : logical for mode on/off
+! glomap_variables%mode      : logical for mode on/off
 ! nmodes    : Number of possible aerosol modes
-! sigmag    : Geometric standard deviation of modes
-! rhocomp   : Mass density of each of the aerosol components (kgm^-3)
+! glomap_variables%sigmag    : Geometric standard deviation of modes
+! glomap_variables%rhocomp   : Mass density of each of the aerosol components 
+!                              (kgm^-3)
 ! cp_cl     : index of cpt in which sea-salt mass is stored
 ! cp_oc     : index of cpt in which organic carbon mass is stored
 !
@@ -96,11 +97,12 @@ SUBROUTINE ukca_prim_moc(row_length, rows, model_levels,                       &
 !
 !--------------------------------------------------------------------
 
-USE ukca_mode_setup,                ONLY: mode, nmodes, sigmag,                &
-                                          rhocomp, cp_cl, cp_oc
+USE ukca_mode_setup,                ONLY: nmodes, cp_cl, cp_oc
+
 USE ukca_um_legacy_mod,             ONLY: pi, rgas => r
 USE chemistry_constants_mod,        ONLY: avogadro, boltzmann
-USE ukca_config_specification_mod,  ONLY: glomap_config
+
+USE ukca_config_specification_mod,  ONLY: glomap_config, glomap_variables
 
 USE yomhook,                        ONLY: lhook, dr_hook
 USE parkind1,                       ONLY: jprb, jpim
@@ -125,6 +127,7 @@ REAL, INTENT(OUT) :: mass_pmoc(row_length,rows,1)
     ! mass flux of PMOC, returned as kg(POM)/m2/s
 
 ! Local variables
+
 INTEGER :: imode
 REAL :: mm_da
     ! Molar mass of dry air (kg/mol) = avogadro*boltzmann/rgas
@@ -157,7 +160,6 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PRIM_MOC'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-
 ! Molar mass of dry air (kg/mol)
 mm_da = avogadro*boltzmann/rgas
 
@@ -174,14 +176,15 @@ END IF
 mass_pmoc(:,:,:) = 0.0 ! accumulated over modes, initialise here
 DO imode=1,nmodes
 
-  IF (mode(imode)) THEN
+  IF (glomap_variables%mode(imode)) THEN
 
-    lsigmag = LOG(sigmag(imode))
+    lsigmag = LOG(glomap_variables%sigmag(imode))
 
     WHERE ( aer_emmas(:,:,1,imode) > 0.0) ! where sea salt is being emitted
 
       ! Calculate sea salt particle dry diameter
-      ssvol(:,:) = 1e18 * aer_emmas(:,:,1,imode) / rhocomp(cp_cl) ! um3/m2/s
+      ssvol(:,:) = 1e18 * aer_emmas(:,:,1,imode) /                             &
+                   glomap_variables%rhocomp(cp_cl) ! um3/m2/s
       ssnum(:,:) = aer_emnum(:,:,1,imode) ! equiv-kg / m2 / s
       ss_dp(:,:) = (( ( factor * ssvol(:,:) / ssnum(:,:) ) / (pi/6.0) )        &
                          / (EXP(4.5*lsigmag*lsigmag))) ** (1.0/3.0) ! um
@@ -195,8 +198,9 @@ DO imode=1,nmodes
                          + (0.03 / gantt1(:,:))
 
       ! Calculate apparent density of emitted aerosol
-      dens_ssa(:,:) = ((frac_om_ssa(:,:) * rhocomp(cp_oc)) +                   &
-                ((1.0 - frac_om_ssa(:,:)) * rhocomp(cp_cl))) * 1e-3 ! g.cm-3
+      dens_ssa(:,:) = ((frac_om_ssa(:,:) * glomap_variables%rhocomp(cp_oc)) +  &
+                      ((1.0 - frac_om_ssa(:,:)) *                              &
+                       glomap_variables%rhocomp(cp_cl))) *1e-3 ! g.cm-3
 
       ! Total emission flux of marine POM
       ! Parameterization is derived as POM fraction, so no need for OC*1.4
@@ -210,7 +214,7 @@ DO imode=1,nmodes
 
     END WHERE ! where sea salt is emitted
 
-  END IF  ! if mode is defined
+  END IF  ! if glomap_variables%mode is defined
 
 END DO ! loop over nmodes
 

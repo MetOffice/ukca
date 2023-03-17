@@ -84,7 +84,11 @@ SUBROUTINE ukca_prim_du(row_length, rows, model_levels, ndiv,                  &
 
 USE ukca_um_legacy_mod,     ONLY: pi, rgas => r
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
-USE ukca_mode_setup,        ONLY: nmodes, mode, cp_du, rhocomp
+
+USE ukca_config_specification_mod, ONLY: glomap_variables
+
+USE ukca_mode_setup,        ONLY: nmodes, cp_du
+
 USE ukca_environment_fields_mod, ONLY: drep
 USE ereport_mod,            ONLY: ereport
 USE yomhook,                ONLY: lhook, dr_hook
@@ -112,6 +116,7 @@ REAL, INTENT(IN OUT) :: aer_num_primdu(row_length,rows,model_levels,nmodes)
 REAL, INTENT(IN OUT) :: aer_mas_du_primdu(row_length,rows,model_levels,nmodes)
 
 ! Local variables
+
 INTEGER :: imode                  ! loop counter for modes
 INTEGER :: idiv                   ! loop counter for dust bins
 
@@ -132,8 +137,6 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PRIM_DU'
-
-
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
@@ -180,7 +183,7 @@ DO idiv = 1,ndiv    ! loop over bins
   END IF
 
   DO imode = 1,nmodes                    ! loop over UKCA modes
-    IF (mode(imode)) THEN
+    IF (glomap_variables%mode(imode)) THEN
       IF (fracduem(idiv,imode) > 0.0 .AND.                                     &
           ANY(dust_flux(:,:,idiv) > 1.0e-20)) THEN
         emcdu_emit(:,:) = dust_flux(:,:,idiv)*                                 &
@@ -188,7 +191,7 @@ DO idiv = 1,ndiv    ! loop over bins
 
         ! dust volume emission flux (m3  per m2 per s)
 
-        emcvol(:,:) = (emcdu_emit(:,:)/rhocomp(cp_du))
+        emcvol(:,:) = (emcdu_emit(:,:)/glomap_variables%rhocomp(cp_du))
 
         ! dust number emission flux in kg(air) m-2 s-1
         ! i.e. mass flux of air with same number of molecules as there
@@ -205,7 +208,7 @@ DO idiv = 1,ndiv    ! loop over bins
             aer_mas_du_primdu(:,:,1,imode) +emcdu_emit(:,:)
 
       END IF   ! fracduem(idiv,imode) > 0.0
-    END IF   ! mode(imode)
+    END IF   ! glomap_variables%mode(imode)
   END DO   ! nmodes
 END DO   ! ndiv
 

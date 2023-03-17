@@ -78,9 +78,11 @@ USE ukca_drydiam_field_mod,          ONLY:                                     &
 USE ukca_calc_drydiam_mod,           ONLY:                                     &
     ukca_calc_drydiam
 
+USE ukca_config_specification_mod,   ONLY:                                     &
+    glomap_variables_climatology
+
 USE ukca_mode_setup,                 ONLY:                                     &
     mode_list_sussbcoc_5mode,                                                  &
-    ncp,                                                                       &
     nmodes,                                                                    &
     nmodes_list_sussbcoc_5mode
 
@@ -184,8 +186,6 @@ REAL(KIND=real_umphys),INTENT(IN) :: t_theta_levels_1d( n_points )
 REAL, INTENT(OUT)   :: drydp(n_points,nmodes)
 REAL, INTENT(OUT)   :: nd(n_points,nmodes)
 
-
-
 ! Local variables
 
 #if !defined(LFRIC)
@@ -219,7 +219,8 @@ IF ( firstcall ) THEN
 END IF
 #endif
 
-IF (.NOT. ALLOCATED(md))            ALLOCATE(md(n_points,nmodes,ncp))
+IF (.NOT. ALLOCATED(md))                                                       &
+          ALLOCATE( md(n_points,nmodes,glomap_variables_climatology%ncp))
 IF (.NOT. ALLOCATED(mdt))           ALLOCATE(mdt(n_points,nmodes))
 
 ! Initialise arrays
@@ -229,7 +230,8 @@ mdt(:,:) = 0.0
 
 IF (.NOT. ALLOCATED(aird))          ALLOCATE(aird(n_points))
 IF (.NOT. ALLOCATED(nmr1d))         ALLOCATE(nmr1d(n_points,nmodes))
-IF (.NOT. ALLOCATED(mmr1d))         ALLOCATE(mmr1d(n_points,nmodes,ncp))
+IF (.NOT. ALLOCATED(mmr1d))                                                    &
+          ALLOCATE( mmr1d(n_points,nmodes, glomap_variables_climatology%ncp))
 
 ! Calculate aird
 CALL glomap_clim_calc_aird( n_points, p_theta_levels_1d, t_theta_levels_1d,    &
@@ -247,8 +249,8 @@ CALL get_gc_aerosol_fields( gc_nd_nuc_sol, gc_nuc_sol_su, gc_nuc_sol_oc,       &
                             n_points, mmr1d, nmr1d)
 
 ! Populate the md, mdt & nd arrays
-CALL glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup, n_points, aird, mmr1d,   &
-                                 nmr1d, md, mdt, nd )
+CALL glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup, n_points, aird,          &
+                                 mmr1d, nmr1d, md, mdt, nd )
 
 IF (ALLOCATED(mmr1d))               DEALLOCATE(mmr1d)
 IF (ALLOCATED(nmr1d))               DEALLOCATE(nmr1d)
@@ -257,7 +259,8 @@ IF (ALLOCATED(aird))                DEALLOCATE(aird)
 IF (.NOT. ALLOCATED(dvol))          ALLOCATE(dvol(n_points,nmodes))
 
 ! Calculate the dry diameters and volumes
-CALL ukca_calc_drydiam(n_points, nd, md, mdt, drydp, dvol)
+CALL ukca_calc_drydiam( n_points, glomap_variables_climatology,                &
+                        nd, md, mdt, drydp, dvol )
 
 #if !defined(LFRIC)
 

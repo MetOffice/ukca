@@ -140,9 +140,11 @@ SUBROUTINE ukca_wetox(nbox,nd,drydp,delso2,delso2_2,                           &
 !--------------------------------------------------------------------
 USE chemistry_constants_mod, ONLY: avogadro
 USE ukca_um_legacy_mod,   ONLY: rmol, pi
-USE ukca_mode_setup,      ONLY: nmodes, mode, num_eps
+
+USE ukca_mode_setup,      ONLY: nmodes
+
 USE ukca_setup_indices,   ONLY: mh2o2f
-USE ukca_config_specification_mod, ONLY: ukca_config
+USE ukca_config_specification_mod, ONLY: ukca_config, glomap_variables
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
 IMPLICIT NONE
@@ -171,6 +173,13 @@ REAL, INTENT(OUT)   :: delso2_2(nbox)
 REAL, INTENT(OUT)   :: delh2o2(nbox)
 !
 !     Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: mode(:)
+REAL,    POINTER :: num_eps(:)
+
 INTEGER :: jl
 REAL    :: f
 REAL    :: phcloud
@@ -230,6 +239,12 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_WETOX'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+mode    => glomap_variables%mode
+num_eps => glomap_variables%num_eps
 
 !      LWC(:)=0.2e-3 ! set to constant at 0.2 g/m3 [of air] at present
 !                      NOW INTENT(IN)

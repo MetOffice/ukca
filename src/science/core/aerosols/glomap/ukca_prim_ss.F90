@@ -115,9 +115,11 @@ SUBROUTINE ukca_prim_ss(row_length, rows, model_levels,                        &
 !--------------------------------------------------------------------
 USE ukca_um_legacy_mod,             ONLY: pi, rgas => r
 USE chemistry_constants_mod,        ONLY: avogadro, boltzmann
-USE ukca_mode_setup,                ONLY: mm, cp_cl, rhocomp, nmodes,          &
-                                          ddplim0
-USE ukca_config_specification_mod,  ONLY: glomap_config
+
+USE ukca_mode_setup,                ONLY: cp_cl, nmodes
+
+USE ukca_config_specification_mod,  ONLY: glomap_config, glomap_variables
+
 USE ereport_mod,                    ONLY: ereport
 USE yomhook,                        ONLY: lhook, dr_hook
 USE parkind1,                       ONLY: jprb, jpim
@@ -152,6 +154,14 @@ REAL, INTENT(IN OUT) :: aer_num_primss(row_length,rows,                        &
 ! number ems flux
 
 ! Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+REAL,    POINTER :: ddplim0(:)
+REAL,    POINTER :: mm (:)
+REAL,    POINTER :: rhocomp (:)
+
 INTEGER :: jv
 INTEGER :: modemt
 INTEGER, PARAMETER :: nbins=20
@@ -209,6 +219,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PRIM_SS'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+ddplim0     => glomap_variables%ddplim0
+mm          => glomap_variables%mm
+rhocomp     => glomap_variables%rhocomp
 
 ! Molar mass of dry air (kg/mol)
 mm_da = avogadro*boltzmann/rgas

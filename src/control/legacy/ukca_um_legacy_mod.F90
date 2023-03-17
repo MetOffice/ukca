@@ -160,7 +160,6 @@ INTEGER, PARAMETER :: mype = 0  ! Serial case
 ! ukca_volume_mode_mod
 
 INTEGER, PARAMETER :: i_gc_activation_arg = 0              ! Dummy value
-INTEGER, PARAMETER :: i_gc_sussocbc_5mode = 0              ! Dummy value
 INTEGER, PARAMETER :: i_glomap_clim_activation_scheme = 0  ! Dummy value
 INTEGER, PARAMETER :: i_glomap_clim_setup = 0              ! Dummy value
 
@@ -867,7 +866,7 @@ END SUBROUTINE autotune_entry
 SUBROUTINE autotune_init(this, region_name, tag, start_size)
 IMPLICIT NONE
 TYPE(autotune_type), INTENT(OUT) :: this
-CHARACTER(LEN=*),    INTENT(IN)  :: region_name 
+CHARACTER(LEN=*),    INTENT(IN)  :: region_name
 CHARACTER(LEN=*),    INTENT(IN)  :: tag
 INTEGER,             INTENT(IN)  :: start_size
 this%dummy_value = 0

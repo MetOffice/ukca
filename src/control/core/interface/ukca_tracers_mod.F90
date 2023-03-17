@@ -139,7 +139,7 @@ CONTAINS
 
 
 ! ----------------------------------------------------------------------
-SUBROUTINE init_tracer_req(config, advt, l_mode, l_component,                  &
+SUBROUTINE init_tracer_req(config, advt,                                       &
                            error_code, error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
@@ -154,9 +154,12 @@ SUBROUTINE init_tracer_req(config, advt, l_mode, l_component,                  &
 !   modules.
 ! ----------------------------------------------------------------------
 
-USE ukca_config_specification_mod, ONLY: ukca_config_spec_type
+USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
+                                         glomap_variables
+
 USE asad_mod, ONLY: jpctr
-USE ukca_mode_setup, ONLY: nmodes, ncp,                                        &
+
+USE ukca_mode_setup, ONLY: nmodes,                                             &
                            mode_nuc_sol, mode_ait_sol, mode_acc_sol,           &
                            mode_cor_sol, mode_ait_insol, mode_acc_insol,       &
                            mode_cor_insol, cp_su, cp_bc, cp_oc, cp_cl,         &
@@ -167,9 +170,6 @@ IMPLICIT NONE
 ! Subroutine arguments
 TYPE(ukca_config_spec_type), INTENT(IN) :: config   ! UKCA configuration info
 CHARACTER(LEN=10), INTENT(IN) :: advt(jpctr)        ! UKCA chemistry tracers
-LOGICAL, INTENT(IN) :: l_mode(nmodes)               ! Presence of aerosol modes
-LOGICAL, INTENT(IN) :: l_component(nmodes,ncp)      ! Presence of aerosol
-                                                    ! MMR components by mode
 INTEGER, INTENT(OUT) :: error_code
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
@@ -285,14 +285,14 @@ DO i = 1, n_mode_tracers
   icp = mode_info(i)%icp
   ! Check whether mode is active (assume inactive if status is unspecified)
   IF (imode <= nmodes) THEN
-    IF (l_mode(imode)) THEN
+    IF (glomap_variables%mode(imode)) THEN
       IF (icp == 0) THEN
         l_required = .TRUE. ! NMR for an active mode
       ELSE
         ! Check whether component is active for this mode
         ! (assume inactive if status is unspecified)
-        IF (icp <= ncp) THEN
-          IF (l_component(imode,icp)) l_required = .TRUE.
+        IF (icp <= glomap_variables%ncp) THEN
+          IF (glomap_variables%component(imode,icp)) l_required = .TRUE.
                             ! MMR for an active mode/component combination
         END IF
       END IF

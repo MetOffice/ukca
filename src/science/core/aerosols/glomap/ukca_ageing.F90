@@ -117,13 +117,11 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
 !
 !--------------------------------------------------------------------
 
+USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables
+
 USE ukca_mode_setup,    ONLY:                                                  &
     nmodes,                                                                    &
-    ncp,                                                                       &
-    mode,                                                                      &
-    component,                                                                 &
-    mm,                                                                        &
-    num_eps,                                                                   &
     cp_su,                                                                     &
     cp_bc,                                                                     &
     cp_oc,                                                                     &
@@ -152,32 +150,42 @@ INTEGER, INTENT(IN) :: nbox
 INTEGER, INTENT(IN) :: nchemg
 INTEGER, INTENT(IN) :: nbudaer
 REAL, INTENT(IN)    :: ageterm1(nbox,3,nchemg)
-REAL, INTENT(IN)    :: ageterm2(nbox,4,3,ncp)
+REAL, INTENT(IN)    :: ageterm2(nbox,4,3,glomap_variables%ncp)
 REAL, INTENT(IN)    :: wetdp(nbox,nmodes)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
-REAL, INTENT(IN OUT) :: md(nbox,nmodes,ncp)
+REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 INTEGER, INTENT(IN) :: iagecoagnucl67
 !
 ! .. Local variables
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+LOGICAL, POINTER :: component(:,:)
+REAL,    POINTER :: mm(:)
+LOGICAL, POINTER :: mode(:)
+INTEGER, POINTER :: ncp
+REAL,    POINTER :: num_eps(:)
+
 INTEGER :: jl
 INTEGER :: jv
 INTEGER :: imode
 INTEGER :: jmode
 INTEGER :: icp
-INTEGER :: cp_coag_added(ncp)
+INTEGER :: cp_coag_added(glomap_variables%ncp)
 INTEGER :: topmode
-REAL    :: totage(ncp)
+REAL    :: totage(glomap_variables%ncp)
 REAL    :: totage_jv
-REAL    :: totage1(ncp)
-REAL    :: totage2(ncp)
+REAL    :: totage1(glomap_variables%ncp)
+REAL    :: totage2(glomap_variables%ncp)
 REAL    :: age1ptcl
 REAL    :: naged
 REAL    :: naged_jv(nchemg)
 REAL    :: ndinsnew
 REAL    :: ndsolnew
-REAL    :: f_mm(ncp)
+REAL    :: f_mm(glomap_variables%ncp)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -187,6 +195,15 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_AGEING'
 
 !
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Caution - pointers to TYPE glomap_variables%
+!           have been included here to make the code easier to read
+!           take care when making changes involving pointers
+component   => glomap_variables%component
+mm          => glomap_variables%mm
+mode        => glomap_variables%mode
+ncp         => glomap_variables%ncp
+num_eps     => glomap_variables%num_eps
 
 !set limit of modes to be aged
 IF (iagecoagnucl67 == 1 ) THEN
