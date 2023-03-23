@@ -92,8 +92,7 @@ SUBROUTINE ukca_chemistry_ctl(                                                 &
                 H_plus_3d_arr                                                  &
                 )
 
-USE ukca_um_legacy_mod,   ONLY: pi_over_180, rgas => r,                        &
-                                ! For JULES-based atmospheric deposition
+USE ukca_um_legacy_mod,   ONLY: rgas => r,                                     &
                                 deposition_from_ukca_chemistry
 USE asad_mod,             ONLY: advt, cdt, ihso3_h2o2, ihso3_o3,               &
                                 ih2so4_hv, iso2_oh, iso3_o3,                   &
@@ -127,8 +126,7 @@ USE ukca_cspecies,        ONLY: c_species, n_cf2cl2, n_cfcl3,                  &
 USE asad_findreaction_mod, ONLY: asad_findreaction
 USE UKCA_tropopause,      ONLY: L_troposphere
 USE ukca_conserve_mod,    ONLY: ukca_conserve
-USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p,                  &
-                                c_co2, fxb, fxc
+USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 
 USE ukca_config_specification_mod, ONLY: ukca_config, i_top_2levH2O,           &
@@ -314,6 +312,8 @@ REAL, INTENT(IN OUT) :: stashwork (len_stashwork)
 ! Local variables
 INTEGER :: nlev_with_ddep(row_length, rows)     ! No levs in bl
 INTEGER :: nlev_with_ddep2(theta_field_size)    ! No levs in bl
+INTEGER :: nlev_ch4_stratloss                   ! No top levs for CH4
+                                                ! stratospheric loss
 
 INTEGER, SAVE :: nr            ! no of rxns for BE
 INTEGER, SAVE :: n_be_calls    ! no of call to BE solver
@@ -343,9 +343,6 @@ LOGICAL           :: ddmask(theta_field_size) ! mask
 
 REAL, SAVE      :: dts                       ! B. Euler timestep
 
-REAL :: tgmt               ! GMT time (decimal represent
-REAL :: tan_declin         ! TAN(declination)
-
 !Dummy variables for compatability with column-call approach
 REAL :: dpd_dummy(model_levels,jpspec)
 REAL :: dpw_dummy(model_levels,jpspec)
@@ -373,9 +370,6 @@ REAL :: cdot(theta_field_size,jpcspf)  ! 1-D chem. tendency
 REAL :: zq(theta_field_size)          ! 1-D water vapour vmr
 REAL :: co2_1d(theta_field_size)      ! 1-D CO2
 REAL :: zprt1d(theta_field_size,jppj) ! 1-D photolysis rates for ASAD
-REAL :: tloc  (row_length, rows)      ! local time
-REAL :: daylen(row_length, rows)      ! local daylength
-REAL :: cs_hour_ang(row_length, rows) ! cosine hour angle
 REAL :: zdryrt(row_length, rows, jpdd)                ! dry dep rate
 REAL :: zdryrt2(theta_field_size, jpdd)               ! dry dep rate
 REAL :: zwetrt(row_length, rows, model_levels, jpdw)  ! wet dep rate
@@ -549,32 +543,10 @@ IF (firstcall) THEN
 
 END IF  ! of initialization of chemistry subroutine (firstcall)
 
-
-!       Calculate local time as function of longitude
-
-tgmt = REAL(i_hour) + r_minute/60.0                                            &
-                    + secs_per_step * 0.5 / 3600.0
-!        IF (tgmt < 0.) tgmt = tgmt + 24.
-
-tloc = tgmt + 24.0 * longitude/360.0
-WHERE (tloc > 24.0) tloc = tloc - 24.0
-
-!       Calculate Declination Angle and Daylength for each row for
-!       current day of the year.
-!       Ensure COS of HOUR ANGLE does not exceed + or - 1
-daylen = 0.0
-tan_declin = TAN(fxb * SIN(pi_over_180*(266.0+i_day_number)))
-IF (ABS(tan_declin) < EPSILON(0.0)) THEN
-  cs_hour_ang = 0.0
-ELSE
-  cs_hour_ang = MAX(-1.0, MIN(1.0, -tanlat * tan_declin))
-END IF
-daylen = fxc * ACOS(cs_hour_ang)
-
 ! Call routine to calculate dry deposition rates.
 zdryrt  = 0.0
 zdryrt2 = 0.0
-IF (ndepd /= 0) THEN
+IF (ndepd /= 0 .AND. .NOT. ukca_config%l_ukca_drydep_off) THEN
 
   IF (ukca_config%l_ukca_intdd) THEN           ! Call interactive dry dep
 
@@ -604,11 +576,9 @@ IF (ndepd /= 0) THEN
 
   ELSE                             ! Call prescribed dry dep
 
-    CALL ukca_ddeprt(daylen, tloc, n_pnts, dzl, bl_levels,                     &
-                             z0m, u_s, t_surf,                                 &
-                             latitude, i_month,                                &
-                             1, n_pnts,                                        &
-                             zdryrt)
+    CALL ukca_ddeprt(n_pnts, bl_levels, i_day_number, i_month, i_hour,         &
+                     r_minute, secs_per_step, longitude, latitude, tanlat,     &
+                     dzl, z0m, u_s, t_surf, zdryrt)
 
   END IF
 END IF
@@ -617,7 +587,7 @@ END IF
 
 zwetrt  = 0.0
 zwetrt2 = 0.0
-IF (ndepw /= 0) THEN
+IF (ndepw /= 0 .AND. .NOT. ukca_config%l_ukca_wetdep_off) THEN
 
   ! Reshape 3D H_plus array to 2D to use in calculating Wet Deposition rates
   DO k=1,model_levels
@@ -652,6 +622,17 @@ IF (ukca_config%l_ukca_het_psc) THEN
   IF (.NOT. ALLOCATED(shno3_3d))                                               &
        ALLOCATE(shno3_3d(row_length, rows, model_levels))
   shno3_3d = 0.0
+END IF
+
+! A stratospheric CH4 loss rate may be applied at a number of top levels.
+! If the number of top levels is not set explicitly it is set to 3 as
+! required by the UM. This is deprecated functionality. In future, the UM
+! should set the number of levels explicitly via the ukca_setup call
+! making this functionality redundant.
+IF (ukca_config%nlev_ch4_stratloss >= 0) THEN
+  nlev_ch4_stratloss = ukca_config%nlev_ch4_stratloss
+ELSE
+  nlev_ch4_stratloss = 3
 END IF
 
 !       Initialize budget variables
@@ -691,6 +672,7 @@ nlev_with_ddep2(:) = RESHAPE(nlev_with_ddep(:,:),[theta_field_size])
 !$OMP        ldepd, ldepw, model_levels,                                       &
 !$OMP        n_be_calls, n_cf2cl2, n_cfcl3, n_ch4, n_co, n_h2, n_h2o2,         &
 !$OMP        n_mebr, n_n2o, n_o3, n_pnts, nadvt, nlev_with_ddep2,              &
+!$OMP        nlev_ch4_stratloss,                                               &
 !$OMP        nn_ch4, nn_h2o2, nn_h2so4, nn_o1d, nn_o3, nn_o3p, nn_oh,          &
 !$OMP        nn_so2, nnaf, nr, nr_therm,                                       &
 !$OMP        o1d_in_ss, o3p_in_ss, ocff_aged, ocff_fresh, photol_rates,        &
@@ -1300,8 +1282,8 @@ DO k=1,model_levels
     IF (ALLOCATED(BE_hrc)) DEALLOCATE(BE_hrc)
     IF (ALLOCATED(BE_rc))  DEALLOCATE(BE_rc)
 
-    IF (k == model_levels .OR. k == model_levels-1 .OR.                        &
-        k == model_levels - 2) THEN
+    ! Apply stratospheric CH4 loss rate at top levels.
+    IF (k >= model_levels + 1 - nlev_ch4_stratloss) THEN
       CALL ukca_ch4_stratloss(n_be_calls, n_pnts,                              &
                  BE_vol(1:n_pnts), dts,                                        &
                  BE_y(1:n_pnts,nn_ch4), strat_ch4loss_2d(1:n_pnts,k))

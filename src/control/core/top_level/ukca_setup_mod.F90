@@ -79,6 +79,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       i_ukca_quasinewton_start,                                &
                       i_ukca_quasinewton_end,                                  &
                       ukca_chem_seg_size,                                      &
+                      nlev_above_trop_o3_env,                                  &
+                      nlev_ch4_stratloss,                                      &
                       i_ukca_topboundary,                                      &
                       i_ukca_hetconfig,                                        &
                       i_ukca_photol,                                           &
@@ -89,12 +91,12 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       i_ukca_dms_flux,                                         &
                       i_ukca_light_param,                                      &
                       i_strat_lbc_source,                                      &
+                      env_log_step,                                            &
                       i_mode_nzts,                                             &
                       ukca_mode_seg_size,                                      &
                       i_mode_setup,                                            &
                       i_mode_bln_param_method,                                 &
                       i_mode_nucscav,                                          &
-                      l_dust_slinn_impc_scav,                                  &
                       i_ukca_activation_scheme,                                &
                       i_ukca_nwbins,                                           &
                       i_ukca_tune_bc,                                          &
@@ -102,13 +104,13 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       timestep,                                                &
                       max_ageair_reset_height,                                 &
                       max_z_for_offline_chem,                                  &
+                      soa_yield_scaling,                                       &
                       fastjx_prescutoff,                                       &
                       mode_parfrac,                                            &
                       seadms_ems_scaling,                                      &
                       sea_salt_ems_scaling,                                    &
                       marine_pom_ems_scaling,                                  &
                       lightnox_scale_fac,                                      &
-                      soa_yield_scaling,                                       &
                       mode_activation_dryr,                                    &
                       mode_incld_so2_rfrac,                                    &
                       biom_aer_ems_scaling,                                    &
@@ -125,6 +127,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_persist_off,                                      &
                       l_timer,                                                 &
                       l_ukca_emissions_off,                                    &
+                      l_ukca_drydep_off,                                       &
+                      l_ukca_wetdep_off,                                       &
                       l_ukca_asad_columns,                                     &
                       l_ukca_debug_asad,                                       &
                       l_ukca_intdd,                                            &
@@ -133,9 +137,11 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_dry_dep_so2wet,                                   &
                       l_deposition_jules,                                      &
                       l_ukca_quasinewton,                                      &
+                      l_tracer_lumping,                                        &
                       l_ukca_ro2_ntp,                                          &
                       l_ukca_ro2_perm,                                         &
                       l_ukca_intph,                                            &
+                      l_ukca_scale_soa_yield,                                  &
                       l_ukca_het_psc,                                          &
                       l_ukca_limit_nat,                                        &
                       l_ukca_sa_clim,                                          &
@@ -149,7 +155,6 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_enable_seadms_ems,                                &
                       l_ukca_scale_seadms_ems,                                 &
                       l_ukca_linox_scaling,                                    &
-                      l_ukca_scale_soa_yield,                                  &
                       l_support_ems_vertprof,                                  &
                       l_support_ems_gridbox_units,                             &
                       l_suppress_ems,                                          &
@@ -175,11 +180,13 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_offox_h2o_fac,                                &
                       l_fix_ukca_h2so4_ystore,                                 &
                       l_fix_ukca_meoh_emiss_input,                             &
-                      l_improve_aero_drydep,                                   &
                       l_mode_bhn_on,                                           &
                       l_mode_bln_on,                                           &
-                      l_cv_rainout,                                            &
                       l_ddepaer,                                               &
+                      l_rainout,                                               &
+                      l_cv_rainout,                                            &
+                      l_impc_scav,                                             &
+                      l_dust_slinn_impc_scav,                                  &
                       l_ukca_primss,                                           &
                       l_ukca_primsu,                                           &
                       l_ukca_primdu,                                           &
@@ -200,6 +207,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_neg_pvol_wat,                                      &
                       l_fix_ukca_impscav,                                      &
                       l_fix_nacl_density,                                      &
+                      l_improve_aero_drydep,                                   &
                       l_fix_ukca_activate_pdf,                                 &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
@@ -247,6 +255,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
 !     selected UKCA configuration.
 !  6. Set up lists of emitted species.
 !  7. Set up lists of environmental driver fields required.
+!  8. Clear environmental field data to ensure it is properly
+!     initialised for subsequent set up via ukca_set_environment calls.
 !
 ! ----------------------------------------------------------------------
 
@@ -257,11 +267,13 @@ USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     i_ukca_chem_strat, i_ukca_chem_offline, i_ukca_chem_cristrat,              &
     i_age_reset_by_level, i_age_reset_by_height, i_strat_lbc_off,              &
     i_ukca_nophot, i_light_param_off, i_light_param_pr, i_ukca_fastjx,         &
-    i_top_none, i_ukca_activation_off, i_ukca_activation_arg,                  &
+    i_top_none, i_top_bc, i_ukca_activation_off, i_ukca_activation_arg,        &
+    i_dms_flux_off,                                                            &
     l_ukca_config_available, template_proc_bl_tracer_mix, bl_tracer_mix
 
-USE ukca_um_legacy_mod, ONLY: l_dust, l_twobin_dust
+USE ukca_um_legacy_mod, ONLY: l_dust, l_twobin_dust, l_um_infrastructure
 
+USE ukca_constants, ONLY: l_ukca_diurnal_isopems
 USE ukca_init_mod, ONLY: ukca_init
 USE ukca_chem1_dat, ONLY: ukca_chem1_init
 USE ukca_ntp_mod, ONLY: ntp_init
@@ -272,6 +284,7 @@ USE ukca_config_defs_mod, ONLY: ukca_set_config_defs, em_chem_spec, lbc_spec,  &
 
 USE ukca_tracers_mod, ONLY: init_tracer_req
 USE ukca_environment_req_mod, ONLY: init_environment_req
+USE ukca_environment_mod, ONLY: clear_environment_fields
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
@@ -335,6 +348,8 @@ INTEGER, OPTIONAL, INTENT(IN) :: nit
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_quasinewton_start
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_quasinewton_end
 INTEGER, OPTIONAL, INTENT(IN) :: ukca_chem_seg_size
+INTEGER, OPTIONAL, INTENT(IN) :: nlev_above_trop_o3_env
+INTEGER, OPTIONAL, INTENT(IN) :: nlev_ch4_stratloss
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_topboundary
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_hetconfig
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_photol
@@ -345,6 +360,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: i_inferno_emi
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_dms_flux
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_light_param
 INTEGER, OPTIONAL, INTENT(IN) :: i_strat_lbc_source
+INTEGER, OPTIONAL, INTENT(IN) :: env_log_step
 INTEGER, OPTIONAL, INTENT(IN) :: i_mode_nzts
 INTEGER, OPTIONAL, INTENT(IN) :: ukca_mode_seg_size
 INTEGER, OPTIONAL, INTENT(IN) :: i_mode_setup
@@ -358,13 +374,13 @@ REAL, OPTIONAL, INTENT(IN) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(IN) :: timestep
 REAL, OPTIONAL, INTENT(IN) :: max_ageair_reset_height
 REAL, OPTIONAL, INTENT(IN) :: max_z_for_offline_chem
+REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling
 REAL, OPTIONAL, INTENT(IN) :: fastjx_prescutoff
 REAL, OPTIONAL, INTENT(IN) :: mode_parfrac
 REAL, OPTIONAL, INTENT(IN) :: seadms_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: sea_salt_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: marine_pom_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: lightnox_scale_fac
-REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling
 REAL, OPTIONAL, INTENT(IN) :: mode_activation_dryr
 REAL, OPTIONAL, INTENT(IN) :: mode_incld_so2_rfrac
 REAL, OPTIONAL, INTENT(IN) :: biom_aer_ems_scaling
@@ -382,6 +398,8 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_enable_diag_um
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_persist_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_timer
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_emissions_off
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_drydep_off
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_wetdep_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_asad_columns
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_debug_asad
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_intdd
@@ -390,9 +408,11 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ddep_lev1
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_dry_dep_so2wet
 LOGICAL, OPTIONAL, INTENT(IN) :: l_deposition_jules
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_quasinewton
+LOGICAL, OPTIONAL, INTENT(IN) :: l_tracer_lumping
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ro2_ntp
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ro2_perm
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_intph
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_soa_yield
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_het_psc
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_limit_nat
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_sa_clim
@@ -406,7 +426,6 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_emsdrvn_ch4
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_enable_seadms_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_seadms_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_linox_scaling
-LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_soa_yield
 LOGICAL, OPTIONAL, INTENT(IN) :: l_support_ems_vertprof
 LOGICAL, OPTIONAL, INTENT(IN) :: l_support_ems_gridbox_units
 LOGICAL, OPTIONAL, INTENT(IN) :: l_suppress_ems
@@ -432,11 +451,13 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2dd_x
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_offox_h2o_fac
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2so4_ystore
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_meoh_emiss_input
-LOGICAL, OPTIONAL, INTENT(IN) :: l_improve_aero_drydep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bhn_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bln_on
-LOGICAL, OPTIONAL, INTENT(IN) :: l_cv_rainout
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ddepaer
+LOGICAL, OPTIONAL, INTENT(IN) :: l_rainout
+LOGICAL, OPTIONAL, INTENT(IN) :: l_cv_rainout
+LOGICAL, OPTIONAL, INTENT(IN) :: l_impc_scav
+LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_slinn_impc_scav
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_primss
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_primsu
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_primdu
@@ -457,10 +478,10 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_sfix
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_neg_pvol_wat
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_impscav
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_nacl_density
+LOGICAL, OPTIONAL, INTENT(IN) :: l_improve_aero_drydep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
-LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_slinn_impc_scav
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
 
@@ -494,7 +515,8 @@ IF (PRESENT(error_routine)) error_routine = ''
 CALL init_ukca_configuration()
 
 ! Collate input data specifying the UKCA configuration
-! (loosely following 'ukca_config_spec_type' & 'glomap_config_spec_type' order).
+! (loosely following 'ukca_config_spec_type' & 'glomap_config_spec_type' order
+! where practical given the required logic).
 ! Default values are set here if applicable.
 ! Input values for configuration variables that are inactive in the current
 ! configuration are ignored if appropriate (see subroutine method Step 1 for
@@ -505,21 +527,10 @@ CALL init_ukca_configuration()
 ukca_config%row_length = 1
 ukca_config%rows = 1
 ukca_config%model_levels = 1
-ukca_config%bl_levels = 0
-ukca_config%nlev_ent_tr_mix = 0
-ukca_config%ntype = 0
-ukca_config%npft = 0
 
-! Set values here for all except 'nlev_ent_tr_mix', 'ntype' and 'npft'. The
-! default values for these variables (required for memory management only)
-! are overriden later if interactive dry deposition is selected in the
-! case of 'ntype' and 'npft' or, in the case of 'nlev_ent_tr_mix', if emissions
-! updates to tracers are not being suppressed.
 IF (PRESENT(row_length)) ukca_config%row_length = row_length
 IF (PRESENT(rows)) ukca_config%rows = rows
 IF (PRESENT(model_levels)) ukca_config%model_levels = model_levels
-IF (PRESENT(bl_levels)) ukca_config%bl_levels = bl_levels
-IF (PRESENT(l_cal360)) ukca_config%l_cal360 = l_cal360
 IF (PRESENT(timestep)) ukca_config%timestep = timestep
 
 ! -- General UKCA configuration options --------------------------------
@@ -527,18 +538,19 @@ IF (PRESENT(timestep)) ukca_config%timestep = timestep
 ukca_config%i_ukca_chem = i_ukca_chem_off
 
 IF (PRESENT(i_ukca_chem)) ukca_config%i_ukca_chem = i_ukca_chem
-IF (PRESENT(l_ukca_mode)) ukca_config%l_ukca_mode = l_ukca_mode
-IF (PRESENT(l_fix_tropopause_level))                                           &
-  ukca_config%l_fix_tropopause_level = l_fix_tropopause_level
 IF (PRESENT(l_ukca_ageair)) ukca_config%l_ukca_ageair = l_ukca_ageair
 IF (PRESENT(l_enable_diag_um)) ukca_config%l_enable_diag_um = l_enable_diag_um
 IF (PRESENT(l_ukca_persist_off))                                               &
   ukca_config%l_ukca_persist_off = l_ukca_persist_off
 IF (PRESENT(l_timer)) ukca_config%l_timer = l_timer
-IF (PRESENT(l_ukca_emissions_off))                                             &
-  ukca_config%l_ukca_emissions_off = l_ukca_emissions_off
 
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+
+  ukca_config%bl_levels = 1
+
+  IF (PRESENT(bl_levels)) ukca_config%bl_levels = bl_levels
+  IF (PRESENT(l_ukca_mode)) ukca_config%l_ukca_mode = l_ukca_mode
+
   IF (ukca_config%i_ukca_chem == i_ukca_chem_offline .OR.                      &
       ukca_config%i_ukca_chem == i_ukca_chem_offline_be) THEN
     ukca_config%l_ukca_chem_aero = .TRUE.
@@ -546,12 +558,22 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
     IF (PRESENT(l_ukca_chem_aero))                                             &
       ukca_config%l_ukca_chem_aero = l_ukca_chem_aero
   END IF
-END IF
 
-IF (ukca_config%l_fix_tropopause_level) THEN
-  ukca_config%fixed_tropopause_level = 1
-  IF (PRESENT(fixed_tropopause_level))                                         &
-    ukca_config%fixed_tropopause_level = fixed_tropopause_level
+  IF (PRESENT(l_fix_tropopause_level))                                         &
+    ukca_config%l_fix_tropopause_level = l_fix_tropopause_level
+  IF (ukca_config%l_fix_tropopause_level) THEN
+    ukca_config%fixed_tropopause_level = 1
+    IF (PRESENT(fixed_tropopause_level))                                       &
+      ukca_config%fixed_tropopause_level = fixed_tropopause_level
+  END IF
+
+  IF (PRESENT(l_ukca_emissions_off))                                           &
+    ukca_config%l_ukca_emissions_off = l_ukca_emissions_off
+  IF (PRESENT(l_ukca_drydep_off))                                              &
+    ukca_config%l_ukca_drydep_off = l_ukca_drydep_off
+  IF (PRESENT(l_ukca_wetdep_off))                                              &
+    ukca_config%l_ukca_wetdep_off = l_ukca_wetdep_off
+
 END IF
 
 ! Age-of-air configuration
@@ -590,25 +612,20 @@ END IF
 
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
-  ukca_config%i_ukca_topboundary = i_top_none
+  ukca_config%ntype = 0
+  ukca_config%npft = 0
 
-  IF (PRESENT(i_ukca_chem_version))                                            &
-    ukca_config%i_ukca_chem_version = i_ukca_chem_version
   IF (PRESENT(chem_timestep)) ukca_config%chem_timestep = chem_timestep
   IF (PRESENT(l_ukca_asad_columns))                                            &
     ukca_config%l_ukca_asad_columns = l_ukca_asad_columns
   IF (PRESENT(l_ukca_debug_asad))                                              &
     ukca_config%l_ukca_debug_asad = l_ukca_debug_asad
-  IF (PRESENT(l_ukca_intdd)) ukca_config%l_ukca_intdd = l_ukca_intdd
-  IF (PRESENT(i_ukca_topboundary))                                             &
-    ukca_config%i_ukca_topboundary = i_ukca_topboundary
-  IF (PRESENT(l_ukca_ro2_ntp)) ukca_config%l_ukca_ro2_ntp = l_ukca_ro2_ntp
-  IF (PRESENT(l_ukca_ro2_perm)) ukca_config%l_ukca_ro2_perm = l_ukca_ro2_perm
+
+  IF (.NOT. (ukca_config%l_ukca_drydep_off)) THEN
+    IF (PRESENT(l_ukca_intdd)) ukca_config%l_ukca_intdd = l_ukca_intdd
+  END IF
+
   IF (PRESENT(l_ukca_intph)) ukca_config%l_ukca_intph = l_ukca_intph
-  IF (PRESENT(ph_fit_coeff_a)) ukca_config%ph_fit_coeff_a = ph_fit_coeff_a
-  IF (PRESENT(ph_fit_coeff_b)) ukca_config%ph_fit_coeff_b = ph_fit_coeff_b
-  IF (PRESENT(ph_fit_intercept))                                               &
-    ukca_config%ph_fit_intercept = ph_fit_intercept
 
   ! Solver-specific configuration
 
@@ -622,6 +639,8 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   ELSE IF (l_nr_scheme_selected) THEN
 
+    IF (PRESENT(i_ukca_chem_version))                                          &
+      ukca_config%i_ukca_chem_version = i_ukca_chem_version
     IF (PRESENT(nrsteps)) ukca_config%nrsteps = nrsteps
     IF (PRESENT(l_ukca_quasinewton))                                           &
       ukca_config%l_ukca_quasinewton = l_ukca_quasinewton
@@ -650,6 +669,51 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
   IF (ukca_config%i_ukca_chem == i_ukca_chem_offline_be) THEN
     IF (PRESENT(max_z_for_offline_chem))                                       &
       ukca_config%max_z_for_offline_chem = max_z_for_offline_chem
+  END IF
+
+  ! Configuration specific to troposphere only schemes
+
+  IF (ukca_config%i_ukca_chem == i_ukca_chem_trop .OR.                         &
+      ukca_config%i_ukca_chem == i_ukca_chem_raq) THEN
+
+    ! By default, set
+    ! - no. of levels above tropopause for overwrite of O3 & HNO3 = model_levels
+    ! - no. of top levels at which stratopsheric loss of CH4 is applied = 0
+    ! such that no levels are overwritten.
+    ! Exception: no defaults are set if using the UM infrastructure. Default
+    ! number of levels above tropopause for overwrite is then set in subroutine
+    ! ukca_stratf (based on the total number of model levels) and default number
+    ! of top levels for CH4 loss is set in ukca_chemistry_ctl.
+    ! In both cases, provision of that functionality within UKCA is deprecated
+    ! and the UM should be modified to set both values explicitly.
+    IF (.NOT. l_um_infrastructure) THEN
+      ukca_config%nlev_above_trop_o3_env = ukca_config%model_levels
+      ukca_config%nlev_ch4_stratloss = 0
+    END IF
+
+    IF (PRESENT(nlev_above_trop_o3_env))                                       &
+      ukca_config%nlev_above_trop_o3_env = nlev_above_trop_o3_env
+    IF (PRESENT(nlev_ch4_stratloss))                                           &
+      ukca_config%nlev_ch4_stratloss = nlev_ch4_stratloss
+
+  END IF
+
+  ! Configuration specific to stratospheric schemes
+
+  IF (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                        &
+      ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                    &
+      ukca_config%i_ukca_chem == i_ukca_chem_cristrat ) THEN
+
+    ukca_config%l_tracer_lumping = .TRUE.
+    ukca_config%i_ukca_topboundary = i_top_none
+
+    IF (PRESENT(l_tracer_lumping))                                             &
+      ukca_config%l_tracer_lumping = l_tracer_lumping
+    IF (PRESENT(i_ukca_topboundary))                                           &
+      ukca_config%i_ukca_topboundary = i_ukca_topboundary
+    IF (PRESENT(l_ukca_ro2_ntp)) ukca_config%l_ukca_ro2_ntp = l_ukca_ro2_ntp
+    IF (PRESENT(l_ukca_ro2_perm)) ukca_config%l_ukca_ro2_perm = l_ukca_ro2_perm
+
   END IF
 
   ! Configuration specific to interactive dry-deposition scheme
@@ -693,6 +757,24 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
       ukca_config%l_deposition_jules = l_deposition_jules
   END IF
 
+  ! Configuration specific to interactive cloud pH scheme
+  IF (ukca_config%l_ukca_intph) THEN
+    IF (PRESENT(ph_fit_coeff_a)) ukca_config%ph_fit_coeff_a = ph_fit_coeff_a
+    IF (PRESENT(ph_fit_coeff_b)) ukca_config%ph_fit_coeff_b = ph_fit_coeff_b
+    IF (PRESENT(ph_fit_intercept))                                             &
+      ukca_config%ph_fit_intercept = ph_fit_intercept
+  END IF
+
+  ! Configuration specific to aerosol chemistry
+  IF (ukca_config%l_ukca_chem_aero) THEN
+    IF (PRESENT(l_ukca_scale_soa_yield))                                       &
+      ukca_config%l_ukca_scale_soa_yield = l_ukca_scale_soa_yield
+    IF (ukca_config%l_ukca_scale_soa_yield) THEN
+      IF (PRESENT(soa_yield_scaling))                                          &
+        ukca_config%soa_yield_scaling = soa_yield_scaling
+    END IF
+  END IF
+
   ! -- Chemistry - Heterogeneous chemistry --
 
   IF (PRESENT(l_ukca_het_psc)) ukca_config%l_ukca_het_psc = l_ukca_het_psc
@@ -720,45 +802,55 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   IF (PRESENT(i_ukca_photol)) ukca_config%i_ukca_photol = i_ukca_photol
 
-  ! Fast-JX configuration
+  ! Photolysis configuration
+  !!!! This is now redundant in UKCA but values are copied temporarily for
+  !!!! compatibility with the UM and external photolysis code which still
+  !!!! uses UKCA configuration values pending completion of its separation
+  !!!! from UKCA.
 
   IF (ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
-
-    ukca_config%i_ukca_solcyc = 0  ! i.e. no solar cycle
-
     IF (PRESENT(fastjx_mode)) ukca_config%fastjx_mode = fastjx_mode
     IF (PRESENT(fastjx_prescutoff))                                            &
       ukca_config%fastjx_prescutoff = fastjx_prescutoff
     IF (PRESENT(i_ukca_solcyc)) ukca_config%i_ukca_solcyc = i_ukca_solcyc
     IF (PRESENT(i_ukca_solcyc_start_year))                                     &
       ukca_config%i_ukca_solcyc_start_year = i_ukca_solcyc_start_year
-
   END IF
 
 END IF  ! i_ukca_chem /= i_ukca_chem_off
 
+! -- Context information with dependencies on chem. setup and/or emissions --
+
+IF ((ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                          &
+     .NOT. ukca_config%l_ukca_emissions_off) .OR.                              &
+    ukca_config%i_ukca_topboundary >= i_top_bc .OR.                            &
+    ukca_config%i_ukca_photol /= i_ukca_nophot) THEN
+  IF (PRESENT(l_cal360)) ukca_config%l_cal360 = l_cal360
+END IF
+
 ! -- UKCA emissions configuration options ------------------------------
 
-IF (PRESENT(l_ukca_ibvoc)) ukca_config%l_ukca_ibvoc = l_ukca_ibvoc
-IF (PRESENT(l_ukca_inferno)) ukca_config%l_ukca_inferno = l_ukca_inferno
-IF (PRESENT(l_ukca_qch4inter)) ukca_config%l_ukca_qch4inter = l_ukca_qch4inter
-IF (PRESENT(l_ukca_emsdrvn_ch4)) ukca_config%l_ukca_emsdrvn_ch4 =              &
-l_ukca_emsdrvn_ch4
-IF (PRESENT(l_ukca_enable_seadms_ems))                                         &
-  ukca_config%l_ukca_enable_seadms_ems = l_ukca_enable_seadms_ems
-IF (PRESENT(l_ukca_scale_soa_yield))                                           &
-  ukca_config%l_ukca_scale_soa_yield = l_ukca_scale_soa_yield
-IF (PRESENT(l_support_ems_vertprof))                                           &
-  ukca_config%l_support_ems_vertprof = l_support_ems_vertprof
-IF (PRESENT(l_support_ems_gridbox_units))                                      &
-  ukca_config%l_support_ems_gridbox_units = l_support_ems_gridbox_units
-IF (PRESENT(l_suppress_ems))                                                   &
-  ukca_config%l_suppress_ems = l_suppress_ems
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
+    .NOT. ukca_config%l_ukca_emissions_off) THEN
 
-! Lightning NOx emissions options
-! Always off for Offline Oxidants chemistry; default to Price & Rind for full
-! chemistry
-IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+  ukca_config%nlev_ent_tr_mix = 0
+  ukca_config%i_ukca_dms_flux = i_dms_flux_off
+
+  IF (PRESENT(l_ukca_ibvoc)) ukca_config%l_ukca_ibvoc = l_ukca_ibvoc
+  IF (PRESENT(l_ukca_inferno)) ukca_config%l_ukca_inferno = l_ukca_inferno
+  IF (PRESENT(l_ukca_qch4inter)) ukca_config%l_ukca_qch4inter = l_ukca_qch4inter
+  IF (PRESENT(l_ukca_emsdrvn_ch4))                                             &
+    ukca_config%l_ukca_emsdrvn_ch4 = l_ukca_emsdrvn_ch4
+  IF (PRESENT(l_support_ems_vertprof))                                         &
+    ukca_config%l_support_ems_vertprof = l_support_ems_vertprof
+  IF (PRESENT(l_support_ems_gridbox_units))                                    &
+    ukca_config%l_support_ems_gridbox_units = l_support_ems_gridbox_units
+  IF (PRESENT(l_suppress_ems))                                                 &
+    ukca_config%l_suppress_ems = l_suppress_ems
+
+  ! Lightning NOx emissions options
+  ! Always off for Offline Oxidants chemistry; default to Price & Rind for full
+  ! chemistry
   IF (ukca_config%i_ukca_chem == i_ukca_chem_offline .OR.                      &
       ukca_config%i_ukca_chem == i_ukca_chem_offline_be) THEN
     ! Set NOx emissions off for Offline Oxidants chemistry
@@ -773,79 +865,113 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
     IF (PRESENT(l_ukca_linox_scaling))                                         &
       ukca_config%l_ukca_linox_scaling = l_ukca_linox_scaling
   END IF
+
+  ! Inferno scheme options
+  IF ( ukca_config%l_ukca_inferno) THEN
+    IF (PRESENT(l_ukca_inferno_ch4))                                           &
+      ukca_config%l_ukca_inferno_ch4 = l_ukca_inferno_ch4
+    IF (PRESENT(i_inferno_emi)) ukca_config%i_inferno_emi = i_inferno_emi
+  END IF
+
+  ! Marine DMS emissions options.
+  ! Note that Marine DMS emissions should normally be controlled by setting
+  ! 'i_ukca_dms_flux'.
+  ! Use of 'l_ukca_enable_seadms_ems' is deprecated but overrides any potential
+  ! setting of 'i_ukca_dms_flux' if it is present and set to .FALSE.
+  IF (PRESENT(l_ukca_enable_seadms_ems)) THEN
+    IF (l_ukca_enable_seadms_ems) THEN
+      ukca_config%l_ukca_enable_seadms_ems = .TRUE.
+      IF (PRESENT(i_ukca_dms_flux))                                            &
+        ukca_config%i_ukca_dms_flux = i_ukca_dms_flux
+    END IF
+  ELSE
+    IF (PRESENT(i_ukca_dms_flux)) ukca_config%i_ukca_dms_flux = i_ukca_dms_flux
+  END IF
+  IF (ukca_config%i_ukca_dms_flux /= i_dms_flux_off) THEN
+    IF (PRESENT(l_ukca_scale_seadms_ems))                                      &
+      ukca_config%l_ukca_scale_seadms_ems = l_ukca_scale_seadms_ems
+  END IF
+
+  ! Partitioning & scaling factors
+
+  IF (ukca_config%l_ukca_chem_aero) THEN
+    IF (PRESENT(mode_parfrac)) ukca_config%mode_parfrac = mode_parfrac
+  END IF
+
+  IF (ukca_config%l_ukca_scale_seadms_ems) THEN
+    IF (PRESENT(seadms_ems_scaling))                                           &
+      ukca_config%seadms_ems_scaling = seadms_ems_scaling
+  END IF
+
+  IF (ukca_config%i_ukca_light_param /= i_light_param_off) THEN
+    IF (PRESENT(lightnox_scale_fac))                                           &
+      ukca_config%lightnox_scale_fac = lightnox_scale_fac
+  END IF
+
+  ! Number of grid levels for tr_mix fields is required if emissions updates
+  ! are not suppressed
+  IF (.NOT. ukca_config%l_suppress_ems .AND. PRESENT(nlev_ent_tr_mix))         &
+    ukca_config%nlev_ent_tr_mix = nlev_ent_tr_mix
+
 END IF
-
-! Inferno scheme options
-IF ( ukca_config%l_ukca_inferno) THEN
-  IF (PRESENT(l_ukca_inferno_ch4))                                             &
-    ukca_config%l_ukca_inferno_ch4 = l_ukca_inferno_ch4
-  IF (PRESENT(i_inferno_emi)) ukca_config%i_inferno_emi = i_inferno_emi
-END IF
-
-! Marine DMS emissions options
-IF (ukca_config%l_ukca_enable_seadms_ems) THEN
-  IF (PRESENT(i_ukca_dms_flux)) ukca_config%i_ukca_dms_flux = i_ukca_dms_flux
-  IF (PRESENT(l_ukca_scale_seadms_ems))                                        &
-    ukca_config%l_ukca_scale_seadms_ems = l_ukca_scale_seadms_ems
-END IF
-
-! Partitioning & scaling factors
-
-IF (ukca_config%l_ukca_chem_aero) THEN
-  IF (PRESENT(mode_parfrac)) ukca_config%mode_parfrac = mode_parfrac
-END IF
-
-IF (ukca_config%l_ukca_scale_seadms_ems) THEN
-  IF (PRESENT(seadms_ems_scaling))                                             &
-    ukca_config%seadms_ems_scaling = seadms_ems_scaling
-END IF
-
-IF (ukca_config%i_ukca_light_param /= i_light_param_off) THEN
-  IF (PRESENT(lightnox_scale_fac))                                             &
-    ukca_config%lightnox_scale_fac = lightnox_scale_fac
-END IF
-
-IF (ukca_config%l_ukca_scale_soa_yield) THEN
-  IF (PRESENT(soa_yield_scaling))                                              &
-    ukca_config%soa_yield_scaling = soa_yield_scaling
-END IF
-
-! Number of grid levels for tr_mix fields is required if emissions updates
-! are not suppressed
-IF (.NOT. ukca_config%l_suppress_ems .AND. PRESENT(nlev_ent_tr_mix))           &
-  ukca_config%nlev_ent_tr_mix = nlev_ent_tr_mix
 
 ! -- UKCA feedback configuration options -------------------------------
 
-IF (PRESENT(l_ukca_h2o_feedback))                                              &
-  ukca_config%l_ukca_h2o_feedback = l_ukca_h2o_feedback
-IF (PRESENT(l_ukca_conserve_h))                                                &
-  ukca_config%l_ukca_conserve_h = l_ukca_conserve_h
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+
+  IF (PRESENT(l_ukca_h2o_feedback))                                            &
+    ukca_config%l_ukca_h2o_feedback = l_ukca_h2o_feedback
+
+  IF (ukca_config%l_ukca_h2o_feedback) THEN
+    IF (PRESENT(l_ukca_conserve_h))                                            &
+      ukca_config%l_ukca_conserve_h = l_ukca_conserve_h
+  END IF
+
+END IF
 
 ! -- UKCA environmental driver configuration options -------------------
+!    (not including options with GLOMAP dependencies)
 
-IF (PRESENT(l_param_conv)) ukca_config%l_param_conv = l_param_conv
-IF (PRESENT(l_ctile)) ukca_config%l_ctile = l_ctile
-IF (PRESENT(l_chem_environ_gas_scalars))                                       &
-  ukca_config%l_chem_environ_gas_scalars = l_chem_environ_gas_scalars
-IF (PRESENT(l_chem_environ_co2_fld))                                           &
-  ukca_config%l_chem_environ_co2_fld = l_chem_environ_co2_fld
-IF (PRESENT(l_ukca_prescribech4))                                              &
-  ukca_config%l_ukca_prescribech4 = l_ukca_prescribech4
-IF (PRESENT(l_use_classic_so4))                                                &
-  ukca_config%l_use_classic_so4 = l_use_classic_so4
-IF (PRESENT(l_use_classic_soot))                                               &
-  ukca_config%l_use_classic_soot = l_use_classic_soot
-IF (PRESENT(l_use_classic_ocff))                                               &
-  ukca_config%l_use_classic_ocff = l_use_classic_ocff
-IF (PRESENT(l_use_classic_biogenic))                                           &
-  ukca_config%l_use_classic_biogenic = l_use_classic_biogenic
-IF (PRESENT(l_use_classic_seasalt))                                            &
-  ukca_config%l_use_classic_seasalt = l_use_classic_seasalt
-IF (PRESENT(l_use_gridbox_mass))                                               &
-  ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
+ukca_config%env_log_step = 1
+
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+
+  IF (.NOT. ukca_config%l_ukca_wetdep_off .OR.                                 &
+      ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.           &
+      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
+    IF (PRESENT(l_param_conv)) ukca_config%l_param_conv = l_param_conv
+  END IF
+
+  IF (PRESENT(l_chem_environ_gas_scalars))                                     &
+    ukca_config%l_chem_environ_gas_scalars = l_chem_environ_gas_scalars
+  IF (PRESENT(l_chem_environ_co2_fld))                                         &
+    ukca_config%l_chem_environ_co2_fld = l_chem_environ_co2_fld
+
+  IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
+    IF (PRESENT(l_ukca_prescribech4))                                          &
+      ukca_config%l_ukca_prescribech4 = l_ukca_prescribech4
+  END IF
+
+  IF (PRESENT(l_use_classic_so4))                                              &
+    ukca_config%l_use_classic_so4 = l_use_classic_so4
+  IF (PRESENT(l_use_classic_soot))                                             &
+    ukca_config%l_use_classic_soot = l_use_classic_soot
+  IF (PRESENT(l_use_classic_ocff))                                             &
+    ukca_config%l_use_classic_ocff = l_use_classic_ocff
+  IF (PRESENT(l_use_classic_biogenic))                                         &
+    ukca_config%l_use_classic_biogenic = l_use_classic_biogenic
+  IF (PRESENT(l_use_classic_seasalt))                                          &
+    ukca_config%l_use_classic_seasalt = l_use_classic_seasalt
+
+  IF (PRESENT(l_use_gridbox_mass))                                             &
+    ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
+
+END IF
+
 IF (PRESENT(l_environ_z_top))                                                  &
   ukca_config%l_environ_z_top = l_environ_z_top
+IF (PRESENT(env_log_step))                                                     &
+  ukca_config%env_log_step = env_log_step
 
 ! Configuration specific to tropospheric schemes
 IF (ukca_config%i_ukca_chem == i_ukca_chem_trop .OR.                           &
@@ -856,9 +982,10 @@ END IF
 
 ! Configuration specific to stratospheric schemes
 
-IF (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                          &
-    ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                      &
-    ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
+IF ((ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                         &
+     ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                     &
+     ukca_config%i_ukca_chem == i_ukca_chem_cristrat) .AND.                    &
+    .NOT. ukca_config%l_ukca_emissions_off) THEN
 
   ukca_config%i_strat_lbc_source = i_strat_lbc_off
 
@@ -869,9 +996,14 @@ END IF
 
 ! -- UKCA temporary logicals -------------------------------------------
 
-ukca_config%l_fix_ukca_cloud_frac = .TRUE.
-IF (PRESENT(l_fix_ukca_cloud_frac))                                            &
-  ukca_config%l_fix_ukca_cloud_frac = l_fix_ukca_cloud_frac
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+
+  ukca_config%l_fix_ukca_cloud_frac = .TRUE.
+
+  IF (PRESENT(l_fix_ukca_cloud_frac))                                          &
+    ukca_config%l_fix_ukca_cloud_frac = l_fix_ukca_cloud_frac
+
+END IF
 
 ! Temporary logicals for interactive dry deposition scheme
 
@@ -925,30 +1057,67 @@ IF (ukca_config%l_ukca_mode) THEN
 
   glomap_config%ukca_mode_seg_size = ukca_config%row_length * ukca_config%rows
   glomap_config%l_mode_bhn_on = .TRUE.
-  glomap_config%i_mode_nucscav = 3
-  glomap_config%l_cv_rainout = .TRUE.
-  glomap_config%l_ddepaer = .TRUE.
-
-  ! Turn on the Slinn impaction scheme for liquid rain and trust
-  ! as default in UKCA
-  glomap_config%l_dust_slinn_impc_scav = .TRUE.
 
   IF (PRESENT(i_mode_nzts)) glomap_config%i_mode_nzts = i_mode_nzts
   IF (PRESENT(ukca_mode_seg_size))                                             &
     glomap_config%ukca_mode_seg_size = ukca_mode_seg_size
   IF (PRESENT(i_mode_setup)) glomap_config%i_mode_setup = i_mode_setup
   IF (PRESENT(l_mode_bhn_on)) glomap_config%l_mode_bhn_on = l_mode_bhn_on
-  IF (PRESENT(i_mode_nucscav))                                                 &
-    glomap_config%i_mode_nucscav = i_mode_nucscav
-  IF (PRESENT(l_dust_slinn_impc_scav))                                         &
-    glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
   IF (PRESENT(mode_activation_dryr))                                           &
     glomap_config%mode_activation_dryr = mode_activation_dryr
-  IF (PRESENT(mode_incld_so2_rfrac))                                           &
-    glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
-  IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
-  IF (PRESENT(l_ddepaer))                                                      &
-    glomap_config%l_ddepaer = l_ddepaer
+
+  ! -- GLOMAP deposition configuration options --
+
+  ! Dry deposition
+
+  IF (.NOT. (ukca_config%l_ukca_drydep_off)) THEN
+
+    glomap_config%l_ddepaer = .TRUE.
+
+    IF (PRESENT(l_ddepaer)) glomap_config%l_ddepaer = l_ddepaer
+
+  END IF
+
+  ! Wet deposition
+
+  ! Fraction of in-cloud oxidised SO2 removed by precip. is zero by default
+  ! and is always zero if wet deposition is off. Note that a value of 0.25
+  ! is recommended.
+  glomap_config%mode_incld_so2_rfrac = 0.0
+
+  IF (.NOT. (ukca_config%l_ukca_wetdep_off)) THEN
+
+    glomap_config%l_rainout = .TRUE.
+    glomap_config%l_impc_scav = .TRUE.
+
+    IF (PRESENT(mode_incld_so2_rfrac))                                         &
+      glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
+    IF (PRESENT(l_rainout)) glomap_config%l_rainout = l_rainout
+    IF (PRESENT(l_impc_scav)) glomap_config%l_impc_scav = l_impc_scav
+
+    ! Nucleation scavenging options
+    IF (glomap_config%l_rainout) THEN
+
+      glomap_config%i_mode_nucscav = 3
+      glomap_config%l_cv_rainout = .TRUE.
+
+      IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
+      IF (PRESENT(i_mode_nucscav))                                             &
+        glomap_config%i_mode_nucscav = i_mode_nucscav
+
+    END IF
+
+    ! Impaction scavenging options
+    IF (glomap_config%l_impc_scav) THEN
+
+      glomap_config%l_dust_slinn_impc_scav = .TRUE.
+
+      IF (PRESENT(l_dust_slinn_impc_scav))                                     &
+        glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
+
+    END IF
+
+  END IF
 
   ! Boundary layer nucleation options
 
@@ -965,53 +1134,61 @@ IF (ukca_config%l_ukca_mode) THEN
 
   ! -- GLOMAP emissions configuration options --------------------------
 
-  IF (PRESENT(l_ukca_primss)) glomap_config%l_ukca_primss = l_ukca_primss
-  IF (PRESENT(l_ukca_primsu)) glomap_config%l_ukca_primsu = l_ukca_primsu
-  IF (PRESENT(l_ukca_primdu)) glomap_config%l_ukca_primdu = l_ukca_primdu
-  IF (PRESENT(l_ukca_primbcoc)) glomap_config%l_ukca_primbcoc = l_ukca_primbcoc
+  IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
 
-  ! Carbonaceous emissions configuration
-  IF (glomap_config%l_ukca_primbcoc) THEN
-    IF (PRESENT(l_ukca_prim_moc))                                              &
-      glomap_config%l_ukca_prim_moc = l_ukca_prim_moc
-    IF (PRESENT(l_bcoc_bf)) glomap_config%l_bcoc_bf = l_bcoc_bf
-    IF (PRESENT(l_bcoc_bm)) glomap_config%l_bcoc_bm = l_bcoc_bm
-    IF (PRESENT(l_bcoc_ff)) glomap_config%l_bcoc_ff = l_bcoc_ff
-    IF (PRESENT(l_ukca_scale_biom_aer_ems))                                    &
-      glomap_config%l_ukca_scale_biom_aer_ems = l_ukca_scale_biom_aer_ems
-  END IF
+    IF (PRESENT(l_ukca_primss)) glomap_config%l_ukca_primss = l_ukca_primss
+    IF (PRESENT(l_ukca_primsu)) glomap_config%l_ukca_primsu = l_ukca_primsu
+    IF (PRESENT(l_ukca_primdu)) glomap_config%l_ukca_primdu = l_ukca_primdu
+    IF (PRESENT(l_ukca_primbcoc))                                              &
+      glomap_config%l_ukca_primbcoc = l_ukca_primbcoc
 
-  ! Sea salt scaling
-  IF (glomap_config%l_ukca_primss) THEN
-    IF (PRESENT(l_ukca_scale_sea_salt_ems))                                    &
-      glomap_config%l_ukca_scale_sea_salt_ems = l_ukca_scale_sea_salt_ems
-  END IF
-  ! Marine POM scaling
-  IF (glomap_config%l_ukca_prim_moc .AND. glomap_config%l_ukca_primbcoc .AND.  &
-      glomap_config%l_ukca_primss) THEN
-    IF (PRESENT(l_ukca_scale_marine_pom_ems))                                  &
-      glomap_config%l_ukca_scale_marine_pom_ems = l_ukca_scale_marine_pom_ems
-  END IF
+    ! Carbonaceous emissions configuration
+    IF (glomap_config%l_ukca_primbcoc) THEN
+      IF (PRESENT(l_ukca_prim_moc))                                            &
+        glomap_config%l_ukca_prim_moc = l_ukca_prim_moc
+      IF (PRESENT(l_bcoc_bf)) glomap_config%l_bcoc_bf = l_bcoc_bf
+      IF (PRESENT(l_bcoc_bm)) glomap_config%l_bcoc_bm = l_bcoc_bm
+      IF (PRESENT(l_bcoc_ff)) glomap_config%l_bcoc_ff = l_bcoc_ff
+      IF (PRESENT(l_ukca_scale_biom_aer_ems))                                  &
+        glomap_config%l_ukca_scale_biom_aer_ems = l_ukca_scale_biom_aer_ems
+    END IF
 
-  ! Scaling factor for biomass burning emissions
-  IF (glomap_config%l_ukca_scale_biom_aer_ems) THEN
-    IF (PRESENT(biom_aer_ems_scaling))                                         &
-      glomap_config%biom_aer_ems_scaling = biom_aer_ems_scaling
-  END IF
-  IF (glomap_config%l_ukca_scale_sea_salt_ems) THEN
-    IF (PRESENT(sea_salt_ems_scaling))                                         &
-      glomap_config%sea_salt_ems_scaling = sea_salt_ems_scaling
-  END IF
-  IF (glomap_config%l_ukca_scale_marine_pom_ems) THEN
-    IF (PRESENT(marine_pom_ems_scaling))                                       &
-      glomap_config%marine_pom_ems_scaling = marine_pom_ems_scaling
-  END IF
+    ! Sea salt scaling
+    IF (glomap_config%l_ukca_primss) THEN
+      IF (PRESENT(l_ukca_scale_sea_salt_ems))                                  &
+        glomap_config%l_ukca_scale_sea_salt_ems = l_ukca_scale_sea_salt_ems
+    END IF
+    ! Marine POM scaling
+    IF (glomap_config%l_ukca_prim_moc .AND.                                    &
+        glomap_config%l_ukca_primbcoc .AND.                                    &
+        glomap_config%l_ukca_primss) THEN
+      IF (PRESENT(l_ukca_scale_marine_pom_ems))                                &
+        glomap_config%l_ukca_scale_marine_pom_ems = l_ukca_scale_marine_pom_ems
+    END IF
 
-  ! Nitrate emissions configuration
-  IF (PRESENT(l_ukca_fine_no3_prod))                                           &
-    glomap_config%l_ukca_fine_no3_prod = l_ukca_fine_no3_prod
-  IF (PRESENT(l_ukca_coarse_no3_prod))                                         &
-    glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
+    ! Scaling factor for biomass burning emissions
+    IF (glomap_config%l_ukca_scale_biom_aer_ems) THEN
+      IF (PRESENT(biom_aer_ems_scaling))                                       &
+        glomap_config%biom_aer_ems_scaling = biom_aer_ems_scaling
+    END IF
+    ! Scaling factor for sea-salt emissions
+    IF (glomap_config%l_ukca_scale_sea_salt_ems) THEN
+      IF (PRESENT(sea_salt_ems_scaling))                                       &
+        glomap_config%sea_salt_ems_scaling = sea_salt_ems_scaling
+    END IF
+    ! Scaling factor for POM emissions
+    IF (glomap_config%l_ukca_scale_marine_pom_ems) THEN
+      IF (PRESENT(marine_pom_ems_scaling))                                     &
+        glomap_config%marine_pom_ems_scaling = marine_pom_ems_scaling
+    END IF
+
+    ! Nitrate emissions configuration
+    IF (PRESENT(l_ukca_fine_no3_prod))                                         &
+      glomap_config%l_ukca_fine_no3_prod = l_ukca_fine_no3_prod
+    IF (PRESENT(l_ukca_coarse_no3_prod))                                       &
+      glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
+
+  END IF
 
   ! -- GLOMAP feedback configuration options ---------------------------
 
@@ -1050,17 +1227,27 @@ IF (ukca_config%l_ukca_mode) THEN
   ! -- GLOMAP temporary logicals ---------------------------------------
 
   glomap_config%l_fix_neg_pvol_wat = .TRUE.
-  glomap_config%l_fix_ukca_impscav = .TRUE.
   glomap_config%l_fix_nacl_density = .TRUE.
 
   IF (PRESENT(l_fix_neg_pvol_wat))                                             &
     glomap_config%l_fix_neg_pvol_wat = l_fix_neg_pvol_wat
-  IF (PRESENT(l_fix_ukca_impscav))                                             &
-    glomap_config%l_fix_ukca_impscav = l_fix_ukca_impscav
+
+  IF (glomap_config%l_impc_scav) THEN
+
+    glomap_config%l_fix_ukca_impscav = .TRUE.
+
+    IF (PRESENT(l_fix_ukca_impscav))                                           &
+      glomap_config%l_fix_ukca_impscav = l_fix_ukca_impscav
+
+  END IF
+
   IF (PRESENT(l_fix_nacl_density))                                             &
     glomap_config%l_fix_nacl_density = l_fix_nacl_density
-  IF (PRESENT(l_improve_aero_drydep))                                          &
-    glomap_config%l_improve_aero_drydep = l_improve_aero_drydep
+
+  IF (glomap_config%l_ddepaer) THEN
+    IF (PRESENT(l_improve_aero_drydep))                                        &
+      glomap_config%l_improve_aero_drydep = l_improve_aero_drydep
+  END IF
 
   ! Temporary logicals for UKCA Activate scheme
 
@@ -1080,11 +1267,19 @@ IF (ukca_config%l_ukca_mode) THEN
 
 END IF
 
-! Parent callback procedures
+! -- UKCA environmental driver options with GLOMAP dependencies --------
+
+IF (ukca_config%l_ukca_intdd .OR. glomap_config%l_ddepaer .OR.                 &
+    ukca_config%l_ukca_qch4inter .OR. ukca_config%l_ukca_ibvoc .OR.            &
+    ukca_config%l_ukca_inferno .OR. glomap_config%l_ukca_primss) THEN
+  IF (PRESENT(l_ctile)) ukca_config%l_ctile = l_ctile
+END IF
+
+! -- Parent callback procedures ----------------------------------------
 
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
-      (.NOT. (ukca_config%l_ukca_emissions_off .OR.                            &
-             ukca_config%l_suppress_ems))) THEN
+    .NOT. (ukca_config%l_ukca_emissions_off .OR.                               &
+          ukca_config%l_suppress_ems)) THEN
   IF (PRESENT(proc_bl_tracer_mix)) bl_tracer_mix => proc_bl_tracer_mix
 END IF
 
@@ -1096,7 +1291,7 @@ CALL ukca_init()
 
 ! -- Dust scheme needed for nitrate emissions --
 
-IF (ukca_config%l_ukca_mode) THEN
+IF (ukca_config%l_ukca_mode .AND. .NOT. ukca_config%l_ukca_emissions_off) THEN
 
   glomap_config%l_6bin_dust_no3 =                                              &
     ( ( glomap_config%l_ukca_coarse_no3_prod .OR.                              &
@@ -1120,14 +1315,6 @@ IF (ukca_config%l_ukca_mode) THEN
   END IF
 
 END IF
-
-! Switch lower boundary condition requirement off if not running a
-! stratospheric chemistry scheme
-IF (.NOT. (ukca_config%l_ukca_strat .OR.                                       &
-           ukca_config%l_ukca_strattrop .OR.                                   &
-           ukca_config%l_ukca_stratcfc .OR.                                    &
-           ukca_config%l_ukca_cristrat))                                       &
-  ukca_config%i_strat_lbc_source = i_strat_lbc_off
 
 ! Initialise chemical definition arrays
 CALL ukca_chem1_init()
@@ -1174,8 +1361,14 @@ CALL ntp_init()
 CALL ukca_set_config_defs()
 
 ! Set configuration details that depend on emissions settings
-ukca_config%l_seawater_dms =                                                   &
-  ukca_config%l_ukca_enable_seadms_ems .AND. ANY(em_chem_spec == 'DMS')
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
+    .NOT. ukca_config%l_ukca_emissions_off) THEN
+  ukca_config%l_diurnal_isopems =                                              &
+    l_ukca_diurnal_isopems .AND. ANY(em_chem_spec == 'C5H8')
+  ukca_config%l_seawater_dms =                                                 &
+    (ukca_config%i_ukca_dms_flux /= i_dms_flux_off) .AND.                      &
+    ANY(em_chem_spec == 'DMS')
+END IF
 
 ! Specify environment field requirement based on details of the configuration
 CALL init_environment_req(ukca_config, glomap_config, speci, advt,             &
@@ -1186,6 +1379,9 @@ IF (error_code > 0) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF
+
+! Ensure environment fields and associated data are in an uninitialised state
+CALL clear_environment_fields()
 
 ! Set flag to show that a valid UKCA configuration is set up
 l_ukca_config_available = .TRUE.

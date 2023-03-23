@@ -104,7 +104,18 @@ TYPE :: ukca_config_spec_type
   INTEGER, ALLOCATABLE :: i_elev_ice(:)
                                        ! Indices of surface type 'elevated ice'
   REAL :: dzsoil_layer1                ! Thickness of surface soil layer (m)
-  LOGICAL :: l_cal360                  ! True if using 360 day calendar
+  LOGICAL :: l_cal360                  ! True if UKCA is expected to use a
+                                       ! 360-day calendar for applying a top
+                                       ! boundary condition in stratospheric
+                                       ! chemistry schemes and/or for
+                                       ! validating external emissions.
+                                       ! (Emissions registered with
+                                       ! a day-of-week scaling requirement
+                                       ! can't be used with a 360-day
+                                       ! calendar).
+                                       !!!! Also required for external
+                                       !!!! photolysis code pending complete
+                                       !!!! separation of photolysis from UKCA.
   REAL :: timestep                     ! Model timestep in seconds (an integer
                                        ! no of timesteps is expected in 1 hour)
 
@@ -116,12 +127,12 @@ TYPE :: ukca_config_spec_type
                                        ! for defining the tropopause height
                                        ! rather than diagnosing from PV and
                                        ! theta (Tropopause height affects
-                                       ! Fast-JX photolysis, heterogeneous
-                                       ! polar stratospheric cloud chemistry,
-                                       ! stratospheric updates for troposphere
-                                       ! only schemes, interaction between
-                                       ! nitrate and dust schemes and
-                                       ! production of various diagnostics)
+                                       ! heterogeneous polar stratospheric
+                                       ! cloud chemistry, stratospheric updates
+                                       ! for troposphere only schemes,
+                                       ! interaction between nitrate and dust
+                                       ! schemes and production of various
+                                       ! diagnostics)
   INTEGER :: fixed_tropopause_level    ! Level to define a fixed tropopause
   LOGICAL :: l_ukca_ageair             ! True for age-of-air scheme
   INTEGER :: i_ageair_reset_method     ! Method for controlling age reset to 0
@@ -133,7 +144,11 @@ TYPE :: ukca_config_spec_type
                                        ! arrays between timesteps
   LOGICAL :: l_timer                   ! True to use a timer routine for timing
                                        ! sub-models
-  LOGICAL :: l_ukca_emissions_off      ! True turns off emissions
+  LOGICAL :: l_ukca_emissions_off      ! True to turn off emissions (and lower
+                                       ! boundary conditions for stratospheric
+                                       ! chemistry schemes)
+  LOGICAL :: l_ukca_drydep_off         ! True to turn off dry deposition
+  LOGICAL :: l_ukca_wetdep_off         ! True to turn off wet deposition
 
   ! -- Chemistry configuration options --
   INTEGER :: i_ukca_chem_version       ! Chemical mechanism version identifier
@@ -168,8 +183,18 @@ TYPE :: ukca_config_spec_type
   REAL :: max_z_for_offline_chem       ! Maximum height at which to integrate
                                        ! chemistry with the explicit B-E
                                        ! Offline Oxidants scheme
+  INTEGER :: nlev_above_trop_o3_env    ! Number of levels above tropopause at
+                                       ! at which to start overwriting O3
+                                       ! and HNO3 with values derived from O3
+                                       ! data in troposphere only schemes
+  INTEGER :: nlev_ch4_stratloss        ! Number of top levels at which to
+                                       ! apply stratospheric CH4 loss rate in
+                                       ! troposhere only schemes
+  LOGICAL :: l_tracer_lumping          ! True to handle lumped tracers in
+                                       ! stratospheric chemistry schemes
   INTEGER :: i_ukca_topboundary        ! Method of treating top boundary for
-                                       ! certain species
+                                       ! certain species in stratospheric
+                                       ! schemes
   LOGICAL :: l_ukca_ro2_ntp            ! True to stop transport of peroxy
                                        ! radicals in StratTrop/CRI scheme
   LOGICAL :: l_ukca_ro2_perm           ! True for RO2-permutation chemistry in
@@ -182,6 +207,10 @@ TYPE :: ukca_config_spec_type
                                        ! the interactive cloud pH code
   REAL :: ph_fit_intercept             ! y-intercept value of the relationship
                                        ! for the interactive cloud pH code
+  LOGICAL :: l_ukca_scale_soa_yield    ! True to apply scaling factor to
+                                       ! production of Secondary Organic
+                                       ! Aerosol (SOA)
+  REAL :: soa_yield_scaling            ! Scaling factor for production of SOA
 
   ! -- Chemistry - Heterogeneous chemistry --
   LOGICAL :: l_ukca_het_psc            ! True for heterogeneous polar
@@ -200,6 +229,15 @@ TYPE :: ukca_config_spec_type
                                        ! chemistry scheme only)
 
   ! -- Chemistry - Photolysis --
+  !!!! These configuration options will be redundant once the removal of
+  !!!! photolysis from UKCA is completed. UKCA will then only need to know
+  !!!! whether or not photolysis is to be on or off. Currently the external
+  !!!! photolysis code requires 'i_ukca_photol' to be present here and it is
+  !!!! also still used in the UKCA 'init_environment_req' subroutine to ensure
+  !!!! that certain environmental drivers for photolysis are available, even
+  !!!! though they are not required by UKCA itself. This needs cleaning up in
+  !!!! co-ordination with changes to the external photolysis code and the
+  !!!! extraction of fields from D1 in the UM.
   INTEGER :: i_ukca_photol             ! Photolysis scheme to use
   INTEGER :: fastjx_mode               ! Method above cut-off level (1 = use
                                        ! just 2D look-up table, 2 = merge
@@ -223,7 +261,13 @@ TYPE :: ukca_config_spec_type
   LOGICAL :: l_ukca_emsdrvn_ch4        ! True when running UKCA in
                                        ! CH4 emissions-driven mode
   REAL :: mode_parfrac                 ! Fraction of SO2 emissions as aerosol(%)
-  LOGICAL :: l_ukca_enable_seadms_ems  ! True to enable marine DMS emissions
+  LOGICAL :: l_ukca_enable_seadms_ems  ! True to explicitly enable marine DMS
+                                       ! emissions
+                                       ! (deprecated redundant setting; if
+                                       ! omitted from 'ukca_setup' call,
+                                       ! DMS emissions are enabled or
+                                       ! disabled according to the value of
+                                       ! 'i_ukca_dms_flux')
   INTEGER :: i_ukca_dms_flux           ! Sea-air DMS exchange scheme to use
   LOGICAL :: l_ukca_scale_seadms_ems   ! True to apply scaling to marine DMS
                                        ! emissions
@@ -234,10 +278,6 @@ TYPE :: ukca_config_spec_type
   INTEGER :: i_ukca_light_param        ! Choice for flash-freq parameterisation
                                        ! (1 = Price & Rind, 2 = Luhar et al.,
                                        !  3 = external lightning scheme)
-  LOGICAL :: l_ukca_scale_soa_yield    ! True to apply scaling factor to
-                                       ! production of Secondary Organic
-                                       ! Aerosol (SOA)
-  REAL :: soa_yield_scaling            ! Scaling factor for production of SOA
   LOGICAL :: l_support_ems_vertprof    ! True to support full range of vertical
                                        ! scaling options for 2D emission fields.
                                        ! (Required for SNAP sector, 'high_level'
@@ -256,7 +296,8 @@ TYPE :: ukca_config_spec_type
                                        ! when 'l_ukca_h2o_feedback' is true
 
   ! -- UKCA environmental driver configuration options --
-  LOGICAL :: l_param_conv              ! True if convection is parameterized
+  LOGICAL :: l_param_conv              ! True if using precipitation diagnostics
+                                       ! from a parameterized convection scheme
   LOGICAL :: l_ctile                   ! True if using partial land points at
                                        ! coasts
   LOGICAL :: l_zon_av_ozone            ! True if external O3, used for
@@ -297,6 +338,9 @@ TYPE :: ukca_config_spec_type
                                        ! height at top of model (for bit-
                                        ! comparability with previous results
                                        ! when running in the UM)
+  INTEGER :: env_log_step              ! Timestep number at which environment
+                                       ! summary diagnostics should be printed
+                                       ! to log file
 
   ! -- UKCA temporary logicals --
   LOGICAL :: l_fix_ukca_cloud_frac     ! True to fix cloud_frac offset bug
@@ -334,6 +378,8 @@ TYPE :: ukca_config_spec_type
                                        ! N-R scheme
   LOGICAL :: l_ukca_nr_aqchem          ! True when aqueous chem required for N-R
   LOGICAL :: l_ukca_advh2o             ! True if H2O treated as tracer by ASAD
+  LOGICAL :: l_diurnal_isopems         ! True for applying diurnal cycle to
+                                       ! isoprene emissions
   LOGICAL :: l_seawater_dms            ! True for seawater DMS emissions
   LOGICAL :: l_chem_environ_ch4_scalar ! Logical switches for species used in
   LOGICAL :: l_chem_environ_co2_scalar ! solver. TRUE if external values needed
@@ -375,16 +421,22 @@ TYPE :: glomap_config_spec_type
                                        ! 2=kinetic; 3=organic mediated (as per
                                        ! Metzer et al, PNAS, 2010) - required
                                        ! when 'l_mode_bhn_on' is true.
+  REAL :: mode_activation_dryr         ! Activation dry radius (nm)
+
+  ! -- GLOMAP deposition configuration options --
+  LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
+  REAL :: mode_incld_so2_rfrac         ! Fraction of in-cloud oxidised SO2
+                                       ! removed by precipitation
+  LOGICAL :: l_rainout                 ! True for turning on nucleation
+                                       ! scavenging (rainout)
   INTEGER :: i_mode_nucscav            ! Choice of nucl. scavenging co-effs:
                                        ! 1=original, 2=ECHAM5-HAM
                                        ! 3=as(1) but no scav of modes 6&7
+  LOGICAL :: l_cv_rainout              ! True for convective rainout in UKCA
+  LOGICAL :: l_impc_scav               ! True for turning on impaction
+                                       ! scavenging
   LOGICAL :: l_dust_slinn_impc_scav    ! True for turning on the Slinn
                                        ! impaction scheme for dust
-  REAL :: mode_activation_dryr         ! Activation dry radius (nm)
-  REAL :: mode_incld_so2_rfrac         ! Fraction of in-cloud oxidised SO2
-                                       ! removed by precipitation
-  LOGICAL :: l_cv_rainout              ! True for convective rainout in UKCA
-  LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
 
   ! -- GLOMAP emissions configuration options --
   LOGICAL :: l_ukca_primss             ! True for primary sea-salt emissions
@@ -414,7 +466,7 @@ TYPE :: glomap_config_spec_type
                                        ! radiative effects of aerosols using
                                        ! RADAER
   INTEGER :: i_ukca_tune_bc            ! Options for tuning BC absorption
-                                       ! via adjusting BC mass density and 
+                                       ! via adjusting BC mass density and
                                        ! refractive index mixing approximations
   INTEGER :: i_ukca_activation_scheme  ! Activation scheme to use
   INTEGER :: i_ukca_nwbins             ! Value of nwbins in Activate (1-20)
@@ -439,6 +491,10 @@ TYPE :: glomap_config_spec_type
                                        ! negative values in 'pvol' and 'mdwat'
   LOGICAL :: l_fix_ukca_impscav        ! True to fix impaction scavenging bugs
   LOGICAL :: l_fix_nacl_density        ! True to correct sea-salt density
+  LOGICAL :: l_improve_aero_drydep     ! if True the surface type used by the
+                                       ! aerosol dry deposition is provided by
+                                       ! the parent, rather than being inferred
+                                       ! from roughness length in GLOMAP.
   LOGICAL :: l_fix_ukca_activate_pdf   ! True to fix probability density fn.
                                        ! of updraft velocities in Activate
   LOGICAL :: l_fix_ukca_activate_vert_rep
@@ -448,10 +504,6 @@ TYPE :: glomap_config_spec_type
                                        ! in the calculation of updraft pdf
                                        ! spread related to TKE indexing in the
                                        ! Unified Model
-  LOGICAL :: l_improve_aero_drydep     ! if True the surface type used by the
-                                       ! aerosol dry deposition is provided by
-                                       ! the parent, rather than being inferred
-                                       ! from roughness length in GLOMAP.
 
   ! -- GLOMAP internal configuration variables (not modifiable by parent) --
   INTEGER :: n_dust_emissions          ! Number of dust emission size ranges
@@ -540,6 +592,7 @@ INTEGER, PARAMETER :: i_top_BC_H2O  = 4   ! Boundary condition for NO, CO, O3
                                           ! and H2O
 
 ! Option codes for 'i_ukca_dms_flux'
+INTEGER, PARAMETER :: i_dms_flux_off = 0    ! No marine DMS flux
 INTEGER, PARAMETER :: i_liss_merlivat = 1   ! Liss & Merlivat (1986)
 INTEGER, PARAMETER :: i_wanninkhof = 2      ! Wanninkhof (1992)
 INTEGER, PARAMETER :: i_nightingale = 3     ! Nightingale et al. (2000)
@@ -728,7 +781,7 @@ ukca_config%i_brd_leaf_dec = imdi
 ukca_config%i_brd_leaf_eg_trop = imdi
 ukca_config%i_brd_leaf_eg_temp = imdi
 ukca_config%i_ndl_leaf = imdi
-ukca_config%i_ndl_leaf = imdi
+ukca_config%i_ndl_leaf_dec = imdi
 ukca_config%i_ndl_leaf_eg = imdi
 ukca_config%i_c3_grass = imdi
 ukca_config%i_c3_crop = imdi
@@ -762,6 +815,8 @@ ukca_config%l_enable_diag_um = .FALSE.
 ukca_config%l_ukca_persist_off = .FALSE.
 ukca_config%l_timer = .FALSE.
 ukca_config%l_ukca_emissions_off = .FALSE.
+ukca_config%l_ukca_drydep_off = .FALSE.
+ukca_config%l_ukca_wetdep_off = .FALSE.
 
 ! -- Chemistry configuration options --
 ukca_config%i_ukca_chem_version = imdi
@@ -781,6 +836,9 @@ ukca_config%i_ukca_quasinewton_start = imdi
 ukca_config%i_ukca_quasinewton_end = imdi
 ukca_config%ukca_chem_seg_size = imdi
 ukca_config%max_z_for_offline_chem = rmdi
+ukca_config%nlev_above_trop_o3_env = imdi
+ukca_config%nlev_ch4_stratloss = imdi
+ukca_config%l_tracer_lumping = .FALSE.
 ukca_config%i_ukca_topboundary = imdi
 ukca_config%l_ukca_ro2_ntp = .FALSE.
 ukca_config%l_ukca_ro2_perm = .FALSE.
@@ -788,6 +846,8 @@ ukca_config%l_ukca_intph = .FALSE.
 ukca_config%ph_fit_coeff_a = rmdi
 ukca_config%ph_fit_coeff_b = rmdi
 ukca_config%ph_fit_intercept = rmdi
+ukca_config%l_ukca_scale_soa_yield = .FALSE.
+ukca_config%soa_yield_scaling = rmdi
 
 ! -- Chemistry - Heterogeneous chemistry --
 ukca_config%l_ukca_het_psc = .FALSE.
@@ -819,8 +879,6 @@ ukca_config%seadms_ems_scaling = rmdi
 ukca_config%l_ukca_linox_scaling = .FALSE.
 ukca_config%lightnox_scale_fac = rmdi
 ukca_config%i_ukca_light_param = imdi
-ukca_config%l_ukca_scale_soa_yield = .FALSE.
-ukca_config%soa_yield_scaling = rmdi
 ukca_config%l_support_ems_vertprof = .FALSE.
 ukca_config%l_support_ems_gridbox_units = .FALSE.
 ukca_config%l_suppress_ems = .FALSE.
@@ -844,6 +902,7 @@ ukca_config%l_use_classic_biogenic = .FALSE.
 ukca_config%l_use_classic_seasalt = .FALSE.
 ukca_config%l_use_gridbox_mass = .FALSE.
 ukca_config%l_environ_z_top = .FALSE.
+ukca_config%env_log_step = imdi
 
 ! -- UKCA temporary logicals
 ukca_config%l_fix_ukca_cloud_frac = .FALSE.
@@ -870,6 +929,7 @@ ukca_config%l_ukca_stratcfc = .FALSE.
 ukca_config%l_ukca_achem = .FALSE.
 ukca_config%l_ukca_nr_aqchem = .FALSE.
 ukca_config%l_ukca_advh2o = .FALSE.
+ukca_config%l_diurnal_isopems = .FALSE.
 ukca_config%l_seawater_dms = .FALSE.
 ukca_config%l_chem_environ_ch4_scalar = .FALSE.
 ukca_config%l_chem_environ_co2_scalar = .FALSE.
@@ -887,12 +947,16 @@ glomap_config%i_mode_setup = imdi
 glomap_config%l_mode_bhn_on = .FALSE.
 glomap_config%l_mode_bln_on = .FALSE.
 glomap_config%i_mode_bln_param_method = imdi
-glomap_config%i_mode_nucscav = imdi
-glomap_config%l_dust_slinn_impc_scav = .FALSE.
 glomap_config%mode_activation_dryr = rmdi
-glomap_config%mode_incld_so2_rfrac = rmdi
-glomap_config%l_cv_rainout = .FALSE.
+
+! -- GLOMAP deposition configuration options --
 glomap_config%l_ddepaer = .FALSE.
+glomap_config%mode_incld_so2_rfrac = rmdi
+glomap_config%l_rainout = .FALSE.
+glomap_config%l_cv_rainout = .FALSE.
+glomap_config%i_mode_nucscav = imdi
+glomap_config%l_impc_scav = .FALSE.
+glomap_config%l_dust_slinn_impc_scav = .FALSE.
 
 ! -- GLOMAP emissions configuration options --
 glomap_config%l_ukca_primss = .FALSE.
@@ -926,10 +990,10 @@ glomap_config%l_ukca_sfix = .FALSE.
 glomap_config%l_fix_neg_pvol_wat = .FALSE.
 glomap_config%l_fix_ukca_impscav = .FALSE.
 glomap_config%l_fix_nacl_density = .FALSE.
+glomap_config%l_improve_aero_drydep = .FALSE.
 glomap_config%l_fix_ukca_activate_pdf = .FALSE.
 glomap_config%l_fix_ukca_activate_vert_rep = .FALSE.
 glomap_config%l_bug_repro_tke_index = .FALSE.
-glomap_config%l_improve_aero_drydep = .FALSE.
 
 ! -- GLOMAP internal configuration variables --
 glomap_config%n_dust_emissions = imdi
@@ -984,6 +1048,8 @@ SUBROUTINE ukca_get_config(                                                    &
    dts0, nit,                                                                  &
    i_ukca_quasinewton_start, i_ukca_quasinewton_end,                           &
    ukca_chem_seg_size,                                                         &
+   nlev_above_trop_o3_env,                                                     &
+   nlev_ch4_stratloss,                                                         &
    i_ukca_topboundary,                                                         &
    i_ukca_hetconfig,                                                           &
    i_ukca_photol, fastjx_mode, i_ukca_solcyc, i_ukca_solcyc_start_year,        &
@@ -991,23 +1057,25 @@ SUBROUTINE ukca_get_config(                                                    &
    i_ukca_dms_flux,                                                            &
    i_ukca_light_param,                                                         &
    i_strat_lbc_source,                                                         &
-   i_ukca_tune_bc,                                                             &
+   env_log_step,                                                               &
    ukca_int_method,                                                            &
    timesteps_per_day, timesteps_per_hour,                                      &
    i_mode_nzts, ukca_mode_seg_size,                                            &
    i_mode_setup, i_mode_bln_param_method, i_mode_nucscav,                      &
-   l_dust_slinn_impc_scav, i_ukca_activation_scheme, i_ukca_nwbins,            &
+   i_ukca_tune_bc,                                                             &
+   i_ukca_activation_scheme, i_ukca_nwbins,                                    &
    n_dust_emissions,                                                           &
    i_dust_scheme,                                                              &
    dzsoil_layer1,                                                              &
    timestep,                                                                   &
    max_ageair_reset_height,                                                    &
    max_z_for_offline_chem,                                                     &
+   soa_yield_scaling,                                                          &
    fastjx_prescutoff,                                                          &
    mode_parfrac,                                                               &
    seadms_ems_scaling,                                                         &
    sea_salt_ems_scaling, marine_pom_ems_scaling,                               &
-   lightnox_scale_fac, soa_yield_scaling,                                      &
+   lightnox_scale_fac,                                                         &
    mode_activation_dryr,                                                       &
    mode_incld_so2_rfrac,                                                       &
    biom_aer_ems_scaling,                                                       &
@@ -1021,13 +1089,17 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_persist_off,                                                         &
    l_timer,                                                                    &
    l_ukca_emissions_off,                                                       &
+   l_ukca_drydep_off,                                                          &
+   l_ukca_wetdep_off,                                                          &
    l_ukca_asad_columns,                                                        &
    l_ukca_debug_asad,                                                          &
    l_ukca_intdd, l_ukca_ddepo3_ocean, l_ukca_ddep_lev1, l_ukca_dry_dep_so2wet, &
    l_deposition_jules,                                                         &
    l_ukca_quasinewton,                                                         &
+   l_tracer_lumping,                                                           &
    l_ukca_ro2_ntp, l_ukca_ro2_perm,                                            &
    l_ukca_intph,ph_fit_coeff_a,ph_fit_coeff_b,ph_fit_intercept,                &
+   l_ukca_scale_soa_yield,                                                     &
    l_ukca_het_psc,                                                             &
    l_ukca_limit_nat,                                                           &
    l_ukca_sa_clim,                                                             &
@@ -1037,7 +1109,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_inferno, l_ukca_inferno_ch4,                                         &
    l_ukca_qch4inter, l_ukca_emsdrvn_ch4,                                       &
    l_ukca_enable_seadms_ems, l_ukca_scale_seadms_ems,                          &
-   l_ukca_linox_scaling, l_ukca_scale_soa_yield,                               &
+   l_ukca_linox_scaling,                                                       &
    l_support_ems_vertprof,                                                     &
    l_support_ems_gridbox_units,                                                &
    l_suppress_ems,                                                             &
@@ -1058,12 +1130,12 @@ SUBROUTINE ukca_get_config(                                                    &
    l_fix_ukca_offox_h2o_fac,                                                   &
    l_fix_ukca_h2so4_ystore,                                                    &
    l_fix_ukca_meoh_emiss_input,                                                &
-   l_improve_aero_drydep,                                                      &
    l_ukca_chem, l_ukca_trop, l_ukca_aerchem, l_ukca_raq, l_ukca_raqaero,       &
    l_ukca_offline_be, l_ukca_tropisop, l_ukca_strattrop, l_ukca_strat,         &
    l_ukca_offline, l_ukca_cristrat, l_ukca_stratcfc, l_ukca_achem,             &
    l_ukca_nr_aqchem,                                                           &
    l_ukca_advh2o,                                                              &
+   l_diurnal_isopems,                                                          &
    l_seawater_dms,                                                             &
    l_chem_environ_ch4_scalar,                                                  &
    l_chem_environ_co2_scalar,                                                  &
@@ -1071,7 +1143,9 @@ SUBROUTINE ukca_get_config(                                                    &
    l_chem_environ_n2_scalar,                                                   &
    l_chem_environ_o2_scalar,                                                   &
    l_mode_bhn_on, l_mode_bln_on,                                               &
-   l_cv_rainout, l_ddepaer,                                                    &
+   l_ddepaer,                                                                  &
+   l_rainout, l_cv_rainout,                                                    &
+   l_impc_scav, l_dust_slinn_impc_scav,                                        &
    l_ukca_primss, l_ukca_primsu, l_ukca_primdu, l_ukca_primbcoc,               &
    l_ukca_prim_moc, l_bcoc_bf, l_bcoc_bm, l_bcoc_ff,                           &
    l_ukca_scale_biom_aer_ems,                                                  &
@@ -1086,6 +1160,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_fix_neg_pvol_wat,                                                         &
    l_fix_ukca_impscav,                                                         &
    l_fix_nacl_density,                                                         &
+   l_improve_aero_drydep,                                                      &
    l_fix_ukca_activate_pdf,                                                    &
    l_fix_ukca_activate_vert_rep,                                               &
    l_bug_repro_tke_index,                                                      &
@@ -1144,6 +1219,8 @@ INTEGER, OPTIONAL, INTENT(OUT) :: nit
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_start
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_end
 INTEGER, OPTIONAL, INTENT(OUT) :: ukca_chem_seg_size
+INTEGER, OPTIONAL, INTENT(OUT) :: nlev_above_trop_o3_env
+INTEGER, OPTIONAL, INTENT(OUT) :: nlev_ch4_stratloss
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_topboundary
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_hetconfig
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_photol
@@ -1154,6 +1231,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: i_inferno_emi
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_dms_flux
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_light_param
 INTEGER, OPTIONAL, INTENT(OUT) :: i_strat_lbc_source
+INTEGER, OPTIONAL, INTENT(OUT) :: env_log_step
 INTEGER, OPTIONAL, INTENT(OUT) :: ukca_int_method
 INTEGER, OPTIONAL, INTENT(OUT) :: timesteps_per_day
 INTEGER, OPTIONAL, INTENT(OUT) :: timesteps_per_hour
@@ -1162,23 +1240,23 @@ INTEGER, OPTIONAL, INTENT(OUT) :: ukca_mode_seg_size
 INTEGER, OPTIONAL, INTENT(OUT) :: i_mode_setup
 INTEGER, OPTIONAL, INTENT(OUT) :: i_mode_bln_param_method
 INTEGER, OPTIONAL, INTENT(OUT) :: i_mode_nucscav
+INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_tune_bc
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_activation_scheme
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_nwbins
 INTEGER, OPTIONAL, INTENT(OUT) :: n_dust_emissions
 INTEGER, OPTIONAL, INTENT(OUT) :: i_dust_scheme
-INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_tune_bc
 
 REAL, OPTIONAL, INTENT(OUT) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(OUT) :: timestep
 REAL, OPTIONAL, INTENT(OUT) :: max_ageair_reset_height
 REAL, OPTIONAL, INTENT(OUT) :: max_z_for_offline_chem
+REAL, OPTIONAL, INTENT(OUT) :: soa_yield_scaling
 REAL, OPTIONAL, INTENT(OUT) :: fastjx_prescutoff
 REAL, OPTIONAL, INTENT(OUT) :: mode_parfrac
 REAL, OPTIONAL, INTENT(OUT) :: seadms_ems_scaling
 REAL, OPTIONAL, INTENT(OUT) :: sea_salt_ems_scaling
 REAL, OPTIONAL, INTENT(OUT) :: marine_pom_ems_scaling
 REAL, OPTIONAL, INTENT(OUT) :: lightnox_scale_fac
-REAL, OPTIONAL, INTENT(OUT) :: soa_yield_scaling
 REAL, OPTIONAL, INTENT(OUT) :: mode_activation_dryr
 REAL, OPTIONAL, INTENT(OUT) :: mode_incld_so2_rfrac
 REAL, OPTIONAL, INTENT(OUT) :: biom_aer_ems_scaling
@@ -1196,6 +1274,8 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_enable_diag_um
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_persist_off
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_timer
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_emissions_off
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_drydep_off
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_wetdep_off
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_asad_columns
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_debug_asad
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_intdd
@@ -1204,9 +1284,11 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ddep_lev1
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_dry_dep_so2wet
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_deposition_jules
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_quasinewton
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_tracer_lumping
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ro2_ntp
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ro2_perm
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_intph
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_soa_yield
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_het_psc
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_limit_nat
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_sa_clim
@@ -1220,7 +1302,6 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_emsdrvn_ch4
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_enable_seadms_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_seadms_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_linox_scaling
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_soa_yield
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_support_ems_vertprof
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_support_ems_gridbox_units
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_suppress_ems
@@ -1246,7 +1327,6 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_drydep_so2_water
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_offox_h2o_fac
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_h2so4_ystore
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_meoh_emiss_input
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_improve_aero_drydep
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_trop
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_aerchem
@@ -1262,6 +1342,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_stratcfc
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_achem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_nr_aqchem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_advh2o
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_diurnal_isopems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_seawater_dms
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_chem_environ_ch4_scalar
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_chem_environ_co2_scalar
@@ -1270,8 +1351,11 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_chem_environ_n2_scalar
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_chem_environ_o2_scalar
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_mode_bhn_on
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_mode_bln_on
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_cv_rainout
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ddepaer
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_rainout
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_cv_rainout
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_impc_scav
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_slinn_impc_scav
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_primss
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_primsu
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_primdu
@@ -1292,12 +1376,12 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_sfix
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_neg_pvol_wat
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_impscav
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_nacl_density
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_improve_aero_drydep
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_6bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_2bin_dust_no3
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_slinn_impc_scav
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_config_available
 
 ! -- Availability of a valid configuration --
@@ -1360,6 +1444,10 @@ IF (PRESENT(l_ukca_persist_off))                                               &
 IF (PRESENT(l_timer)) l_timer = ukca_config%l_timer
 IF (PRESENT(l_ukca_emissions_off))                                             &
   l_ukca_emissions_off = ukca_config%l_ukca_emissions_off
+IF (PRESENT(l_ukca_drydep_off))                                                &
+  l_ukca_drydep_off = ukca_config%l_ukca_drydep_off
+IF (PRESENT(l_ukca_wetdep_off))                                                &
+  l_ukca_wetdep_off = ukca_config%l_ukca_wetdep_off
 
 ! -- Chemistry configuration options --
 IF (PRESENT(i_ukca_chem_version))                                              &
@@ -1390,6 +1478,12 @@ IF (PRESENT(ukca_chem_seg_size))                                               &
    ukca_chem_seg_size = ukca_config%ukca_chem_seg_size
 IF (PRESENT(max_z_for_offline_chem))                                           &
   max_z_for_offline_chem = ukca_config%max_z_for_offline_chem
+IF (PRESENT(nlev_above_trop_o3_env))                                           &
+   nlev_above_trop_o3_env = ukca_config%nlev_above_trop_o3_env
+IF (PRESENT(nlev_ch4_stratloss))                                               &
+   nlev_ch4_stratloss = ukca_config%nlev_ch4_stratloss
+IF (PRESENT(l_tracer_lumping))                                                 &
+  l_tracer_lumping = ukca_config%l_tracer_lumping
 IF (PRESENT(i_ukca_topboundary))                                               &
   i_ukca_topboundary = ukca_config%i_ukca_topboundary
 IF (PRESENT(l_ukca_ro2_ntp)) l_ukca_ro2_ntp = ukca_config%l_ukca_ro2_ntp
@@ -1398,6 +1492,10 @@ IF (PRESENT(l_ukca_intph)) l_ukca_intph = ukca_config%l_ukca_intph
 IF (PRESENT(ph_fit_coeff_a)) ph_fit_coeff_a = ukca_config%ph_fit_coeff_a
 IF (PRESENT(ph_fit_coeff_b)) ph_fit_coeff_b = ukca_config%ph_fit_coeff_b
 IF (PRESENT(ph_fit_intercept)) ph_fit_intercept = ukca_config%ph_fit_intercept
+IF (PRESENT(l_ukca_scale_soa_yield))                                           &
+  l_ukca_scale_soa_yield = ukca_config%l_ukca_scale_soa_yield
+IF (PRESENT(soa_yield_scaling))                                                &
+  soa_yield_scaling = ukca_config%soa_yield_scaling
 
 ! -- Chemistry - Heterogeneous chemistry --
 IF (PRESENT(l_ukca_het_psc)) l_ukca_het_psc = ukca_config%l_ukca_het_psc
@@ -1440,10 +1538,6 @@ IF (PRESENT(lightnox_scale_fac))                                               &
   lightnox_scale_fac = ukca_config%lightnox_scale_fac
 IF (PRESENT(i_ukca_light_param))                                               &
   i_ukca_light_param = ukca_config%i_ukca_light_param
-IF (PRESENT(l_ukca_scale_soa_yield))                                           &
-  l_ukca_scale_soa_yield = ukca_config%l_ukca_scale_soa_yield
-IF (PRESENT(soa_yield_scaling))                                                &
-  soa_yield_scaling = ukca_config%soa_yield_scaling
 IF (PRESENT(l_support_ems_vertprof))                                           &
   l_support_ems_vertprof = ukca_config%l_support_ems_vertprof
 IF (PRESENT(l_support_ems_gridbox_units))                                      &
@@ -1482,6 +1576,7 @@ IF (PRESENT(l_use_classic_seasalt))                                            &
 IF (PRESENT(l_environ_z_top)) l_environ_z_top = ukca_config%l_environ_z_top
 IF (PRESENT(l_use_gridbox_mass))                                               &
   l_use_gridbox_mass = ukca_config%l_use_gridbox_mass
+IF (PRESENT(env_log_step)) env_log_step = ukca_config%env_log_step
 
 ! -- UKCA temporary logicals
 IF (PRESENT(l_fix_ukca_cloud_frac))                                            &
@@ -1516,6 +1611,8 @@ IF (PRESENT(l_ukca_stratcfc)) l_ukca_stratcfc = ukca_config%l_ukca_stratcfc
 IF (PRESENT(l_ukca_achem)) l_ukca_achem = ukca_config%l_ukca_achem
 IF (PRESENT(l_ukca_nr_aqchem)) l_ukca_nr_aqchem = ukca_config%l_ukca_nr_aqchem
 IF (PRESENT(l_ukca_advh2o)) l_ukca_advh2o = ukca_config%l_ukca_advh2o
+IF (PRESENT(l_diurnal_isopems))                                                &
+  l_diurnal_isopems = ukca_config%l_diurnal_isopems
 IF (PRESENT(l_seawater_dms)) l_seawater_dms = ukca_config%l_seawater_dms
 IF (PRESENT(l_chem_environ_ch4_scalar))                                        &
   l_chem_environ_ch4_scalar = ukca_config%l_chem_environ_ch4_scalar
@@ -1542,16 +1639,20 @@ IF (PRESENT(l_mode_bhn_on)) l_mode_bhn_on = glomap_config%l_mode_bhn_on
 IF (PRESENT(l_mode_bln_on)) l_mode_bln_on = glomap_config%l_mode_bln_on
 IF (PRESENT(i_mode_bln_param_method))                                          &
   i_mode_bln_param_method = glomap_config%i_mode_bln_param_method
-IF (PRESENT(i_mode_nucscav)) i_mode_nucscav = glomap_config%i_mode_nucscav
-IF (PRESENT(l_dust_slinn_impc_scav))                                           &
-  l_dust_slinn_impc_scav = glomap_config%l_dust_slinn_impc_scav
 IF (PRESENT(mode_activation_dryr))                                             &
   mode_activation_dryr = glomap_config%mode_activation_dryr
-IF (PRESENT(mode_incld_so2_rfrac))                                             &
-  mode_incld_so2_rfrac = glomap_config%mode_incld_so2_rfrac
-IF (PRESENT(l_cv_rainout)) l_cv_rainout = glomap_config%l_cv_rainout
+
+! -- GLOMAP deposition configuration optons --
 IF (PRESENT(l_ddepaer))                                                        &
   l_ddepaer = glomap_config%l_ddepaer
+IF (PRESENT(mode_incld_so2_rfrac))                                             &
+  mode_incld_so2_rfrac = glomap_config%mode_incld_so2_rfrac
+IF (PRESENT(l_rainout)) l_rainout = glomap_config%l_rainout
+IF (PRESENT(l_cv_rainout)) l_cv_rainout = glomap_config%l_cv_rainout
+IF (PRESENT(i_mode_nucscav)) i_mode_nucscav = glomap_config%i_mode_nucscav
+IF (PRESENT(l_impc_scav)) l_impc_scav = glomap_config%l_impc_scav
+IF (PRESENT(l_dust_slinn_impc_scav))                                           &
+  l_dust_slinn_impc_scav = glomap_config%l_dust_slinn_impc_scav
 
 ! -- GLOMAP emissions configuration options --
 IF (PRESENT(l_ukca_primss)) l_ukca_primss = glomap_config%l_ukca_primss
@@ -1591,12 +1692,16 @@ IF (PRESENT(l_ntpreq_n_activ_sum))                                             &
 IF (PRESENT(l_ntpreq_dryd_nuc_sol))                                            &
   l_ntpreq_dryd_nuc_sol = glomap_config%l_ntpreq_dryd_nuc_sol
 IF (PRESENT(l_ukca_sfix)) l_ukca_sfix = glomap_config%l_ukca_sfix
+
+! -- GLOMAP temporary logicals --
 IF (PRESENT(l_fix_neg_pvol_wat))                                               &
   l_fix_neg_pvol_wat = glomap_config%l_fix_neg_pvol_wat
 IF (PRESENT(l_fix_ukca_impscav))                                               &
   l_fix_ukca_impscav = glomap_config%l_fix_ukca_impscav
 IF (PRESENT(l_fix_nacl_density))                                               &
   l_fix_nacl_density = glomap_config%l_fix_nacl_density
+IF (PRESENT(l_improve_aero_drydep))                                            &
+  l_improve_aero_drydep = glomap_config%l_improve_aero_drydep
 IF (PRESENT(l_fix_ukca_activate_pdf))                                          &
   l_fix_ukca_activate_pdf = glomap_config%l_fix_ukca_activate_pdf
 IF (PRESENT(l_fix_ukca_activate_vert_rep))                                     &
@@ -1609,10 +1714,6 @@ IF (PRESENT(n_dust_emissions)) n_dust_emissions = glomap_config%n_dust_emissions
 IF (PRESENT(i_dust_scheme)) i_dust_scheme = glomap_config%i_dust_scheme
 IF (PRESENT(l_6bin_dust_no3)) l_6bin_dust_no3 = glomap_config%l_6bin_dust_no3
 IF (PRESENT(l_2bin_dust_no3)) l_2bin_dust_no3 = glomap_config%l_2bin_dust_no3
-
-! -- GLOMAP aerosol dry deposition improvements
-IF (PRESENT(l_improve_aero_drydep))                                            &
-  l_improve_aero_drydep = glomap_config%l_improve_aero_drydep
 
 RETURN
 END SUBROUTINE ukca_get_config

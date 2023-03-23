@@ -30,6 +30,7 @@
 MODULE ukca_step_mod
 
 USE ukca_config_specification_mod, ONLY: ukca_config
+USE ukca_environment_fields_mod, ONLY: environ_field_ptrs
 USE ukca_tracers_mod, ONLY: tracer_copy_in, tracer_copy_out, tracer_dealloc,   &
                             all_tracers
 USE ukca_ntp_mod, ONLY: ntp_copy_in, ntp_copy_out, ntp_dealloc, all_ntp
@@ -145,9 +146,9 @@ IF (error_code > 0) THEN
 END IF
 
 ! Do the time step
-CALL ukca_main1(timestep_number, current_time, all_tracers, all_ntp,           &
+CALL ukca_main1(timestep_number, current_time, environ_field_ptrs,             &
                 r_theta_levels, r_rho_levels,                                  &
-                error_code, previous_time=previous_time,                       &
+                all_tracers, all_ntp, error_code, previous_time=previous_time, &
                 error_message=error_message, error_routine=error_routine)
 
 ! Update the tracer_data_parent and ntp_data_parent arrays from the UKCA state
@@ -248,9 +249,10 @@ IF (error_code > 0) THEN
 END IF
 
 ! Do the time step
-CALL ukca_main1(timestep_number, current_time, all_tracers, all_ntp,           &
+CALL ukca_main1(timestep_number, current_time, environ_field_ptrs,             &
                 r_theta_levels, r_rho_levels,                                  &
-                error_code, previous_time, error_message, error_routine)
+                all_tracers, all_ntp, error_code, previous_time=previous_time, &
+                error_message=error_message, error_routine=error_routine)
 
 ! Update the tracer_data_parent and ntp_data_parent arrays from the UKCA state
 ! at the end of the time step. These are then passed back to the parent.

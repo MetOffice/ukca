@@ -217,15 +217,15 @@ IF (ukca_config%l_ukca_mode) THEN
     !! temporarily run 2-mode dust only with chemistry, though it's not needed
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_duonly_2mode
-  !!  ELSE IF ( glomap_config%i_mode_setup == 7 ) THEN
-    !!    CALL ukca_indices_nochem
-    !!    CALL ukca_indices_duonly_3mode
+    !!  ELSE IF ( glomap_config%i_mode_setup == 7 ) THEN
+      !!    CALL ukca_indices_nochem
+      !!    CALL ukca_indices_duonly_3mode
   ELSE IF ( glomap_config%i_mode_setup == i_sussbcocdu_7mode ) THEN ! 8
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcocdu_7mode
-  !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
-    !!    CALL ukca_indices_orgv1_soto3
-    !!    CALL ukca_indices_sussbcocdu_4mode
+    !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
+      !!    CALL ukca_indices_orgv1_soto3
+      !!    CALL ukca_indices_sussbcocdu_4mode
   ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN ! 10
     CALL ukca_indices_orgv1_soto3
     CALL ukca_indices_sussbcocntnh_5mode
@@ -414,6 +414,7 @@ END IF
 ! If lightning emissions of NOx are on with chemistry check that a full
 ! chemistry scheme is selected and validate lightning scheme configuration
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
+    (.NOT. ukca_config%l_ukca_emissions_off) .AND.                             &
     ukca_config%i_ukca_light_param /= i_light_param_off) THEN
   ! Check the chemistry scheme is not an Offline scheme
   IF (ukca_config%i_ukca_chem == i_ukca_chem_offline .OR.                      &
@@ -542,9 +543,12 @@ IF ( .NOT. (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                  &
   END IF
 END IF
 
-IF ((ukca_config%i_ukca_topboundary < 0 .OR.                                   &
-     ukca_config%i_ukca_topboundary > 4) .AND.                                 &
-    ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+! Check validity of top boundary option for a stratospheric scheme
+IF ((ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                     &
+     ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                         &
+     ukca_config%i_ukca_chem == i_ukca_chem_cristrat) .AND.                    &
+    (ukca_config%i_ukca_topboundary < 0 .OR.                                   &
+     ukca_config%i_ukca_topboundary > 4)) THEN
   WRITE(cmessage,'(A,I0,A)')                                                   &
        ' Incorrect value for i_ukca_topboundary ( ',                           &
        ukca_config%i_ukca_topboundary,                                         &
@@ -728,10 +732,16 @@ IF ((ukca_config%l_use_classic_soot .OR. ukca_config%l_use_classic_ocff .OR.   &
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
-IF (.NOT. ukca_config%l_use_gridbox_mass .AND.                                 &
-    (ukca_config%l_enable_diag_um .OR.                                         &
-     ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.            &
-     ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat)) THEN
+! Check that use of actual gridbox mass is enabled if UM diagnostics are
+! enabled with a chemistry scheme being active or if a stratospheric chemistry
+! scheme is used without turning off emissions (since it is then needed in
+! stratospheric schemes for lower boundary condiotins).
+IF ((.NOT. ukca_config%l_use_gridbox_mass) .AND.                               &
+    ((ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                         &
+      ukca_config%l_enable_diag_um) .OR.                                       &
+     ((ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.          &
+      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) .AND.     &
+      .NOT. ukca_config%l_ukca_emissions_off))) THEN
   cmessage = 'Cannot run without mass of air in grid box as it is needed'      &
              // newline // 'for UM diagnostics and/or a stratospheric'         &
              // newline // 'chemistry scheme'

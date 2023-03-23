@@ -68,7 +68,21 @@ USE ukca_config_specification_mod, ONLY:                                       &
   ukca_int_method_be_explicit => int_method_be_explicit,                       &
   ukca_activation_off => i_ukca_activation_off,                                &
   ukca_activation_arg => i_ukca_activation_arg,                                &
-  ukca_activation_jones => i_ukca_activation_jones
+  ukca_activation_jones => i_ukca_activation_jones,                            &
+  ukca_light_param_off => i_light_param_off,                                   &
+  ukca_light_param_pr => i_light_param_pr,                                     &
+  ukca_light_param_luhar => i_light_param_luhar,                               &
+  ukca_light_param_ext => i_light_param_ext,                                   &
+  ukca_top_none => i_top_none,                                                 &
+  ukca_top_2levh20 => i_top_2levh2o,                                           &
+  ukca_top_1lev => i_top_1lev,                                                 &
+  ukca_top_bc => i_top_bc,                                                     &
+  ukca_top_bc_h2o => i_top_bc_h2o,                                             &
+  ukca_dms_flux_off => i_dms_flux_off,                                         &
+  ukca_liss_merlivat => i_liss_merlivat,                                       &
+  ukca_wanninkhof => i_wanninkhof,                                             &
+  ukca_nightingale => i_nightingale
+
 USE ukca_tracers_mod, ONLY: ukca_get_tracer_varlist
 USE ukca_ntp_mod, ONLY: ukca_get_ntp_varlist
 USE ukca_chem_defs_mod, ONLY: ukca_get_photol_reaction_data,                   &

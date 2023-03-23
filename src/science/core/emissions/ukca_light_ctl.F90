@@ -57,7 +57,8 @@ USE asad_chem_flux_diags,  ONLY: L_asad_use_chem_diags,                        &
     lightning_flashes_cloud2ground, total_lightning_flashes,                   &
     total_N_2D, asad_lightning_diagnostics
 USE ukca_light_mod, ONLY: ukca_light
-USE ukca_config_specification_mod, ONLY: ukca_config, i_light_param_ext
+USE ukca_config_specification_mod, ONLY: ukca_config, i_light_param_pr,        &
+                                         i_light_param_luhar, i_light_param_ext
 
 IMPLICIT NONE
 
@@ -180,16 +181,19 @@ END DO
 cloud_base = 0.0
 cloud_top  = 0.0
 
-DO i = 1,rows
-  DO j = 1,row_length
-    IF (conv_base_lev(j,i) > 0) THEN
-      cloud_base(j,i) = height(j,i,conv_base_lev(j,i))/1000.0
-    END IF
-    IF (conv_top_lev(j,i) > 0) THEN
-      cloud_top(j,i) = height(j,i,conv_top_lev(j,i))/1000.0
-    END IF
+IF (ukca_config%i_ukca_light_param == i_light_param_pr .OR.                    &
+    ukca_config%i_ukca_light_param == i_light_param_luhar) THEN
+  DO i = 1,rows
+    DO j = 1,row_length
+      IF (conv_base_lev(j,i) > 0) THEN
+        cloud_base(j,i) = height(j,i,conv_base_lev(j,i))/1000.0
+      END IF
+      IF (conv_top_lev(j,i) > 0) THEN
+        cloud_top(j,i) = height(j,i,conv_top_lev(j,i))/1000.0
+      END IF
+    END DO
   END DO
-END DO
+END IF
 
 DO i = 1,rows
   DO j = 1,row_length

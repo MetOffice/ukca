@@ -35,34 +35,34 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_DDEPRT_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_ddeprt(dayl, tloc, p_fieldda, dzl, bl_levels,                  &
-              z0m, u_s, temp,                                                  &
-              lat, i_mon,                                                      &
-              first_point, last_point,                                         &
-              dryrt)
+SUBROUTINE ukca_ddeprt(p_fieldda, bl_levels, i_day_number, i_mon, i_hour,      &
+                       r_minute, secs_per_step, lon, lat, tanlat, dzl, z0m,    &
+                       u_s, temp, dryrt)
 
-USE ukca_um_legacy_mod, ONLY: vkman
+USE ukca_um_legacy_mod, ONLY: vkman, pi_over_180
+USE ukca_constants,     ONLY: fxb, fxc
 USE asad_mod, ONLY: depvel, jpdd
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 
 IMPLICIT NONE
 
-INTEGER, INTENT(IN) :: p_fieldda             ! No of spatial poi
-INTEGER, INTENT(IN) :: bl_levels             ! No of boundary la
-INTEGER, INTENT(IN) :: i_mon                 ! Month number
-INTEGER, INTENT(IN) :: first_point           ! first index for s
-INTEGER, INTENT(IN) :: last_point            ! last index for sp
-
-REAL, INTENT(IN) :: dayl(p_fieldda)          ! Day length
-REAL, INTENT(IN) :: tloc(p_fieldda)          ! Local time
+INTEGER, INTENT(IN) :: p_fieldda             ! No of spatial points
+INTEGER, INTENT(IN) :: bl_levels             ! No of boundary layer levels
+INTEGER, INTENT(IN) :: i_day_number          ! Day of year
+INTEGER, INTENT(IN) :: i_mon                 ! Month of year
+INTEGER, INTENT(IN) :: i_hour                ! Hour of day
+REAL, INTENT(IN) :: r_minute                 ! Minute of hour
+REAL, INTENT(IN) :: secs_per_step            ! Time step (s)
+REAL, INTENT(IN) :: lon(p_fieldda)           ! Longitude (degrees)
 REAL, INTENT(IN) :: lat(p_fieldda)           ! Latitude (degrees)
-REAL, INTENT(IN) :: dzl(p_fieldda,bl_levels) ! Height of lowest
-REAL, INTENT(IN) :: z0m(p_fieldda)           ! Roughness length
-REAL, INTENT(IN) :: u_s(p_fieldda)           ! Surface friction
-REAL, INTENT(IN) :: temp(p_fieldda)          ! Surface temperatu
+REAL, INTENT(IN) :: tanlat(p_fieldda)        ! tan(latitude)
+REAL, INTENT(IN) :: dzl(p_fieldda,bl_levels) ! Boundary layer thickness (m)
+REAL, INTENT(IN) :: z0m(p_fieldda)           ! Roughness length (m)
+REAL, INTENT(IN) :: u_s(p_fieldda)           ! Surface friction velocity (m/s)
+REAL, INTENT(IN) :: temp(p_fieldda)          ! Surface temperature (K)
 
-REAL, INTENT(OUT) :: dryrt(p_fieldda,jpdd)   ! Dry deposition lo
+REAL, INTENT(OUT) :: dryrt(p_fieldda,jpdd)   ! Dry deposition rate (/s)
 
 !       Local variables
 
@@ -83,6 +83,12 @@ REAL :: timel                                ! Local time
 REAL :: vdep1                                ! Depn velocity at
 REAL :: vdeph                                ! Depn velocity at
 
+REAL :: tgmt                   ! GMT time (decimal representation)
+REAL :: tan_declin             ! TAN(declination)
+REAL :: cs_hour_ang            ! cosine hour angle
+REAL :: tloc  (p_fieldda)      ! local time
+REAL :: daylen(p_fieldda)      ! local daylength
+
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
@@ -95,15 +101,34 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_DDEPRT'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 dryrt(:,:) = 0.0
 
+DO i = 1,p_fieldda  ! Loop over spatial scale
+
+  ! Calculate local time as function of longitude
+  tgmt = REAL(i_hour) + (r_minute / 60.0) + (secs_per_step * 0.5 / 3600.0)
+  tloc(i) = tgmt + (24.0 * lon(i) / 360.0)
+  IF (tloc(i) > 24.0) tloc(i) = tloc(i) - 24.0
+
+  ! Calculate declination angle and daylength for current day of year
+  ! Ensure cos of hour angle does not exceed + or - 1
+  tan_declin = TAN(fxb * SIN(pi_over_180 * (266.0 + i_day_number)))
+  IF (ABS(tan_declin) < EPSILON(0.0)) THEN
+    cs_hour_ang = 0.0
+  ELSE
+    cs_hour_ang = MAX(-1.0, MIN(1.0, -tanlat(i) * tan_declin))
+  END IF
+  daylen(i) = fxc * ACOS(cs_hour_ang)
+
+END DO
+
 !       Set up deposition arrays for each species
 
 DO ns = 1,jpdd                     ! Loop over deposited species
-  DO i = first_point,last_point    ! Loop over spatial scale
+  DO i = 1,p_fieldda               ! Loop over spatial scale
 
     !           Calculate time of dawn and dusk for particular day.
 
-    dawn  = midday - (dayl(i)/2.0)
-    dusk  = midday + (dayl(i)/2.0)
+    dawn  = midday - (daylen(i)/2.0)
+    dusk  = midday + (daylen(i)/2.0)
     timel = tloc(i)
 
     !           Local night-time/day-time

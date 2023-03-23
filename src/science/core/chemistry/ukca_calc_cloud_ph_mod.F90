@@ -69,7 +69,7 @@ PUBLIC :: ukca_calc_cloud_ph
 CONTAINS
 
 SUBROUTINE ukca_calc_cloud_ph(tracer, row_length, rows, model_levels,          &
-                              pres, temp, latitude, longitude, H_plus_3d_arr)
+                              pres, temp, H_plus_3d_arr)
 
 ! default global pH value of 5 from [H+] = 1.0e-5
 USE ukca_constants, ONLY: H_plus, m_so2
@@ -86,8 +86,6 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: row_length     ! No of points per row
 INTEGER, INTENT(IN) :: rows           ! No of rows
 INTEGER, INTENT(IN) :: model_levels   ! No of levels
-REAL, INTENT(IN) :: latitude(row_length,rows)  ! latitude (degrees)
-REAL, INTENT(IN) :: longitude(row_length,rows) ! longitude (degrees)
 
 ! Pressure on theta levels
 REAL, INTENT(IN)    :: pres(row_length, rows, model_levels)

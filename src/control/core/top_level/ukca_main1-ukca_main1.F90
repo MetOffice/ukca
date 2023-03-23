@@ -58,8 +58,8 @@ CONTAINS
 ! Subroutine Interface:
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_main1(timestep_number, current_time,                           &
+                      environ_ptrs, r_theta_levels, r_rho_levels,              &
                       all_tracers, all_ntp,                                    &
-                      r_theta_levels, r_rho_levels,                            &
                       error_code, previous_time,                               &
                       error_message, error_routine)
 ! ----------------------------------------------------------------------
@@ -75,6 +75,7 @@ USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
 USE ukca_environment_req_mod, ONLY: l_environ_req_available
 USE ukca_environment_mod, ONLY: clear_environment_fields
 USE ukca_environment_fields_mod, ONLY:                                         &
+    env_field_ptrs_type,                                                       &
     land_points, land_index,                                                   &
     sin_declination,        equation_of_time,                                  &
     conv_cloud_base,        conv_cloud_top,       kent,                        &
@@ -90,7 +91,7 @@ USE ukca_environment_fields_mod, ONLY:                                         &
     l_tile_active,          laift_lp,             canhtft_lp,                  &
     Tstar_tile,             z0tile_lp,                                         &
     rho_r2,                 qcl,                  exner_rho_levels,            &
-    cloud_frac,           cloud_liq_frac,                                      &
+    cloud_frac,             cloud_liq_frac,                                    &
     biogenic,               fland,                                             &
     exner_theta_levels,     p_rho_levels,         p_theta_levels,              &
     pstar,                                                                     &
@@ -266,6 +267,9 @@ INTEGER, INTENT(IN) :: timestep_number
 ! Current model time (year, month, day, hour, minute, second, day of year)
 INTEGER, INTENT(IN) :: current_time(7)
 
+! Environment field pointers
+TYPE(env_field_ptrs_type), INTENT(IN) :: environ_ptrs(:)
+
 ! Height of theta and rho levels from Earth centre
 REAL, INTENT(IN) :: r_theta_levels(:,:,0:), r_rho_levels(:,:,:)
 
@@ -340,8 +344,8 @@ INTEGER :: nbox_max     ! largest chunk has highest number of boxes
 INTEGER :: ik,lb        ! local loop iterators
 
 ! Tile index etc
-INTEGER :: tile_index(land_points,ukca_config%ntype) ! Indices of active tiles
-INTEGER :: tile_pts(ukca_config%ntype)               ! No of tiles of each type
+INTEGER, ALLOCATABLE :: tile_index(:,:)    ! Indices of active tiles
+INTEGER, ALLOCATABLE :: tile_pts(:)        ! No of tiles of each type
 
 ! Fields for humidity calculations when using UM routines
 REAL, ALLOCATABLE :: qsatmr_ice_wat(:,:,:) ! qsat mixing ratio w.r.t. ice/water
@@ -814,22 +818,21 @@ IF (l_first_call) THEN
       CALL ereport(RoutineName,errcode,cmessage)
     END IF
 
-  END IF  ! l_ukca_chem
+    ! Ensure that particulate fraction of SO2 emissions is between 0 and 5%.
+    IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
+      IF ( ( ANY(em_chem_spec == 'SO2_high  ') .OR.                            &
+             ANY(em_chem_spec == 'SO2_nat   ') .OR.                            &
+             ANY(em_chem_spec == 'SO2_low   ') ) .AND.                         &
+           ( ukca_config%mode_parfrac < 0.0 .OR.                               &
+             ukca_config%mode_parfrac > 5.0) ) THEN
+        WRITE(cmessage,'(A,F16.8)') 'SO2 emissions are on but ' //             &
+              'mode_parfrac is invalid (should be 0.0-5.0): ',                 &
+              ukca_config%mode_parfrac
+        errcode = 1
+        CALL ereport(RoutineName,errcode, cmessage)
+      END IF
+    END IF
 
-  ! Ensure that particulate fraction of SO2 emissions is between 0 and 5%.
-  IF ( ( ANY(em_chem_spec == 'SO2_high  ') .OR.                                &
-         ANY(em_chem_spec == 'SO2_nat   ') .OR.                                &
-         ANY(em_chem_spec == 'SO2_low   ') ) .AND.                             &
-       ( ukca_config%mode_parfrac < 0.0 .OR.                                   &
-         ukca_config%mode_parfrac > 5.0) ) THEN
-    WRITE(cmessage,'(A,F16.8)') 'SO2 emissions are on but ' //                 &
-          'mode_parfrac is invalid (should be 0.0-5.0): ',                     &
-          ukca_config%mode_parfrac
-    errcode = 1
-    CALL ereport(RoutineName,errcode, cmessage)
-  END IF
-
-  IF (ukca_config%l_ukca_chem) THEN
     ! set constants needed in sulphur chemistry
     IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.        &
         ukca_config%l_ukca_stratcfc .OR. ukca_config%l_ukca_cristrat) THEN
@@ -901,6 +904,8 @@ IF (ukca_config%l_ukca_chem) THEN
   ALLOCATE(totnodens(row_length,rows,model_levels))
   ALLOCATE(ls_ppn3d(row_length,rows,model_levels))
   ALLOCATE(conv_ppn3d(row_length,rows,model_levels))
+  ALLOCATE(tile_index(land_points,ukca_config%ntype))
+  ALLOCATE(tile_pts(ukca_config%ntype))
   ALLOCATE(so4_sa(row_length, rows, model_levels)) ! sulphate area density
   ! SO2 fluxes are required in chemistry_ctl
   ALLOCATE(delSO2_wet_h2o2(row_length,rows,model_levels))
@@ -936,109 +941,209 @@ IF (ukca_config%l_ukca_chem) THEN
   END IF
 
   ! Required in call to UKCA_EMISS_CTL, but may be unallocated
-  IF (.NOT. ALLOCATED(u_scalar_10m)) THEN
-    ALLOCATE(u_scalar_10m(row_length,rows))
-    u_scalar_10m(:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dms_sea_conc)) THEN
-    ALLOCATE(dms_sea_conc(row_length,rows))
-    dms_sea_conc(:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(chloro_sea)) THEN
-    ALLOCATE(chloro_sea(row_length,rows))
-    chloro_sea(:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(so4_aitken)) THEN
-    ALLOCATE(so4_aitken(row_length,rows,model_levels))
-    so4_aitken(:,:,:) = min_SO4_val
-  END IF
-  IF (.NOT. ALLOCATED(so4_accum)) THEN
-    ALLOCATE(so4_accum(row_length,rows,model_levels))
-    so4_accum(:,:,:) = min_SO4_val
-  END IF
-  IF ( .NOT. ALLOCATED(dust_flux)) THEN
-    ALLOCATE(dust_flux(row_length,rows,glomap_config%n_dust_emissions))
-    dust_flux(:,:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(kent)) THEN
-    ALLOCATE(kent(row_length,rows))
-    kent = 0
-  END IF
-  IF (.NOT. ALLOCATED(kent_dsc)) THEN
-    ALLOCATE(kent_dsc(row_length,rows))
-    kent_dsc = 0
-  END IF
-  IF (.NOT. ALLOCATED(zhsc)) THEN
-    ALLOCATE(zhsc(row_length,rows))
-    zhsc = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(rhokh_rdz)) THEN
-    ALLOCATE(rhokh_rdz(row_length,rows,ukca_config%bl_levels))
-    rhokh_rdz = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dtrdz)) THEN
-    ALLOCATE(dtrdz(row_length,rows,ukca_config%bl_levels))
-    dtrdz = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(we_lim)) THEN
-    ALLOCATE(we_lim(row_length,rows,ukca_config%nlev_ent_tr_mix))
-    we_lim = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(t_frac)) THEN
-    ALLOCATE(t_frac(row_length,rows,ukca_config%nlev_ent_tr_mix))
-    t_frac = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(zrzi)) THEN
-    ALLOCATE(zrzi(row_length,rows,ukca_config%nlev_ent_tr_mix))
-    zrzi = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(we_lim_dsc)) THEN
-    ALLOCATE(we_lim_dsc(row_length,rows,ukca_config%nlev_ent_tr_mix))
-    we_lim_dsc = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(t_frac_dsc)) THEN
-    ALLOCATE(t_frac_dsc(row_length,rows,ukca_config%nlev_ent_tr_mix))
-    t_frac_dsc = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(zrzi_dsc)) THEN
-    ALLOCATE(zrzi_dsc(row_length,rows,ukca_config%nlev_ent_tr_mix))
-    zrzi_dsc = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(exner_rho_levels)) THEN
-    ALLOCATE(exner_rho_levels(row_length,rows,model_levels+1))
-    exner_rho_levels = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(rho_r2)) THEN
-    ALLOCATE(rho_r2(row_length,rows,model_levels))
-    rho_r2 = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(grid_surf_area)) THEN
-    ALLOCATE(grid_surf_area(row_length,rows))
-    grid_surf_area = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(ext_cg_flash)) THEN
-    ALLOCATE(ext_cg_flash(row_length, rows))
-    ext_cg_flash = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(ext_ic_flash)) THEN
-    ALLOCATE(ext_ic_flash(row_length, rows))
-    ext_ic_flash = 0.0
-  END IF
-  IF ( .NOT. ALLOCATED(grid_area_fullht) ) THEN
-    ALLOCATE(grid_area_fullht(row_length,rows,model_levels))
-    grid_area_fullht = 0.0
-  END IF
+  IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
+    IF (.NOT. ALLOCATED(land_index)) ALLOCATE(land_index(0))
+    IF (.NOT. ALLOCATED(latitude)) THEN
+      ALLOCATE(latitude(row_length,rows))
+      latitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(longitude)) THEN
+      ALLOCATE(longitude(row_length,rows))
+      longitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(sin_latitude)) THEN
+      ALLOCATE(sin_latitude(row_length,rows))
+      sin_latitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(cos_latitude)) THEN
+      ALLOCATE(cos_latitude(row_length,rows))
+      cos_latitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(tan_latitude)) THEN
+      ALLOCATE(tan_latitude(row_length,rows))
+      tan_latitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(zbl)) THEN
+      ALLOCATE(zbl(row_length,rows))
+      zbl(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(ch4_wetl_emiss)) THEN
+      ALLOCATE(ch4_wetl_emiss(row_length,rows))
+      ch4_wetl_emiss(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(seaice_frac)) THEN
+      ALLOCATE(seaice_frac(row_length,rows))
+      seaice_frac(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(u_scalar_10m)) THEN
+      ALLOCATE(u_scalar_10m(row_length,rows))
+      u_scalar_10m(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(tstar)) THEN
+      ALLOCATE(tstar(row_length,rows))
+      tstar(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dms_sea_conc)) THEN
+      ALLOCATE(dms_sea_conc(row_length,rows))
+      dms_sea_conc(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(chloro_sea)) THEN
+      ALLOCATE(chloro_sea(row_length,rows))
+      chloro_sea(:,:) = 0.0
+    END IF
+    IF ( .NOT. ALLOCATED(dust_flux)) THEN
+      ALLOCATE(dust_flux(row_length,rows,glomap_config%n_dust_emissions))
+      dust_flux(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(kent)) THEN
+      ALLOCATE(kent(row_length,rows))
+      kent = 0
+    END IF
+    IF (.NOT. ALLOCATED(kent_dsc)) THEN
+      ALLOCATE(kent_dsc(row_length,rows))
+      kent_dsc = 0
+    END IF
+    IF (.NOT. ALLOCATED(zhsc)) THEN
+      ALLOCATE(zhsc(row_length,rows))
+      zhsc = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(rhokh_rdz)) THEN
+      ALLOCATE(rhokh_rdz(row_length,rows,ukca_config%bl_levels))
+      rhokh_rdz = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dtrdz)) THEN
+      ALLOCATE(dtrdz(row_length,rows,ukca_config%bl_levels))
+      dtrdz = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(we_lim)) THEN
+      ALLOCATE(we_lim(row_length,rows,ukca_config%nlev_ent_tr_mix))
+      we_lim = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(t_frac)) THEN
+      ALLOCATE(t_frac(row_length,rows,ukca_config%nlev_ent_tr_mix))
+      t_frac = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(zrzi)) THEN
+      ALLOCATE(zrzi(row_length,rows,ukca_config%nlev_ent_tr_mix))
+      zrzi = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(we_lim_dsc)) THEN
+      ALLOCATE(we_lim_dsc(row_length,rows,ukca_config%nlev_ent_tr_mix))
+      we_lim_dsc = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(t_frac_dsc)) THEN
+      ALLOCATE(t_frac_dsc(row_length,rows,ukca_config%nlev_ent_tr_mix))
+      t_frac_dsc = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(zrzi_dsc)) THEN
+      ALLOCATE(zrzi_dsc(row_length,rows,ukca_config%nlev_ent_tr_mix))
+      zrzi_dsc = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(exner_rho_levels)) THEN
+      ALLOCATE(exner_rho_levels(row_length,rows,model_levels+1))
+      exner_rho_levels = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(rho_r2)) THEN
+      ALLOCATE(rho_r2(row_length,rows,model_levels))
+      rho_r2 = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(grid_surf_area)) THEN
+      ALLOCATE(grid_surf_area(row_length,rows))
+      grid_surf_area = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(conv_cloud_base)) THEN
+      ALLOCATE(conv_cloud_base(row_length,rows))
+      conv_cloud_base(:,:)=0
+    END IF
+    IF (.NOT. ALLOCATED(conv_cloud_top)) THEN
+      ALLOCATE(conv_cloud_top(row_length,rows))
+      conv_cloud_top(:,:)=0
+    END IF
+    IF (.NOT. ALLOCATED(ext_cg_flash)) THEN
+      ALLOCATE(ext_cg_flash(row_length, rows))
+      ext_cg_flash = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(ext_ic_flash)) THEN
+      ALLOCATE(ext_ic_flash(row_length, rows))
+      ext_ic_flash = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dust_div1)) THEN
+      ALLOCATE(dust_div1(row_length,rows,model_levels))
+      dust_div1(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dust_div2)) THEN
+      ALLOCATE(dust_div2(row_length,rows,model_levels))
+      dust_div2(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dust_div3)) THEN
+      ALLOCATE(dust_div3(row_length,rows,model_levels))
+      dust_div3(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dust_div4)) THEN
+      ALLOCATE(dust_div4(row_length,rows,model_levels))
+      dust_div4(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dust_div5)) THEN
+      ALLOCATE(dust_div5(row_length,rows,model_levels))
+      dust_div5(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(dust_div6)) THEN
+      ALLOCATE(dust_div6(row_length,rows,model_levels))
+      dust_div6(:,:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(grid_area_fullht)) THEN
+      ALLOCATE(grid_area_fullht(row_length,rows,model_levels))
+      grid_area_fullht(:,:,:) = 0.0
+    END IF
+  END IF  ! .NOT. ukca_config%l_ukca_emissions_off
 
   ! Required in calls to chemistry control routines (UKCA_CHEMISTRY_CTL etc.)
   ! but may be unallocated
   IF (do_chemistry) THEN
+    IF (.NOT. ALLOCATED(land_index)) ALLOCATE(land_index(0))
+    IF (.NOT. ALLOCATED(latitude)) THEN
+      ALLOCATE(latitude(row_length,rows))
+      latitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(longitude)) THEN
+      ALLOCATE(longitude(row_length,rows))
+      longitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(sin_latitude)) THEN
+      ALLOCATE(sin_latitude(row_length,rows))
+      sin_latitude(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(tan_latitude)) THEN
+      ALLOCATE(tan_latitude(row_length,rows))
+      tan_latitude(:,:) = 0.0
+    END IF
     IF (.NOT. ALLOCATED(frac_types)) THEN
       ALLOCATE(frac_types(land_points, ukca_config%ntype))
       frac_types(:,:) = 0.0
     END IF
+    IF (.NOT. ALLOCATED(zbl)) THEN
+      ALLOCATE(zbl(row_length,rows))
+      zbl(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(tstar)) THEN
+      ALLOCATE(tstar(row_length,rows))
+      tstar(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(rough_length)) THEN
+      ALLOCATE(rough_length(row_length, rows))
+      rough_length(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(u_s)) THEN
+      ALLOCATE(u_s(row_length, rows))
+      u_s(:,:) = 0.0
+    END IF
     IF (.NOT. ALLOCATED(surf_hf)) THEN
       ALLOCATE(surf_hf(row_length, rows))
       surf_hf(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(seaice_frac)) THEN
+      ALLOCATE(seaice_frac(row_length,rows))
+      seaice_frac(:,:) = 0.0
     END IF
     IF (.NOT. ALLOCATED(stcon)) THEN
       ALLOCATE(stcon(row_length, rows, ukca_config%npft))
@@ -1070,58 +1175,56 @@ IF (ukca_config%l_ukca_chem) THEN
     END IF
   END IF
 
-  ! Dust bin mmrs may not be allocated but are passed to
-  ! ukca_emiss_ctl for nitrate scheme
-  IF (.NOT. ALLOCATED(dust_div1)) THEN
-    ALLOCATE(dust_div1(row_length,rows,model_levels))
-    dust_div1(:,:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dust_div2)) THEN
-    ALLOCATE(dust_div2(row_length,rows,model_levels))
-    dust_div2(:,:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dust_div3)) THEN
-    ALLOCATE(dust_div3(row_length,rows,model_levels))
-    dust_div3(:,:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dust_div4)) THEN
-    ALLOCATE(dust_div4(row_length,rows,model_levels))
-    dust_div4(:,:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dust_div5)) THEN
-    ALLOCATE(dust_div5(row_length,rows,model_levels))
-    dust_div5(:,:,:) = 0.0
-  END IF
-  IF (.NOT. ALLOCATED(dust_div6)) THEN
-    ALLOCATE(dust_div6(row_length,rows,model_levels))
-    dust_div6(:,:,:) = 0.0
-  END IF
-
   ! Required in call to UKCA_AERO_CTL, but may be unallocated
-  IF (.NOT. ALLOCATED(rim_agg)) THEN
-    ALLOCATE(rim_agg(row_length,rows,model_levels))
-    rim_agg=0.0
-  END IF
-  IF (.NOT. ALLOCATED(rim_cry)) THEN
-    ALLOCATE(rim_cry(row_length,rows,model_levels))
-    rim_cry=0.0
-  END IF
-  ! Set to 0.0 if convection is Off
-  IF (.NOT. ALLOCATED(conv_rain3d)) THEN
-    ALLOCATE(conv_rain3d(row_length,rows,model_levels))
-    conv_rain3d(:,:,:)=0.0
-  END IF
-  IF (.NOT. ALLOCATED(conv_snow3d)) THEN
-    ALLOCATE(conv_snow3d(row_length,rows,model_levels))
-    conv_snow3d(:,:,:)=0.0
-  END IF
-  IF (.NOT. ALLOCATED(conv_cloud_base)) THEN
-    ALLOCATE(conv_cloud_base(row_length,rows))
-    conv_cloud_base(:,:)=0
-  END IF
-  IF (.NOT. ALLOCATED(conv_cloud_top)) THEN
-    ALLOCATE(conv_cloud_top(row_length,rows))
-    conv_cloud_top(:,:)=0
+  IF (do_chemistry .AND. ukca_config%l_ukca_mode) THEN
+    IF (.NOT. ALLOCATED(zbl)) THEN
+      ALLOCATE(zbl(row_length,rows))
+      zbl(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(seaice_frac)) THEN
+      ALLOCATE(seaice_frac(row_length,rows))
+      seaice_frac(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(rough_length)) THEN
+      ALLOCATE(rough_length(row_length, rows))
+      rough_length(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(u_s)) THEN
+      ALLOCATE(u_s(row_length, rows))
+      u_s(:,:) = 0.0
+    END IF
+    IF (.NOT. ALLOCATED(ls_rain3d)) THEN
+      ALLOCATE(ls_rain3d(row_length,rows,model_levels))
+      ls_rain3d(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(conv_rain3d)) THEN
+      ALLOCATE(conv_rain3d(row_length,rows,model_levels))
+      conv_rain3d(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(ls_snow3d)) THEN
+      ALLOCATE(ls_snow3d(row_length,rows,model_levels))
+      ls_snow3d(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(conv_snow3d)) THEN
+      ALLOCATE(conv_snow3d(row_length,rows,model_levels))
+      conv_snow3d(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(autoconv)) THEN
+      ALLOCATE(autoconv(row_length,rows,model_levels))
+      autoconv(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(accretion)) THEN
+      ALLOCATE(accretion(row_length,rows,model_levels))
+      accretion(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(rim_agg)) THEN
+      ALLOCATE(rim_agg(row_length,rows,model_levels))
+      rim_agg(:,:,:)=0.0
+    END IF
+    IF (.NOT. ALLOCATED(rim_cry)) THEN
+      ALLOCATE(rim_cry(row_length,rows,model_levels))
+      rim_cry(:,:,:)=0.0
+    END IF
   END IF
 
   ! initialise budget diagnostics at top of routine
@@ -1357,20 +1460,31 @@ IF (ukca_config%l_ukca_chem) THEN
     END DO
   END DO
 
-
   DO k=1,model_levels
     DO j=1,rows
       DO i=1,row_length
         totnodens(i,j,k) = p_theta_levels(i,j,k)                               &
                     /(boltzmann*t_theta_levels(i,j,k))  ! molec/m3
-        conv_ppn3d(i,j,k) = conv_rain3d(i,j,k) + conv_snow3d(i,j,k)
-        ls_ppn3d(i,j,k)   = ls_rain3d  (i,j,k) + ls_snow3d  (i,j,k)
-
-        conv_ppn3d(i,j,k) = MAX(conv_ppn3d(i,j,k), 0.0)
-        ls_ppn3d  (i,j,k) = MAX(ls_ppn3d  (i,j,k), 0.0)
       END DO
     END DO
   END DO
+
+  ! Determine preciptation totals for wet deposition or conservation scheme
+  IF ((.NOT. ukca_config%l_ukca_wetdep_off) .OR.                               &
+      ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.           &
+      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
+    ls_ppn3d(:,:,:)   = ls_rain3d  (:,:,:) + ls_snow3d  (:,:,:)
+    ls_ppn3d(:,:,:)   = MAX(ls_ppn3d  (:,:,:), 0.0)
+    IF (ukca_config%l_param_conv) THEN
+      conv_ppn3d(:,:,:) = conv_rain3d(:,:,:) + conv_snow3d(:,:,:)
+      conv_ppn3d(:,:,:) = MAX(conv_ppn3d(:,:,:), 0.0)
+    ELSE
+      conv_ppn3d(:,:,:) = 0.0
+    END IF
+  ELSE
+    ls_ppn3d(:,:,:)   = 0.0
+    conv_ppn3d(:,:,:) = 0.0
+  END IF
 
   !-----------------------------------------------------------------------
   ! Calculate relative humidity (expressed as a fraction) if not provided.
@@ -1628,9 +1742,7 @@ IF (ukca_config%l_ukca_chem) THEN
     ALLOCATE(fland(land_points))
     fland(:)=1.0
   END IF
-END IF   ! If ukca_chem
 
-IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   ! Set up land fraction (required for MODE and DRY DEPN).
   ! Input data fland is a 1D packed array on land points only.
   ! We require a 2D data valid at all points.
@@ -1645,51 +1757,22 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   ! Print out values for debugging
   ! ----------------------------------------------------------------------
 
-  CALL ukca_pr_inputs(l_first_call)
-
-  ! Print values derived locally here
-  IF (l_first_call .AND. PrintStatus >= PrStatus_Oper ) THEN
-    WRITE(umMessage,'(A,I8, 2E12.4)') 'Thick_bl_levels (level 1): ',mype,      &
-      MAXVAL(Thick_bl_levels(:,:,1)),                                          &
-      MINVAL(Thick_bl_levels(:,:,1))
-    CALL umPrint(umMessage,src=RoutineName)
-    DO k=1,model_levels
-      WRITE(umMessage,'(A,I6)') 'LEVEL: ',k
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I8, I6, 2E12.4)') 't_theta_levels: ',mype,k,         &
-        MAXVAL(t_theta_levels(:,:,k)),                                         &
-        MINVAL(t_theta_levels(:,:,k))
-      CALL umPrint(umMessage,src=RoutineName)
-    END DO
-    ! This array is not allocated on jnr
-    IF (ALLOCATED(rel_humid_frac)) THEN
-      DO k=1,model_levels
-        WRITE(umMessage,'(A,I6)') 'WET LEVEL: ',k
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A,I8, I6, 2E12.4)') 'rel_humid_frac: ',mype,k,       &
-            MAXVAL(rel_humid_frac(:,:,k)),                                     &
-            MINVAL(rel_humid_frac(:,:,k))
-        CALL umPrint(umMessage,src=RoutineName)
-      END DO
+  IF (PrintStatus >= PrStatus_Oper) THEN
+    CALL ukca_pr_inputs(timestep_number, environ_ptrs, land_fraction,          &
+                        thick_bl_levels, t_theta_levels, rel_humid_frac,       &
+                        z_half, error_code,                                    &
+                        error_message=error_message,                           &
+                        error_routine=error_routine)
+    IF (error_code > 0) THEN
+      IF (lhook)                                                               &
+        CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+      RETURN
     END IF
-    ! This array may not be allocated
-    IF (ALLOCATED(z_half)) THEN
-      DO k=1,ukca_config%bl_levels
-        WRITE(umMessage,'(A,I6)') 'BL LEVEL: ',k
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A,I8, I6, 2E12.4)') 'z_half:     ',mype,k,           &
-            MAXVAL(z_half(:,:,k)),                                             &
-            MINVAL(z_half(:,:,k))
-        CALL umPrint(umMessage,src=RoutineName)
-      END DO
-    END IF
-    WRITE(umMessage,'(A16,I5,2E12.4)') 'land_fraction: ', mype,                &
-      MAXVAL(land_fraction), MINVAL(land_fraction)
   END IF
 
   !       Warning statements about possible mismatch between interactive
   !       methane emissions and emissions ancillary
-  IF (l_first_call) THEN
+  IF (l_first_call .AND. .NOT. ukca_config%l_ukca_emissions_off) THEN
     emiss_input = 'NetCDF file'
 
     IF (ukca_config%l_ukca_qch4inter .AND.                                     &
@@ -1708,23 +1791,23 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
     END IF
   END IF  ! End of IF (l_first_call)
 
-END IF    ! End of IF (l_ukca_chem .OR. ukca_config%l_ukca_mode)
+END IF    ! End of IF (l_ukca_chem)
 
 ! Set up tile info
-IF (ukca_config%l_ukca_chem .AND. ukca_config%l_ukca_intdd) THEN
-  tile_pts(:) = 0
-  DO n = 1, ukca_config%ntype
-    tile_index(:,n) = 0
-    DO l = 1, land_points
-      IF (l_tile_active(l,n)) THEN
-        tile_pts(n) = tile_pts(n) + 1
-        tile_index(tile_pts(n),n) = l
-      END IF
-    END DO
-  END DO
-ELSE
+IF (ukca_config%l_ukca_chem) THEN
   tile_pts(:) = 0
   tile_index(:,:) = 0
+  IF (ukca_config%l_ukca_intdd) THEN
+    DO n = 1, ukca_config%ntype
+      tile_index(:,n) = 0
+      DO l = 1, land_points
+        IF (l_tile_active(l,n)) THEN
+          tile_pts(n) = tile_pts(n) + 1
+          tile_index(tile_pts(n),n) = l
+        END IF
+      END DO
+    END DO
+  END IF
 END IF
 
 ! ----------------------------------------------------------------------
@@ -1748,8 +1831,7 @@ IF (ukca_config%l_ukca_chem) THEN
 #endif
 
   ! Transform tracers to ensure elemental conservation
-  IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.          &
-      ukca_config%l_ukca_stratcfc .OR. ukca_config%l_ukca_cristrat) THEN
+  IF (ukca_config%l_tracer_lumping) THEN
     CALL ukca_transform_halogen(rows,row_length,model_levels,n_tracers,        &
                                 unlump_species,all_tracers)
   END IF
@@ -1874,8 +1956,9 @@ IF (ukca_config%l_ukca_chem) THEN
   IF (do_chemistry .AND. .NOT. ukca_config%l_ukca_offline_be) THEN
     IF (.NOT. ALLOCATED(env_ozone3d))                                          &
       ALLOCATE(env_ozone3d(row_length,rows,model_levels))
-    IF (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_raq .OR.               &
-          ukca_config%l_ukca_raqaero .OR. ukca_config%l_ukca_tropisop) THEN
+    IF ((ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_raq .OR.              &
+         ukca_config%l_ukca_raqaero .OR. ukca_config%l_ukca_tropisop) .AND.    &
+         ukca_config%nlev_above_trop_o3_env < ukca_config%model_levels) THEN
       IF (SIZE(o3_offline, DIM=1) == 1) THEN ! Use zonal avg. (or single column)
         DO i = 1,row_length
           env_ozone3d(i,:,:) = o3_offline(1,:,:)
@@ -1891,100 +1974,107 @@ IF (ukca_config%l_ukca_chem) THEN
   ! ----------------------------------------------------------------------
   ! 4.3 Emissions
   ! ----------------------------------------------------------------------
-    !       Allocate array for wetland ch4 emissions when
-    !       l_ukca_qch4inter is false. Set emissions to zero.
-  IF (.NOT. (ukca_config%l_ukca_qch4inter)) THEN
-    IF (.NOT. ALLOCATED(ch4_wetl_emiss))                                       &
-      ALLOCATE(ch4_wetl_emiss(1:row_length,1:rows))
-    ch4_wetl_emiss(:,:) = 0.0
-  END IF
 
-  ! Emission part. Before calling emissions,
-  ! set up array of lower-boundary mixing ratios for stratospheric species.
-  ! If for some species actual emissions (not prescribed lower boundary
-  ! conditions) are required, remove these species from lbc_spec, e.g, for CH4.
-  ! Mass mixing ratios are best estimates, taken from the WMO Scientific
-  ! assessment of ozone depletion (2002), for 2000 conditions.
-  ! H2 corresponds to 0.5 ppmv.
-  ! Select lower boundary MMRs. Either from gui or predefined constants
-  ! Note that for bromine compounds (MeBr, H1211, H1301) are increased
-  ! by 24% to account for non-included species and HBr is set to 0.
+  IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
 
-  IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.           &
-      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
+    ! Emission part. Before calling emissions,
+    ! set up array of lower-boundary mixing ratios for stratospheric species.
+    ! If for some species actual emissions (not prescribed lower boundary
+    ! conditions) are required, remove these species from lbc_spec, e.g., for
+    ! CH4.
+    ! Mass mixing ratios are best estimates, taken from the WMO Scientific
+    ! assessment of ozone depletion (2002), for 2000 conditions.
+    ! H2 corresponds to 0.5 ppmv.
+    ! Select lower boundary MMRs. Either from gui or predefined constants
+    ! Note that for bromine compounds (MeBr, H1211, H1301) are increased
+    ! by 24% to account for non-included species and HBr is set to 0.
 
-    ! LBC code contained within UKCA_SCENARIO_CTL
-    CALL ukca_scenario_ctl(n_boundary_vals, lbc_spec,                          &
-                           i_year, i_day_number, lbc_mmr,                      &
-                           .NOT. ukca_config%l_ukca_stratcfc)
+    IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.         &
+        ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
 
-  END IF    ! l_ukca_strat etc
+      ! LBC code contained within UKCA_SCENARIO_CTL
+      CALL ukca_scenario_ctl(n_boundary_vals, lbc_spec,                        &
+                             i_year, i_day_number, lbc_mmr,                    &
+                             .NOT. ukca_config%l_ukca_stratcfc)
 
-  !       Calculate solar zenith angle
+    END IF
 
-  IF (.NOT. ALLOCATED(cos_zenith_angle))                                       &
-    ALLOCATE(cos_zenith_angle(row_length, rows))
-  IF (.NOT. ALLOCATED(int_zenith_angle))                                       &
-    ALLOCATE(int_zenith_angle(row_length, rows))
+  END IF  ! .NOT. ukca_config%l_ukca_emissions_off
 
-  secondssincemidnight = REAL(i_hour_previous * 3600                           &
-                       +      i_minute_previous * 60                           &
-                       +      i_second_previous)
+  !       Calculate solar zenith angle.
+  !       Cos zenith angle and its integral over the day are required if
+  !       applying a diurnal cycle to offline oxidants and/or to isoprene
+  !       emissions.
 
-  ! Compute COS(sza) integral only when day changes
-  ! i.e. on first timestep of 'next' day, determined by checking
-  ! if previous timestep was fully divisible by timesteps_per_day.
-  IF ( l_first_call .OR.                                                       &
-       MOD(timestep_number-1, ukca_config%timesteps_per_day) == 0 ) THEN
-    int_zenith_angle(:,:) = 0.0
-    secondssincemidnight_sav = secondssincemidnight
-    sindec_sav = sin_declination
-    eq_time_sav = equation_of_time
-    DO kk = 1, (ukca_config%timesteps_per_hour*24)
-      ssmn_incr = secondssincemidnight + ukca_config%timestep*(kk-1)
-      CALL ukca_solang(sin_declination, ssmn_incr,                             &
-                       ukca_config%timestep, equation_of_time,                 &
-                       sin_latitude,                                           &
-                       cos_latitude,                                           &
-                       longitude,                                              &
-                       theta_field_size, cos_zenith_angle)
+  IF (ukca_config%l_ukca_offline .OR. ukca_config%l_ukca_offline_be .OR.       &
+      (ukca_config%l_diurnal_isopems .AND.                                     &
+       .NOT. ukca_config%l_ukca_emissions_off)) THEN
 
-      WHERE (cos_zenith_angle > 0.0)
-        int_zenith_angle(:,:) = int_zenith_angle(:,:) +                        &
-           cos_zenith_angle(:,:) * ukca_config%timestep
-      END WHERE
-    END DO
-  END IF
+    IF (.NOT. ALLOCATED(cos_zenith_angle))                                     &
+      ALLOCATE(cos_zenith_angle(row_length, rows))
+    IF (.NOT. ALLOCATED(int_zenith_angle))                                     &
+      ALLOCATE(int_zenith_angle(row_length, rows))
 
-  ! Compute COS(sza) integral every timestep if persistence is off
-  ! using saved values from when day changes or first timestep
-  IF ( ukca_config%l_ukca_persist_off .AND. .NOT. (l_first_call .OR.           &
-       MOD(timestep_number-1, ukca_config%timesteps_per_day) == 0) ) THEN
-    int_zenith_angle(:,:) = 0.0
-    DO kk = 1, (ukca_config%timesteps_per_hour*24)
-      ssmn_incr = secondssincemidnight_sav + ukca_config%timestep*(kk-1)
-      CALL ukca_solang(sindec_sav, ssmn_incr,                                  &
-                       ukca_config%timestep, eq_time_sav,                      &
-                       sin_latitude,                                           &
-                       cos_latitude,                                           &
-                       longitude,                                              &
-                       theta_field_size, cos_zenith_angle)
+    secondssincemidnight = REAL(i_hour_previous * 3600                         &
+                         +      i_minute_previous * 60                         &
+                         +      i_second_previous)
 
-      WHERE (cos_zenith_angle > 0.0)
-        int_zenith_angle(:,:) = int_zenith_angle(:,:) +                        &
-           cos_zenith_angle(:,:) * ukca_config%timestep
-      END WHERE
-    END DO
-  END IF
+    ! Compute COS(sza) integral only when day changes
+    ! i.e. on first timestep of 'next' day, determined by checking
+    ! if previous timestep was fully divisible by timesteps_per_day.
+    IF ( l_first_call .OR.                                                     &
+         MOD(timestep_number-1, ukca_config%timesteps_per_day) == 0 ) THEN
+      int_zenith_angle(:,:) = 0.0
+      secondssincemidnight_sav = secondssincemidnight
+      sindec_sav = sin_declination
+      eq_time_sav = equation_of_time
+      DO kk = 1, (ukca_config%timesteps_per_hour*24)
+        ssmn_incr = secondssincemidnight + ukca_config%timestep*(kk-1)
+        CALL ukca_solang(sin_declination, ssmn_incr,                           &
+                         ukca_config%timestep, equation_of_time,               &
+                         sin_latitude,                                         &
+                         cos_latitude,                                         &
+                         longitude,                                            &
+                         theta_field_size, cos_zenith_angle)
 
-  ! This call needs to be after above loops to prevent errors with value in
-  !  cos_zenith_angle
-  CALL ukca_solang(sin_declination, secondssincemidnight,                      &
-              ukca_config%timestep, equation_of_time,                          &
-              sin_latitude,                                                    &
-              cos_latitude,                                                    &
-              longitude,                                                       &
-              theta_field_size, cos_zenith_angle )
+        WHERE (cos_zenith_angle > 0.0)
+          int_zenith_angle(:,:) = int_zenith_angle(:,:) +                      &
+            cos_zenith_angle(:,:) * ukca_config%timestep
+        END WHERE
+      END DO
+    END IF
+
+    ! Compute COS(sza) integral every timestep if persistence is off
+    ! using saved values from when day changes or first timestep
+    IF ( ukca_config%l_ukca_persist_off .AND. .NOT. (l_first_call .OR.         &
+         MOD(timestep_number-1, ukca_config%timesteps_per_day) == 0) ) THEN
+      int_zenith_angle(:,:) = 0.0
+      DO kk = 1, (ukca_config%timesteps_per_hour*24)
+        ssmn_incr = secondssincemidnight_sav + ukca_config%timestep*(kk-1)
+        CALL ukca_solang(sindec_sav, ssmn_incr,                                &
+                         ukca_config%timestep, eq_time_sav,                    &
+                         sin_latitude,                                         &
+                         cos_latitude,                                         &
+                         longitude,                                            &
+                         theta_field_size, cos_zenith_angle)
+
+        WHERE (cos_zenith_angle > 0.0)
+          int_zenith_angle(:,:) = int_zenith_angle(:,:) +                      &
+            cos_zenith_angle(:,:) * ukca_config%timestep
+        END WHERE
+      END DO
+    END IF
+
+    ! This call needs to be after above loops to prevent errors with value in
+    !  cos_zenith_angle
+    CALL ukca_solang(sin_declination, secondssincemidnight,                    &
+                     ukca_config%timestep, equation_of_time,                   &
+                     sin_latitude,                                             &
+                     cos_latitude,                                             &
+                     longitude,                                                &
+                     theta_field_size, cos_zenith_angle )
+
+  END IF  ! ukca_config%l_ukca_offline etc.
 
   IF (ukca_config%l_ukca_offline .OR. ukca_config%l_ukca_offline_be) THEN
     ! Compute COS(sza) integral and daylength, also stores cos(zenith) for
@@ -1999,12 +2089,20 @@ IF (ukca_config%l_ukca_chem) THEN
 
   ! Option to turn off emissions e.g. in UKCA box model
   IF (ukca_config%l_ukca_emissions_off) THEN
+
     IF (printstatus >= prstatus_oper) THEN
       WRITE(umMessage,'(A)')                                                   &
           'UKCA_MAIN1, NOT Calling ukca_emiss_ctl'
       CALL umPrint(umMessage,src=RoutineName)
     END IF
+
   ELSE
+
+    IF (.NOT. ALLOCATED(cos_zenith_angle))                                     &
+      ALLOCATE(cos_zenith_angle(row_length, rows))
+    IF (.NOT. ALLOCATED(int_zenith_angle))                                     &
+      ALLOCATE(int_zenith_angle(row_length, rows))
+
     ! Read emission fields and calculate online emissions, fill in
     ! the emissions structure, inject emissions, do tracer mixing and
     ! finally output emission diagnostics.
@@ -2030,8 +2128,10 @@ IF (ukca_config%l_ukca_chem) THEN
         ext_cg_flash, ext_ic_flash,                                            &
         SIZE(stashwork38), stashwork38,                                        &
         SIZE(stashwork50), stashwork50)
+
   END IF ! l_ukca_emissions_off
 
+  IF (ALLOCATED(cos_zenith_angle)) DEALLOCATE(cos_zenith_angle)
 
   IF (L_asad_use_chem_diags .AND. L_asad_use_mass_diagnostic)                  &
        CALL asad_mass_diagnostic(                                              &
@@ -2072,16 +2172,6 @@ IF (ukca_config%l_ukca_chem) THEN
            all_tracers(:,:,:,1:n_chem_tracers),                                &
            totnodens, volume, ukca_config%timestep,                            &
            calculate_tendency, l_store_value, ierr)
-
-    IF (interval > 1) THEN
-       ! MAY NEED TO CALL A SECOND TIME TO HAVE CORRECT MEANING PERIOD
-      CALL ukca_solang(sin_declination, secondssincemidnight,                  &
-           REAL(ukca_config%chem_timestep), equation_of_time,                  &
-           sin_latitude,                                                       &
-           cos_latitude,                                                       &
-           longitude,                                                          &
-           theta_field_size, cos_zenith_angle )
-    END IF
 
     IF (ukca_config%l_ukca_mode) THEN
       IF (ukca_config%l_ukca_aerchem) THEN
@@ -2173,7 +2263,7 @@ IF (ukca_config%l_ukca_chem) THEN
       CALL ukca_calc_cloud_ph(                                                 &
               all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),              &
               row_length, rows, model_levels,                                  &
-              p_theta_levels, t_chem, latitude, longitude, H_plus_3d_arr)
+              p_theta_levels, t_chem, H_plus_3d_arr)
 
       WRITE(umMessage,'(A)') 'Finished Interactive Cloud pH routine'
       CALL umPrint(umMessage,src=RoutineName)
@@ -2301,9 +2391,18 @@ IF (ukca_config%l_ukca_chem) THEN
          ! Aerosol mmr / numbers (from CLASSIC aerosol scheme) are only
          ! used by the RAQ chemistry scheme if heterogeneous chemistry
          ! is ON. Even if that functionality is OFF they need to be
-         ! allocated before the call to UKCA_CHEMISTRY_CTL. Note that
-         ! so4_aitken and so4_accum (also used for heterogeneous
-         ! chemistry) are allocated somewhere else in this routine.
+         ! allocated before the call to UKCA_CHEMISTRY_CTL.
+
+        IF (.NOT. ALLOCATED(so4_aitken)) THEN
+          ALLOCATE(so4_aitken(row_length,rows,model_levels))
+          so4_aitken(:,:,:) = min_SO4_val
+        END IF
+
+        IF (.NOT. ALLOCATED(so4_accum)) THEN
+          ALLOCATE(so4_accum(row_length,rows,model_levels))
+          so4_accum(:,:,:) = min_SO4_val
+        END IF
+
         IF (.NOT. ALLOCATED(soot_fresh))                                       &
             ALLOCATE (soot_fresh (row_length, rows, model_levels))
 
@@ -2405,7 +2504,6 @@ IF (ukca_config%l_ukca_chem) THEN
       END IF
     END IF
 
-    IF (ALLOCATED(cos_zenith_angle)) DEALLOCATE(cos_zenith_angle)
     IF (ALLOCATED(t_chem)) DEALLOCATE(t_chem)
     IF (ALLOCATED(q_chem)) DEALLOCATE(q_chem)
 
@@ -2457,8 +2555,7 @@ IF (ukca_config%l_ukca_chem) THEN
                            calculate_tendency,l_store_value,ierr)
 
   ! Transform halogen/nitrogen/hydrogen species back
-  IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.          &
-      ukca_config%l_ukca_stratcfc .OR. ukca_config%l_ukca_cristrat) THEN
+  IF (ukca_config%l_tracer_lumping) THEN
 
     ! first, copy unlumped NO2, BrO and HCl fields into all_ntp structure
 
@@ -2828,12 +2925,9 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
                  ukca_config%timestep, calculate_STE, l_store_value, ierr)
   END IF
 
-END IF ! l_ukca_enable_diag_um .AND. l_ukca_chem
-
-! ----------------------------------------------------------------------
-! 5.2.6 Grid-cell volume. Needs to be outside of IF(ukca_chem) section
-! ----------------------------------------------------------------------
-IF (ukca_config%l_enable_diag_um) THEN
+  ! ----------------------------------------------------------------------
+  ! 5.2.6 Grid-cell volume.
+  ! ----------------------------------------------------------------------
   section = ukca_diag_sect
   item = 255
   IF (sf(item,ukca_diag_sect) .AND. ALLOCATED(volume)) THEN

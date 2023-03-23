@@ -567,16 +567,14 @@ INTEGER :: nzts
 ! No. of condensation-nucleation competition sub-steps per DTM
 INTEGER :: iextra_checks
 ! Level of protection against bad MDT values following advection
-INTEGER, PARAMETER :: rainout_on=1
+INTEGER :: rainout_on
 ! Switch for whether rainout (nucl. scav.) is on/off
-INTEGER, PARAMETER :: imscav_on=1
+INTEGER :: imscav_on
 ! Switch for whether impaction scavenging is on/off
 INTEGER, PARAMETER :: wetox_on=1
 ! Switch for whether wet oxidation (cloud processing) is on/off
 INTEGER :: ddepaer_on
 ! Switch for whether aerosol dry deposition is on/off
-! Now set from input logical l_ddepaer so it can be turned off by the
-! parent model via the ukca_setup call
 INTEGER, PARAMETER :: sedi_on=1
 ! Switch for whether aerosol sedimentation is on/off
 INTEGER, PARAMETER :: iso2wetoxbyo3=1
@@ -789,13 +787,6 @@ IF (verbose >= 2) THEN
   END DO
 END IF
 
-! Set whether or not dry deposition of aerosols is on
-IF (glomap_config%l_ddepaer) THEN
-  ddepaer_on=1
-ELSE
-  ddepaer_on=0
-END IF
-
 ! below are the input configuration parameters set for MODE
 
 IF (firstcall .AND. verbose >0 ) THEN
@@ -820,23 +811,45 @@ IF (firstcall .AND. verbose >0 ) THEN
   WRITE(umMessage,'(A25,I6)') 'i_mode_bln_param_method',                       &
                               glomap_config%i_mode_bln_param_method
   CALL umPrint(umMessage,src='ukca_aero_ctl')
-
 END IF
 
-! If new Slinn impaction scavenging scheme is on for dust then turn on flag
-! (input to UKCA_AERO_STEP) and initialise scavenging arrays
+! Set whether or not dry deposition of aerosols is on
+IF (glomap_config%l_ddepaer) THEN
+  ddepaer_on=1
+ELSE
+  ddepaer_on=0
+END IF
 IF (firstcall .AND. verbose > 0) THEN
-  WRITE(umMessage,'(A25,L7)') 'l_dust_slinn_impc_scav:  ',                     &
-                               glomap_config%l_dust_slinn_impc_scav
+  WRITE(umMessage,'(A22,L6,I5)') 'L_DDEPAER,DDEPAER_ON=',                      &
+                                 glomap_config%l_ddepaer, ddepaer_on
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
-l_dust_slinn_impc_scav = glomap_config%l_dust_slinn_impc_scav
-IF (l_dust_slinn_impc_scav) CALL ukca_impc_scav_dust_init(verbose)
+
+! Set whether or not wet deposition (nucleation and impaction scavenging) of
+! aerosols is on
+IF (glomap_config%l_rainout) THEN
+  rainout_on=1
+ELSE
+  rainout_on=0
+END IF
+IF (glomap_config%l_impc_scav) THEN
+  imscav_on=1
+ELSE
+  imscav_on=0
+END IF
+IF (firstcall .AND. verbose > 0) THEN
+  WRITE(umMessage,'(A22,L6,I5)') 'L_RAINOUT,RAINOUT_ON=',                      &
+                                 glomap_config%l_rainout, rainout_on
+  CALL umPrint(umMessage,src='ukca_aero_ctl')
+  WRITE(umMessage,'(A24,L6,I5)') 'L_IMPC_SCAV,IMSCAV_ON=',                     &
+                                 glomap_config%l_impc_scav, imscav_on
+  CALL umPrint(umMessage,src='ukca_aero_ctl')
+END IF
 
 ! set INUCSCAV according to i_mode_nucscav setting
 inucscav = glomap_config%i_mode_nucscav
 IF (firstcall .AND. verbose > 0) THEN
-  WRITE(umMessage,'(A20,2I5)') 'I_MODE_NUCSCAV,INUCSCAV=',                     &
+  WRITE(umMessage,'(A25,2I5)') 'I_MODE_NUCSCAV,INUCSCAV=',                     &
                                 glomap_config%i_mode_nucscav,inucscav
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
@@ -844,11 +857,21 @@ END IF
 ! set LCVRAINOUT according to l_cv_rainout setting
 lcvrainout = glomap_config%l_cv_rainout
 IF (firstcall .AND. verbose > 0) THEN
-  WRITE(umMessage,'(A30,2L6)') 'L_CV_RAINOUT, LCVRAINOUT:',                    &
+  WRITE(umMessage,'(A25,2L6)') 'L_CV_RAINOUT,LCVRAINOUT=',                     &
                                 glomap_config%l_cv_rainout, lcvrainout
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
-!
+
+! If new Slinn impaction scavenging scheme is on for dust then turn on flag
+! (input to UKCA_AERO_STEP) and initialise scavenging arrays
+l_dust_slinn_impc_scav = glomap_config%l_dust_slinn_impc_scav
+IF (firstcall .AND. verbose > 0) THEN
+  WRITE(umMessage,'(A24,L7)') 'L_DUST_SLINN_IMPC_SCAV=',                       &
+                               glomap_config%l_dust_slinn_impc_scav
+  CALL umPrint(umMessage,src='ukca_aero_ctl')
+END IF
+IF (l_dust_slinn_impc_scav) CALL ukca_impc_scav_dust_init(verbose)
+
 ! Set IEXTRA_CHECKS to control checking for unacceptable MDT values
 ! With IEXTRA_CHECKS = 0, code in UKCA_AERO_CTL checks that mdt is above
 ! a minimum value after advection, and then resets nd (aerosol number density)
@@ -871,11 +894,11 @@ IF (firstcall .AND. verbose > 0) THEN
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
 !
+i_mode_act_method=1
 IF (firstcall .AND. verbose > 0) THEN
   WRITE(umMessage,'(A44)') 'setting I_MODE_ACT_METHOD to default value'
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
-i_mode_act_method=1
 !
 ! set IACTMETHOD according to i_mode_act_method setting
 iactmethod=i_mode_act_method
@@ -896,13 +919,10 @@ ELSE
   act = glomap_config%mode_activation_dryr*1.0e-9 ! convert nm to m
 END IF
 
-!
 ! Setting removed fraction of oxidised SO2 to a default of 0
-!
-IF (ABS(glomap_config%mode_incld_so2_rfrac - rmdi) < EPSILON(0.0)) THEN
-  glomap_config%mode_incld_so2_rfrac=0.0
-  WRITE(umMessage,'(A66,F6.3)') 'MODE_INCLD_SO2_RFRAC has not been set'//      &
-           ' setting to default value of ',glomap_config%mode_incld_so2_rfrac
+IF (ABS(glomap_config%mode_incld_so2_rfrac) < EPSILON(0.0)) THEN
+  WRITE(umMessage,'(A57)') 'MODE_INCLD_SO2_RFRAC has been set' //              &
+                           ' to default value of 0.0'
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
 
@@ -915,15 +935,6 @@ IF (firstcall .AND. verbose > 0) THEN
   CALL umPrint(umMessage,src='ukca_aero_ctl')
   WRITE(umMessage,'(A22,E12.3)') 'MODE_INCLD_SO2_RFRAC=',                      &
                                  glomap_config%mode_incld_so2_rfrac
-  CALL umPrint(umMessage,src='ukca_aero_ctl')
-  WRITE(umMessage,'(A16,L7)') 'l_mode_bhn_on=',                                &
-                              glomap_config%l_mode_bhn_on
-  CALL umPrint(umMessage,src='ukca_aero_ctl')
-  WRITE(umMessage,'(A16,L7)') 'l_mode_bln_on=',                                &
-                              glomap_config%l_mode_bln_on
-  CALL umPrint(umMessage,src='ukca_aero_ctl')
-  WRITE(umMessage,'(A26,I0)') 'i_mode_bln_param_method ',                      &
-                              glomap_config%i_mode_bln_param_method
   CALL umPrint(umMessage,src='ukca_aero_ctl')
 END IF
 !
@@ -1270,7 +1281,8 @@ END IF
 !$OMP row_length, rows, sea_ice_frac, scale_delso2, sigmag, log_sigmag,        &
 !$OMP stride_s, temp, u_s, ukcaD1codes, verbose, wetox_in_aer, z0m,            &
 !$OMP z_half_alllevs, zbl,  num_of_threads, nseg_per_thread, seg_remainder,    &
-!$OMP drydiam, iextra_checks, ddepaer_on, verbose_local, lscat_zhang)          &
+!$OMP drydiam, iextra_checks, ddepaer_on, rainout_on, imscav_on,               &
+!$OMP verbose_local, lscat_zhang)                                              &
 !$OMP     PRIVATE(errcode, cmessage, ifirst, dp0,  itra,                       &
 !$OMP jl,  k, l_ukca_segment_uniform, l,  lb,                                  &
 !$OMP logic, logic1, logic2, ncs, nbs,                                         &

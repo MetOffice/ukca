@@ -26,6 +26,8 @@
 !                                      environment fields.
 !     environ_field_available        - Return T or F depending on whether a
 !                                      specific environment field is available.
+!     print_environment_summary      - Writes a summary of the current
+!                                      environment data to the log file.
 !     clear_environment_req          - Resets all data relating to environment
 !                                      data requirement to its initial state
 !                                      for a new UKCA configuration.
@@ -194,13 +196,15 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_lscat_zhang,                                                         &
   fldname_grid_area_fullht
 
-USE ukca_environment_fields_mod, ONLY: environ_field_info,                     &
+USE ukca_environment_fields_mod, ONLY: environ_field_info, environ_field_ptrs, &
                                        l_environ_field_available,              &
-                                       no_bound_value, env_field_info_type
-
+                                       no_bound_value, env_field_info_type,    &
+                                       env_field_ptrs_type
 
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
-                          errcode_env_req_uninit
+                          errcode_env_req_uninit,                              &
+                          errcode_env_field_mismatch,                          &
+                          errcode_value_missing
 
 IMPLICIT NONE
 
@@ -210,7 +214,7 @@ PRIVATE
 PUBLIC init_environment_req, ukca_get_environment_varlist,                     &
        ukca_get_envgroup_varlists, environ_field_index,                        &
        check_environment_availability, environ_field_available,                &
-       clear_environment_req
+       print_environment_summary, clear_environment_req
 
 ! Public flag for use within UKCA to indicate whether the environment fields
 ! requirement has been initialised
@@ -360,12 +364,16 @@ SUBROUTINE init_environment_req(ukca_config, glomap_config, speci, advt,       &
 USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
                                          glomap_config_spec_type,              &
                                          i_ukca_fastjx,                        &
+                                         i_ukca_photol_strat,                  &
                                          i_ukca_nophot,                        &
                                          i_light_param_pr,                     &
                                          i_light_param_luhar,                  &
                                          i_strat_lbc_env,                      &
+                                         i_strat_lbc_off,                      &
                                          i_ukca_activation_arg,                &
-                                         i_light_param_ext
+                                         i_light_param_ext,                    &
+                                         i_light_param_off,                    &
+                                         i_top_bc
 
 USE ukca_chem_defs_mod, ONLY: ratj_defs
 ! Need ratj_defs to calculate the dimensions of photol_rates array
@@ -373,6 +381,8 @@ USE ukca_chem_defs_mod, ONLY: ratj_defs
 USE ukca_um_legacy_mod, ONLY: tdims
 !!!! tdims required to replicate results impacted by cloud_frac level offset
 !!!! bug pending removal of temporary logical l_fix_ukca_cloud_frac
+
+USE missing_data_mod, ONLY: imdi
 
 IMPLICIT NONE
 
@@ -406,6 +416,9 @@ TYPE(env_field_info_type) :: fld_info(n_max)
 ! Default values for field info
 TYPE(env_field_info_type) :: fld_info_default
 
+! Requirement for solar angle calculations
+LOGICAL :: l_solang
+
 ! Requirement for external lower BC values for a stratospheric chemistry scheme
 LOGICAL :: l_req_strat_lbc
 
@@ -432,6 +445,7 @@ IF (l_environ_req_available) CALL clear_environment_req()
 IF (.NOT. ukca_config%l_ukca_chem) THEN
   ALLOCATE(environ_field_varnames(0))
   ALLOCATE(environ_field_info(0))
+  ALLOCATE(environ_field_ptrs(0))
   ALLOCATE(l_environ_field_available(0))
   l_environ_req_available = .TRUE.
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -465,17 +479,36 @@ fld_info(:) = fld_info_default
 ! are set. If the parent calls 'ukca_set_environment' for fields in the order
 ! listed, the order of the groups ensures that this dependency is satisfied.
 
+! Set logical to show whether solar angle calculations are required.
+! These are required for application of a diurnal cycle to offline oxidants
+! if offline oxidants chemistry is selected or to isoprene emissions.
+! They are also required for photolysis if Fast-JX and/or stratospheric
+! photolysis scheme is used. This is temporary pending completion of the
+! separation of photolysis from UKCA. (In that case, they are not used
+! internally.)
+l_solang = ukca_config%l_ukca_offline .OR. ukca_config%l_ukca_offline_be .OR.  &
+           (ukca_config%l_diurnal_isopems .AND.                                &
+            .NOT. ukca_config%l_ukca_emissions_off) .OR.                       &
+           ukca_config%i_ukca_photol == i_ukca_fastjx .OR.                     &
+           ukca_config%i_ukca_photol == i_ukca_photol_strat
+
+n = 0
+
 ! -- Environmental drivers in scalar group --
 
-n = 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_sin_declination
-  fld_info(n)%group = group_scalar_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_equation_of_time
-  fld_info(n)%group = group_scalar_real
+! Sin(declination) and equation of time are required for solar angle
+! calculations.
+IF (l_solang) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_sin_declination
+    fld_info(n)%group = group_scalar_real
+  END IF
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_equation_of_time
+    fld_info(n)%group = group_scalar_real
+  END IF
 END IF
 
 ! The following scalar gas mixing ratios are required if the option to use an
@@ -693,9 +726,10 @@ END IF  ! l_strat_req_lbc = True
 
 ! -- Environmental drivers in flat grid integer group --
 
-! Entrainment level fields are always required unless tracer updates from
-! emissions and boundary layer mixing are suppressed
-IF (.NOT. ukca_config%l_suppress_ems) THEN
+! Entrainment level fields are always required unless emissions are off or
+! tracer updates from emissions and boundary layer mixing are suppressed
+IF (.NOT. (ukca_config%l_ukca_emissions_off .OR.                               &
+          ukca_config%l_suppress_ems)) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_kent
@@ -710,7 +744,9 @@ END IF
 
 ! Calculation of lightning NOx emissions requires convection diagnostics
 ! e.g. from a parameterized convection scheme in the parent model.
-! These are also required if Fast-JX is used.
+! These are also required for photolysis if Fast-JX is used. This is
+! temporary pending completion of the separation of photolysis from UKCA.
+! (In that case, they are not used internally.)
 IF (ukca_config%i_ukca_light_param == i_light_param_pr .OR.                    &
     ukca_config%i_ukca_light_param == i_light_param_luhar .OR.                 &
     ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
@@ -728,7 +764,7 @@ END IF
 
 ! Index of dominant surface category in grid-box as per Zhang - required for
 ! GLOMAP if logical for 'new' method is On.
-IF (glomap_config%l_improve_aero_drydep .AND. ukca_config%l_ukca_mode) THEN
+IF (glomap_config%l_improve_aero_drydep) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_lscat_zhang
@@ -741,86 +777,151 @@ END IF
 
 n = n + 1
 IF (n <= n_max) THEN
-  fld_names(n) = fldname_latitude
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_longitude
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_sin_latitude
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_cos_latitude
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_tan_latitude
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_tstar
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_zbl
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_rough_length
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_seaice_frac
-  fld_info(n)%group = group_flat_real
-END IF
-n = n + 1
-IF (n <= n_max) THEN
   fld_names(n) = fldname_pstar
   fld_info(n)%group = group_flat_real
 END IF
 
-! Height at top of decoupled stratocumulus layer is always required unless
-! tracer updates from emissions and boundary layer mixing are off
-IF (.NOT. ukca_config%l_suppress_ems) THEN
+! Latitude is required if a top boundary scheme denoted by code 'i_top_bc' or
+! higher is in use. In addition, it is required for calculation of tropopause
+! height (when not using a fixed tropopause level), for both dry and wet
+! deposition (if not switched off) and for any internally calculated lightning
+! emissions.
+IF (ukca_config%i_ukca_topboundary >= i_top_bc .OR.                            &
+    .NOT. (ukca_config%l_fix_tropopause_level .AND.                            &
+          ukca_config%l_ukca_drydep_off .AND.                                  &
+          ukca_config%l_ukca_wetdep_off .AND.                                  &
+          (ukca_config%l_ukca_emissions_off .OR.                               &
+           ukca_config%i_ukca_light_param == i_light_param_off .OR.            &
+           ukca_config%i_ukca_light_param == i_light_param_ext))) THEN
   n = n + 1
   IF (n <= n_max) THEN
-    fld_names(n) = fldname_zhsc
+    fld_names(n) = fldname_latitude
     fld_info(n)%group = group_flat_real
   END IF
 END IF
 
-! Surface sensible heat flux is required if using the interactive
-! dry deposition scheme
-IF (ukca_config%l_ukca_intdd) THEN
+! Longitude is always required unless emissions are off since it may be
+! required for applying hourly scaling to emissions in general or applying a
+! diurnal cycle to isoprene emissions.
+! If emissions are off, it is still required if solar angle calculations are
+! needed (i.e. for application of a diurnal cycle to offline oxidants when
+! offline oxidants chemistry is selected) or for dry deposition when using
+! the non-interactive scheme.
+IF ((.NOT. ukca_config%l_ukca_emissions_off) .OR. l_solang .OR.                &
+    .NOT. (ukca_config%l_ukca_intdd .OR. ukca_config%l_ukca_drydep_off)) THEN
   n = n + 1
   IF (n <= n_max) THEN
-    fld_names(n) = fldname_surf_hf
+    fld_names(n) = fldname_longitude
     fld_info(n)%group = group_flat_real
   END IF
 END IF
 
-! Surface wetness can impact dry deposition
-IF (ukca_config%l_ukca_dry_dep_so2wet) THEN
+! Cos(latitude) is required for solar angle calculations
+IF (l_solang) THEN
   n = n + 1
   IF (n <= n_max) THEN
-    fld_names(n) = fldname_surf_wetness
+    fld_names(n) = fldname_cos_latitude
     fld_info(n)%group = group_flat_real
   END IF
 END IF
 
-! Convective cloud liquid water path and surface albedo are required
-! if using Fast-JX photolysis
+! Sin(latitude) is required for solar angle calculations.
+! It is also required if the interactive dry deposition scheme is selected.
+IF (l_solang .OR. ukca_config%l_ukca_intdd) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_sin_latitude
+    fld_info(n)%group = group_flat_real
+  END IF
+END IF
+
+! Tan(latitude) is required for solar angle calculations.
+! It is also required for dry deposition when using the non-interactive scheme.
+IF (l_solang .OR.                                                              &
+    .NOT. (ukca_config%l_ukca_intdd .OR. ukca_config%l_ukca_drydep_off)) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_tan_latitude
+    fld_info(n)%group = group_flat_real
+  END IF
+END IF
+
+! Boundary layer height is required for dry deposition if using the interactive
+! scheme, for the GLOMAP-mode boundary layer nucleation scheme (if active) or
+! for emissions unless tracer updates from emissions and boundary layer mixing
+! are suppressed
+IF (ukca_config%l_ukca_intdd .OR. glomap_config%l_mode_bln_on .OR.             &
+    .NOT. (ukca_config%l_ukca_emissions_off .OR.                               &
+           ukca_config%l_suppress_ems)) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_zbl
+    fld_info(n)%group = group_flat_real
+  END IF
+END IF
+
+! Surface temperature is required for dry deposition or marine DMS emissions
+IF ((.NOT. ukca_config%l_ukca_drydep_off) .OR. ukca_config%l_seawater_dms) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_tstar
+    fld_info(n)%group = group_flat_real
+  END IF
+END IF
+
+! Sea ice fraction is required for dry deposition if using the interactive
+! scheme or if GLOMAP-mode dry deposition is active without the surface type
+! being supplied by the parent. It is also required if marine DMS emissions or
+! sea-salt emissions are on.
+IF (ukca_config%l_ukca_intdd .OR.                                              &
+    (glomap_config%l_ddepaer .AND.                                             &
+    .NOT. glomap_config%l_improve_aero_drydep) .OR.                            &
+    ukca_config%l_seawater_dms .OR. glomap_config%l_ukca_primss) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_seaice_frac
+    fld_info(n)%group = group_flat_real
+  END IF
+END IF
+
+! Fields in flat real group that are required for dry deposition
+IF (.NOT. ukca_config%l_ukca_drydep_off) THEN
+
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_rough_length
+    fld_info(n)%group = group_flat_real
+  END IF
+
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_u_s
+    fld_info(n)%group = group_flat_real
+  END IF
+
+  ! Surface sensible heat flux is required if using the interactive
+  ! dry deposition scheme and surface wetness is also required if its
+  ! impact on dry deposition is to be considered
+  IF (ukca_config%l_ukca_intdd) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_surf_hf
+      fld_info(n)%group = group_flat_real
+    END IF
+    IF (ukca_config%l_ukca_dry_dep_so2wet) THEN
+      n = n + 1
+      IF (n <= n_max) THEN
+        fld_names(n) = fldname_surf_wetness
+        fld_info(n)%group = group_flat_real
+      END IF
+    END IF
+  END IF
+
+END IF  ! .NOT. ukca_config%l_ukca_drydep_off
+
+! Convective cloud liquid water path and surface albedo are required for
+! for photolysis if Fast-JX is used. This is temporary pending completion of
+! the separation of photolysis from UKCA. (They are not used internally.)
 IF (ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
   n = n + 1
   IF (n <= n_max) THEN
@@ -834,104 +935,123 @@ IF (ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
   END IF
 END IF
 
-! 10m wind speed is required if seawater-DMS or sea-salt emissions are enabled
-IF (ukca_config%l_seawater_dms .OR. glomap_config%l_ukca_primss) THEN
-  n = n + 1
-  IF (n <= n_max) THEN
-    fld_names(n) = fldname_u_scalar_10m
-    fld_info(n)%group = group_flat_real
-  END IF
-END IF
+! Fields in flat grid real group that are required for emissions
+IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
 
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_u_s
-  fld_info(n)%group = group_flat_real
-END IF
-
-! Gridbox surface area is required for lightning emissions, for application
-! of lower boundary conditions in stratospheric chemistry schemes, for
-! emissions diagnostics and for converting offline emissions provided in
-! gridbox units.
-IF (ukca_config%i_ukca_light_param == i_light_param_pr .OR.                    &
-    ukca_config%i_ukca_light_param == i_light_param_luhar .OR.                 &
-    ukca_config%l_enable_diag_um .OR.                                          &
-    ukca_config%l_support_ems_gridbox_units) THEN
-  n = n + 1
-  IF (n <= n_max) THEN
-    fld_names(n) = fldname_grid_surf_area
-    fld_info(n)%group = group_flat_real
-  END IF
-END IF
-
-! CH4 wetland flux is required for online wetland CH4 emissions option
-IF (ukca_config%l_ukca_qch4inter) THEN
-  n = n + 1
-  IF (n <= n_max) THEN
-    fld_names(n) = fldname_ch4_wetl_emiss
-    fld_info(n)%group = group_flat_real
-  END IF
-END IF
-
-! DMS conc. in seawater is required if marine DMS emissions are to be modelled
-IF (ukca_config%l_seawater_dms) THEN
-  n = n + 1
-  IF (n <= n_max) THEN
-    fld_names(n) = fldname_dms_sea_conc
-    fld_info(n)%group = group_flat_real
-  END IF
-END IF
-
-! Ocean near-surface chlorophyll required if online marine organic carbon
-! emissions are on in GLOMAP-mode
-IF (glomap_config%l_ukca_prim_moc) THEN
-  n = n + 1
-  IF (n <= n_max) THEN
-    fld_names(n) = fldname_chloro_sea
-    fld_info(n)%group = group_flat_real
-  END IF
-END IF
-
-! Dust emissions by size bin are required if dust is modelled in GLOMAP-mode
-IF (glomap_config%l_ukca_primdu) THEN
-  n = n + glomap_config%n_dust_emissions
-  IF (n <= n_max) THEN
-    IF (glomap_config%n_dust_emissions == 6) THEN
-      fld_names(n-5) = fldname_dust_flux_div1
-      fld_names(n-4) = fldname_dust_flux_div2
-      fld_names(n-3) = fldname_dust_flux_div3
-      fld_names(n-2) = fldname_dust_flux_div4
-      fld_names(n-1) = fldname_dust_flux_div5
-      fld_names(n) = fldname_dust_flux_div6
-      fld_info(n-5:n)%group = group_flat_real
-    ELSE
-      error_code = errcode_env_req_uninit
-      IF (PRESENT(error_message)) error_message =                              &
-        'Unexpected number of dust emissions required'
-      IF (PRESENT(error_routine)) error_routine = RoutineName
-      IF (lhook)                                                               &
-        CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-      RETURN
+  ! Height at top of decoupled stratocumulus layer is always required for
+  ! emissions unless tracer updates from emissions and boundary layer mixing
+  ! are suppressed
+  IF (.NOT. ukca_config%l_suppress_ems) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_zhsc
+      fld_info(n)%group = group_flat_real
     END IF
   END IF
-END IF
 
-! External lightning flash sources
-IF (ukca_config%i_ukca_light_param == i_light_param_ext) THEN
-  n = n + 2
-  IF (n <= n_max) THEN
-    fld_names(n-1) = fldname_ext_cg_flash
-    fld_names(n)   = fldname_ext_ic_flash
-    fld_info(n-1:n)%group = group_flat_real
-  END IF ! n <= n_max
-END IF ! ukca_config
+  ! 10m wind speed is required if seawater-DMS or sea-salt emissions are enabled
+  IF (ukca_config%l_seawater_dms .OR. glomap_config%l_ukca_primss) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_u_scalar_10m
+      fld_info(n)%group = group_flat_real
+    END IF
+  END IF
+
+  ! Gridbox surface area is required for lightning emissions, for application
+  ! of lower boundary conditions in stratospheric chemistry schemes, for
+  ! emissions diagnostics and for converting offline emissions provided in
+  ! gridbox units.
+  IF (ukca_config%i_ukca_light_param /= i_light_param_off .OR.                 &
+      (ukca_config%i_strat_lbc_source /= imdi .AND.                            &
+       ukca_config%i_strat_lbc_source /= i_strat_lbc_off) .OR.                 &
+      ukca_config%l_enable_diag_um .OR.                                        &
+      ukca_config%l_support_ems_gridbox_units) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_grid_surf_area
+      fld_info(n)%group = group_flat_real
+    END IF
+  END IF
+
+  ! CH4 wetland flux is required for online wetland CH4 emissions option
+  IF (ukca_config%l_ukca_qch4inter) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_ch4_wetl_emiss
+      fld_info(n)%group = group_flat_real
+    END IF
+  END IF
+
+  ! DMS conc. in seawater is required if marine DMS emissions are to be modelled
+  IF (ukca_config%l_seawater_dms) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_dms_sea_conc
+      fld_info(n)%group = group_flat_real
+    END IF
+  END IF
+
+  ! Ocean near-surface chlorophyll required if online marine organic carbon
+  ! emissions are on in GLOMAP-mode
+  IF (glomap_config%l_ukca_prim_moc) THEN
+    n = n + 1
+    IF (n <= n_max) THEN
+      fld_names(n) = fldname_chloro_sea
+      fld_info(n)%group = group_flat_real
+    END IF
+  END IF
+
+  ! Dust emissions by size bin are required if dust is modelled in GLOMAP-mode
+  IF (glomap_config%l_ukca_primdu) THEN
+    n = n + glomap_config%n_dust_emissions
+    IF (n <= n_max) THEN
+      IF (glomap_config%n_dust_emissions == 6) THEN
+        fld_names(n-5) = fldname_dust_flux_div1
+        fld_names(n-4) = fldname_dust_flux_div2
+        fld_names(n-3) = fldname_dust_flux_div3
+        fld_names(n-2) = fldname_dust_flux_div4
+        fld_names(n-1) = fldname_dust_flux_div5
+        fld_names(n) = fldname_dust_flux_div6
+        fld_info(n-5:n)%group = group_flat_real
+      ELSE
+        error_code = errcode_env_req_uninit
+        IF (PRESENT(error_message)) error_message =                            &
+          'Unexpected number of dust emissions required'
+        IF (PRESENT(error_routine)) error_routine = RoutineName
+        IF (lhook)                                                             &
+          CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+        RETURN
+      END IF
+    END IF
+  END IF
+
+  ! External lightning flash sources
+  IF (ukca_config%i_ukca_light_param == i_light_param_ext) THEN
+    n = n + 2
+    IF (n <= n_max) THEN
+      fld_names(n-1) = fldname_ext_cg_flash
+      fld_names(n)   = fldname_ext_ic_flash
+      fld_info(n-1:n)%group = group_flat_real
+    END IF
+  END IF
+
+END IF  !.NOT. ukca_config%l_ukca_emissions_off
 
 ! -- Environmental drivers in flat grid logical group --
 
-n = n + 1
-IF (n <= n_max) THEN
-  fld_names(n) = fldname_land_sea_mask
-  fld_info(n)%group = group_flat_logical
+! Land-sea mask is required for emissions, interactive dry deposition acheme
+! and aerosol dry deposition.
+! It is also required for photolysis if Fast-JX is used. This is
+! temporary pending completion of the separation of photolysis from UKCA.
+IF ((.NOT. ukca_config%l_ukca_emissions_off) .OR.                              &
+    ukca_config%l_ukca_intdd .OR. glomap_config%l_ddepaer .OR.                 &
+    ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_land_sea_mask
+    fld_info(n)%group = group_flat_logical
+  END IF
 END IF
 
 ! -- Environmental drivers in flat grid plant functional type tile group --
@@ -958,8 +1078,6 @@ IF (n <= n_max) fld_names(n) = fldname_qcf
 n = n + 1
 IF (n <= n_max) fld_names(n) = fldname_qcl
 n = n + 1
-IF (n <= n_max) fld_names(n) = fldname_cloud_liq_frac
-n = n + 1
 IF (n <= n_max) fld_names(n) = fldname_exner_theta_levels
 n = n + 1
 IF (n <= n_max) fld_names(n) = fldname_p_rho_levels
@@ -974,21 +1092,14 @@ IF (n <= n_max) THEN
     !!!! pending removal of temporary logical l_fix_ukca_cloud_frac
   END IF
 END IF
-n = n + 1
-IF (n <= n_max) fld_names(n) = fldname_ls_rain3d
-n = n + 1
-IF (n <= n_max) fld_names(n) = fldname_ls_snow3d
-n = n + 1
-IF (n <= n_max) fld_names(n) = fldname_autoconv
-n = n + 1
-IF (n <= n_max) fld_names(n) = fldname_accretion
 
-! This field is always required unless tracer updates from emissions and
-! boundary layer mixing are suppressed.
-! It is required anyway if nitrate emissions are produced, if PSC
-! heterogeneous chemistry is used with climatological surface area and
-! CLASSIC SO4 or if plume scavenging diagnostics are enabled.
-IF ((.NOT. ukca_config%l_suppress_ems) .OR.                                    &
+! This field is always required unless emissions are off or tracer updates
+! from emissions and boundary layer mixing are suppressed.
+! It is required anyway if nitrate emissions are produced (irrespective of
+! whether emissions updates are suppressed) or if PSC heterogeneous chemistry
+! is used with climatological surface area and CLASSIC SO4.
+IF ((.NOT. (ukca_config%l_ukca_emissions_off .OR.                              &
+           ukca_config%l_suppress_ems)) .OR.                                   &
     glomap_config%l_ukca_fine_no3_prod .OR.                                    &
     glomap_config%l_ukca_coarse_no3_prod .OR.                                  &
     (ukca_config%l_ukca_het_psc .AND. ukca_config%l_ukca_sa_clim .AND.         &
@@ -997,15 +1108,16 @@ IF ((.NOT. ukca_config%l_suppress_ems) .OR.                                    &
   IF (n <= n_max) fld_names(n) = fldname_rho_r2
 END IF
 
-! Potential vorticty is always required unless the option to use an arbitrary
+! Potential vorticity is always required unless the option to use an arbitrary
 ! fixed tropopause level is selected
 IF (.NOT. ukca_config%l_fix_tropopause_level) THEN
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_pv_on_theta_mlevs
 END IF
 
-! Convective cloud amount and cloud fraction are required if using Fast-JX
-! photolysis
+! Convective cloud amount and cloud fraction are required for photolysis
+! if Fast-JX is used. This is temporary pending completion of the separation
+! of photolysis from UKCA. (They are not used internally.)
 IF (ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_conv_cloud_amount
@@ -1014,13 +1126,26 @@ IF (ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
        !!!! WARNING This field may be updated internally (before Fast-JX call)
 END IF
 
-! Convection diagnostics are required if parameterized convection is used in
-! the parent model
-IF (ukca_config%l_param_conv) THEN
+! Precipitation fields are required for wet deposition or for conservation of
+! certain species if running a stratospheric scheme
+IF ((.NOT. ukca_config%l_ukca_wetdep_off) .OR.                                 &
+    ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.             &
+    ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
+
   n = n + 1
-  IF (n <= n_max) fld_names(n) = fldname_conv_rain3d
+  IF (n <= n_max) fld_names(n) = fldname_ls_rain3d
   n = n + 1
-  IF (n <= n_max) fld_names(n) = fldname_conv_snow3d
+  IF (n <= n_max) fld_names(n) = fldname_ls_snow3d
+
+  ! Precipitation diagnosed by convection scheme are required if
+  ! parameterized convection is used in the parent model
+  IF (ukca_config%l_param_conv) THEN
+    n = n + 1
+    IF (n <= n_max) fld_names(n) = fldname_conv_rain3d
+    n = n + 1
+    IF (n <= n_max) fld_names(n) = fldname_conv_snow3d
+  END IF
+
 END IF
 
 ! SO4 surface aerosol climatology required if option to use
@@ -1103,9 +1228,12 @@ IF (ukca_config%l_ukca_offline .OR. ukca_config%l_ukca_offline_be) THEN
     IF (n <= n_max) fld_names(n) = fldname_h2o2_offline
   END IF
   ! O3 field is also required for use in stratosphere if using a
-  ! troposphere-only chemistry scheme
-ELSE IF (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_raq .OR.              &
-         ukca_config%l_ukca_raqaero .OR. ukca_config%l_ukca_tropisop) THEN
+  ! troposphere-only chemistry scheme unless overwrite of O3 & NO3 in the
+  ! stratosphere is effectively switched off by setting the no. of levels
+  ! above the tropopause at which overwrite occurs to be above the model domain
+ELSE IF ((ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_raq .OR.             &
+          ukca_config%l_ukca_raqaero .OR. ukca_config%l_ukca_tropisop) .AND.   &
+         ukca_config%nlev_above_trop_o3_env < ukca_config%model_levels) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_o3_offline
@@ -1113,8 +1241,19 @@ ELSE IF (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_raq .OR.              &
   END IF
 END IF
 
-! Riming rates are required for GLOMAP-mode
+! Cloud liquid fraction is always required if GLOMAP-mode is on
 IF (ukca_config%l_ukca_mode) THEN
+  n = n + 1
+  IF (n <= n_max) fld_names(n) = fldname_cloud_liq_frac
+END IF
+
+! Autoconversion, accretion and riming rates are required if
+! nucleation scavenging is on in GLOMAP-mode
+IF (glomap_config%l_rainout) THEN
+  n = n + 1
+  IF (n <= n_max) fld_names(n) = fldname_autoconv
+  n = n + 1
+  IF (n <= n_max) fld_names(n) = fldname_accretion
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_rim_cry
   n = n + 1
@@ -1169,10 +1308,11 @@ END IF
 
 ! -- Environmental drivers in full-height plus one grid group --
 
-! Exner pressure on rho levels is always required unless tracer updates from
-! emissions and boundary layer mixing are suppressed.
+! Exner pressure on rho levels is always required unless emssions are off or
+! tracer updates from emissions and boundary layer mixing are suppressed.
 ! It is required anyway if nitrate emissions are produced.
-IF ((.NOT. ukca_config%l_suppress_ems) .OR.                                    &
+IF ((.NOT. (ukca_config%l_ukca_emissions_off .OR.                              &
+           ukca_config%l_suppress_ems)) .OR.                                   &
     glomap_config%l_ukca_fine_no3_prod .OR.                                    &
     glomap_config%l_ukca_coarse_no3_prod) THEN
   n = n + 1
@@ -1185,9 +1325,10 @@ END IF
 
 ! -- Environmental drivers in boundary layer levels group --
 
-! These fields are always required unless tracer updates from emissions and
-! boundary layer mixing are suppressed
-IF (.NOT. ukca_config%l_suppress_ems) THEN
+! These fields are always required unless emissions are off or tracer updates
+! from emissions and boundary layer mixing are suppressed
+IF (.NOT. (ukca_config%l_ukca_emissions_off .OR.                               &
+          ukca_config%l_suppress_ems)) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_rhokh_rdz
@@ -1219,9 +1360,10 @@ END IF
 
 ! -- Environmental drivers in entrainment levels group --
 
-! These fields are always required unless tracer updates from emissions and
-! boundary layer mixing are suppressed
-IF (.NOT. ukca_config%l_suppress_ems) THEN
+! These fields are always required unless emissions are off or tracer updates
+! from emissions and boundary layer mixing are suppressed
+IF (.NOT. (ukca_config%l_ukca_emissions_off .OR.                               &
+          ukca_config%l_suppress_ems)) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_we_lim
@@ -1285,87 +1427,91 @@ IF (ukca_config%l_ctile) THEN
 END IF
 
 ! Emissions from the land surface scheme ---- landpoints only -------
-DO i = 1, SIZE(em_chem_spec)
-  l_req_emiss = .FALSE.
-  use_fldname = ''
+IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
 
-  SELECT CASE(TRIM(ADJUSTL(em_chem_spec(i))))
-    ! Interactive biogenic emissions
-  CASE ('C5H8')
-    IF (ukca_config%l_ukca_ibvoc) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_ibvoc_isoprene
-    END IF
+  DO i = 1, SIZE(em_chem_spec)
+    l_req_emiss = .FALSE.
+    use_fldname = ''
 
-  CASE ('Monoterp')
-    IF (ukca_config%l_ukca_ibvoc) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_ibvoc_terpene
-    END IF
+    SELECT CASE(TRIM(ADJUSTL(em_chem_spec(i))))
+      ! Interactive biogenic emissions
+    CASE ('C5H8')
+      IF (ukca_config%l_ukca_ibvoc) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_ibvoc_isoprene
+      END IF
 
-  CASE ('MeOH', 'CH3OH')
-    IF (ukca_config%l_ukca_ibvoc) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_ibvoc_methanol
-    END IF
+    CASE ('Monoterp')
+      IF (ukca_config%l_ukca_ibvoc) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_ibvoc_terpene
+      END IF
 
-  CASE ('Me2CO')
-    IF (ukca_config%l_ukca_ibvoc) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_ibvoc_acetone
-    END IF
+    CASE ('MeOH', 'CH3OH')
+      IF (ukca_config%l_ukca_ibvoc) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_ibvoc_methanol
+      END IF
 
-    !  Interactive Fire emissions
-  CASE ('BC_biomass')
-    IF (ukca_config%l_ukca_inferno) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_inferno_bc
-    END IF
+    CASE ('Me2CO')
+      IF (ukca_config%l_ukca_ibvoc) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_ibvoc_acetone
+      END IF
 
-  CASE ('CH4')
-    IF ( ukca_config%l_ukca_inferno .AND. ukca_config%l_ukca_inferno_ch4 .AND. &
-         .NOT. ukca_config%l_ukca_prescribech4 ) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_inferno_ch4
-    END IF
+      !  Interactive Fire emissions
+    CASE ('BC_biomass')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_bc
+      END IF
 
-  CASE ('CO')
-    IF (ukca_config%l_ukca_inferno) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_inferno_co
-    END IF
+    CASE ('CH4')
+      IF ( ukca_config%l_ukca_inferno .AND. ukca_config%l_ukca_inferno_ch4     &
+           .AND. .NOT. ukca_config%l_ukca_prescribech4 ) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_ch4
+      END IF
 
-  CASE ('NO')
-    IF (ukca_config%l_ukca_inferno) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_inferno_nox
-    END IF
+    CASE ('CO')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_co
+      END IF
 
-  CASE ('OM_biomass')
-    IF (ukca_config%l_ukca_inferno) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_inferno_oc
-    END IF
+    CASE ('NO')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_nox
+      END IF
 
-  CASE ('SO2_nat')
-    IF (ukca_config%l_ukca_inferno) THEN
-      l_req_emiss = .TRUE.
-      use_fldname = fldname_inferno_so2
-    END IF
-  END SELECT
+    CASE ('OM_biomass')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_oc
+      END IF
 
-  ! Populate fld_name and fld_info if emission is required.
-  IF ( l_req_emiss ) THEN
-    n = n + 1
-    IF (n <= n_max) THEN
-      fld_names(n) = use_fldname
-      fld_info(n)%group = group_land_real
-      fld_info(n)%ubound_dim1 = no_bound_value
-      fld_info(n)%l_land_only = .TRUE.
-    END IF
-  END IF  ! l_req_emiss
+    CASE ('SO2_nat')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_so2
+      END IF
+    END SELECT
 
-END DO   ! loop over em_chem_spec
+    ! Populate fld_name and fld_info if emission is required.
+    IF ( l_req_emiss ) THEN
+      n = n + 1
+      IF (n <= n_max) THEN
+        fld_names(n) = use_fldname
+        fld_info(n)%group = group_land_real
+        fld_info(n)%ubound_dim1 = no_bound_value
+        fld_info(n)%l_land_only = .TRUE.
+      END IF
+    END IF  ! l_req_emiss
+
+  END DO   ! loop over em_chem_spec
+
+END IF   ! .NOT. ukca_config%l_ukca_emissions_off
 
 ! -- Environmental drivers in land-point tile real group --
 
@@ -1460,12 +1606,22 @@ IF (n > n_max) THEN
   RETURN
 END IF
 
-! Create reference list of required fields with corresponding field info and
-! availability status flags
+! Create reference list of required fields with corresponding field info,
+! field pointers and availability status flags.
 ALLOCATE(environ_field_varnames(n))
 environ_field_varnames = fld_names(1:n)
 ALLOCATE(environ_field_info(n))
 environ_field_info = fld_info(1:n)
+ALLOCATE(environ_field_ptrs(n))
+DO i = 1, n
+  NULLIFY(environ_field_ptrs(i)%value_0d_real)
+  NULLIFY(environ_field_ptrs(i)%value_1d_real)
+  NULLIFY(environ_field_ptrs(i)%value_2d_integer)
+  NULLIFY(environ_field_ptrs(i)%value_2d_real)
+  NULLIFY(environ_field_ptrs(i)%value_2d_logical)
+  NULLIFY(environ_field_ptrs(i)%value_3d_real)
+  NULLIFY(environ_field_ptrs(i)%value_4d_real)
+END DO
 ALLOCATE(l_environ_field_available(n))
 l_environ_field_available(:) = .FALSE.
 
@@ -1956,6 +2112,370 @@ END FUNCTION environ_field_available
 
 
 ! ----------------------------------------------------------------------
+SUBROUTINE print_environment_summary(id_code, environ_ptrs, error_code,        &
+                                     error_message, error_routine)
+! ----------------------------------------------------------------------
+! Description:
+!   Writes summary info on UKCA environment field values to the log file.
+!
+! Method:
+!
+!   Summary data are printed for each environmental driver field in the
+!   form of four tables:
+!   Table 1 gives max, min and mean for each field in 0D, 1D, or 2D groups
+!   and for 3D fields without a vertical dimension.
+!   Table 2 gives max, min and mean by level for each 3D field with a
+!   vertical dimension.
+!   Table 3 gives max, min and mean by reaction for the photolysis rate
+!   4D field.
+!   Table 4 gives the count of true and false values for logical fields
+!
+!   An id value passed as an input argument is included as the first
+!   entry in each record tabluated. This can be set by the calling
+!   routine to indicate, for example, which processor the data are from
+!   when running in a distributed memory system.
+!
+!   A character is printed at the beginning of each table entry to
+!   prevent any automatic left justification that might be applied
+!   on output from affecting the column alignment.
+! ----------------------------------------------------------------------
+
+USE ukca_chem_defs_mod, ONLY: ratj_defs
+USE umPrintMgr, ONLY: umMessage, UmPrint
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: id_code
+TYPE(env_field_ptrs_type), INTENT(IN) :: environ_ptrs(:)
+INTEGER, INTENT(OUT) :: error_code
+CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
+CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
+
+! Local variables
+
+INTEGER :: i_jrat                                  ! Photolysis reaction index
+INTEGER :: n_true                                  ! No. of .TRUE. values in
+                                                   ! a field array
+INTEGER :: level_min                               ! Min level of all 3D fields
+INTEGER :: level_max                               ! Max level of all 3D fields
+INTEGER :: k1                                      ! 3D field - lowest level
+INTEGER :: k2                                      ! 3D field - highest level
+INTEGER :: i, k                                    ! Loop counters
+
+CHARACTER(LEN=1), PARAMETER :: l_border = '*'      ! Character used for left
+                                                   ! border of table
+CHARACTER(LEN=43) :: products_txt                  ! Buffer for names of up to 4
+                                                   ! photolysis products plus
+                                                   ! separators
+
+LOGICAL :: l_print_logicals_table                  ! T if table of logical
+                                                   ! fields summary table
+                                                   ! needs printing
+LOGICAL :: l_print_photol_rates_table              ! T if photol_rates summary
+                                                   ! table needs printing
+
+! Dr Hook
+REAL(KIND=jprb) :: zhook_handle
+CHARACTER(LEN=*), PARAMETER :: RoutineName = 'PRINT_ENVIRONMENT_SUMMARY'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+error_code = 0
+IF (PRESENT(error_message)) error_message = ''
+IF (PRESENT(error_routine)) error_routine = ''
+
+! Check size of field pointers array is as expected
+IF (SIZE(environ_ptrs) /= SIZE(environ_field_varnames)) THEN
+  error_code = errcode_env_field_mismatch
+  IF (PRESENT(error_message))                                                  &
+    WRITE(error_message, '(A)')                                                &
+      'Size of environ_ptrs does not match no. of required environment fields'
+  IF (PRESENT(error_routine)) error_routine = RoutineName
+  IF (lhook)                                                                   &
+    CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
+
+
+! Write column headers for main table
+WRITE(umMessage,'(A,A5,1X,A3,1X,A20,3(1X,A11))')                               &
+      l_border, 'ID   ', 'GRP', 'FIELD_NAME          ',                        &
+      'MAXIMUM    ', 'MINIMUM    ', 'MEAN       '
+CALL umPrint(umMessage,src=RoutineName)
+
+! Write data summary records for each 0D, 1D and 2D driver field except
+! logicals. Also include 3D fields without vertical dimension.
+! For logicals and 4D fields, flag presence for later tabulation.
+! For 3D fields with a vertical dimension, determine minimum lower and maximum
+! upper levels for later tabulation.
+
+level_min = HUGE(0)
+level_max = -HUGE(0)
+l_print_logicals_table = .FALSE.
+l_print_photol_rates_table = .FALSE.
+
+DO i = 1, SIZE(environ_field_varnames)
+
+  SELECT CASE (environ_field_info(i)%group)
+  CASE (group_scalar_real)
+    ! 0D field
+    IF (ASSOCIATED(environ_ptrs(i)%value_0d_real)) THEN
+      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                       &
+            l_border, id_code,                                                 &
+            environ_field_info(i)%group,                                       &
+            environ_field_varnames(i),                                         &
+            environ_ptrs(i)%value_0d_real,                                     &
+            environ_ptrs(i)%value_0d_real,                                     &
+            environ_ptrs(i)%value_0d_real
+      CALL umPrint(umMessage,src=RoutineName)
+    ELSE
+      error_code = errcode_value_missing
+    END IF
+  CASE (group_land_real)
+    ! 1D field
+    IF (ASSOCIATED(environ_ptrs(i)%value_1d_real)) THEN
+      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                       &
+            l_border, id_code,                                                 &
+            environ_field_info(i)%group,                                       &
+            environ_field_varnames(i),                                         &
+            MAXVAL(environ_ptrs(i)%value_1d_real),                             &
+            MINVAL(environ_ptrs(i)%value_1d_real),                             &
+            SUM(environ_ptrs(i)%value_1d_real) /                               &
+            SIZE(environ_ptrs(i)%value_1d_real)
+      CALL umPrint(umMessage,src=RoutineName)
+    ELSE
+      error_code = errcode_value_missing
+    END IF
+  CASE (group_flat_integer)
+    ! 2D integer field
+    IF (ASSOCIATED(environ_ptrs(i)%value_2d_integer)) THEN
+      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,2(1X,I11),1X,E11.4)')                &
+            l_border, id_code,                                                 &
+            environ_field_info(i)%group,                                       &
+            environ_field_varnames(i),                                         &
+            MAXVAL(environ_ptrs(i)%value_2d_integer),                          &
+            MINVAL(environ_ptrs(i)%value_2d_integer),                          &
+            REAL(SUM(environ_ptrs(i)%value_2d_integer)) /                      &
+            SIZE(environ_ptrs(i)%value_2d_integer)
+      CALL umPrint(umMessage,src=RoutineName)
+    ELSE
+      error_code = errcode_value_missing
+    END IF
+  CASE (group_flat_real, group_landtile_real, group_landpft_real)
+    ! 2D real field
+    IF (ASSOCIATED(environ_ptrs(i)%value_2d_real)) THEN
+      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                       &
+            l_border, id_code,                                                 &
+            environ_field_info(i)%group,                                       &
+            environ_field_varnames(i),                                         &
+            MAXVAL(environ_ptrs(i)%value_2d_real),                             &
+            MINVAL(environ_ptrs(i)%value_2d_real),                             &
+            SUM(environ_ptrs(i)%value_2d_real) /                               &
+            SIZE(environ_ptrs(i)%value_2d_real)
+      CALL umPrint(umMessage,src=RoutineName)
+    ELSE
+      error_code = errcode_value_missing
+    END IF
+  CASE (group_flat_logical)
+    ! 2D logical field (print separately later)
+    l_print_logicals_table = .TRUE.
+  CASE (group_flatpft_real)
+    ! Flat 3D real field, defined on PFTs
+    IF (ASSOCIATED(environ_ptrs(i)%value_3d_real)) THEN
+      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                       &
+            l_border, id_code,                                                 &
+            environ_field_info(i)%group,                                       &
+            environ_field_varnames(i),                                         &
+            MAXVAL(environ_ptrs(i)%value_3d_real),                             &
+            MINVAL(environ_ptrs(i)%value_3d_real),                             &
+            SUM(environ_ptrs(i)%value_3d_real) /                               &
+            SIZE(environ_ptrs(i)%value_3d_real)
+      CALL umPrint(umMessage,src=RoutineName)
+    ELSE
+      error_code = errcode_value_missing
+    END IF
+  CASE (group_fullht_real, group_fullht0_real, group_fullhtp1_real,            &
+        group_bllev_real, group_entlev_real)
+    ! 3D real field (print summary by level)
+    IF (ASSOCIATED(environ_ptrs(i)%value_3d_real)) THEN
+      k1 = LBOUND(environ_ptrs(i)%value_3d_real, DIM=3)
+      k2 = UBOUND(environ_ptrs(i)%value_3d_real, DIM=3)
+      level_min = MIN(level_min, k1)
+      level_max = MAX(level_max, k2)
+    ELSE
+      error_code = errcode_value_missing
+    END IF
+  CASE (group_fullhtphot_real)
+    ! 4D real field - photol_rates (print separately later)
+    l_print_photol_rates_table = .TRUE.
+  END SELECT
+
+  IF (error_code /= 0) THEN
+    IF (PRESENT(error_message))                                                &
+      WRITE(error_message, '(A,A)')                                            &
+        'Missing pointer for environmental driver field ',                     &
+        environ_field_varnames(i)
+    IF (PRESENT(error_routine)) error_routine = RoutineName
+    IF (lhook)                                                                 &
+      CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    RETURN
+  END IF
+
+END DO  ! i
+
+! Write separate table for 3D fields, ordered by level
+! (Note: pointer association has already been checked above, no need to repeat)
+
+! Write column headers
+WRITE(umMessage,'(A,A5,1X,A3,1X,A5,1X,A20,3(1X,A11))')                         &
+      l_border, 'ID   ', 'GRP', 'LEVEL', 'FIELD_NAME          ',               &
+      'MAXIMUM    ', 'MINIMUM    ', 'MEAN       '
+CALL umPrint(umMessage,src=RoutineName)
+
+DO k = level_min, level_max
+  DO i = 1, SIZE(environ_field_varnames)
+    SELECT CASE(environ_field_info(i)%group)
+    CASE (group_fullht_real, group_fullht0_real, group_fullhtp1_real,          &
+          group_bllev_real, group_entlev_real)
+      IF (k >= LBOUND(environ_ptrs(i)%value_3d_real, DIM=3) .AND.              &
+          k <= UBOUND(environ_ptrs(i)%value_3d_real, DIM=3)) THEN
+        WRITE(umMessage,'(A,I5,1X,I3,1X,I5,1X,A20,3(1X,E11.4))')               &
+              l_border, id_code,                                               &
+              environ_field_info(i)%group, k,                                  &
+              environ_field_varnames(i),                                       &
+              MAXVAL(environ_ptrs(i)%value_3d_real(:,:,k)),                    &
+              MINVAL(environ_ptrs(i)%value_3d_real(:,:,k)),                    &
+              SUM(environ_ptrs(i)%value_3d_real(:,:,k)) /                      &
+              SIZE(environ_ptrs(i)%value_3d_real(:,:,k))
+        CALL umPrint(umMessage,src=RoutineName)
+      END IF
+    END SELECT
+  END DO  ! i
+END DO  ! k
+
+! Write separate table for photolysis rates
+! 4D real field - photol_rates (print summary by reaction, combined levels)
+
+IF (l_print_photol_rates_table) THEN
+
+  ! Write column headers
+  WRITE(umMessage,'(A,A5,1X,A3,1X,A20,1X,A5,3(1X,A11),2(1X,A10),1X,A8)')       &
+        l_border, 'ID   ', 'GRP', 'FIELD_NAME          ', 'INDEX',             &
+        'MAXIMUM    ', 'MINIMUM    ', 'MEAN       ', 'RATE_LABEL',             &
+        'REACTANT  ', 'PRODUCTS'
+  CALL umPrint(umMessage,src=RoutineName)
+
+  DO i = 1, SIZE(environ_field_varnames)
+
+    IF (environ_field_info(i)%group == group_fullhtphot_real) THEN
+
+      IF (ASSOCIATED(environ_ptrs(i)%value_4d_real)) THEN
+
+        ! Write data summary records
+        DO i_jrat = 1, SIZE(environ_ptrs(i)%value_4d_real, DIM=4)
+
+          ! Collate products of reaction
+          IF (ratj_defs(i_jrat)%prod4 /= '') THEN
+            products_txt = TRIM(ratj_defs(i_jrat)%prod1) // ',' //             &
+                           TRIM(ratj_defs(i_jrat)%prod2) // ',' //             &
+                           TRIM(ratj_defs(i_jrat)%prod3) // ',' //             &
+                           TRIM(ratj_defs(i_jrat)%prod4)
+          ELSE IF (ratj_defs(i_jrat)%prod3 /= '') THEN
+            products_txt = TRIM(ratj_defs(i_jrat)%prod1) // ',' //             &
+                           TRIM(ratj_defs(i_jrat)%prod2) // ',' //             &
+                           TRIM(ratj_defs(i_jrat)%prod3)
+          ELSE IF (ratj_defs(i_jrat)%prod2 /= '') THEN
+            products_txt = TRIM(ratj_defs(i_jrat)%prod1) // ',' //             &
+                           TRIM(ratj_defs(i_jrat)%prod2)
+          ELSE
+            products_txt = TRIM(ratj_defs(i_jrat)%prod1)
+          END IF
+
+          WRITE(umMessage,                                                     &
+                '(A,I5,1X,I3,1X,A20,1X,I5,3(1X,E11.4),2(1X,A10),1X,A43)')      &
+                l_border, id_code,                                             &
+                environ_field_info(i)%group,                                   &
+                environ_field_varnames(i), i_jrat,                             &
+                MAXVAL(environ_ptrs(i)%value_4d_real(:,:,:,i_jrat)),           &
+                MINVAL(environ_ptrs(i)%value_4d_real(:,:,:,i_jrat)),           &
+                SUM(environ_ptrs(i)%value_4d_real(:,:,:,i_jrat)) /             &
+                SIZE(environ_ptrs(i)%value_4d_real(:,:,:,i_jrat)),             &
+                ratj_defs(i_jrat)%fname,                                       &
+                ratj_defs(i_jrat)%react1,                                      &
+                products_txt
+          CALL umPrint(umMessage,src=RoutineName)
+
+        END DO  ! i_jrat
+
+      ELSE
+        error_code = errcode_value_missing
+      END IF
+
+    END IF
+
+    IF (error_code /= 0) THEN
+      IF (PRESENT(error_message))                                              &
+        WRITE(error_message, '(A,A)')                                          &
+          'Missing pointer for environmental driver field ',                   &
+          environ_field_varnames(i)
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+      IF (lhook)                                                               &
+        CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+      RETURN
+    END IF
+
+  END DO  ! i
+
+END IF
+
+! Write separate table for logical fields
+! 2D logical fields (print count of .TRUE. and .FALSE. values)
+
+IF (l_print_logicals_table) THEN
+
+  ! Write column headers
+  WRITE(umMessage,'(A,A5,1X,A3,1X,A20,1X,2(1X,A7))')                           &
+        l_border, 'ID   ', 'GRP', 'FIELD_NAME          ', 'N_TRUE ', 'N_FALSE'
+  CALL umPrint(umMessage,src=RoutineName)
+
+  DO i = 1, SIZE(environ_field_varnames)
+
+    IF (environ_field_info(i)%group == group_flat_logical) THEN
+      IF (ASSOCIATED(environ_ptrs(i)%value_2d_logical)) THEN
+        n_true = COUNT(environ_ptrs(i)%value_2d_logical)
+        WRITE(umMessage,'(A,I5,1X,I3,1X,A20,1X,2(1X,I7))')                     &
+              l_border, id_code,                                               &
+              environ_field_info(i)%group,                                     &
+              environ_field_varnames(i), n_true,                               &
+              SIZE(environ_ptrs(i)%value_2d_logical) - n_true
+        CALL umPrint(umMessage,src=RoutineName)
+      ELSE
+        error_code = errcode_value_missing
+      END IF
+    END IF
+
+    IF (error_code /= 0) THEN
+      IF (PRESENT(error_message))                                              &
+        WRITE(error_message, '(A,A)')                                          &
+          'Missing pointer for environmental driver field ',                   &
+          environ_field_varnames(i)
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+      IF (lhook)                                                               &
+        CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+      RETURN
+    END IF
+
+  END DO  ! i
+
+END IF
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE print_environment_summary
+
+
+! ----------------------------------------------------------------------
 SUBROUTINE clear_environment_req()
 ! ----------------------------------------------------------------------
 ! Description:
@@ -1963,7 +2483,7 @@ SUBROUTINE clear_environment_req()
 !   initial state for a new UKCA configuration.
 !
 ! Method:
-!   Deallocate required field list arrays and reset flag showing
+!   Deallocate required field list arrays and reset the flag showing
 !   availability status of the environment data requirement.
 ! ----------------------------------------------------------------------
 
@@ -2010,6 +2530,7 @@ IF (ALLOCATED(environ_field_varnames_fullhtphot_real))                         &
   DEALLOCATE(environ_field_varnames_fullhtphot_real)
 
 IF (ALLOCATED(environ_field_info)) DEALLOCATE(environ_field_info)
+IF (ALLOCATED(environ_field_ptrs)) DEALLOCATE(environ_field_ptrs)
 IF (ALLOCATED(l_environ_field_available)) DEALLOCATE(l_environ_field_available)
 
 l_environ_req_available = .FALSE.

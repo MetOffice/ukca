@@ -97,7 +97,7 @@ USE ukca_environment_fields_mod, ONLY: ibvoc_isoprene,  ibvoc_terpene,         &
                                  ibvoc_methanol, ibvoc_acetone,                &
                                  inferno_bc, inferno_ch4, inferno_co,          &
                                  inferno_nox, inferno_oc, inferno_so2
-USE ukca_constants,       ONLY: L_ukca_diurnal_isopems, m_c, m_ch4, m_dms,     &
+USE ukca_constants,       ONLY: m_c, m_ch4, m_dms,                             &
                                 m_n, m_no, m_no2, m_s, m_c5h8, m_monoterp,     &
                                 m_ch3oh, m_me2co
 USE chemistry_constants_mod, ONLY: boltzmann, avogadro
@@ -502,7 +502,7 @@ IF (num_cdf_em_flds > 0) THEN
 
   IF (ANY (ncdf_emissions(:)%tracer_name == 'C5H8      '  .AND.                &
     ncdf_emissions(:)%hourly_fact == 'diurnal_isopems') .AND.                  &
-    L_ukca_diurnal_isopems  .AND. .NOT. ukca_config%l_ukca_ibvoc .AND.         &
+    ukca_config%l_diurnal_isopems .AND. .NOT. ukca_config%l_ukca_ibvoc .AND.   &
     ( .NOT. ALLOCATED(biogenic_isop) ) .AND.                                   &
     ( .NOT. ukca_config%l_ukca_persist_off) ) THEN
 
@@ -580,7 +580,7 @@ IF (ukca_config%i_ukca_light_param /= i_light_param_off) THEN
                        emissions(inox_light)%values (:,:,ilev)/ surf_area (:,:)
   END DO
 
-END IF  ! .NOT. l_ukca_offline
+END IF
 
 ! Set wetland methane emissions to zero over non-land surfaces
 WHERE (ch4_wetl_emiss < 0.0) ch4_wetl_emiss = 0.0
@@ -719,7 +719,7 @@ DO l = 1, num_em_flds
 
   IF (emissions(l)%tracer_name == 'C5H8      '      .AND.                      &
       emissions(l)%hourly_fact == 'diurnal_isopems' .AND.                      &
-      L_ukca_diurnal_isopems                        .AND.                      &
+      ukca_config%l_diurnal_isopems                 .AND.                      &
       .NOT. ukca_config%l_ukca_ibvoc) THEN
 
     ! Only use the biogenic_isop fix if the persistence of 3D arrays is on

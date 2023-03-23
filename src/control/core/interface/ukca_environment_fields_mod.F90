@@ -15,9 +15,10 @@
 !                               in the land-sea mask
 !     clear_land_only_fields  - Clears fields defined on land points only
 !
-!   The module also provides public arrays 'environ_field_info' and
-!   'l_environ_field_available' for holding information about each required
-!   field and its availability status respectively.
+!   The module also provides public arrays 'environ_field_info',
+!   'environ_field_ptrs' and 'l_environ_field_available' for holding
+!   information about each required field, a pointer to access each field and
+!   the availability status of each field respectively.
 !
 !   Public variables 'land_points' and 'land_index' are also provided, giving
 !   the number of land points and their locations in the land-sea mask
@@ -71,293 +72,293 @@ PUBLIC locate_land_points, clear_land_only_fields
 ! --- Scalar values of type real ---
 
 REAL, PARAMETER, PUBLIC :: no_data_value = -999.0  ! Value when not set
-REAL, SAVE, PUBLIC :: sin_declination = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: sin_declination = no_data_value
   ! sin of solar declination
-REAL, SAVE, PUBLIC :: equation_of_time = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: equation_of_time = no_data_value
   ! equation of time, specified as an hour angle (radians)
-REAL, SAVE, PUBLIC :: atmospheric_ch4 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_ch4 = no_data_value
   ! mass_fraction_of_methane_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_co2 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_co2 = no_data_value
   ! mass_fraction_of_carbon_dioxide_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_h2 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_h2 = no_data_value
   ! mass_fraction_of_molecular_hydrogen_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_n2 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_n2 = no_data_value
   ! mass fraction of molecular nitrogen in air
-REAL, SAVE, PUBLIC :: atmospheric_o2 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_o2 = no_data_value
   ! mass fraction of molecular oxygen in air
-REAL, SAVE, PUBLIC :: atmospheric_n2o = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_n2o = no_data_value
   ! mass_fraction_of_nitrous_oxide_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_cfc11 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_cfc11 = no_data_value
   ! mass_fraction_of_cfc11_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_cfc12 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_cfc12 = no_data_value
   ! mass_fraction_of_cfc12_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_cfc113 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_cfc113 = no_data_value
   ! mass_fraction_of_cfc113_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_hcfc22 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_hcfc22 = no_data_value
   ! mass_fraction_of_hcfc22_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_hfc125 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_hfc125 = no_data_value
   ! mass_fraction_of_hfc125_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_hfc134a = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_hfc134a = no_data_value
   ! mass_fraction_of_hfc134a_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_mebr = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_mebr = no_data_value
   ! mass_fraction_of_methyl_bromide_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_mecl = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_mecl = no_data_value
   ! mass_fraction_of_methyl_chloride_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_ch2br2 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_ch2br2 = no_data_value
   ! mass fraction of dibromomethane in air
-REAL, SAVE, PUBLIC :: atmospheric_chbr3 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_chbr3 = no_data_value
   ! mass fraction of tribromomethane in air
-REAL, SAVE, PUBLIC :: atmospheric_cfc114 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_cfc114 = no_data_value
   ! mass_fraction_of_cfc114_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_cfc115 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_cfc115 = no_data_value
   ! mass_fraction_of_cfc115_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_ccl4 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_ccl4 = no_data_value
   ! mass_fraction_of_carbon_tetrachloride_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_meccl3 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_meccl3 = no_data_value
   ! mass_fraction of methyl chloroform in air
-REAL, SAVE, PUBLIC :: atmospheric_hcfc141b = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_hcfc141b = no_data_value
   ! mass_fraction_of_hcfc141b_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_hcfc142b = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_hcfc142b = no_data_value
   ! mass_fraction_of_hcfc142b_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_h1211 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_h1211 = no_data_value
   ! mass_fraction_of_halon1211_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_h1202 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_h1202 = no_data_value
   ! mass_fraction_of_halon1202_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_h1301 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_h1301 = no_data_value
   ! mass_fraction_of_halon1301_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_h2402 = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_h2402 = no_data_value
   ! mass_fraction_of_halon2402_in_air [CF]
-REAL, SAVE, PUBLIC :: atmospheric_cos = no_data_value
+REAL, TARGET, SAVE, PUBLIC :: atmospheric_cos = no_data_value
   ! mass fraction of carbonyl sulfide in air
 
 ! --- 1D fields of type real ---
-REAL, ALLOCATABLE, SAVE, PUBLIC :: soil_moisture_layer1(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: soil_moisture_layer1(:)
   ! moisture_content_of_soil_layer [CF] at surface (kg/m^2) {UM:00009}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: fland(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: fland(:)
   ! land_area_fraction [CF] {UM:00505}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ibvoc_isoprene(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ibvoc_isoprene(:)
   ! Gridbox mean isoprene emission flux (kgC/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ibvoc_terpene(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ibvoc_terpene(:)
   ! Gridbox mean (mono-)terpene emission flux (kgC/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ibvoc_methanol(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ibvoc_methanol(:)
   ! Gridbox mean methanol emission flux (kgC/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ibvoc_acetone(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ibvoc_acetone(:)
   ! Gridbox mean acetone emission flux (kgC/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: inferno_bc(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: inferno_bc(:)
   ! Gridbox mean Black Carbon emissions from fires (kg/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: inferno_ch4(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: inferno_ch4(:)
   ! Gridbox mean Methane emissions from fires (kg/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: inferno_co(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: inferno_co(:)
   ! Gridbox mean Carbon monoxide emissions from fires (kg/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: inferno_nox(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: inferno_nox(:)
   ! Gridbox mean Nitric oxide emissions from fires (kg/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: inferno_oc(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: inferno_oc(:)
   ! Gridbox mean Organic Carbon emissions from fires (kg/m2/s)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: inferno_so2(:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: inferno_so2(:)
   ! Gridbox mean Sulphur dioxide emissions from fires (kg/m2/s)
 
 ! --- 2D fields of type real ---
-REAL, ALLOCATABLE, SAVE, PUBLIC :: latitude(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: latitude(:,:)
   ! latitude [CF] (degrees north)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: longitude(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: longitude(:,:)
   ! longitude [CF] (degrees east, >=0, <360)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: sin_latitude(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: sin_latitude(:,:)
   ! SIN(latitude [CF])
-REAL, ALLOCATABLE, SAVE, PUBLIC :: cos_latitude(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: cos_latitude(:,:)
   ! COS(latitude [CF])
-REAL, ALLOCATABLE, SAVE, PUBLIC :: tan_latitude(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: tan_latitude(:,:)
   ! TAN(latitude [CF])
-REAL, ALLOCATABLE, SAVE, PUBLIC :: conv_cloud_lwp(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: conv_cloud_lwp(:,:)
   ! convective cloud liquid water path (kg/m^2) {UM:00016}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: tstar(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: tstar(:,:)
   ! surface_temperature [CF] (K) {UM:00024}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: zbl(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: zbl(:,:)
   ! atmosphere_boundary_layer_thickness [CF] (m) {UM:00025}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: rough_length(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: rough_length(:,:)
   ! surface_roughness_length [CF] (m)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: seaice_frac(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: seaice_frac(:,:)
   ! sea_ice_area_fraction [CF] with respect to sea area {UM:00031}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: frac_types(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: frac_types(:,:)
   ! fraction of surface type with respect to land area {UM:00216}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: laift_lp(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: laift_lp(:,:)
   ! leaf_area_index [CF] of plant functional type {UM:00217}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: canhtft_lp(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: canhtft_lp(:,:)
   ! canopy_height [CF] of plant functional type (m) {UM:00218}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: tstar_tile(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: tstar_tile(:,:)
   ! surface_temperature [CF] on tiles (K) {UM:00233}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: z0tile_lp(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: z0tile_lp(:,:)
   ! surface_roughness_length [CF] on tiles (m) {UM:00234}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: pstar(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: pstar(:,:)
   ! surface_air_pressure [CF] (Pa) {UM:00409}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: surf_albedo(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: surf_albedo(:,:)
   ! surface_albedo [CF]
-REAL, ALLOCATABLE, SAVE, PUBLIC :: zhsc(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: zhsc(:,:)
   ! height of top of decoupled stratocumulus layer, for bl_tracer_mix (L units)
   ! {UM:03073}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: u_scalar_10m(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: u_scalar_10m(:,:)
   ! wind_speed [CF] at 10 m (m/s) {UM:03230}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: surf_hf(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: surf_hf(:,:)
   ! surface_upward_sensible_heat_flux [CF] (W/m^2) {UM:03217}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: u_s(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: u_s(:,:)
   ! explicit friction velocity (m/s) {UM:03465}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ch4_wetl_emiss(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ch4_wetl_emiss(:,:)
   ! CH4 wetland flux (ugC/m2/s) {UM:08242}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dms_sea_conc(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dms_sea_conc(:,:)
   ! mole_concentration_of_dimethyl_sulphide_in_sea_water [CF] (nmol/l)
   ! {UM:00132}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: chloro_sea(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: chloro_sea(:,:)
   ! ocean near-surface chlorophyll (kg/m^3) {UM:00096}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_flux(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_flux(:,:,:)
   ! dust emissions by CLASSIC size bin (kg/m^2/s) - combines multiple 2D fields
   ! {UM:03401-03406}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: surf_wetness(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: surf_wetness(:,:)
   ! surface wetness {UM:00634}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_surf_area(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: grid_surf_area(:,:)
   ! Gridbox surface area (m^2)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ext_cg_flash(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ext_cg_flash(:,:)
   ! External cloud-to-ground flash rate [s-1]
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ext_ic_flash(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ext_ic_flash(:,:)
   ! External intracloud flash rate [s-1]
 
 ! --- 2D fields of type integer ---
-INTEGER, ALLOCATABLE, SAVE, PUBLIC :: kent(:,:)
+INTEGER, ALLOCATABLE, TARGET, SAVE, PUBLIC :: kent(:,:)
   ! grid level of surface mixed layer inversion, for bl_tracer_mix {UM:03065}
-INTEGER, ALLOCATABLE, SAVE, PUBLIC :: kent_dsc(:,:)
+INTEGER, ALLOCATABLE, TARGET, SAVE, PUBLIC :: kent_dsc(:,:)
   ! grid level of decoupled stratocumulus inversion, for bl_tracer_mix
   ! {UM:03069}
-INTEGER, ALLOCATABLE, SAVE, PUBLIC :: conv_cloud_base(:,:)
+INTEGER, ALLOCATABLE, TARGET, SAVE, PUBLIC :: conv_cloud_base(:,:)
   ! lowest convective cloud base level no. {UM:05218}
-INTEGER, ALLOCATABLE, SAVE, PUBLIC :: conv_cloud_top(:,:)
+INTEGER, ALLOCATABLE, TARGET, SAVE, PUBLIC :: conv_cloud_top(:,:)
   ! lowest convective cloud top level no. {UM:05219}
-INTEGER, ALLOCATABLE, SAVE, PUBLIC :: lscat_zhang(:,:)
+INTEGER, ALLOCATABLE, TARGET, SAVE, PUBLIC :: lscat_zhang(:,:)
   ! surface type for gridbox as required by Zhang et al (Aero drydep) scheme
 
 ! --- 2D fields of type logical ---
-LOGICAL, ALLOCATABLE, SAVE, PUBLIC :: land_sea_mask(:,:)
+LOGICAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: land_sea_mask(:,:)
   ! land_binary_mask [CF] (land = .TRUE.) {UM:00030}
-LOGICAL, ALLOCATABLE, SAVE, PUBLIC :: l_tile_active(:,:)
+LOGICAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: l_tile_active(:,:)
   ! active tile indicator (.TRUE. if tile is in use)
 
 ! --- 3D fields of type real ---
-REAL, ALLOCATABLE, SAVE, PUBLIC :: theta(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: theta(:,:,:)
   ! air_potential_temperature [CF] (K) {UM:00004}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: q(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: q(:,:,:)
   ! specific_humidity [CF] {UM:00010}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: qcf(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: qcf(:,:,:)
   ! mass_fraction_of_cloud_ice_in_air [CF] {UM:00012}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: conv_cloud_amount(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: conv_cloud_amount(:,:,:)
   ! fractional convective cloud amount with anvil {UM:00211}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: rho_r2(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: rho_r2(:,:,:)
   ! density*radius*radius (kg/m) {UM:00253}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: qcl(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: qcl(:,:,:)
   ! mass_fraction_of_cloud_liquid_water_in_air [CF] {UM:00254}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: exner_rho_levels(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: exner_rho_levels(:,:,:)
   ! dimensionless_exner_function [CF] at rho levels {UM:00255}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: area_cloud_fraction(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: area_cloud_fraction(:,:,:)
   ! cloud_area_fraction_in_atmosphere_layer [CF] {UM:00265}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: cloud_frac(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: cloud_frac(:,:,:)
   ! bulk cloud fraction {UM:00266}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: cloud_liq_frac(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: cloud_liq_frac(:,:,:)
   ! liquid cloud fraction {UM:00267}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: exner_theta_levels(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: exner_theta_levels(:,:,:)
   ! dimensionless_exner_function [CF] at theta levels {UM:00406}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: p_rho_levels(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: p_rho_levels(:,:,:)
   ! air_pressure [CF] at rho levels (Pa) {UM:00407}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: p_theta_levels(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: p_theta_levels(:,:,:)
   ! air_pressure [CF] at theta levels (Pa) {UM:00408}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: rhokh_rdz(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: rhokh_rdz(:,:,:)
   ! Mixing coefficient above surface:
   ! (scalar eddy diffusivity * density) / dz, for bl_tracer_mix
   ! (M/(L^2*T) units ) {UM:03060}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dtrdz(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dtrdz(:,:,:)
   ! dt/(density*radius*radius*dz) for scalar flux divergence, for bl_tracer_mix
   ! (T/M units) {UM:03064}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: we_lim(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: we_lim(:,:,:)
   ! density * entrainment rate implied by placing of subsidence at surface mixed
   ! layer inversion, for bl_tracer_mix
   ! (M/L^2/T units) {UM:03066}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: t_frac(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: t_frac(:,:,:)
   ! fraction of timestep surface mixed layer inversion is above level,
   ! for bl_tracer mix {UM:03067}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: zrzi(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: zrzi(:,:,:)
   ! level height as fraction of surface mixed layer inversion height above ML
   ! base, for bl_tracer_mix {UM:03068}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: we_lim_dsc(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: we_lim_dsc(:,:,:)
   ! density * entrainment rate implied by placing of subsidence at decoupled
   ! stratocumulus inversion, for bl_tracer_mix (M/L^2/T units) {UM:03070}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: t_frac_dsc(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: t_frac_dsc(:,:,:)
   ! fraction of timestep decoupled stratocumulus inversion is above level,
   ! for bl_tracer_mix {UM:03071}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: zrzi_dsc(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: zrzi_dsc(:,:,:)
   ! level height as fraction of decoupled stratocumulus inversion height above
   ! DSC ML base, for bl_tracer_mix
   ! {UM:03072}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: stcon(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: stcon(:,:,:)
   ! stomatal conductance on plant functional type (m/s) {UM:03462}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ls_rain3d(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ls_rain3d(:,:,:)
   ! large_scale_rainfall_flux [CF] out of model levels (kg/m^2/s) {UM:04222}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ls_snow3d(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ls_snow3d(:,:,:)
   ! large_scale_snowfall_flux [CF] out of model levels (kg/m^2/s) {UM:04223}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: autoconv(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: autoconv(:,:,:)
   ! rain autoconversion rate, mass fraction (/s) {UM:04257}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: accretion(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: accretion(:,:,:)
   ! rain accretion rate, mass fraction (/s) {UM:04258}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: pv_on_theta_mlevs(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: pv_on_theta_mlevs(:,:,:)
   ! ertel_potential_vorticity [CF] on theta levels (K m^2/(kg s) {UM:15218}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: conv_rain3d(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: conv_rain3d(:,:,:)
   ! convective_rainfall_flux [CF] (kg/m^2/s) {UM:05227}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: conv_snow3d(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: conv_snow3d(:,:,:)
   ! convective_snowfall_flux [CF] (kg/m^2/s) {UM:05228}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: so4_sa_clim(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: so4_sa_clim(:,:,:)
   ! sulphate aerosol surface area density (cm^2/cm^3)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: so4_aitken(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: so4_aitken(:,:,:)
   ! mass fraction of aitken mode sulfate dry aerosol expressed as sulfur in air
   ! {UM:00103}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: so4_accum(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: so4_accum(:,:,:)
   ! mass fraction of accumulation mode sulfate dry aerosol expressed as sulfur
   ! in air {UM:00104}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: soot_fresh(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: soot_fresh(:,:,:)
   ! mass fraction of fresh black carbon dry aerosol in air {UM:00108}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: soot_aged(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: soot_aged(:,:,:)
   ! mass fraction of aged black carbon dry aerosol in air {UM:00109}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ocff_fresh(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ocff_fresh(:,:,:)
   ! mass fraction of fresh organic carbon from fossil fuel dry aerosol in air
   ! {UM:00114}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ocff_aged(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ocff_aged(:,:,:)
   ! mass fraction of aged organic carbon from fossil fuel dry aerosol in air
   ! (kg/kg) {UM:00115}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: biogenic(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: biogenic(:,:,:)
   ! mass fraction of biogenic secondary organic dry aerosol in air {UM:00351}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_div1(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_div1(:,:,:)
   ! mass fraction of dust division 1 dry aerosol in air {UM:00431}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_div2(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_div2(:,:,:)
   ! mass fraction of dust division 2 dry aerosol in air {UM:00432}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_div3(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_div3(:,:,:)
   ! mass fraction of dust division 3 dry aerosol in air {UM:00433}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_div4(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_div4(:,:,:)
   ! mass fraction of dust division 4 dry aerosol in air {UM:00434}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_div5(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_div5(:,:,:)
   ! mass fraction of dust division 5 dry aerosol in air {UM:00435}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: dust_div6(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: dust_div6(:,:,:)
   ! mass fraction of dust division 6 dry aerosol in air {UM:00436}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: sea_salt_film(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: sea_salt_film(:,:,:)
   ! atmosphere number concentration of film mode sea salt particles (/m^3)
   ! {UM:01247}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: sea_salt_jet(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: sea_salt_jet(:,:,:)
   ! atmosphere number concentration of jet mode sea salt particles (/m^3)
   ! {UM:01248}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: co2_interactive(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: co2_interactive(:,:,:)
   ! mass_fraction_of_carbon_dioxide_in_air [CF] {UM:00252}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: rim_cry(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: rim_cry(:,:,:)
   ! riming rate for ice crystals, mass fraction (/s)
   ! from_cloud_liquid [CF] (/s) {UM:04247}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: rim_agg(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: rim_agg(:,:,:)
   ! riming rate for ice aggregates, mass fraction (/s) {UM:04248}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: vertvel(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: vertvel(:,:,:)
   ! upward_air_velocity [CF] (m/s) {UM:00150}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: bl_tke(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: bl_tke(:,:,:)
   ! turbulent kinetic energy (m2/s2) {UM:03473}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: interf_z(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: interf_z(:,:,:)
   ! Altitude of grid-cell interfaces (m)
 REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_area_fullht(:,:,:)
   ! Grid cell area (m^2) - all levels
@@ -366,19 +367,19 @@ REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_area_fullht(:,:,:)
 ! Note: These fields can also be used for other chemistry schemes if needed
 ! e.g. o3_offline is used for overwriting stratospheric values in tropospheric
 ! chemistry schemes.
-REAL, ALLOCATABLE, SAVE, PUBLIC :: h2o2_offline(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: h2o2_offline(:,:,:)
   ! Hydrogen peroxide as offline oxidant (kg/kg-air)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: ho2_offline(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: ho2_offline(:,:,:)
   ! Hydroperoxyl radical as offline oxidant (kg/kg-air)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: no3_offline(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: no3_offline(:,:,:)
   ! Nitrate radical as offline oxidant (kg/kg-air)
-REAL, ALLOCATABLE, SAVE, PUBLIC :: o3_offline(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: o3_offline(:,:,:)
   ! mass_fraction_of_ozone_in_air [CF] {UM:00060}
-REAL, ALLOCATABLE, SAVE, PUBLIC :: oh_offline(:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: oh_offline(:,:,:)
   ! Hydroxyl radical as offline oxidant (kg/kg-air)
 
 ! --- 4D fields of type real ---
-REAL, ALLOCATABLE, SAVE, PUBLIC :: photol_rates(:,:,:,:)
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: photol_rates(:,:,:,:)
   ! Interpolated photolysis rates
   ! Dimensions are rows, row_length, model_levels,
   ! and number of photolytic reactions (jppj)
@@ -401,6 +402,17 @@ TYPE, PUBLIC :: env_field_info_type
   INTEGER :: ubound_dim4  ! Upper bound of dimension 4
   LOGICAL :: l_land_only  ! True if field is defined on land points only
 END TYPE env_field_info_type
+
+! Type used to hold pointers to environment field values
+TYPE, PUBLIC :: env_field_ptrs_type
+  REAL, POINTER :: value_0d_real
+  REAL, POINTER :: value_1d_real(:)
+  INTEGER, POINTER :: value_2d_integer(:,:)
+  REAL, POINTER :: value_2d_real(:,:)
+  LOGICAL, POINTER :: value_2d_logical(:,:)
+  REAL, POINTER :: value_3d_real(:,:,:)
+  REAL, POINTER :: value_4d_real(:,:,:,:)
+END TYPE env_field_ptrs_type
 
 ! Missing data value for environment field array bound (for field bounds
 ! that cannot be fully defined in 'init_environment_req')
@@ -425,6 +437,8 @@ LOGICAL, ALLOCATABLE, TARGET, SAVE, PUBLIC ::                                  &
   l_environ_field_available(:)     ! Availability status flag
 TYPE(env_field_info_type), ALLOCATABLE, SAVE, PUBLIC ::                        &
   environ_field_info(:)            ! Field info
+TYPE(env_field_ptrs_type), ALLOCATABLE, SAVE, PUBLIC ::                        &
+  environ_field_ptrs(:)            ! Field pointers
 
 CHARACTER(LEN=*), PARAMETER :: ModuleName='UKCA_ENVIRONMENT_FIELDS_MOD'
 
@@ -515,6 +529,19 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName = 'CLEAR_LAND_ONLY_FIELDS'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+DO i = 1, SIZE(environ_field_info)
+  IF (environ_field_info(i)%l_land_only) THEN
+    l_environ_field_available(i) = .FALSE.
+    ! Ensure all field pointers are cleared before de-allocating the fields
+    ! (Land only fields may be 1D real or 2D real/logical but allow for
+    ! possibility of 2D integer land fields too)
+    NULLIFY(environ_field_ptrs(i)%value_1d_real)
+    NULLIFY(environ_field_ptrs(i)%value_2d_integer)
+    NULLIFY(environ_field_ptrs(i)%value_2d_real)
+    NULLIFY(environ_field_ptrs(i)%value_2d_logical)
+  END IF
+END DO
+
 IF (ALLOCATED(soil_moisture_layer1)) DEALLOCATE(soil_moisture_layer1)
 IF (ALLOCATED(fland)) DEALLOCATE(fland)
 IF (ALLOCATED(l_tile_active)) DEALLOCATE(l_tile_active)
@@ -533,10 +560,6 @@ IF (ALLOCATED(ibvoc_acetone)) DEALLOCATE(ibvoc_acetone)
 IF (ALLOCATED(ibvoc_methanol)) DEALLOCATE(ibvoc_methanol)
 IF (ALLOCATED(ibvoc_terpene)) DEALLOCATE(ibvoc_terpene)
 IF (ALLOCATED(ibvoc_isoprene)) DEALLOCATE(ibvoc_isoprene)
-
-DO i = 1, SIZE(environ_field_info)
-  IF (environ_field_info(i)%l_land_only) l_environ_field_available(i) = .FALSE.
-END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

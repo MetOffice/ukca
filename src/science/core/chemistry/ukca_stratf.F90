@@ -8,11 +8,8 @@
 !
 ! *****************************COPYRIGHT*******************************
 !
-! Purpose: Subroutine to overwrite values at top of model
-!          using interpolated 5-day fields from the 2-d model.
-!          Based on STRATF.F from Cambridge TOMCAT model and
-!          modified by Olaf Morgenstern to allow for flexible
-!          positioning of the NOy species.
+! Purpose: Subroutine to overwrite values at top of model using
+!          external data
 !
 !  Part of the UKCA model, a community model supported by the
 !  Met Office and NCAS, with components provided initially
@@ -41,7 +38,9 @@ CONTAINS
 SUBROUTINE ukca_stratf(row_length, rows,                                       &
                        model_levels,                                           &
                        ntracer,                                                &
-                       env_ozone3d, tracer)
+                       o33d, tracer)
+
+USE ukca_config_specification_mod, ONLY: ukca_config
 
 USE ukca_tropopause,   ONLY: tropopause_level
 USE ukca_cspecies,     ONLY: n_o3, n_o3s, n_hono2
@@ -61,7 +60,7 @@ INTEGER, INTENT(IN) :: rows               ! No of latitudes
 INTEGER, INTENT(IN) :: model_levels       ! No of levels
 INTEGER, INTENT(IN) :: ntracer            ! No of chemical tracers
 
-REAL, INTENT(IN) :: env_ozone3d(row_length,rows,model_levels) ! O3
+REAL, INTENT(IN) :: o33d(row_length,rows,model_levels) ! 3D O3 field
 
 ! Tracer concentrations in mass mixing ratio
 REAL, INTENT(IN OUT) :: tracer(row_length,rows,model_levels,ntracer)
@@ -75,16 +74,15 @@ LOGICAL :: mask(row_length,rows,model_levels) ! mask to identify stratosphere
 REAL, PARAMETER :: o3_hno3_ratio = 1.0/1000.0 ! kg[N]/kg[O3] from
                                               ! Murphy and Fahey 1994
 
-REAL :: o33d(row_length,rows,model_levels)   ! 2D field interpolated onto 3D
 REAL :: hno33d(row_length,rows,model_levels) ! 3D field from fixed o3:hno3 ratio
 
 ! Parameter to overwrite stratosphere (fixed no of levels above tropopause)
 INTEGER, PARAMETER :: no_above_trop1 = 3        ! Suitable for L38/L60
-INTEGER, PARAMETER :: no_above_trop2 = 10       ! Suitable for L63/L85
+INTEGER, PARAMETER :: no_above_trop2 = 10       ! Suitable for L63/L70/L85
 INTEGER :: no_above_trop
 
 INTEGER           :: errcode                    ! Error code: ereport
-CHARACTER(LEN=errormessagelength) :: cmessage                   ! Error message
+CHARACTER(LEN=errormessagelength) :: cmessage   ! Error message
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
@@ -93,20 +91,29 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_STRATF'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-! Set number of levels above tropopause depending on vertical resolution
-IF (model_levels == 38 .OR. model_levels == 60) THEN
-  no_above_trop = no_above_trop1
-ELSE IF (model_levels == 63 .OR. model_levels == 70 .OR.                       &
-         model_levels == 85) THEN
-  no_above_trop = no_above_trop2
+! Set number of levels above tropopause at which to start overwriting values.
+! If number of levels is not set explicitly then set it depending on vertical
+! resolution. This is deprecated functionality designed to support specific UM
+! grids. In future, the UM should set the number of levels explcitly via the
+! ukca_setup call making this functionality redundant.
+IF (ukca_config%nlev_above_trop_o3_env > 0) THEN
+  no_above_trop = ukca_config%nlev_above_trop_o3_env
 ELSE
-  errcode = 1
-  cmessage = 'Levels above tropopause not set at this resolution'
-  CALL ereport('UKCA_STRATF',errcode,cmessage)
+  IF (model_levels == 38 .OR. model_levels == 60) THEN
+    no_above_trop = no_above_trop1
+  ELSE IF (model_levels == 63 .OR. model_levels == 70 .OR.                     &
+           model_levels == 85) THEN
+    no_above_trop = no_above_trop2
+  ELSE
+    errcode = 1
+    cmessage =                                                                 &
+      'Levels above tropopause must be set explicitly at this resolution'
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
 END IF
 
 IF (printstatus == Prstatus_Diag) THEN
-  WRITE(umMessage,'(A)') 'UKCA_STRATF: Logicals in use:'
+  WRITE(umMessage,'(A)') 'UKCA_STRATF:'
   CALL umPrint(umMessage,src='ukca_stratf')
   WRITE(umMessage,'(A,I0)') 'no_above_trop: ',no_above_trop
   CALL umPrint(umMessage,src='ukca_stratf')
@@ -114,12 +121,17 @@ IF (printstatus == Prstatus_Diag) THEN
   CALL umPrint(umMessage,src='ukca_stratf')
 END IF
 
-o33d(:,:,:) = env_ozone3d(:,:,:)
+! Skip processing if there are no updates to do
+IF (no_above_trop >= model_levels) THEN
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
+
 hno33d(:,:,:) = o33d(:,:,:)*o3_hno3_ratio*c_hno3/c_n
 
 ! Overwrite o3, and hno3 at all gridboxes a fixed
 !  number of model levels above the tropopause
-!  O3   - UM ancillary
+!  O3   - external field
 !  HNO3 - using fixed o3:hno3 ratio
 
 mask(:,:,:) = .FALSE.

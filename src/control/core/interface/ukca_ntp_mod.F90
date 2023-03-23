@@ -880,14 +880,13 @@ ELSE
 
     ! Lumped species - on for chemical schemes using lumping
   CASE (fldname_NO2, fldname_BrO, fldname_HCl)
-    ntp_req = ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.  &
-              ukca_config%l_ukca_stratcfc .OR. ukca_config%l_ukca_cristrat
+    ntp_req = ukca_config%l_tracer_lumping
 
     ! All others are checked against whether they are in
-    ! the nadvt array (only for BE explicit schemes)
+    ! the nadvt array (originally only for BE explicit schemes but logic has
+    ! since been expanded to include case with RO2 species not transported
+    ! if StratTrop chemical mechanism is being used, or CRI-Strat used)
   CASE DEFAULT
-    ! Logic expanded to include case with RO2 species not transported
-    ! if StratTrop chemical mechanism is being used, or CRI-Strat used
     ntp_req = ANY(nadvt(:) == varname) .AND.                                   &
          ((ukca_config%ukca_int_method  == int_method_be_explicit) .OR.        &
           (ukca_config%l_ukca_ro2_ntp .AND. ukca_config%l_ukca_strattrop) .OR. &

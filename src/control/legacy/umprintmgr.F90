@@ -18,8 +18,8 @@
 ! by The University of Cambridge, University of Leeds and
 ! The Met. Office.  See www.ukca.ac.uk
 !
-! Code Owner: Please refer to the UM file CodeOwners.txt 
-! This file belongs in section: UKCA 
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file belongs in section: UKCA
 !
 ! Code Description:
 !   Language:  FORTRAN 2003
@@ -81,13 +81,13 @@ CHARACTER(LEN=*), OPTIONAL  :: UsrPrefix       ! User prefix for each line
 CHARACTER(LEN=*), OPTIONAL  :: HangIndent      ! Hanging indent for new lines
 LOGICAL, OPTIONAL           :: stdErrorToo
 
-WRITE(*,*) 'UKCA INFO:', TRIM(line)
+WRITE(*,'(A,A)') 'UKCA INFO:', TRIM(line)
 
 END SUBROUTINE umprint
 
-! Dummy routine 
+! Dummy routine
 SUBROUTINE umprintflush
 IMPLICIT NONE
 END SUBROUTINE umprintflush
-    
+
 END MODULE umprintmgr

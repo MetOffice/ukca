@@ -187,6 +187,7 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
 
 USE ukca_environment_fields_mod, ONLY:                                         &
   environ_field_info,                                                          &
+  environ_field_ptrs,                                                          &
   l_environ_field_available,                                                   &
   no_bound_value,                                                              &
   k1_dust_flux, k2_dust_flux,                                                  &
@@ -459,63 +460,63 @@ IF (PRESENT(field_index)) field_index = i_field
 ! Copy real field value to the appropriate UKCA internal variable if required
 SELECT CASE (varname)
 CASE (fldname_sin_declination)
-  IF (i_field /= 0) sin_declination = field_data
+  CALL set_field_0d_real(i_field, field_data, sin_declination)
 CASE (fldname_equation_of_time)
-  IF (i_field /= 0) equation_of_time = field_data
+  CALL set_field_0d_real(i_field, field_data, equation_of_time)
 CASE (fldname_atmospheric_ch4)
-  IF (i_field /= 0) atmospheric_ch4 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_ch4)
 CASE (fldname_atmospheric_co2)
-  IF (i_field /= 0) atmospheric_co2 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_co2)
 CASE (fldname_atmospheric_h2)
-  IF (i_field /= 0) atmospheric_h2 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_h2)
 CASE (fldname_atmospheric_n2)
-  IF (i_field /= 0) atmospheric_n2 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_n2)
 CASE (fldname_atmospheric_o2)
-  IF (i_field /= 0) atmospheric_o2 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_o2)
 CASE (fldname_atmospheric_n2o)
-  IF (i_field /= 0) atmospheric_n2o = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_n2o)
 CASE (fldname_atmospheric_cfc11)
-  IF (i_field /= 0) atmospheric_cfc11 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_cfc11)
 CASE (fldname_atmospheric_cfc12)
-  IF (i_field /= 0) atmospheric_cfc12 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_cfc12)
 CASE (fldname_atmospheric_cfc113)
-  IF (i_field /= 0) atmospheric_cfc113 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_cfc113)
 CASE (fldname_atmospheric_hcfc22)
-  IF (i_field /= 0) atmospheric_hcfc22 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_hcfc22)
 CASE (fldname_atmospheric_hfc125)
-  IF (i_field /= 0) atmospheric_hfc125 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_hfc125)
 CASE (fldname_atmospheric_hfc134a)
-  IF (i_field /= 0) atmospheric_hfc134a = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_hfc134a)
 CASE (fldname_atmospheric_mebr)
-  IF (i_field /= 0) atmospheric_mebr = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_mebr)
 CASE (fldname_atmospheric_mecl)
-  IF (i_field /= 0) atmospheric_mecl = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_mecl)
 CASE (fldname_atmospheric_ch2br2)
-  IF (i_field /= 0) atmospheric_ch2br2 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_ch2br2)
 CASE (fldname_atmospheric_chbr3)
-  IF (i_field /= 0) atmospheric_chbr3 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_chbr3)
 CASE (fldname_atmospheric_cfc114)
-  IF (i_field /= 0) atmospheric_cfc114 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_cfc114)
 CASE (fldname_atmospheric_cfc115)
-  IF (i_field /= 0) atmospheric_cfc115 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_cfc115)
 CASE (fldname_atmospheric_ccl4)
-  IF (i_field /= 0) atmospheric_ccl4 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_ccl4)
 CASE (fldname_atmospheric_meccl3)
-  IF (i_field /= 0) atmospheric_meccl3 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_meccl3)
 CASE (fldname_atmospheric_hcfc141b)
-  IF (i_field /= 0) atmospheric_hcfc141b = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_hcfc141b)
 CASE (fldname_atmospheric_hcfc142b)
-  IF (i_field /= 0) atmospheric_hcfc142b = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_hcfc142b)
 CASE (fldname_atmospheric_h1211)
-  IF (i_field /= 0) atmospheric_h1211 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_h1211)
 CASE (fldname_atmospheric_h1202)
-  IF (i_field /= 0) atmospheric_h1202 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_h1202)
 CASE (fldname_atmospheric_h1301)
-  IF (i_field /= 0) atmospheric_h1301 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_h1301)
 CASE (fldname_atmospheric_h2402)
-  IF (i_field /= 0) atmospheric_h2402 = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_h2402)
 CASE (fldname_atmospheric_cos)
-  IF (i_field /= 0) atmospheric_cos = field_data
+  CALL set_field_0d_real(i_field, field_data, atmospheric_cos)
 CASE DEFAULT
   ! The named field may be a 2D field internally
   CALL set_env_2d_from_0d_real(varname, i_field, field_data, error_code)
@@ -757,8 +758,8 @@ END IF
 i_field = environ_field_index(varname)
 IF (PRESENT(field_index)) field_index = i_field
 
+! If field is required, check the supplied field data array is allocated
 IF (i_field /= 0) THEN
-  ! Check the supplied field data array is allocated
   IF (.NOT. ALLOCATED(field_data)) THEN
     error_code = errcode_env_field_mismatch
     IF (PRESENT(error_message)) error_message =                                &
@@ -767,10 +768,13 @@ IF (i_field /= 0) THEN
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN
   END IF
+END IF
 
-  ! If field is required, check whether this might be a 1-D field to populate a
-  ! 3-D field
-  IF ( ANY(fldnames_3d_real == varname) ) THEN
+! Check whether this might be a 1-D field to populate a 3-D field
+IF ( ANY(fldnames_3d_real == varname) ) THEN
+
+  ! Field name is recognised, process it if it is a required field, else ignore
+  IF (i_field /= 0) THEN
     ! Verify that the input array is not smaller than the last dimension
     k1 = environ_field_info(i_field)%lbound_dim3
     k2 = environ_field_info(i_field)%ubound_dim3
@@ -779,32 +783,34 @@ IF (i_field /= 0) THEN
       IF (PRESENT(error_message)) error_message =                              &
         'input 1D real environment field for 3-D field ''' // TRIM(varname) // &
         ''' has one or more invalid array bounds'
-    END IF
-    IF (error_code /= 0) THEN
       IF (PRESENT(error_routine)) error_routine = RoutineName
       IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                    &
                               zhook_out, zhook_handle)
       RETURN
     END IF
-
+    ! Set the field
     CALL set_env_3d_from_1d_real(varname, i_field, field_data, error_code)
     IF ( error_code /= 0 ) THEN
       IF (PRESENT(error_message)) error_message =                              &
-       'Error populating 3-D field from 1-D real : ''' // TRIM(varname) // ''' '
+        'Error populating 3-D field from 1-D real : ''' // TRIM(varname) // ''''
       IF (PRESENT(error_routine)) error_routine = RoutineName
     ELSE
       l_environ_field_available(i_field) = .TRUE.
     END IF
-    ! Return in any case with/ without errors
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-    RETURN
   END IF
-  ! Check that the data bounds are compatible with the UKCA configuration.
-  ! The field data supplied must fill the required domain but may extend beyond
-  ! it to avoid the need for pre-trimming by the parent model.
-  ! Allow for the possibility that the expected bounds for land only fields may
-  ! undefined if the UKCA environment field 'land_sea_mask' has not been set.
 
+  ! Return in any case with/ without errors
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+
+END IF
+
+! If field is required, check that its bounds are compatible with the UKCA
+! configuration. The field data supplied must fill the required domain but may
+! extend beyond it to avoid the need for pre-trimming by the parent model.
+! Allow for the possibility that the expected bounds for land only fields may
+! undefined if the UKCA environment field 'land_sea_mask' has not been set.
+IF (i_field /= 0) THEN
   i1 = environ_field_info(i_field)%lbound_dim1
   i2 = environ_field_info(i_field)%ubound_dim1
   IF (i2 == no_bound_value) THEN
@@ -833,71 +839,35 @@ END IF
 ! Any data outside the required bounds are discarded.
 SELECT CASE (varname)
 CASE (fldname_soil_moisture_layer1)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(soil_moisture_layer1))                                 &
-      ALLOCATE(soil_moisture_layer1(i1:i2))
-    soil_moisture_layer1 = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, soil_moisture_layer1)
 CASE (fldname_fland)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(fland)) ALLOCATE(fland(i1:i2))
-    fland = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, fland)
 CASE (fldname_ibvoc_isoprene)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ibvoc_isoprene)) ALLOCATE(ibvoc_isoprene(i1:i2))
-    ibvoc_isoprene = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, ibvoc_isoprene)
 CASE (fldname_ibvoc_terpene)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ibvoc_terpene)) ALLOCATE(ibvoc_terpene(i1:i2))
-    ibvoc_terpene = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, ibvoc_terpene)
 CASE (fldname_ibvoc_methanol)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ibvoc_methanol)) ALLOCATE(ibvoc_methanol(i1:i2))
-    ibvoc_methanol = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, ibvoc_methanol)
 CASE (fldname_ibvoc_acetone)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ibvoc_acetone)) ALLOCATE(ibvoc_acetone(i1:i2))
-    ibvoc_acetone = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, ibvoc_acetone)
 CASE (fldname_inferno_bc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(inferno_bc)) ALLOCATE(inferno_bc(i1:i2))
-    inferno_bc = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_bc)
 CASE (fldname_inferno_ch4)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(inferno_ch4)) ALLOCATE(inferno_ch4(i1:i2))
-    inferno_ch4 = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_ch4)
 CASE (fldname_inferno_co)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(inferno_co)) ALLOCATE(inferno_co(i1:i2))
-    inferno_co = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_co)
 CASE (fldname_inferno_nox)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(inferno_nox)) ALLOCATE(inferno_nox(i1:i2))
-    inferno_nox = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_nox)
 CASE (fldname_inferno_oc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(inferno_oc)) ALLOCATE(inferno_oc(i1:i2))
-    inferno_oc = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_oc)
 CASE (fldname_inferno_so2)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(inferno_so2)) ALLOCATE(inferno_so2(i1:i2))
-    inferno_so2 = field_data(i1:i2)
-  END IF
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_so2)
 CASE DEFAULT
   ! Field not a recognised 1-D (or 3-D) field
   IF ( .NOT. (ANY(fldnames_3d_real == varname)) ) THEN
     IF (PRESENT(error_message)) error_message =                                &
-      'Unknown name for 1D environmental input field: ''' //TRIM(varname)// ''''
+      'Unknown name for 1D real environmental input field: ''' //              &
+      TRIM(varname) // ''''
     IF (PRESENT(error_routine)) error_routine = RoutineName
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN
@@ -977,9 +947,8 @@ END IF
 i_field = environ_field_index(varname)
 IF (PRESENT(field_index)) field_index = i_field
 
+! If field is required, check the supplied field data array is allocated
 IF (i_field /= 0) THEN
-
-  ! Check the supplied field data array is allocated
   IF (.NOT. ALLOCATED(field_data)) THEN
     error_code = errcode_env_field_mismatch
     IF (PRESENT(error_message)) error_message =                                &
@@ -988,11 +957,13 @@ IF (i_field /= 0) THEN
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN
   END IF
+END IF
 
-  ! If field is required, check whether this might be a 2-D field to populate a
-  ! 4-D field
-  IF ( ANY(fldnames_4d_real == varname) ) THEN
+! Check whether this might be a 2-D field to populate a 4-D field
+IF ( ANY(fldnames_4d_real == varname) ) THEN
 
+  ! Field name is recognised, process it if it is a required field, else ignore
+  IF (i_field /= 0) THEN
     ! Verify that the spatial dimensions of the input array are not smaller than
     ! the corresponding dimensions of the target variable. The 4th dimension
     ! (usu. non-spatial, e.g. photol species) should match the bounds exactly.
@@ -1000,21 +971,18 @@ IF (i_field /= 0) THEN
     k2 = environ_field_info(i_field)%ubound_dim3
     n1 = environ_field_info(i_field)%lbound_dim4
     n2 = environ_field_info(i_field)%ubound_dim4
-
     IF (LBOUND(field_data,DIM=1) > k1 .OR. UBOUND(field_data,DIM=1) < k2 .OR.  &
        LBOUND(field_data,DIM=2) /= n1 .OR. UBOUND(field_data,DIM=2) /= n2) THEN
       error_code = errcode_env_field_mismatch
       IF (PRESENT(error_message)) error_message =                              &
         'input 2D real environment field for 4-D field ''' // TRIM(varname) // &
         ''' has one or more invalid array bounds'
-    END IF
-    IF (error_code /= 0) THEN
       IF (PRESENT(error_routine)) error_routine = RoutineName
       IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                    &
-        zhook_out, zhook_handle)
+                              zhook_out, zhook_handle)
       RETURN
     END IF
-
+    ! Set the 4-D field
     CALL set_env_4d_from_2d_real(varname, i_field, field_data, error_code)
     IF ( error_code /= 0 ) THEN
       IF (PRESENT(error_message)) error_message =                              &
@@ -1023,17 +991,21 @@ IF (i_field /= 0) THEN
     ELSE
       l_environ_field_available(i_field) = .TRUE.
     END IF
-    ! Return in any case with/ without errors
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-    RETURN
   END IF
 
-  ! Check that the input data bounds are compatible with the UKCA configuration.
-  ! The field data supplied must fill the required domain but may extend beyond
-  ! it to avoid the need for pre-trimming (e.g. halo removal) by the parent model.
-  ! Allow for the possibility that the expected bounds for land only fields may
-  ! undefined if the UKCA environment field 'land_sea_mask' has not been set.
+  ! Return in any case with/ without errors
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
 
+END IF
+
+! If field is required, check that the input data bounds are compatible with
+! the UKCA configuration. The field data supplied must fill the required domain
+! but may extend beyond it to avoid the need for pre-trimming (e.g. halo
+! removal) by the parent model.
+! Allow for the possibility that the expected bounds for land only fields may
+! undefined if the UKCA environment field 'land_sea_mask' has not been set.
+IF (i_field /= 0) THEN
   i1 = environ_field_info(i_field)%lbound_dim1
   i2 = environ_field_info(i_field)%ubound_dim1
   j1 = environ_field_info(i_field)%lbound_dim2
@@ -1066,185 +1038,81 @@ END IF
 ! Any data outside the required bounds (e.g. halos) are discarded.
 SELECT CASE (varname)
 CASE (fldname_latitude)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(latitude)) ALLOCATE(latitude(i1:i2,j1:j2))
-    latitude = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, latitude)
 CASE (fldname_longitude)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(longitude)) ALLOCATE(longitude(i1:i2,j1:j2))
-    longitude = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, longitude)
 CASE (fldname_sin_latitude)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(sin_latitude)) ALLOCATE(sin_latitude(i1:i2,j1:j2))
-    sin_latitude = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, sin_latitude)
 CASE (fldname_cos_latitude)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(cos_latitude)) ALLOCATE(cos_latitude(i1:i2,j1:j2))
-    cos_latitude = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, cos_latitude)
 CASE (fldname_tan_latitude)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(tan_latitude)) ALLOCATE(tan_latitude(i1:i2,j1:j2))
-    tan_latitude = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, tan_latitude)
 CASE (fldname_conv_cloud_lwp)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_cloud_lwp)) ALLOCATE(conv_cloud_lwp(i1:i2,j1:j2))
-    conv_cloud_lwp = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, conv_cloud_lwp)
 CASE (fldname_tstar)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(tstar)) ALLOCATE(tstar(i1:i2,j1:j2))
-    tstar = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, tstar)
 CASE (fldname_zbl)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(zbl)) ALLOCATE(zbl(i1:i2,j1:j2))
-    zbl = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, zbl)
 CASE (fldname_rough_length)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rough_length)) ALLOCATE(rough_length(i1:i2,j1:j2))
-    rough_length = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, rough_length)
 CASE (fldname_seaice_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(seaice_frac)) ALLOCATE(seaice_frac(i1:i2,j1:j2))
-    seaice_frac = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, seaice_frac)
 CASE (fldname_frac_types)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(frac_types)) ALLOCATE(frac_types(i1:i2,j1:j2))
-    frac_types = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, frac_types)
 CASE (fldname_laift_lp)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(laift_lp)) ALLOCATE(laift_lp(i1:i2,j1:j2))
-    laift_lp = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, laift_lp)
 CASE (fldname_canhtft_lp)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(canhtft_lp)) ALLOCATE(canhtft_lp(i1:i2,j1:j2))
-    canhtft_lp = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, canhtft_lp)
 CASE (fldname_tstar_tile)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(tstar_tile)) ALLOCATE(tstar_tile(i1:i2,j1:j2))
-    tstar_tile = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, tstar_tile)
 CASE (fldname_z0tile_lp)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(z0tile_lp)) ALLOCATE(z0tile_lp(i1:i2,j1:j2))
-    z0tile_lp = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, z0tile_lp)
 CASE (fldname_pstar)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(pstar)) ALLOCATE(pstar(i1:i2,j1:j2))
-    pstar = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, pstar)
 CASE (fldname_surf_albedo)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(surf_albedo)) ALLOCATE(surf_albedo(i1:i2,j1:j2))
-    surf_albedo = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, surf_albedo)
 CASE (fldname_zhsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(zhsc)) ALLOCATE(zhsc(i1:i2,j1:j2))
-    zhsc = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, zhsc)
 CASE (fldname_u_scalar_10m)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(u_scalar_10m)) ALLOCATE(u_scalar_10m(i1:i2,j1:j2))
-    u_scalar_10m = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, u_scalar_10m)
 CASE (fldname_surf_hf)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(surf_hf)) ALLOCATE(surf_hf(i1:i2,j1:j2))
-    surf_hf = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, surf_hf)
 CASE (fldname_u_s)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(u_s)) ALLOCATE(u_s(i1:i2,j1:j2))
-    u_s = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, u_s)
 CASE (fldname_ch4_wetl_emiss)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ch4_wetl_emiss)) ALLOCATE(ch4_wetl_emiss(i1:i2,j1:j2))
-    ch4_wetl_emiss = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, ch4_wetl_emiss)
 CASE (fldname_dms_sea_conc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dms_sea_conc)) ALLOCATE(dms_sea_conc(i1:i2,j1:j2))
-    dms_sea_conc = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, dms_sea_conc)
 CASE (fldname_chloro_sea)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(chloro_sea)) ALLOCATE(chloro_sea(i1:i2,j1:j2))
-    chloro_sea = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, chloro_sea)
+  ! Dust fluxes are stored in a 3D array so need special treatment
 CASE (fldname_dust_flux_div1)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_flux))                                            &
-      ALLOCATE(dust_flux(i1:i2,j1:j2,k1_dust_flux:k2_dust_flux))
-    dust_flux(:,:,1) = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real_k(i_field, i1, i2, j1, j2,                            &
+                           k1_dust_flux, k2_dust_flux, 1, field_data, dust_flux)
 CASE (fldname_dust_flux_div2)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_flux))                                            &
-      ALLOCATE(dust_flux(i1:i2,j1:j2,k1_dust_flux:k2_dust_flux))
-    dust_flux(:,:,2) = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real_k(i_field, i1, i2, j1, j2,                            &
+                           k1_dust_flux, k2_dust_flux, 2, field_data, dust_flux)
 CASE (fldname_dust_flux_div3)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_flux))                                            &
-      ALLOCATE(dust_flux(i1:i2,j1:j2,k1_dust_flux:k2_dust_flux))
-    dust_flux(:,:,3) = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real_k(i_field, i1, i2, j1, j2,                            &
+                           k1_dust_flux, k2_dust_flux, 3, field_data, dust_flux)
 CASE (fldname_dust_flux_div4)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_flux))                                            &
-      ALLOCATE(dust_flux(i1:i2,j1:j2,k1_dust_flux:k2_dust_flux))
-    dust_flux(:,:,4) = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real_k(i_field, i1, i2, j1, j2,                            &
+                           k1_dust_flux, k2_dust_flux, 4, field_data, dust_flux)
 CASE (fldname_dust_flux_div5)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_flux))                                            &
-      ALLOCATE(dust_flux(i1:i2,j1:j2,k1_dust_flux:k2_dust_flux))
-    dust_flux(:,:,5) = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real_k(i_field, i1, i2, j1, j2,                            &
+                           k1_dust_flux, k2_dust_flux, 5, field_data, dust_flux)
 CASE (fldname_dust_flux_div6)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_flux))                                            &
-      ALLOCATE(dust_flux(i1:i2,j1:j2,k1_dust_flux:k2_dust_flux))
-    dust_flux(:,:,6) = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real_k(i_field, i1, i2, j1, j2,                            &
+                           k1_dust_flux, k2_dust_flux, 6, field_data, dust_flux)
+  ! End of dust flux cases
 CASE (fldname_surf_wetness)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(surf_wetness))                                         &
-      ALLOCATE(surf_wetness(i1:i2,j1:j2))
-    surf_wetness = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, surf_wetness)
 CASE (fldname_grid_surf_area)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(grid_surf_area))                                       &
-      ALLOCATE(grid_surf_area(i1:i2,j1:j2))
-    grid_surf_area = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, grid_surf_area)
 CASE (fldname_ext_cg_flash)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ext_cg_flash))                                         &
-      ALLOCATE(ext_cg_flash(i1:i2,j1:j2))
-    ext_cg_flash = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, ext_cg_flash)
 CASE (fldname_ext_ic_flash)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ext_ic_flash))                                         &
-      ALLOCATE(ext_ic_flash(i1:i2,j1:j2))
-    ext_ic_flash = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_real(i_field, i1, i2, j1, j2, field_data, ext_ic_flash)
 CASE DEFAULT
   ! Error: Not a recognised 2-D (or 4-D) field
   IF ( .NOT. (ANY(fldnames_4d_real == varname)) ) THEN
@@ -1357,30 +1225,16 @@ END IF
 ! Any data outside the required bounds (e.g. halos) are discarded.
 SELECT CASE (varname)
 CASE (fldname_kent)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(kent)) ALLOCATE(kent(i1:i2,j1:j2))
-    kent = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_integer(i_field, i1, i2, j1, j2, field_data, kent)
 CASE (fldname_kent_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(kent_dsc)) ALLOCATE(kent_dsc(i1:i2,j1:j2))
-    kent_dsc = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_integer(i_field, i1, i2, j1, j2, field_data, kent_dsc)
 CASE (fldname_conv_cloud_base)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_cloud_base)) ALLOCATE(conv_cloud_base(i1:i2,j1:j2))
-    conv_cloud_base = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_integer(i_field, i1, i2, j1, j2, field_data,               &
+                            conv_cloud_base)
 CASE (fldname_conv_cloud_top)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_cloud_top)) ALLOCATE(conv_cloud_top(i1:i2,j1:j2))
-    conv_cloud_top = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_integer(i_field, i1, i2, j1, j2, field_data, conv_cloud_top)
 CASE (fldname_lscat_zhang)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(lscat_zhang)) ALLOCATE(lscat_zhang(i1:i2,j1:j2))
-    lscat_zhang = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_integer(i_field, i1, i2, j1, j2, field_data, lscat_zhang)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown
@@ -1495,20 +1349,17 @@ END IF
 SELECT CASE (varname)
 CASE (fldname_land_sea_mask)
   IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(land_sea_mask)) ALLOCATE(land_sea_mask(i1:i2,j1:j2))
-    land_sea_mask = field_data(i1:i2,j1:j2)
+    CALL set_field_2d_logical(i_field, i1, i2, j1, j2, field_data,             &
+                              land_sea_mask)
+    ! Special processing to set up index of land points for locating
+    ! land-only environment fields on a 2-D grid
+    CALL locate_land_points()
+    ! Clear any existing land-only fields as these fields may be inconsistent
+    ! with the new land sea mask
+    CALL clear_land_only_fields()
   END IF
-  ! Special processing to set up index of land points for locating
-  ! land-only environment fields on a 2-D grid
-  CALL locate_land_points()
-  ! Clear any existing land-only fields as these fields may be inconsistent
-  ! with the new land sea mask
-  CALL clear_land_only_fields()
 CASE (fldname_l_tile_active)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(l_tile_active)) ALLOCATE(l_tile_active(i1:i2,j1:j2))
-    l_tile_active = field_data(i1:i2,j1:j2)
-  END IF
+  CALL set_field_2d_logical(i_field, i1, i2, j1, j2, field_data, l_tile_active)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown
@@ -1623,308 +1474,151 @@ END IF
 ! Any data outside the required bounds (e.g. halos) are discarded.
 SELECT CASE (varname)
 CASE (fldname_theta)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(theta)) ALLOCATE(theta(i1:i2,j1:j2,k1:k2))
-    theta = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, theta)
 CASE (fldname_q)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(q)) ALLOCATE(q(i1:i2,j1:j2,k1:k2))
-    q = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, q)
 CASE (fldname_qcf)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(qcf)) ALLOCATE(qcf(i1:i2,j1:j2,k1:k2))
-    qcf = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, qcf)
 CASE (fldname_conv_cloud_amount)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_cloud_amount))                                    &
-      ALLOCATE(conv_cloud_amount(i1:i2,j1:j2,k1:k2))
-    conv_cloud_amount = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         conv_cloud_amount)
 CASE (fldname_rho_r2)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rho_r2)) ALLOCATE(rho_r2(i1:i2,j1:j2,k1:k2))
-    rho_r2 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, rho_r2)
 CASE (fldname_qcl)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(qcl)) ALLOCATE(qcl(i1:i2,j1:j2,k1:k2))
-    qcl = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, qcl)
 CASE (fldname_exner_rho_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(exner_rho_levels))                                     &
-      ALLOCATE(exner_rho_levels(i1:i2,j1:j2,k1:k2))
-    exner_rho_levels = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         exner_rho_levels)
 CASE (fldname_area_cloud_fraction)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(area_cloud_fraction))                                  &
-      ALLOCATE(area_cloud_fraction(i1:i2,j1:j2,k1:k2))
-    area_cloud_fraction = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         area_cloud_fraction)
 CASE (fldname_cloud_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(cloud_frac)) ALLOCATE(cloud_frac(i1:i2,j1:j2,k1:k2))
-    cloud_frac = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         cloud_frac)
 CASE (fldname_cloud_liq_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(cloud_liq_frac))                                       &
-      ALLOCATE(cloud_liq_frac(i1:i2,j1:j2,k1:k2))
-    cloud_liq_frac = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         cloud_liq_frac)
 CASE (fldname_exner_theta_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(exner_theta_levels))                                   &
-      ALLOCATE(exner_theta_levels(i1:i2,j1:j2,k1:k2))
-    exner_theta_levels = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         exner_theta_levels)
 CASE (fldname_p_rho_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(p_rho_levels)) ALLOCATE(p_rho_levels(i1:i2,j1:j2,k1:k2))
-    p_rho_levels = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         p_rho_levels)
 CASE (fldname_p_theta_levels)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(p_theta_levels))                                       &
-      ALLOCATE(p_theta_levels(i1:i2,j1:j2,k1:k2))
-    p_theta_levels = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         p_theta_levels)
 CASE (fldname_rhokh_rdz)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rhokh_rdz)) ALLOCATE(rhokh_rdz(i1:i2,j1:j2,k1:k2))
-    rhokh_rdz = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, rhokh_rdz)
 CASE (fldname_dtrdz)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dtrdz))                                                &
-      ALLOCATE(dtrdz(i1:i2,j1:j2,k1:k2))
-    dtrdz = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dtrdz)
 CASE (fldname_we_lim)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(we_lim)) ALLOCATE(we_lim(i1:i2,j1:j2,k1:k2))
-    we_lim = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, we_lim)
 CASE (fldname_t_frac)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(t_frac)) ALLOCATE(t_frac(i1:i2,j1:j2,k1:k2))
-    t_frac = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, t_frac)
 CASE (fldname_zrzi)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(zrzi)) ALLOCATE(zrzi(i1:i2,j1:j2,k1:k2))
-    zrzi = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, zrzi)
 CASE (fldname_we_lim_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(we_lim_dsc)) ALLOCATE(we_lim_dsc(i1:i2,j1:j2,k1:k2))
-    we_lim_dsc = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         we_lim_dsc)
 CASE (fldname_t_frac_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(t_frac_dsc)) ALLOCATE(t_frac_dsc(i1:i2,j1:j2,k1:k2))
-    t_frac_dsc = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         t_frac_dsc)
 CASE (fldname_zrzi_dsc)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(zrzi_dsc)) ALLOCATE(zrzi_dsc(i1:i2,j1:j2,k1:k2))
-    zrzi_dsc = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, zrzi_dsc)
 CASE (fldname_stcon)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(stcon)) ALLOCATE(stcon(i1:i2,j1:j2,k1:k2))
-    stcon = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, stcon)
 CASE (fldname_ls_rain3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ls_rain3d)) ALLOCATE(ls_rain3d(i1:i2,j1:j2,k1:k2))
-    ls_rain3d = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, ls_rain3d)
 CASE (fldname_ls_snow3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ls_snow3d)) ALLOCATE(ls_snow3d(i1:i2,j1:j2,k1:k2))
-    ls_snow3d = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, ls_snow3d)
 CASE (fldname_autoconv)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(autoconv)) ALLOCATE(autoconv(i1:i2,j1:j2,k1:k2))
-    autoconv = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, autoconv)
 CASE (fldname_accretion)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(accretion)) ALLOCATE(accretion(i1:i2,j1:j2,k1:k2))
-    accretion = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, accretion)
 CASE (fldname_pv_on_theta_mlevs)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(pv_on_theta_mlevs))                                    &
-      ALLOCATE(pv_on_theta_mlevs(i1:i2,j1:j2,k1:k2))
-    pv_on_theta_mlevs = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         pv_on_theta_mlevs)
 CASE (fldname_conv_rain3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_rain3d)) ALLOCATE(conv_rain3d(i1:i2,j1:j2,k1:k2))
-    conv_rain3d = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         conv_rain3d)
 CASE (fldname_conv_snow3d)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(conv_snow3d)) ALLOCATE(conv_snow3d(i1:i2,j1:j2,k1:k2))
-    conv_snow3d = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         conv_snow3d)
 CASE (fldname_so4_sa_clim)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(so4_sa_clim)) ALLOCATE(so4_sa_clim(i1:i2,j1:j2,k1:k2))
-    so4_sa_clim = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         so4_sa_clim)
 CASE (fldname_so4_aitken)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(so4_aitken)) ALLOCATE(so4_aitken(i1:i2,j1:j2,k1:k2))
-    so4_aitken = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         so4_aitken)
 CASE (fldname_so4_accum)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(so4_accum)) ALLOCATE(so4_accum(i1:i2,j1:j2,k1:k2))
-    so4_accum = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, so4_accum)
 CASE (fldname_soot_fresh)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(soot_fresh)) ALLOCATE(soot_fresh(i1:i2,j1:j2,k1:k2))
-    soot_fresh = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         soot_fresh)
 CASE (fldname_soot_aged)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(soot_aged)) ALLOCATE(soot_aged(i1:i2,j1:j2,k1:k2))
-    soot_aged = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, soot_aged)
 CASE (fldname_ocff_fresh)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ocff_fresh)) ALLOCATE(ocff_fresh(i1:i2,j1:j2,k1:k2))
-    ocff_fresh = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         ocff_fresh)
 CASE (fldname_ocff_aged)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ocff_aged)) ALLOCATE(ocff_aged(i1:i2,j1:j2,k1:k2))
-    ocff_aged = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, ocff_aged)
 CASE (fldname_biogenic)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(biogenic)) ALLOCATE(biogenic(i1:i2,j1:j2,k1:k2))
-    biogenic = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, biogenic)
 CASE (fldname_dust_div1)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div1)) ALLOCATE(dust_div1(i1:i2,j1:j2,k1:k2))
-    dust_div1 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dust_div1)
 CASE (fldname_dust_div2)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div2)) ALLOCATE(dust_div2(i1:i2,j1:j2,k1:k2))
-    dust_div2 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dust_div2)
 CASE (fldname_dust_div3)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div3)) ALLOCATE(dust_div3(i1:i2,j1:j2,k1:k2))
-    dust_div3 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dust_div3)
 CASE (fldname_dust_div4)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div4)) ALLOCATE(dust_div4(i1:i2,j1:j2,k1:k2))
-    dust_div4 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dust_div4)
 CASE (fldname_dust_div5)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div5)) ALLOCATE(dust_div5(i1:i2,j1:j2,k1:k2))
-    dust_div5 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dust_div5)
 CASE (fldname_dust_div6)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(dust_div6)) ALLOCATE(dust_div6(i1:i2,j1:j2,k1:k2))
-    dust_div6 = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, dust_div6)
 CASE (fldname_sea_salt_film)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(sea_salt_film))                                        &
-      ALLOCATE(sea_salt_film(i1:i2,j1:j2,k1:k2))
-    sea_salt_film = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         sea_salt_film)
 CASE (fldname_sea_salt_jet)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(sea_salt_jet)) ALLOCATE(sea_salt_jet(i1:i2,j1:j2,k1:k2))
-    sea_salt_jet = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         sea_salt_jet)
 CASE (fldname_co2_interactive)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(co2_interactive))                                      &
-      ALLOCATE(co2_interactive(i1:i2,j1:j2,k1:k2))
-    co2_interactive = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         co2_interactive)
 CASE (fldname_rim_cry)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rim_cry)) ALLOCATE(rim_cry(i1:i2,j1:j2,k1:k2))
-    rim_cry = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, rim_cry)
 CASE (fldname_rim_agg)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(rim_agg)) ALLOCATE(rim_agg(i1:i2,j1:j2,k1:k2))
-    rim_agg = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, rim_agg)
 CASE (fldname_vertvel)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(vertvel)) ALLOCATE(vertvel(i1:i2,j1:j2,k1:k2))
-    vertvel = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, vertvel)
 CASE (fldname_bl_tke)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(bl_tke)) ALLOCATE(bl_tke(i1:i2,j1:j2,k1:k2))
-    bl_tke = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, bl_tke)
 CASE (fldname_interf_z)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(interf_z)) ALLOCATE(interf_z(i1:i2,j1:j2,k1:k2))
-    interf_z = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, interf_z)
 CASE (fldname_h2o2_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(h2o2_offline))                                         &
-      ALLOCATE(h2o2_offline(i1:i2,j1:j2,k1:k2))
-    h2o2_offline = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         h2o2_offline)
 CASE (fldname_ho2_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(ho2_offline)) ALLOCATE(ho2_offline(i1:i2,j1:j2,k1:k2))
-    ho2_offline = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         ho2_offline)
 CASE (fldname_no3_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(no3_offline)) ALLOCATE(no3_offline(i1:i2,j1:j2,k1:k2))
-    no3_offline = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         no3_offline)
 CASE (fldname_o3_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(o3_offline)) ALLOCATE(o3_offline(i1:i2,j1:j2,k1:k2))
-    o3_offline = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         o3_offline)
 CASE (fldname_oh_offline)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(oh_offline)) ALLOCATE(oh_offline(i1:i2,j1:j2,k1:k2))
-    oh_offline = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         oh_offline)
 CASE (fldname_grid_area_fullht)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(grid_area_fullht))                                     &
-      ALLOCATE(grid_area_fullht(i1:i2,j1:j2,k1:k2))
-    grid_area_fullht = field_data(i1:i2,j1:j2,k1:k2)
-  END IF
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         grid_area_fullht)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown
   IF (PRESENT(error_message)) error_message =                                  &
-    'Unknown name for 3D environmental input field: ''' // TRIM(varname) //    &
-    ''''
+    'Unknown name for 3D real environmental input field: ''' //                &
+    TRIM(varname) // ''''
   IF (PRESENT(error_routine)) error_routine = RoutineName
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
@@ -1972,8 +1666,8 @@ INTEGER :: j1
 INTEGER :: j2
 INTEGER :: k1
 INTEGER :: k2
-INTEGER :: l1
-INTEGER :: l2
+INTEGER :: n1
+INTEGER :: n2
 
 ! Dr hook
 REAL(KIND=jprb) :: zhook_handle
@@ -2003,6 +1697,7 @@ IF (PRESENT(field_index)) field_index = i_field
 ! that its bounds are compatible with the UKCA configuration.
 ! The field data supplied must fill the required domain but may extend beyond
 ! it to avoid the need for pre-trimming (e.g. halo removal) by the parent model.
+! The bounds are expected to match in the last dimension.
 IF (i_field /= 0) THEN
   IF (.NOT. ALLOCATED(field_data)) THEN
     error_code = errcode_env_field_mismatch
@@ -2018,12 +1713,12 @@ IF (i_field /= 0) THEN
   j2 = environ_field_info(i_field)%ubound_dim2
   k1 = environ_field_info(i_field)%lbound_dim3
   k2 = environ_field_info(i_field)%ubound_dim3
-  l1 = environ_field_info(i_field)%lbound_dim4
-  l2 = environ_field_info(i_field)%ubound_dim4
+  n1 = environ_field_info(i_field)%lbound_dim4
+  n2 = environ_field_info(i_field)%ubound_dim4
   IF (LBOUND(field_data,DIM=1) > i1 .OR. UBOUND(field_data,DIM=1) < i2 .OR.    &
       LBOUND(field_data,DIM=2) > j1 .OR. UBOUND(field_data,DIM=2) < j2 .OR.    &
       LBOUND(field_data,DIM=3) > k1 .OR. UBOUND(field_data,DIM=3) < k2 .OR.    &
-      LBOUND(field_data,DIM=4) /= l1 .OR. UBOUND(field_data,DIM=4) /= l2) THEN
+      LBOUND(field_data,DIM=4) /= n1 .OR. UBOUND(field_data,DIM=4) /= n2) THEN
     error_code = errcode_env_field_mismatch
     IF (PRESENT(error_message)) error_message =                                &
       '4D real environment field for ''' // TRIM(varname) //                   &
@@ -2038,18 +1733,14 @@ END IF
 ! Any data outside the required bounds (e.g. halos) are discarded.
 SELECT CASE (varname)
 CASE (fldname_photol_rates)
-  IF (i_field /= 0) THEN
-    IF (.NOT. ALLOCATED(photol_rates)) THEN
-      ALLOCATE(photol_rates(i1:i2,j1:j2,k1:k2,l1:l2))
-    END IF
-    photol_rates = field_data(i1:i2,j1:j2,k1:k2,l1:l2)
-  END IF
+  CALL set_field_4d_real(i_field, i1, i2, j1, j2, k1, k2, n1, n2, field_data,  &
+                         photol_rates)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown
   IF (PRESENT(error_message)) error_message =                                  &
-    'Unknown name for 4D environmental input field: ''' // TRIM(varname) //    &
-    ''''
+    'Unknown name for 4D real environmental input field: ''' //                &
+    TRIM(varname) // ''''
   IF (PRESENT(error_routine)) error_routine = RoutineName
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
@@ -2064,6 +1755,250 @@ END SUBROUTINE ukca_set_environment_4d_real
 
 
 ! ----------------------------------------------------------------------
+SUBROUTINE set_field_0d_real(i_field, field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 0D field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+REAL, INTENT(IN) :: field_data  ! Field data supplied
+REAL, TARGET, INTENT(IN OUT) :: env_field  ! Environment field
+
+IF (i_field /= 0) THEN
+  env_field = field_data
+  environ_field_ptrs(i_field)%value_0d_real => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_0d_real
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_1d_real(i_field, i1, i2, field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 1D real field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field
+REAL, ALLOCATABLE, INTENT(IN) :: field_data(:)  ! Field data supplied
+REAL, TARGET, ALLOCATABLE, INTENT(IN OUT) :: env_field(:)  ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2))
+  env_field = field_data(i1:i2)
+  environ_field_ptrs(i_field)%value_1d_real => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_1d_real
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_2d_real(i_field, i1, i2, j1, j2, field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 2d real field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field in dimension 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field in dimension 1
+INTEGER, INTENT(IN) :: j1       ! Lower bound of field in dimension 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field in dimension 2
+REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:)  ! Field data supplied
+REAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:)  ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2,j1:j2))
+  env_field = field_data(i1:i2,j1:j2)
+  environ_field_ptrs(i_field)%value_2d_real => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_2d_real
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_2d_real_k(i_field, i1, i2, j1, j2, k1, k2, k,             &
+                               field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 2d real field and updates the relevant pointer
+!   in the environment fields pointers array.
+!   This routine handles a special case when the 2D environment field
+!   to be set is stored internally with related 2D fields in a 3D array.
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field in dimension 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field in dimension 1
+INTEGER, INTENT(IN) :: j1       ! Lower bound of field in dimension 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field in dimension 2
+INTEGER, INTENT(IN) :: k1       ! Lower bound in dimension 3
+INTEGER, INTENT(IN) :: k2       ! Upper bound in dimension 3
+INTEGER, INTENT(IN) :: k        ! Index of field in dimension 3
+REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:)    ! Field data supplied
+REAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:,:)
+                                                    ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2,j1:j2,k1:k2))
+  env_field(:,:,k) = field_data(i1:i2,j1:j2)
+  environ_field_ptrs(i_field)%value_2d_real => env_field(:,:,k)
+END IF
+
+RETURN
+END SUBROUTINE set_field_2d_real_k
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_2d_integer(i_field, i1, i2, j1, j2, field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 2d integer field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field in dimension 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field in dimension 1
+INTEGER, INTENT(IN) :: j1       ! Lower bound of field in dimension 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field in dimension 2
+INTEGER, ALLOCATABLE, INTENT(IN) :: field_data(:,:)  ! Field data supplied
+INTEGER, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:)
+                                                     ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2,j1:j2))
+  env_field = field_data(i1:i2,j1:j2)
+  environ_field_ptrs(i_field)%value_2d_integer => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_2d_integer
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_2d_logical(i_field, i1, i2, j1, j2, field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 2D logical field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field in dimension 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field in dimension 1
+INTEGER, INTENT(IN) :: j1       ! Lower bound of field in dimension 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field in dimension 2
+LOGICAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:)  ! Field data supplied
+LOGICAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:)
+                                                     ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2,j1:j2))
+  env_field = field_data(i1:i2,j1:j2)
+  environ_field_ptrs(i_field)%value_2d_logical => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_2d_logical
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2,                  &
+                             field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 3d real field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field of dimension 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field of diemnsion 1
+INTEGER, INTENT(IN) :: j1       ! Lower bound of field of dimension 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field of diemnsion 2
+INTEGER, INTENT(IN) :: k1       ! Lower bound of field of dimension 3
+INTEGER, INTENT(IN) :: k2       ! Upper bound of field of diemnsion 3
+REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:,:)  ! Field data supplied
+REAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:,:)
+                                                    ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2,j1:j2,k1:k2))
+  env_field = field_data(i1:i2,j1:j2,k1:k2)
+  environ_field_ptrs(i_field)%value_3d_real => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_3d_real
+
+
+! ----------------------------------------------------------------------
+SUBROUTINE set_field_4d_real(i_field, i1, i2, j1, j2, k1, k2, n1, n2,          &
+                             field_data, env_field)
+! ----------------------------------------------------------------------
+! Description:
+!   Sets the value of a 4d real field and updates the relevant pointer
+!   in the environment fields pointers array
+! ----------------------------------------------------------------------
+
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
+INTEGER, INTENT(IN) :: i1       ! Lower bound of field of dimension 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field of diemnsion 1
+INTEGER, INTENT(IN) :: j1       ! Lower bound of field of dimension 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field of diemnsion 2
+INTEGER, INTENT(IN) :: k1       ! Lower bound of field of dimension 3
+INTEGER, INTENT(IN) :: k2       ! Upper bound of field of diemnsion 3
+INTEGER, INTENT(IN) :: n1       ! Lower bound of field of dimension 4
+INTEGER, INTENT(IN) :: n2       ! Upper bound of field of diemnsion 4
+REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:,:,:) ! Field data supplied
+REAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:,:,:)
+                                                     ! Environment field
+
+IF (i_field /= 0) THEN
+  IF (.NOT. ALLOCATED(env_field)) ALLOCATE(env_field(i1:i2,j1:j2,k1:k2,n1:n2))
+  env_field = field_data(i1:i2,j1:j2,k1:k2,n1:n2)
+  environ_field_ptrs(i_field)%value_4d_real => env_field
+END IF
+
+RETURN
+END SUBROUTINE set_field_4d_real
+
+
+! ----------------------------------------------------------------------
 SUBROUTINE clear_environment_fields()
 ! ----------------------------------------------------------------------
 ! Description:
@@ -2075,11 +2010,24 @@ IMPLICIT NONE
 
 ! Local variables
 
+INTEGER :: i
+
 ! Dr Hook
 REAL(KIND=jprb) :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName = 'CLEAR_ENVIRONMENT_FIELDS'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Clear environment field pointers before re-setting/de-allocating the fields
+DO i = 1, SIZE(environ_field_ptrs)
+  NULLIFY(environ_field_ptrs(i)%value_0d_real)
+  NULLIFY(environ_field_ptrs(i)%value_1d_real)
+  NULLIFY(environ_field_ptrs(i)%value_2d_integer)
+  NULLIFY(environ_field_ptrs(i)%value_2d_real)
+  NULLIFY(environ_field_ptrs(i)%value_2d_logical)
+  NULLIFY(environ_field_ptrs(i)%value_3d_real)
+  NULLIFY(environ_field_ptrs(i)%value_4d_real)
+END DO
 
 ! Clear the environment fields defined on land points only
 CALL clear_land_only_fields()

@@ -111,8 +111,7 @@ USE ukca_cspecies,        ONLY: c_species, n_cf2cl2, n_cfcl3,                  &
 USE asad_findreaction_mod, ONLY: asad_findreaction
 USE UKCA_tropopause,      ONLY: L_troposphere
 USE ukca_conserve_mod,    ONLY: ukca_conserve
-USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p,                  &
-                                c_co2, fxb, fxc
+USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE chemistry_constants_mod, ONLY: avogadro
 
 USE ukca_config_specification_mod, ONLY: ukca_config, i_top_2levH2O,           &
@@ -154,13 +153,9 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     autotune_return,                                                           &
     autotune_start_region,                                                     &
     autotune_stop_region,                                                      &
-    pi_over_180,                                                               &
-    ! For JULES-based atmospheric deposition
     deposition_from_ukca_chemistry
 #else
-USE ukca_um_legacy_mod, ONLY: pi_over_180,                                     &
-                              ! For JULES-based atmospheric deposition
-                              deposition_from_ukca_chemistry
+USE ukca_um_legacy_mod, ONLY: deposition_from_ukca_chemistry
 #endif
 
 IMPLICIT NONE
@@ -299,9 +294,6 @@ CHARACTER(LEN=errormessagelength) :: cmessage         ! Error message
 CHARACTER(LEN=10)      :: prods(2)                 ! Products
 CHARACTER(LEN=10)      :: prods3(3)                ! Products
 
-REAL :: tgmt               ! GMT time (decimal represent
-REAL :: tan_declin         ! TAN(declination)
-
 ! array to store H2SO4 when updated in MODE
 REAL, ALLOCATABLE :: ystore(:)
 REAL :: zftr(model_levels,jpcspf)  ! 1-D array of tracers, including RO2
@@ -313,9 +305,6 @@ REAL :: cdot(model_levels,jpcspf) ! 1-D chem. tendency
 REAL :: zq(model_levels)          ! 1-D water vapour vmr
 REAL :: co2_1d(model_levels)      ! 1-D CO2 vmr
 REAL :: zprt1d(model_levels,jppj) ! 1-D photolysis rates for ASAD
-REAL :: tloc  (row_length, rows)      ! local time
-REAL :: daylen(row_length, rows)      ! local daylength
-REAL :: cs_hour_ang(row_length, rows) ! cosine hour angle
 REAL :: zdryrt(row_length, rows, jpdd)                ! dry dep rate
 REAL :: zdryrt2(model_levels, jpdd)               ! dry dep rate
 REAL :: zwetrt(row_length, rows, model_levels, jpdw)  ! wet dep rate
@@ -462,31 +451,10 @@ IF (firstcall) THEN
 
 END IF  ! of initialization of chemistry subroutine (firstcall)
 
-!       Calculate local time as function of longitude
-
-tgmt = REAL(i_hour) + r_minute/60.0                                            &
-                    + secs_per_step * 0.5 / 3600.0
-!        IF (tgmt < 0.) tgmt = tgmt + 24.
-
-tloc = tgmt + 24.0 * longitude/360.0
-WHERE (tloc > 24.0) tloc = tloc - 24.0
-
-!       Calculate Declination Angle and Daylength for each row for
-!       current day of the year.
-!       Ensure COS of HOUR ANGLE does not exceed + or - 1
-daylen = 0.0
-tan_declin = TAN(fxb * SIN(pi_over_180*(266.0+i_day_number)))
-IF (ABS(tan_declin) < EPSILON(0.0)) THEN
-  cs_hour_ang = 0.0
-ELSE
-  cs_hour_ang = MAX(-1.0, MIN(1.0, -tanlat * tan_declin))
-END IF
-daylen = fxc * ACOS(cs_hour_ang)
-
 ! Call routine to calculate dry deposition rates.
 zdryrt  = 0.0
 zdryrt2 = 0.0
-IF (ndepd /= 0) THEN
+IF (ndepd /= 0 .AND. (.NOT. ukca_config%l_ukca_drydep_off)) THEN
 
   IF (ukca_config%l_ukca_intdd) THEN           ! Call interactive dry dep
 
@@ -516,12 +484,9 @@ IF (ndepd /= 0) THEN
 
   ELSE                             ! Call prescribed dry dep
 
-    CALL ukca_ddeprt(daylen, tloc, theta_field_size, dzl,                      &
-                            bl_levels,                                         &
-                            z0m, u_s, t_surf,                                  &
-                            latitude, i_month,                                 &
-                            1, theta_field_size,                               &
-                            zdryrt)
+    CALL ukca_ddeprt(theta_field_size, bl_levels, i_day_number, i_month,       &
+                     i_hour, r_minute, secs_per_step, longitude, latitude,     &
+                     tanlat, dzl, z0m, u_s, t_surf, zdryrt)
 
   END IF
 END IF
@@ -531,7 +496,7 @@ END IF
 zwetrt  = 0.0
 zwetrt2 = 0.0
 zwetrt_theta  = 0.0
-IF (ndepw /= 0) THEN
+IF (ndepw /= 0 .AND. .NOT. ukca_config%l_ukca_wetdep_off) THEN
 
   ! Reshape these input fields for input to ukca_wdeprt.
   ! These are intent(in) so do not need additional copying out.

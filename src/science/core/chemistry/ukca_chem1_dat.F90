@@ -791,7 +791,7 @@ ELSE
 END IF
 
 !====================================================================
-IF (ukca_config%l_ukca_mode .AND. ukca_config%l_ukca_scale_soa_yield) THEN
+IF (ukca_config%l_ukca_chem_aero .AND. ukca_config%l_ukca_scale_soa_yield) THEN
   CALL ukca_scale_soa_yield
 END IF
 
