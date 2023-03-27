@@ -84,7 +84,7 @@ SUBROUTINE ukca_prim_moc(row_length, rows, model_levels,                       &
 ! glomap_variables%mode      : logical for mode on/off
 ! nmodes    : Number of possible aerosol modes
 ! glomap_variables%sigmag    : Geometric standard deviation of modes
-! glomap_variables%rhocomp   : Mass density of each of the aerosol components 
+! glomap_variables%rhocomp   : Mass density of each of the aerosol components
 !                              (kgm^-3)
 ! cp_cl     : index of cpt in which sea-salt mass is stored
 ! cp_oc     : index of cpt in which organic carbon mass is stored

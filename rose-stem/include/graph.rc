@@ -1,0 +1,9 @@
+###############################################################################
+## Import site-specific graphs
+##
+## These files should set the name_graphs and groups variables
+###############################################################################
+
+{% if SITE == 'meto' %}
+%include 'include/meto/graph.rc'
+{% endif %}

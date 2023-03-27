@@ -1,0 +1,8 @@
+    [[SCRIPTS]]
+
+# UMDP3 compliance checker - run on ROSE_ORIG_HOST use EXTRACT family
+    [[umdp3_checker]]
+        inherit = SCRIPTS, EXTRACT
+        [[[environment]]]
+            ROSE_TASK_APP = umdp3_checker
+

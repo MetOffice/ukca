@@ -10,15 +10,15 @@
 !
 ! Method:
 !
-!  This is a simple prototype version. 
+!  This is a simple prototype version.
 !
 ! Part of the UKCA model, a community model supported by the
 ! Met Office and NCAS, with components provided initially
 ! by The University of Cambridge, University of Leeds and
 ! The Met. Office.  See www.ukca.ac.uk
 !
-! Code Owner: Please refer to the UM file CodeOwners.txt 
-! This file belongs in section: UKCA 
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file belongs in section: UKCA
 !
 ! Code Description:
 !   Language:  FORTRAN 2003
@@ -43,12 +43,12 @@ INTEGER, INTENT(IN OUT) :: error_status
 CHARACTER(LEN=*), INTENT(IN) :: message
 
 ! Take action depending on UM error status convention
-IF (error_status > 0) then
+IF (error_status > 0) THEN
   WRITE(*,*) 'UKCA ERROR in ', routine_name, ':', message
   STOP
-ELSE IF (error_status < 0) then
+ELSE IF (error_status < 0) THEN
   WRITE(*,*) 'UKCA WARNING in', routine_name, ':', message
-ELSE IF (error_status == 0) then
+ELSE IF (error_status == 0) THEN
   WRITE(*,*) 'UKCA INFO in', routine_name, ':', message
 END IF
 

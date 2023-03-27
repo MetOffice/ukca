@@ -92,7 +92,7 @@ LOGICAL, INTENT(IN) :: l_fix_nacl_density_in
 
 INTEGER                           :: errcode  ! error code
 CHARACTER(LEN=errormessagelength) :: cmessage ! error message
-REAL                              :: pi_copy   
+REAL                              :: pi_copy
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1

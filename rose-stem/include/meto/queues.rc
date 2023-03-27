@@ -1,0 +1,15 @@
+# In the collaboration zone the scripts run in the background of the login node.
+# In an attempt to limit the impact of rose stem on MONSooN we therefore limit
+# the number of script tasks.
+
+    [[queues]]
+{% if TRUSTZONE == 'research' %}
+# No more than 2 Linux build jobs at once
+        [[[linux_build]]]
+            limit = 2
+            members = METO_LINUX_BUILD
+{% else %}
+        [[[monsoon_scripts]]]
+            limit = 1
+            members = SCRIPTS
+{% endif %}

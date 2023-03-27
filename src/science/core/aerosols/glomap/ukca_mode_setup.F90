@@ -95,7 +95,7 @@ INTEGER, PARAMETER :: ip_ukca_mode_accum      = 2
 INTEGER, PARAMETER :: ip_ukca_mode_coarse     = 3
 
 INTEGER, PARAMETER :: i_ukca_bc_tuned         = 1 ! BC density tuned
-INTEGER, PARAMETER :: i_ukca_bc_mg_mix        = 2 ! BC density tuned, plus 
+INTEGER, PARAMETER :: i_ukca_bc_mg_mix        = 2 ! BC density tuned, plus
                                                   ! Maxwell-Garnet mixing method
 
 ! =============================================================================
@@ -177,11 +177,11 @@ INTEGER, PARAMETER :: coag_mode( nmodes, nmodes ) = RESHAPE( [                 &
 
 REAL, PARAMETER :: rho_nacl = 2165.0       ! Correct NaCl density (kg m^-3)
 !
-! The default value for BC set in rhocomp is 1500.0 Kg m^-3 but two 
+! The default value for BC set in rhocomp is 1500.0 Kg m^-3 but two
 ! alternative estimates can be used as tuning options to reduce BC absorption
 ! efficiency
 !
-! Estimate for BC density within the range given by Bond and Bergstrom (2006) 
+! Estimate for BC density within the range given by Bond and Bergstrom (2006)
 ! tuned for use with the Maxwell-Garnet mixing approximation in RADAER
 REAL, PARAMETER :: rho_bc_mg_mix = 1800.0  ! (Kg m^-3)
 

@@ -292,7 +292,7 @@ INTEGER :: itr
 INTEGER :: count_negatives
 REAL :: ztmp
 ! The maximum concentration allowed was previously f_max = 1.0/f_min
-REAL, PARAMETER :: f_max = 1.0E30
+REAL, PARAMETER :: f_max = 1.0e30
 REAL :: f_min
 REAL :: RelTol_residual_error
 REAL :: RelTol_error
