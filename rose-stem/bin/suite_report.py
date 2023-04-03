@@ -348,22 +348,10 @@ class SuiteReport(object):
         self.status_counts = defaultdict(int)
         self.status_counts["failed"] = 0
 
-        self.suite_owner = self.ascertain_suite_owner()
-        (
-            self.site,
-            self.groups,
-            self.trustzone,
-            self.rose,
-            self.cylc,
-            self.fcm,
-            self.required_comparisons,
-        ) = self.parse_rose_suite_run(self.suite_path)
-        self.projects = self.initialise_projects(FCM[self.site])
-        (
-            self.rose_orig_host,
-            self.job_sources,
-            self.multi_branches,
-        ) = self.parse_suite_rc_processed(self.suite_path)
+        self.ascertain_suite_owner()
+        self.parse_rose_suite_run()
+        self.initialise_projects()
+        self.parse_suite_rc_processed()
         projects = self.check_versions_files()
         self.job_sources = _dict_merge(self.job_sources, projects)
 
@@ -519,15 +507,17 @@ class SuiteReport(object):
                 else:
                     print('        {0:s} is :"{1:}"'.format(sub_key, sub_value))
 
-    @staticmethod
-    def parse_suite_rc_processed(suite_dir):
+    def parse_suite_rc_processed(self):
         """Parse the suite.rc.processed file.
         Extract all projects present that begin with a "SOURCE_".
         Allow SOURCE_<project> to override any SOURCE_<project>_<extension>
         entries. Creating a dictionary of format {<project> : <URL>,...}
         Also Extract the host machine rose was launched on.
         Takes full path for suite dir.
-        Returns original host as string and a dictionary of projects."""
+        Sets class variables"""
+
+        suite_dir = self.suite_path
+
         rose_orig_host = "Unknown rose_orig_host"
         srp_file = os.path.join(suite_dir, PROCESSED_SUITE_RC)
         find_orig_host = re.compile(r"ROSE_ORIG_HOST\s*=\s*(.*)")
@@ -565,56 +555,68 @@ class SuiteReport(object):
                             "tested source"
                         ] = result.group(3)
 
-        return rose_orig_host, sources, multiple_branches
+        self.rose_orig_host = rose_orig_host
+        self.job_sources = sources
+        self.multi_branches = multiple_branches
+        return
 
-    @staticmethod
-    def ascertain_suite_owner():
+    def ascertain_suite_owner(self):
         """Find suite owner.
         To retrieve suite owner :
            Take default from ENV['USER'] or 'Unknown Suite Owner' if none.
            Use ENV['CYLC_SUITE_OWNER'] if present.
-        Returns suite owner as string."""
+        Sets Class variables"""
 
         # Get a default
         suite_owner = os.environ.get("USER", "Unknown Suite Owner")
         suite_owner = os.environ.get("CYLC_SUITE_OWNER", suite_owner)
-        return suite_owner
+        self.suite_owner = suite_owner
+        return
 
-    @staticmethod
-    def parse_rose_suite_run(suite_dir):
+    def parse_rose_suite_run(self):
         """Parse rose-suite-run.conf file.
         Takes full path for suite dir.
-        Returns site as string and list of groups rose-stem was run on"""
+        Sets class variables"""
+
+        suite_dir = self.suite_path
         rsr_file = os.path.join(suite_dir, "log", ROSE_SUITE_RUN_CONF)
         lines = _read_file(rsr_file)
-        site = _parse_string("SITE", lines, default_unknown=True)
-        groups = _parse_string(
+        self.site = _parse_string("SITE", lines, default_unknown=True)
+        self.groups = _parse_string(
             "RUN_NAMES", lines, split_on_comma=True, remove_quotes=False
         )
-        fcm = _parse_string("FCM_VERSION", lines)
-        cylc = _parse_string("CYLC_VERSION", lines)
-        rose = _parse_string("ROSE_VERSION", lines)
+        self.fcm = _parse_string("FCM_VERSION", lines)
+        self.cylc = _parse_string("CYLC_VERSION", lines)
+        self.rose = _parse_string("ROSE_VERSION", lines)
+
         # This test is a little problematic when running this script on a JULES
         # rose-stem suite as JULES has no 'need' of the two compare variables
         # and to prevent the warning their absence would produce from occuring
         # unnecessarily in JULES they have been added to rose-suite.conf for now
         compare_output = _parse_string("COMPARE_OUTPUT", lines)
         compare_wallclock = _parse_string("COMPARE_WALLCLOCK", lines)
-        required_comparisons = (
+        self.required_comparisons = (
             compare_output == "true" and compare_wallclock == "true"
         )
 
-        trustzone = None
+        self.trustzone = None
         if "TRUSTZONE" in os.environ:
-            trustzone = os.environ["TRUSTZONE"]
-        return (site, groups, trustzone, rose, cylc, fcm, required_comparisons)
+            self.trustzone = os.environ["TRUSTZONE"]
 
-    @staticmethod
-    def initialise_projects(fcm_exec):
+        self.host_xcs = False
+        if self.site == "meto":
+            for line in lines:
+                if "HOST_XC40='xcsr'" in line:
+                    self.host_xcs = True
+        return
+
+    def initialise_projects(self):
         """Uses fcm kp to initialise a directory containing project keywords
         linked to SVN URLS. Format {<project> : <URL>,...}
         Takes full path for suite dir.
-        Returns project dictionary."""
+        Sets class variable"""
+
+        fcm_exec = FCM[self.site]
 
         projects = {}
         _, stdout, _ = _run_command([fcm_exec, "kp"])
@@ -641,7 +643,8 @@ class SuiteReport(object):
                     and find_mirror_url.match(url)
                 ):
                     projects[project] = url
-        return projects
+        self.projects = projects
+        return
 
     def check_versions_files(self):
         """Locate the log/*.version files.
@@ -920,14 +923,8 @@ class SuiteReport(object):
         - code_owners - dict returning code owners for a given code section
         """
 
-        # Get Trac location of repository and working copy
-        repo_loc = self.job_sources["UM"]["repo mirror"]
-        wc_path = get_working_copy_path(self.job_sources["UM"]["tested source"])
-        if not wc_path:
-            print("Can't find working copy for fcm bdiff")
-            return False
-
         # Get a list of altered files from the fcm mirror url, repo_loc
+        repo_loc = self.job_sources["UM"]["repo mirror"]
         bdiff_files = get_branch_diff_filenames(repo_loc, path_override="")
         try:
             bdiff_files.remove(".")
@@ -941,11 +938,11 @@ class SuiteReport(object):
 
         # Get Owners for each file changed
         for fle in bdiff_files:
-            fpath = os.path.join(wc_path, fle)
+            fpath = fle
             fle = fle.lower()
 
             # Manually sort directories with known sections
-            if "ConfigOwners.txt" in fpath or "CodeOwners.txt" in fpath:
+            if "configowners.txt" in fle or "codeowners.txt" in fle:
                 continue
             if fle.startswith("admin"):
                 needed_approvals["!umsysteam@metoffice.gov.uk"].add("admin")
@@ -973,13 +970,28 @@ class SuiteReport(object):
                     section = "stash"
             else:
                 # Find area of files in other directories
-                with open(fpath, "r") as inp_file:
-                    for line in inp_file:
-                        if "file belongs in" in line:
-                            section = line.strip("\n")
-                            break
-                    else:
-                        section = ""
+                tfile = os.path.join(os.path.expanduser("~"), "tmp_file.txt")
+                subproc = "fcm export --force {}/{} {}".format(
+                    repo_loc.split("@")[0], fpath, tfile
+                )
+                subprocess.check_output(subproc, shell=True)
+
+                try:
+                    with open(tfile, "r") as inp_file:
+                        for line in inp_file:
+                            if "file belongs in" in line:
+                                section = line.strip("\n")
+                                break
+                        else:
+                            section = ""
+                except FileNotFoundError:
+                    section = ""
+
+                # Clean up the checked out file copy
+                try:
+                    os.remove(tfile)
+                except FileNotFoundError:
+                    pass
 
                 # Get code area name out
                 section = re.sub(r"/\*", "", section)
@@ -1597,6 +1609,8 @@ class SuiteReport(object):
                         self.rose_orig_host
                     )
                 )
+            if self.host_xcs:
+                trac_log.append(" || HOST_XCS || True || ")
             trac_log.append("")
 
             if self.uncommitted_changes:
@@ -1870,6 +1884,26 @@ def parse_options():
         message.append(
             "       ---------------------------------------------"
             "----------------"
+        )
+        message.append("")
+        if opts.sort_by_status:
+            message.append(
+                """
+         -s, --status-sort   Sort by task status is now default
+                             Use -N to sort by task name (previous default)
+            """
+            )
+        if opts.include_housekeep:
+            message.append(
+                """
+         -H, --include-housekeeping         Include housekeeping tasks
+            This is now handled by setting the verbosity level using -[qv]
+            """
+            )
+        message.append(
+            """
+         Please use "suite_report.py -h" to see full help on options.
+        """
         )
         message.append("")
         for line in message:

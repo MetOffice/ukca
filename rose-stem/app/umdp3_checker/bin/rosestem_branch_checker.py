@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # *****************************COPYRIGHT*******************************
 # (C) Crown copyright Met Office. All rights reserved.
@@ -56,19 +56,19 @@ def copy_working_branch(model_source):
 
 def diff_cwd_working(model_source, path, saved_umask, tmpdir):
     '''Diff the tmp dir with the working branch and report diff.'''
-    diff = subprocess.Popen("diff -qr " + model_source + "/src " + path,
-                            stdin=subprocess.PIPE,
+    diff = subprocess.run("diff -qr " + model_source + "/src " + path,
+                            stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            shell=True)
-    _ = diff.wait()
+                            shell=True,
+                            universal_newlines=True)
 
     if diff.returncode == 0:
         print("[OK] No changes were made by the UMDP3 checker script and "
               "the working copy complies with the coding standards. "
               "No action required.")
     else:
-        diff_stdout = diff.stdout.read()
+        diff_stdout = diff.stdout
         diff_files = diff_stdout.strip().split("\n")
         print("[FAIL] The following files were changed when the "
               "umdp3_fixer.py script was run:")
@@ -90,16 +90,15 @@ def diff_cwd_working(model_source, path, saved_umask, tmpdir):
 
 def run_umdp3checker(model_source, path, amp_column):
     '''Run the umdp3 fixer script in the tmp dir copy of the working branch.'''
-    umdp3 = subprocess.Popen(model_source + "/rose-stem/bin/umdp3_fixer.py " +
+    umdp3 = subprocess.run(model_source + "/rose-stem/bin/umdp3_fixer.py " +
                              "--col {0:} ".format(amp_column) +
                              "$(find " + path +
                              " -name '*.[F|f]90' -o -name '*.inc' | xargs)",
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE,
+                             stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL,
                              shell=True)
-    rtncode = umdp3.wait()
-    if rtncode != 0:
+
+    if umdp3.returncode != 0:
         print("[FAIL] Problem while attempting to run umdp3_fixer.py")
         raise ValueError("Problem while attempting to run umdp3_fixer.py")
     return
