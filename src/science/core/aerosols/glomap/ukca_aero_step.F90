@@ -331,7 +331,7 @@ USE ukca_wetox_mod,                          ONLY:                             &
 
 USE ukca_types_mod,                          ONLY:                             &
     log_small,                                                                 &
-    integer32
+    integer_32
 
 USE umPrintMgr,                              ONLY:                             &
     umPrint,                                                                   &
@@ -382,7 +382,7 @@ INTEGER, INTENT(IN) :: intraoff
 INTEGER, INTENT(IN) :: interoff
 INTEGER, INTENT(IN) :: jlabove(nbox)
 INTEGER, INTENT(IN) :: ilscat(nbox)
-INTEGER (KIND=integer32), INTENT(IN OUT) :: n_merge_1d(nbox,nmodes)
+INTEGER (KIND=integer_32), INTENT(IN OUT) :: n_merge_1d(nbox,nmodes)
 LOGICAL, INTENT(IN) :: lcvrainout
 LOGICAL, INTENT(IN) :: l_dust_slinn_impc_scav
 

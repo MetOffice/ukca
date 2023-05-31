@@ -73,7 +73,7 @@ USE ukca_mode_setup,   ONLY: nmodes
 USE parkind1,          ONLY: jprb, jpim
 USE yomhook,           ONLY: lhook, dr_hook
 USE ereport_mod,       ONLY: ereport
-USE ukca_types_mod,    ONLY: logical32
+USE ukca_types_mod,    ONLY: logical_32
 USE umPrintMgr,        ONLY:                                                   &
     umPrint,                                                                   &
     umMessage,                                                                 &
@@ -105,12 +105,12 @@ INTEGER :: imode
 INTEGER :: icp
 INTEGER :: toterr
 INTEGER :: errcode
-LOGICAL (KIND=logical32) :: mask1(nbox)
-LOGICAL (KIND=logical32) :: mask2(nbox)
-LOGICAL (KIND=logical32) :: mask12(nbox)
-LOGICAL (KIND=logical32) :: mask3(nbox)
-LOGICAL (KIND=logical32) :: mask4(nbox)
-LOGICAL (KIND=logical32) :: mask5(nbox)
+LOGICAL (KIND=logical_32) :: mask1(nbox)
+LOGICAL (KIND=logical_32) :: mask2(nbox)
+LOGICAL (KIND=logical_32) :: mask12(nbox)
+LOGICAL (KIND=logical_32) :: mask3(nbox)
+LOGICAL (KIND=logical_32) :: mask4(nbox)
+LOGICAL (KIND=logical_32) :: mask5(nbox)
 REAL    :: summd(nbox,nmodes)
 REAL    :: mdtmin
 REAL    :: mdtmax

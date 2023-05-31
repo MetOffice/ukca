@@ -122,7 +122,7 @@ USE yomhook,   ONLY: lhook, dr_hook
 USE parkind1,  ONLY: jprb, jpim
 USE umErf_mod, ONLY: umErf
 
-USE ukca_types_mod, ONLY: integer32
+USE ukca_types_mod, ONLY: integer_32
 
 IMPLICIT NONE
 
@@ -133,7 +133,7 @@ INTEGER, INTENT(IN) :: imerge
 REAL, INTENT(IN)    :: drydp(nbox,nmodes)
 REAL, INTENT(IN)    :: pmid(nbox)
 
-INTEGER (KIND=integer32), INTENT(IN OUT) :: n_merge_1d(nbox,nmodes)
+INTEGER (KIND=integer_32), INTENT(IN OUT) :: n_merge_1d(nbox,nmodes)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
@@ -173,9 +173,9 @@ REAL    :: dm(glomap_variables%ncp)
 REAL    :: dp2
 REAL    :: newn
 REAL    :: newnp1
-INTEGER(KIND=integer32), PARAMETER :: one_kind_intthirtytwo = 1
+INTEGER(KIND=integer_32), PARAMETER :: one_kind_intthirtytwo = 1
 !
-INTEGER (KIND=integer32) :: nmodemax_merge(nbox)
+INTEGER (KIND=integer_32) :: nmodemax_merge(nbox)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1

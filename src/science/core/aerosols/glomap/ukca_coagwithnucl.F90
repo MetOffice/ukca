@@ -175,7 +175,7 @@ USE ukca_mode_check_artefacts_mod, ONLY: ukca_mode_check_mdt
 USE yomhook,          ONLY: lhook, dr_hook
 USE parkind1,         ONLY: jprb, jpim
 USE ukca_solvecoagnucl_v_mod, ONLY: ukca_solvecoagnucl_v
-USE ukca_types_mod,   ONLY: logical32
+USE ukca_types_mod,   ONLY: logical_32
 
 IMPLICIT NONE
 
@@ -216,11 +216,11 @@ INTEGER :: jmode
 INTEGER :: icp
 INTEGER :: jcp
 INTEGER :: topmode
-LOGICAL (KIND=logical32) :: mask1(nbox)
-LOGICAL (KIND=logical32) :: mask1a(nbox)
-LOGICAL (KIND=logical32) :: mask2(nbox)
-LOGICAL (KIND=logical32) :: mask3(nbox)
-LOGICAL (KIND=logical32) :: mask4(nbox)
+LOGICAL (KIND=logical_32) :: mask1(nbox)
+LOGICAL (KIND=logical_32) :: mask1a(nbox)
+LOGICAL (KIND=logical_32) :: mask2(nbox)
+LOGICAL (KIND=logical_32) :: mask3(nbox)
+LOGICAL (KIND=logical_32) :: mask4(nbox)
 REAL    :: ndold(nbox,nmodes)
 REAL    :: ndold_v(nbox)
 REAL    :: deln(nbox)

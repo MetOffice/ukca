@@ -357,7 +357,7 @@ USE ukca_mode_setup,    ONLY:                                                  &
 
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
-USE ukca_types_mod, ONLY: logical32
+USE ukca_types_mod, ONLY: logical_32
 
 IMPLICIT NONE
 
@@ -371,7 +371,7 @@ REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 ! Each mode's average total mass per particle (over all cpts) molecules ptcl^-1)
 
-LOGICAL (KIND=logical32), INTENT(IN OUT) :: mask1(nbox)
+LOGICAL (KIND=logical_32), INTENT(IN OUT) :: mask1(nbox)
 ! Logical mask array -- gets set false where mdt < mdtmin or > mdtmax
 
 ! Local variables

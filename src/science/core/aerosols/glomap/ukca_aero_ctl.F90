@@ -34,7 +34,7 @@ USE ukca_um_legacy_mod, ONLY: stashcode_glomap_sec, pi,                        &
                               item1_mode_diags, L_ukca_mode_diags,             &
                               item1_nitrate_diags, itemN_nitrate_diags,        &
                               log_v, rgas => r
-USE ukca_types_mod, ONLY: log_small, integer32
+USE ukca_types_mod, ONLY: log_small, integer_32
 USE parkind1,   ONLY: jprb, jpim
 USE yomhook,    ONLY: lhook, dr_hook
 
@@ -87,8 +87,8 @@ TYPE :: segment_data_type
   ! Diagnostic to hold heterogeneous rates for tropospheric chemistry
 
   LOGICAL (KIND=log_small), POINTER :: mask1(:)
-  INTEGER (KIND=integer32), POINTER :: nbadmdt(:,:)
-  INTEGER (KIND=integer32), POINTER :: n_merge_1d(:,:)
+  INTEGER (KIND=integer_32), POINTER :: nbadmdt(:,:)
+  INTEGER (KIND=integer_32), POINTER :: n_merge_1d(:,:)
 
 
   REAL, POINTER :: sarea(:,:)
@@ -686,10 +686,10 @@ LOGICAL :: logic1 ! for use in storing of aerosol budget terms
 LOGICAL :: logic2 ! for use in storing of aerosol budget terms
 LOGICAL, SAVE :: firstcall=.TRUE.
 ! counter: mode-merges applied
-INTEGER (KIND=integer32) :: n_merge_3d(row_length,rows,model_levels,nmodes)
-INTEGER (KIND=integer32) :: sum_nbadmdt(nmodes)
-INTEGER (KIND=integer32) :: thread_sum_nbadmdt
-INTEGER (KIND=integer32) :: nbadmdt_3d(row_length,rows,model_levels,nmodes)
+INTEGER (KIND=integer_32) :: n_merge_3d(row_length,rows,model_levels,nmodes)
+INTEGER (KIND=integer_32) :: sum_nbadmdt(nmodes)
+INTEGER (KIND=integer_32) :: thread_sum_nbadmdt
+INTEGER (KIND=integer_32) :: nbadmdt_3d(row_length,rows,model_levels,nmodes)
 INTEGER :: jv
 INTEGER :: ifirst    ! index of first mode tracer in nmr_index, mmr_index
 
@@ -4037,8 +4037,8 @@ INTEGER,INTENT(IN) :: ncol    ! Number of columns in this segment
 INTEGER,INTENT(IN) :: nb      ! The number of boxes in this segment
 INTEGER,INTENT(IN) :: stride  ! The number of columns on the MPI task
 INTEGER,INTENT(IN) :: nl      ! The number of model levels
-INTEGER(KIND=integer32) ,INTENT(IN)    :: b(nb)        ! incoming segment
-INTEGER(KIND=integer32) ,INTENT(IN OUT) :: a(stride*nl) ! 3D array unwound
+INTEGER(KIND=integer_32) ,INTENT(IN)    :: b(nb)        ! incoming segment
+INTEGER(KIND=integer_32) ,INTENT(IN OUT) :: a(stride*nl) ! 3D array unwound
 
 ! local loop iterators
 INTEGER :: ic, l, ia, ib

@@ -119,7 +119,7 @@ SUBROUTINE ukca_solvecoagnucl_v(nv,mask,a,b,c,nd,dtz,deln)
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE ereport_mod, ONLY: ereport
-USE ukca_types_mod, ONLY: integer32, logical32
+USE ukca_types_mod, ONLY: integer_32, logical_32
 USE umPrintMgr, ONLY:                                                          &
     umPrint,                                                                   &
     umMessage
@@ -136,24 +136,24 @@ REAL, INTENT(IN)    :: b(nv)
 REAL, INTENT(IN)    :: c(nv)
 REAL, INTENT(IN)    :: nd(nv)
 REAL, INTENT(IN)    :: dtz
-LOGICAL (KIND=logical32), INTENT(IN) :: mask(nv)
+LOGICAL (KIND=logical_32), INTENT(IN) :: mask(nv)
 REAL, INTENT(IN OUT) :: deln(nv)
 
 !     Local variables
 INTEGER :: i
-INTEGER (KIND=integer32) :: ierr(nv)
-LOGICAL (KIND=logical32) :: logic1(nv)
-LOGICAL (KIND=logical32) :: logic2(nv)
-LOGICAL (KIND=logical32) :: logic3(nv)
-LOGICAL (KIND=logical32) :: logic1a(nv)
-LOGICAL (KIND=logical32) :: logic1b(nv)
-LOGICAL (KIND=logical32) :: logic1c(nv)
-LOGICAL (KIND=logical32) :: logic1ca(nv)
-LOGICAL (KIND=logical32) :: logic1cb(nv)
-LOGICAL (KIND=logical32) :: logic2a(nv)
-LOGICAL (KIND=logical32) :: logic2b(nv)
-LOGICAL (KIND=logical32) :: logic1aok(nv)
-LOGICAL (KIND=logical32) :: logic1aok2(nv) ! logical for extra robustness
+INTEGER (KIND=integer_32) :: ierr(nv)
+LOGICAL (KIND=logical_32) :: logic1(nv)
+LOGICAL (KIND=logical_32) :: logic2(nv)
+LOGICAL (KIND=logical_32) :: logic3(nv)
+LOGICAL (KIND=logical_32) :: logic1a(nv)
+LOGICAL (KIND=logical_32) :: logic1b(nv)
+LOGICAL (KIND=logical_32) :: logic1c(nv)
+LOGICAL (KIND=logical_32) :: logic1ca(nv)
+LOGICAL (KIND=logical_32) :: logic1cb(nv)
+LOGICAL (KIND=logical_32) :: logic2a(nv)
+LOGICAL (KIND=logical_32) :: logic2b(nv)
+LOGICAL (KIND=logical_32) :: logic1aok(nv)
+LOGICAL (KIND=logical_32) :: logic1aok2(nv) ! logical for extra robustness
 REAL    :: ndnew(nv)
 REAL    :: d(nv)
 REAL    :: sqd(nv)
