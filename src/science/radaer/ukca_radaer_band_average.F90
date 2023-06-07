@@ -228,6 +228,8 @@ REAL, INTENT(IN OUT) :: ukca_asymmetry  (npd_profile, npd_layer,               &
 ! Local variables
 !
 !
+
+
 !
 ! Spectrum definitions
 !
@@ -505,121 +507,199 @@ DO i_band = 1, n_band
             n_nr = NINT( (re_m(i_intg) - nrmin) / incr_nr ) + 1
             n_nr = MIN(nnr, MAX(1, n_nr))
 
-            IF (l_ukca_radaer_prescribe_ssa) THEN
+            !
+            ! Get local copies of the relevant look-up table entries.
+            !
+            loc_sca(i_intg) = ukca_lut(this_mode_type, isolir)%                &
+                 ukca_scattering( n_x, n_ni(i_intg), n_nr )
 
+            loc_asy(i_intg) = ukca_lut(this_mode_type, isolir)%                &
+                 ukca_asymmetry(  n_x, n_ni(i_intg), n_nr )
+
+            loc_vol = ukca_lut(this_mode_type, isolir)%                        &
+                 volume_fraction( n_x_dry )
+
+            !
+            ! Offline Mie calculations were integrated using the Mie
+            ! parameter. Compared to an integration using the particle
+            ! radius, extra factors are introduced. Absorption and
+            ! scattering efficiencies must be multiplied by the squared
+            ! wavelength, and the volume fraction by the cubed wavelength.
+            ! Consequently, ratios abs/volfrac and sca/volfrac have then
+            ! to be divided by the wavelength.
+            !
+            SELECT CASE ( precalc%n_integ_pts )
+            CASE ( 1 )
               !
-              ! Get local copies of the relevant look-up table entries.
+              ! If there is only one integration point then only need to divide
+              ! by density, volume fraction and wavelength.
               !
-              loc_sca(i_intg) = ukca_lut(this_mode_type, isolir)%              &
-                           ukca_scattering(n_x, n_ni(i_intg), n_nr)
+              factor = 1.0 /                                                   &
+                       ( ukca_modal_density( i_prof, i_layr, i_mode) *         &
+                         loc_vol *                                             &
+                         precalc%wavelength( 1 , i_band, isolir) )
 
-              loc_asy(i_intg) = ukca_lut(this_mode_type, isolir)%              &
-                           ukca_asymmetry(n_x, n_ni(i_intg), n_nr)
+              IF ( l_ukca_radaer_prescribe_ssa ) THEN
 
-              loc_vol = ukca_lut(this_mode_type, isolir)%                      &
-                        volume_fraction(n_x_dry)
+                this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band)
 
+                ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,  &
+                                     loc_sca(1) * factor * ( 1.0 - this_ssa ) )
+
+                ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,  &
+                                     loc_sca(1) * factor * this_ssa )
+
+              ELSE
+
+                loc_abs( 1 ) = ukca_lut( this_mode_type, isolir )%             &
+                                        ukca_absorption( n_x, n_ni( 1 ), n_nr )
+
+                ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,  &
+                                     loc_abs( 1 ) * factor )
+
+                ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,  &
+                                     loc_sca( 1 ) * factor )
+
+              END IF ! l_ukca_radaer_prescribe_ssa
+
+              ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) =               &
+                 MAX( minus1_plus_epsi1, MIN( one_minus_epsi1, loc_asy( 1 ) ) )
+
+            CASE ( 2 )
               !
-              ! Offline Mie calculations were integrated using the Mie
-              ! parameter. Compared to an integration using the particle
-              ! radius, extra factors are introduced. Absorption and
-              ! scattering efficiencies must be multiplied by the squared
-              ! wavelength, and the volume fraction by the cubed wavelength.
-              ! Consequently, ratios abs/volfrac and sca/volfrac have then
-              ! to be divided by the wavelength.
-              ! We also weight by the solar irradiance or Planckian
-              ! irradiance.
+              icode = 2
+              cmessage = 'Functionality for 2 integration points not available'
+              CALL ereport(RoutineName,icode,cmessage)
+
+            CASE DEFAULT
+              !
+              ! If there are multiple integration points then we also weight
+              ! by the solar irradiance or Planckian irradiance so the factor
+              ! will include the spectral irradiance (dI/dlambda).
               !
               factor = precalc%irrad(i_intg, i_band, isolir) /                 &
-                 (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *       &
-                  precalc%wavelength(i_intg, i_band, isolir))
-              !
-              ! The single-scattering albedo is prescribed by distributing
-              ! extinction (which is equal to scattering in the non-absorption
-              ! case) to absorption and scattering coefficients in the
-              ! proportion indicated by the prescription.
-              !
-              this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band)
-              loc_abs(i_intg) = loc_sca(i_intg) * factor * (1.0 - this_ssa)
-              loc_sca(i_intg) = loc_sca(i_intg) * factor * this_ssa
-              loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
+                       ( ukca_modal_density(i_prof, i_layr, i_mode) *          &
+                         loc_vol *                                             &
+                         precalc%wavelength(i_intg, i_band, isolir) )
 
-            ELSE
 
-              !
-              ! Get local copies of the relevant look-up table entries.
-              !
-              loc_abs(i_intg) = ukca_lut(this_mode_type, isolir)%              &
-                           ukca_absorption(n_x, n_ni(i_intg), n_nr)
+              ! Option with prescribed SSA
 
-              loc_sca(i_intg) = ukca_lut(this_mode_type, isolir)%              &
-                           ukca_scattering(n_x, n_ni(i_intg), n_nr)
+              IF (l_ukca_radaer_prescribe_ssa) THEN
 
-              loc_asy(i_intg) = ukca_lut(this_mode_type, isolir)%              &
-                           ukca_asymmetry(n_x, n_ni(i_intg), n_nr)
+                ! In this case the single-scattering albedo is
+                ! prescribed by distributing extinction (which is equal to
+                ! scattering in the non-absorbing case) to absorption and
+                ! scattering coefficients in the proportion indicated by the
+                ! prescription.
 
-              loc_vol = ukca_lut(this_mode_type, isolir)%                      &
-                        volume_fraction(n_x_dry)
+                this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band)
+                loc_abs(i_intg) = loc_sca(i_intg) * factor * (1.0 - this_ssa)
+                loc_sca(i_intg) = loc_sca(i_intg) * factor * this_ssa
+                loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
 
-              !
-              ! Offline Mie calculations were integrated using the Mie
-              ! parameter. Compared to an integration using the particle
-              ! radius, extra factors are introduced. Absorption and
-              ! scattering efficiencies must be multiplied by the squared
-              ! wavelength, and the volume fraction by the cubed wavelength.
-              ! Consequently, ratios abs/volfrac and sca/volfrac have then
-              ! to be divided by the wavelength.
-              ! We also weight by the solar irradiance or Planckian
-              ! irradiance.
-              !
-              factor = precalc%irrad(i_intg, i_band, isolir) /                 &
-                 (ukca_modal_density(i_prof, i_layr, i_mode) * loc_vol *       &
-                  precalc%wavelength(i_intg, i_band, isolir))
-              loc_abs(i_intg) = loc_abs(i_intg) * factor
-              loc_sca(i_intg) = loc_sca(i_intg) * factor
-              loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
+              ELSE
 
-            END IF ! IF (l_ukca_radaer_prescribe_ssa)
+                !
+                ! Get local copies of the relevant look-up table entries.
+                !
+                loc_abs(i_intg) = ukca_lut(this_mode_type, isolir)%            &
+                                     ukca_absorption( n_x, n_ni(i_intg), n_nr )
+
+                !
+                ! Multiply by the relevant factor calculated further above.
+                !
+                loc_abs(i_intg) = loc_abs(i_intg) * factor
+                loc_sca(i_intg) = loc_sca(i_intg) * factor
+                loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
+
+              END IF ! IF (l_ukca_radaer_prescribe_ssa)
+
+            END SELECT
 
           END DO ! i_intg
 
-          !
-          ! Trapezoidal integration
-          !
-          integrated_abs(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-          integrated_sca(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-          integrated_asy(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-          DO i_intg = 1, precalc%n_integ_pts - 1
-            integrated_abs(i_prof, i_layr, i_mode, i_band) =                   &
+          SELECT CASE ( precalc%n_integ_pts )
+          CASE ( 1 )
+            !
+            ! No need to calculate integrated_abs / sca /asy
+            !
+
+          CASE ( 2 )
+            !
+            ! No functionalty for two integration points
+            !
+            icode = 2
+            cmessage = 'Functionality for two integration points not available'
+            CALL ereport(RoutineName,icode,cmessage)
+
+          CASE DEFAULT
+            !
+            ! Trapezoidal integration
+            !
+            integrated_abs(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+            integrated_sca(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+            integrated_asy(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+
+            DO i_intg = 1, precalc%n_integ_pts - 1
+
+              integrated_abs(i_prof, i_layr, i_mode, i_band) =                 &
                integrated_abs(i_prof, i_layr, i_mode, i_band) +                &
                (precalc%wavelength(i_intg+1, i_band, isolir) -                 &
                 precalc%wavelength(i_intg, i_band, isolir)) *                  &
                (loc_abs(i_intg+1) + loc_abs(i_intg))
-            integrated_sca(i_prof, i_layr, i_mode, i_band) =                   &
+
+              integrated_sca(i_prof, i_layr, i_mode, i_band) =                 &
                integrated_sca(i_prof, i_layr, i_mode, i_band) +                &
                (precalc%wavelength(i_intg+1, i_band, isolir) -                 &
                 precalc%wavelength(i_intg, i_band, isolir)) *                  &
                (loc_sca(i_intg+1) + loc_sca(i_intg))
-            integrated_asy(i_prof, i_layr, i_mode, i_band) =                   &
+
+              integrated_asy(i_prof, i_layr, i_mode, i_band) =                 &
                integrated_asy(i_prof, i_layr, i_mode, i_band) +                &
                (precalc%wavelength(i_intg+1, i_band, isolir) -                 &
                 precalc%wavelength(i_intg, i_band, isolir)) *                  &
                (loc_asy(i_intg+1) + loc_asy(i_intg))
-          END DO ! i_intg
-          integrated_abs(i_prof, i_layr, i_mode, i_band) =                     &
+
+            END DO ! i_intg
+
+            integrated_abs(i_prof, i_layr, i_mode, i_band) =                   &
              integrated_abs(i_prof, i_layr, i_mode, i_band) * 0.5
-          integrated_sca(i_prof, i_layr, i_mode, i_band) =                     &
+
+            integrated_sca(i_prof, i_layr, i_mode, i_band) =                   &
              integrated_sca(i_prof, i_layr, i_mode, i_band) * 0.5
-          integrated_asy(i_prof, i_layr, i_mode, i_band) =                     &
+
+            integrated_asy(i_prof, i_layr, i_mode, i_band) =                   &
              integrated_asy(i_prof, i_layr, i_mode, i_band) * 0.5
 
-        ELSE
+          END SELECT
 
-          integrated_abs(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-          integrated_sca(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-          integrated_asy(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+        ELSE ! Thresholds of Aerosol mmr and number and volume
 
-        END IF
+          SELECT CASE ( precalc%n_integ_pts )
+          CASE ( 1 )
+            !
+            ukca_absorption( i_prof, i_layr, i_mode, i_band ) = 0.0
+            ukca_scattering( i_prof, i_layr, i_mode, i_band ) = 0.0
+            ukca_asymmetry(  i_prof, i_layr, i_mode, i_band ) = 0.0
+
+          CASE ( 2 )
+            !
+            ! No functionalty for two integration points
+            !
+            icode = 2
+            cmessage = 'Functionality for two integration points not available'
+            CALL ereport(RoutineName,icode,cmessage)
+
+          CASE DEFAULT
+
+            integrated_abs(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+            integrated_sca(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+            integrated_asy(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+
+          END SELECT
+
+        END IF ! Thresholds of Aerosol mmr and number and volume
 
       END DO ! i_prof
 
@@ -632,47 +712,64 @@ END DO ! i_band
 !
 ! Final integrals. Depend on excluded bands.
 !
+SELECT CASE ( precalc%n_integ_pts )
+CASE ( 1 )
+  ! Do nothing, already calculated above
 
-DO i_band = 1, n_band
+CASE ( 2 )
+  !
+  icode = 2
+  cmessage = 'Functionality for two integration points not available'
+  CALL ereport(RoutineName,icode,cmessage)
 
-  IF (l_exclude) THEN
+CASE DEFAULT
 
-    IF (n_band_exclude(i_band) > 0) THEN
+  DO i_band = 1, n_band
 
-      !
-      ! Remove contribution from excluded bands.
-      !
-      DO i_intg = 1, n_band_exclude(i_band)
+    IF (l_exclude) THEN
 
-        DO i_mode = 1, n_ukca_mode
+      IF (n_band_exclude(i_band) > 0) THEN
 
-          DO i_layr = 1, n_layer
+        !
+        ! Remove contribution from excluded bands.
+        !
+        DO i_intg = 1, n_band_exclude(i_band)
 
-            DO i_prof = 1, n_profile
+          DO i_mode = 1, n_ukca_mode
 
-              integrated_abs(i_prof, i_layr, i_mode, i_band) =                 &
+            DO i_layr = 1, n_layer
+
+              DO i_prof = 1, n_profile
+
+                integrated_abs(i_prof, i_layr, i_mode, i_band) =               &
                         integrated_abs(i_prof, i_layr, i_mode, i_band) -       &
                         integrated_abs(i_prof, i_layr, i_mode,                 &
                                        index_exclude(i_intg, i_band))
-              integrated_sca(i_prof, i_layr, i_mode, i_band) =                 &
+                integrated_sca(i_prof, i_layr, i_mode, i_band) =               &
                         integrated_sca(i_prof, i_layr, i_mode, i_band) -       &
                         integrated_sca(i_prof, i_layr, i_mode,                 &
                                        index_exclude(i_intg, i_band))
-              integrated_asy(i_prof, i_layr, i_mode, i_band) =                 &
+                integrated_asy(i_prof, i_layr, i_mode, i_band) =               &
                         integrated_asy(i_prof, i_layr, i_mode, i_band) -       &
                         integrated_asy(i_prof, i_layr, i_mode,                 &
                                        index_exclude(i_intg, i_band))
 
-            END DO ! i_prof
+              END DO ! i_prof
 
-          END DO ! i_layr
+            END DO ! i_layr
 
-        END DO ! i_mode
+          END DO ! i_mode
 
-        exclflux = precalc%flux(i_band, isolir) -                              &
-                   precalc%flux(index_exclude(i_intg, i_band), isolir)
+          exclflux = precalc%flux(i_band, isolir) -                            &
+                     precalc%flux(index_exclude(i_intg, i_band), isolir)
 
-      END DO ! i_intg
+        END DO ! i_intg
+
+      ELSE
+
+        exclflux = precalc%flux(i_band, isolir)
+
+      END IF
 
     ELSE
 
@@ -680,99 +777,109 @@ DO i_band = 1, n_band
 
     END IF
 
-  ELSE
+    DO i_mode = 1, n_ukca_mode
 
-    exclflux = precalc%flux(i_band, isolir)
+      DO i_layr = 1, n_layer
 
-  END IF
+        DO i_prof = 1, n_profile
 
-  DO i_mode = 1, n_ukca_mode
-
-    DO i_layr = 1, n_layer
-
-      DO i_prof = 1, n_profile
-
-        !
-        ! Pathological combinations of Mie parameters and refractive index
-        ! may cause unphysical values, especially for accumulation-mode
-        ! aerosols in the longwave spectrum. Also, band exclusion can yield
-        ! negative (albeit small) scattering or absorption coefficients.
-        !
-        ! Here, we make sure that optical properties remain within sensible
-        ! bounds: specific scattering and absorption coefficients must be
-        ! positive, and asymmetry parameter must be within [-1,+1].
-        !
-
-        ! First check absorption and scattering
-        !
-
-        IF (integrated_abs(i_prof, i_layr, i_mode, i_band) < 0.0e+00) THEN
-
-          integrated_abs(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-        END IF
-
-        IF (integrated_sca(i_prof, i_layr, i_mode, i_band) < 0.0e+00) THEN
-
-          integrated_sca(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-        END IF
-
-        ! Calculate ukca_absorption, ukca_scatterig using exclflux
-        ! If exclflux  <= 0 then skip the calculation and set
-        ! ukca_absorption, ukca_scattering to zero.
-
-        IF (exclflux > 0.0e+00) THEN
           !
-          ukca_absorption(i_prof, i_layr, i_mode, i_band) =                    &
-            integrated_abs(i_prof, i_layr, i_mode, i_band) / exclflux
-
-          ukca_scattering(i_prof, i_layr, i_mode, i_band) =                    &
-            integrated_sca(i_prof, i_layr, i_mode, i_band) / exclflux
+          ! Pathological combinations of Mie parameters and refractive index
+          ! may cause unphysical values, especially for accumulation-mode
+          ! aerosols in the longwave spectrum. Also, band exclusion can yield
+          ! negative (albeit small) scattering or absorption coefficients.
           !
-        ELSE
+          ! Here, we make sure that optical properties remain within sensible
+          ! bounds: specific scattering and absorption coefficients must be
+          ! positive, and asymmetry parameter must be within [-1,+1].
           !
-          ukca_absorption(i_prof, i_layr, i_mode, i_band) = 0.0e+00
-          ukca_scattering(i_prof, i_layr, i_mode, i_band) = 0.0e+00
 
-        END IF
+          ! First check absorption and scattering
+          !
 
-        ! Calculate asymmetry parameter
+          IF (integrated_abs(i_prof, i_layr, i_mode, i_band) < 0.0e+00) THEN
 
-        IF (integrated_sca(i_prof, i_layr, i_mode, i_band) >  0.0e+00) THEN
+            integrated_abs(i_prof, i_layr, i_mode, i_band) = 0.0e+00
 
-          ukca_asymmetry(i_prof, i_layr, i_mode, i_band)  =                    &
+          END IF
+
+          IF (integrated_sca(i_prof, i_layr, i_mode, i_band) < 0.0e+00) THEN
+
+            integrated_sca(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+
+          END IF
+
+          !
+          ! Populate outgoing ukca_absorption, ukca_scattering arrays.
+          !
+
+
+          !
+          ! If multiple integrations points were used the integrated
+          ! values were weighted by the irradiance so now needs to be
+          ! normalized by dividing with the flux across the whole waveband,
+          ! which is named exclflux.
+          !
+          IF (exclflux > 0.0e+00) THEN
+            !
+            ukca_absorption( i_prof, i_layr, i_mode, i_band ) =                &
+                    integrated_abs( i_prof, i_layr, i_mode, i_band ) / exclflux
+
+            ukca_scattering( i_prof, i_layr, i_mode, i_band ) =                &
+                    integrated_sca( i_prof, i_layr, i_mode, i_band ) / exclflux
+
+          ELSE
+            !
+            ! If exclflux  <= 0 then skip the calculation and set
+            ! ukca_absorption, ukca_scattering to zero.
+            !
+            ukca_absorption(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+            ukca_scattering(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+
+          END IF
+
+
+
+          ! Calculate asymmetry parameter
+
+          IF (integrated_sca(i_prof, i_layr, i_mode, i_band) >  0.0e+00) THEN
+
+            ukca_asymmetry(i_prof, i_layr, i_mode, i_band)  =                  &
             integrated_asy(i_prof, i_layr, i_mode, i_band) /                   &
             integrated_sca(i_prof, i_layr, i_mode, i_band)
 
-        ELSE
+          ELSE
 
-          ukca_asymmetry(i_prof, i_layr, i_mode, i_band) = 0.0e+00
+            ukca_asymmetry(i_prof, i_layr, i_mode, i_band) = 0.0e+00
 
-        END IF
+          END IF
 
-        ! Check that asymmetry parameter has physical values [-1, 1]
-        ! but do not allow exactly 1 or -1 as this can cause
-        ! divide by zero elsewhere in the radiation code. Uses a
-        ! deviation of EPSILON(1.0) from +/- 1.0
+          ! Check that asymmetry parameter has physical values [-1, 1]
+          ! but do not allow exactly 1 or -1 as this can cause
+          ! divide by zero elsewhere in the radiation code. Uses a
+          ! deviation of EPSILON(1.0) from +/- 1.0
 
-        IF (ukca_asymmetry(i_prof, i_layr, i_mode, i_band) <                   &
-            minus1_plus_epsi1) THEN
+          IF ( ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) <              &
+               minus1_plus_epsi1 ) THEN
 
-          ukca_asymmetry(i_prof, i_layr, i_mode, i_band) = minus1_plus_epsi1
+            ukca_asymmetry( i_prof, i_layr, i_mode, i_band) = minus1_plus_epsi1
 
-        ELSE IF (ukca_asymmetry(i_prof, i_layr, i_mode, i_band) >              &
-            one_minus_epsi1) THEN
+          ELSE IF ( ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) >         &
+                    one_minus_epsi1 ) THEN
 
-          ukca_asymmetry(i_prof, i_layr, i_mode, i_band) = one_minus_epsi1
+            ukca_asymmetry(i_prof, i_layr, i_mode, i_band) = one_minus_epsi1
 
-        END IF
+          END IF
 
-      END DO ! i_prof
+        END DO ! i_prof
 
-    END DO ! i_layr
+      END DO ! i_layr
 
-  END DO  ! i_mode
+    END DO  ! i_mode
 
-END DO ! i_band
+  END DO ! i_band
+
+END SELECT ! precalc%n_integ_pts is 3 or more
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
