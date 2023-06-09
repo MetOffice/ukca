@@ -799,9 +799,6 @@ IF (standard_name /= ' ') THEN
     ! tracer and no conversion needed.
     base_scaling = 1.0
 
-    ! NVOC emissions must only be expressed as carbon
-    IF (TRIM(tracer_name) == 'NVOC') ierror = 5
-
   END IF    ! check if special units used
 
 ELSE IF (long_name /= ' ') THEN
@@ -841,10 +838,6 @@ ELSE IF (long_name /= ' ') THEN
     ! emitted tracer and no conversion needed
     base_scaling = 1.0
 
-    ! NVOC emissions must only be expressed as carbon
-    ! See comment in get_base_scaling
-    IF (TRIM(tracer_name) == 'NVOC') ierror = 5
-
   END IF    ! check if special units used
 
 ELSE IF (l_omit_std_name) THEN
@@ -875,8 +868,6 @@ IF (ierror > 0) THEN
   CASE (4)
     cmessage = 'Unexpected substring found in long_name: '     //              &
                 long_name
-  CASE (5)
-    cmessage = 'NVOC emissions must only be expressed as carbon'
   END SELECT
 
   CALL ereport ('BASE_EMISS_FACTORS', ierror, cmessage)
@@ -921,10 +912,6 @@ INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1
 REAL    (KIND=jprb)            :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='GET_BASE_SCALING'
-
-REAL, PARAMETER :: meoh_factor = 0.215    ! Factor to convert
-!  GEIA NVOC emissions to methanol (260.95 Tg as C) - assuming Biogenic
-!  emission of methanol is 151 Tg (56 Tg as C)
 
 REAL, PARAMETER :: ocfact = 1.4    ! Factor to convert from C to POM
 
@@ -976,12 +963,6 @@ ELSE IF (TRIM(special_units) == 'expressed_as_carbon'  .OR.                    &
     ! In the future this might be revised to use factors such as
     ! me2co_factor=0.134. That might be needed to convert GEIA
     ! NVOC to emissions of the appropriate species.
-  CASE ('NVOC')
-    ! Convert from kg(C) to kg(CH3OH) and from GEIA NVOC to MeOH.
-    ! Note this means that NVOC emissions must only be expressed as carbon
-    ! else we don't even enter this routine. No other units would make sense
-    ! in any case since NVOC is a collection of various gases.
-    base_scaling = meoh_factor * m_ch3oh / m_c
   CASE ('OM_fossil', 'OM_biofuel', 'OM_biomass')
     ! Convert from mass of carbon to mass of POM
     base_scaling = ocfact

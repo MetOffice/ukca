@@ -368,19 +368,13 @@ IF ( l_first ) THEN
   ! An exception is that organic matter/BC emissions can be missing if
   ! l_ukca_primbcoc is false. The same exception doesn't apply to SO2 with
   ! l_ukca_primsu, since SO2 is emitted into the chemistry.
-  ! NVOC is also an exception if interactive BVOCs are used - In that case
-  ! biogenic emissions of some species such as methanol and acetone are
-  ! provided by the iBVOC code. Therefore they do not need to come from the
-  ! NVOC (GEIA) emission file which also represents biogenic emissions.
   DO k = 1, n_chem_emissions + n_3d_emissions
     IF (.NOT. ANY(emissions(:)%tracer_name == em_chem_spec (k)) ) THEN
       IF (.NOT. (                                                              &
           ((em_chem_spec(k)(1:2) == 'BC') .AND.                                &
            .NOT. glomap_config%l_ukca_primbcoc) .OR.                           &
           ((em_chem_spec(k)(1:2) == 'OM') .AND.                                &
-           .NOT. glomap_config%l_ukca_primbcoc) .OR.                           &
-          ((em_chem_spec(k) == 'NVOC      ') .AND.                             &
-           ukca_config%l_ukca_ibvoc))) THEN
+           .NOT. glomap_config%l_ukca_primbcoc))) THEN
         cmessage = TRIM(em_chem_spec(k))//' missing from supplied emissions '
         errcode = k
         CALL ereport (ModuleName//':'//RoutineName, errcode, cmessage)

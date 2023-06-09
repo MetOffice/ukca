@@ -46,8 +46,7 @@ SUBROUTINE ukca_emiss_diags (row_length, rows, model_levels,                   &
     len_stashwork, stashwork)
 
 USE ukca_config_defs_mod, ONLY: em_chem_spec,                                  &
-                                n_chem_emissions, n_3d_emissions,              &
-                                nm_meoh_em
+                                n_chem_emissions, n_3d_emissions
 USE ukca_config_specification_mod, ONLY: glomap_config
 USE ukca_emiss_mod,               ONLY: emissions, num_em_flds
 USE ukca_update_emdiagstruct_mod, ONLY: update_emdiagstruct, emdiags
@@ -337,7 +336,7 @@ END IF
 
 !---------------------------------------------------------------------
 ! Sec 50, item 212: NVOC surface emissions (actually MeOH)
-item = get_emdiag_stash (nm_meoh_em)
+item = get_emdiag_stash ('MeOH      ')
 IF (sf(item, section)) THEN
   CALL copydiag (stashwork (si(item,section,im_index):                         &
                  si_last(item,section,im_index)),                              &

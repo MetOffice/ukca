@@ -179,7 +179,6 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_h2dd_x,                                       &
                       l_fix_ukca_offox_h2o_fac,                                &
                       l_fix_ukca_h2so4_ystore,                                 &
-                      l_fix_ukca_meoh_emiss_input,                             &
                       l_mode_bhn_on,                                           &
                       l_mode_bln_on,                                           &
                       l_ddepaer,                                               &
@@ -450,7 +449,6 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_drydep_so2_water
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2dd_x
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_offox_h2o_fac
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2so4_ystore
-LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_meoh_emiss_input
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bhn_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bln_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ddepaer
@@ -1039,14 +1037,6 @@ IF (ukca_config%l_ukca_mode .AND. l_nr_scheme_selected) THEN
   ukca_config%l_fix_ukca_h2so4_ystore = .TRUE.
   IF (PRESENT(l_fix_ukca_h2so4_ystore))                                        &
     ukca_config%l_fix_ukca_h2so4_ystore = l_fix_ukca_h2so4_ystore
-END IF
-
-IF ((ukca_config%i_ukca_chem == i_ukca_chem_tropisop .AND.                     &
-     ukca_config%l_ukca_chem_aero) .OR.                                        &
-    ukca_config%i_ukca_chem == i_ukca_chem_strattrop) THEN
-  ukca_config%l_fix_ukca_meoh_emiss_input = .TRUE.
-  IF (PRESENT(l_fix_ukca_meoh_emiss_input))                                    &
-    ukca_config%l_fix_ukca_meoh_emiss_input = l_fix_ukca_meoh_emiss_input
 END IF
 
 ! -- GLOMAP-mode configuration ----------------------------------------

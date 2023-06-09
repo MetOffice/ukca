@@ -134,9 +134,6 @@ CASE ('CS2       ')
 CASE ('CO        ')
   get_molmass = m_co
 
-CASE ('NVOC      ')
-  get_molmass = m_c
-
 CASE ('CH4       ')
   get_molmass = m_ch4
 

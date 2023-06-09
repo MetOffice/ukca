@@ -57,10 +57,6 @@ CHARACTER(LEN=10), SAVE :: lbc_spec(n_boundary_vals)  ! species names
 CHARACTER(LEN=10), SAVE :: cfc_lumped(n_cfc_lumped)  ! CFC species lumped
 REAL, SAVE :: lbc_mmr(n_boundary_vals)               ! mixing ratios
 
-CHARACTER (LEN=10), SAVE :: nm_meoh_em  ! Name of tracer/ species to search in
-                                        ! emission files when reading methanol
-                                        ! (MeOH) emissions
-
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_CONFIG_DEFS_MOD'
 
 CONTAINS
@@ -98,12 +94,6 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 nmax_strat_fluxdiags = 0
 nmax_mode_diags      = 0
 n_nonchem_tracers    = 0
-
-! Set the tracer-name to look for in files when reading MeOH emissions
-nm_meoh_em = 'NVOC      '
-IF (ukca_config%l_fix_ukca_meoh_emiss_input) nm_meoh_em = 'MeOH      '
-! Make sure nm_meoh_em is always MeOH if using CRI-Strat
-IF ( ukca_config%l_ukca_cristrat ) nm_meoh_em = 'MeOH      '
 
 ! Initialise LBC arrays used in emiss_ctl
 lbc_mmr(:) = rmdi
@@ -152,7 +142,7 @@ ELSE IF (ukca_config%l_ukca_tropisop .AND. ukca_config%l_ukca_achem) THEN
   ['NO        ','CH4       ','CO        ','HCHO      ',                        &
     'C2H6      ','C3H8      ','Me2CO     ','MeCHO     ',                       &
     'C5H8      ','BC_fossil ','BC_biofuel','OM_fossil ',                       &
-    'OM_biofuel','Monoterp  ', nm_meoh_em ,'SO2_low   ',                       &
+    'OM_biofuel','Monoterp  ','MeOH      ','SO2_low   ',                       &
     'SO2_high  ','NH3       ','DMS       ','SO2_nat   ',                       &
     'BC_biomass','OM_biomass','NO_aircrft']
 ELSE IF (ukca_config%l_ukca_tropisop .AND. .NOT. ukca_config%l_ukca_achem) THEN
@@ -314,7 +304,7 @@ ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
       em_chem_spec =                                                           &
           ['NO        ','CH4       ','CO        ','HCHO      ',                &
             'C2H6      ','C3H8      ','Me2CO     ','MeCHO     ',               &
-            'C5H8      ', nm_meoh_em ,'NO_aircrft']
+            'C5H8      ','MeOH      ','NO_aircrft']
       n_chem_tracers = 71         ! No chem tracers
       nr_therm       = 220        ! thermal reactions
       nr_phot        = 55         ! photolytic (ATA)
@@ -327,7 +317,7 @@ ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
           ['NO        ','CH4       ','CO        ','HCHO      ',                &
             'C2H6      ','C3H8      ','Me2CO     ','MeCHO     ',               &
             'C5H8      ','BC_fossil ','BC_biofuel','OM_fossil ',               &
-            'OM_biofuel','Monoterp  ', nm_meoh_em ,'SO2_low   ',               &
+            'OM_biofuel','Monoterp  ','MeOH      ','SO2_low   ',               &
             'SO2_high  ','NH3       ','DMS       ','SO2_nat   ',               &
             'BC_biomass','OM_biomass','NO_aircrft']
       n_aero_tracers = 12
@@ -397,7 +387,7 @@ ELSE IF (ukca_config%l_ukca_cristrat) THEN
         'C3H8      ','C4H10     ','C2H4      ','C3H6      ',                   &
         'TBUT2ENE  ','C2H2      ','C5H8      ','APINENE   ',                   &
         'BPINENE   ','BENZENE   ','TOLUENE   ','oXYLENE   ',                   &
-         nm_meoh_em ,'EtOH      ','HCHO      ','MeCHO     ',                   &
+        'MeOH      ','EtOH      ','HCHO      ','MeCHO     ',                   &
         'EtCHO     ','Me2CO     ','MEK       ','HCOOH     ',                   &
         'MeCO2H    ','HOCH2CHO  ','NO_aircrft']
   ELSE ! With aerosol
@@ -428,7 +418,7 @@ ELSE IF (ukca_config%l_ukca_cristrat) THEN
           'C3H8      ','C4H10     ','C2H4      ','C3H6      ',                 &
           'TBUT2ENE  ','C2H2      ','C5H8      ','APINENE   ',                 &
           'BPINENE   ','BENZENE   ','TOLUENE   ','oXYLENE   ',                 &
-           nm_meoh_em ,'EtOH      ','HCHO      ','MeCHO     ',                 &
+          'MeOH      ','EtOH      ','HCHO      ','MeCHO     ',                 &
           'EtCHO     ','Me2CO     ','MEK       ','HCOOH     ',                 &
           'MeCO2H    ','HOCH2CHO  ','BC_fossil ','BC_biofuel',                 &
           'OM_fossil ','OM_biofuel','SO2_low   ','SO2_high  ',                 &

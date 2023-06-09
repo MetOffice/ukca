@@ -15,6 +15,7 @@ Jenny Hickson                   Met Office
 Ben Johnson                     Met Office
 Anthony Jones                   Met Office
 Roddy Sharp                     Met Office
+Charlotte Norris		Met Office
 Marc Stringer                   National Centre for Atmospheric Science and
                                 University of Reading
 

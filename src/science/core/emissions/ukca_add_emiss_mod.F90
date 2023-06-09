@@ -577,9 +577,6 @@ DO l = 1, num_em_flds       ! loop over emission fields
     CASE ('CH4_wetlnd')
       mapped_tracer =   'CH4       '
 
-    CASE ('NVOC')
-      mapped_tracer =   'MeOH      '
-
     CASE DEFAULT
       mapped_tracer = emissions(l)%tracer_name
     END SELECT

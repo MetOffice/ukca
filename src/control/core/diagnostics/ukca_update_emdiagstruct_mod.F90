@@ -347,7 +347,7 @@ CASE ('Monoterp  ')
     END IF
   END IF
 
-CASE ('NVOC      ','MeOH      ')
+CASE ('MeOH      ')
   IF (emdiags%l_em_meoh) THEN
     emdiags%em_meoh (:,:) = em_diags (:,:,1)
   ELSE
