@@ -166,6 +166,11 @@ REAL, PARAMETER :: c_meco2h     = 2.0711
 REAL, PARAMETER :: c_nh3        = 0.5879
 REAL, PARAMETER :: c_monoterp   = 4.7034
 REAL, PARAMETER :: c_sec_org    = 5.1782    ! Molecular weight=150.
+REAL, PARAMETER :: c_sec_org_i  = 5.1782    ! Molecular weight=150.
+! The molecular weight for SEC_ORG_I is made the same as SEC_ORG in
+! order to be compatible with GLOMAP OM assumptions.  However the
+! molar yield is adjusted.
+
 
 !     species required for ukca_scenario_rcp
 REAL, PARAMETER :: C_cf3chf2    = 4.1429 ! HFC125
@@ -410,6 +415,7 @@ REAL, PARAMETER :: m_dmso       =  78.13
 REAL, PARAMETER :: m_me2s       =  62.1
 REAL, PARAMETER :: m_msa        =  96.1
 REAL, PARAMETER :: m_sec_org    =  150.0
+REAL, PARAMETER :: m_sec_org_i  =  150.0 !  Secondary organic from isoprene
 REAL, PARAMETER :: m_s          =  32.07
 REAL, PARAMETER :: m_so2        =  64.06
 REAL, PARAMETER :: m_so3        =  80.06

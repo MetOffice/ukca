@@ -63,12 +63,12 @@ USE ukca_mode_setup,       ONLY: nmodes
 USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_suss_4mode,                      &
                                  ukca_indices_orgv1_soto3,                     &
+                                 ukca_indices_orgv1_soto3_isop,                &
                                  ukca_indices_sussbcoc_5mode,                  &
-                                 ukca_indices_orgv1_soto3,                     &
+                                 ukca_indices_sussbcoc_5mode_isop,             &
                                  ukca_indices_sussbcoc_4mode,                  &
                                  ukca_indices_orgv1_soto6,                     &
                                  ukca_indices_sussbcocso_5mode,                &
-                                 ukca_indices_orgv1_soto6,                     &
                                  ukca_indices_sussbcocso_4mode,                &
                                  ukca_indices_duonly_2mode,                    &
                                  ukca_indices_sussbcocdu_7mode,                &
@@ -92,6 +92,7 @@ INTEGER                       :: icp       ! loop counter for components
 INTEGER                       :: n_reqd_tracers ! no. of required tracers
 INTEGER                       :: errcode=0     ! Error code: ereport
 INTEGER                       :: timestep      ! Dynamical timestep
+INTEGER, PARAMETER            :: ichem_ver132 = 132  ! To identify chemical vn
 CHARACTER(LEN=errormessagelength)     :: cmessage=' '  ! Error message
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -195,49 +196,60 @@ END IF
 !$OMP END PARALLEL
 
 IF (ukca_config%l_ukca_mode) THEN
-
   ! Call appropriate MODE setup routine
-  IF (      glomap_config%i_mode_setup == i_suss_4mode ) THEN ! 1
-    CALL ukca_indices_sv1
-    CALL ukca_indices_suss_4mode
-  ELSE IF ( glomap_config%i_mode_setup == i_sussbcoc_5mode ) THEN ! 2
-    CALL ukca_indices_orgv1_soto3
-    CALL ukca_indices_sussbcoc_5mode
-  ELSE IF ( glomap_config%i_mode_setup == i_sussbcoc_4mode ) THEN ! 3
-    CALL ukca_indices_orgv1_soto3
-    CALL ukca_indices_sussbcoc_4mode
-  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocso_5mode ) THEN ! 4
-    CALL ukca_indices_orgv1_soto6
-    CALL ukca_indices_sussbcocso_5mode
-  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocso_4mode ) THEN ! 5
-    CALL ukca_indices_orgv1_soto6
-    CALL ukca_indices_sussbcocso_4mode
-  ELSE IF ( glomap_config%i_mode_setup == i_du_2mode ) THEN ! 6
-    !!    CALL ukca_indices_nochem
-    !! temporarily run 2-mode dust only with chemistry, though it's not needed
-    CALL ukca_indices_orgv1_soto3
-    CALL ukca_indices_duonly_2mode
-    !!  ELSE IF ( glomap_config%i_mode_setup == 7 ) THEN
-      !!    CALL ukca_indices_nochem
-      !!    CALL ukca_indices_duonly_3mode
-  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocdu_7mode ) THEN ! 8
-    CALL ukca_indices_orgv1_soto3
-    CALL ukca_indices_sussbcocdu_7mode
-    !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
-      !!    CALL ukca_indices_orgv1_soto3
-      !!    CALL ukca_indices_sussbcocdu_4mode
-  ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN ! 10
-    CALL ukca_indices_orgv1_soto3
-    CALL ukca_indices_sussbcocntnh_5mode
-  ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
-    CALL ukca_indices_orgv1_soto3_solinsol
-    CALL ukca_indices_solinsol_6mode
+  IF ( ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
+     IF (glomap_config%i_mode_setup == i_sussbcoc_5mode) THEN
+       CALL ukca_indices_orgv1_soto3_isop
+       CALL ukca_indices_sussbcoc_5mode_isop
+     ELSE
+       errcode     = 4
+       cmessage    = 'Isoprene SOA (i_chem_version > 132)   '  //              &
+                    'only works with i_mode_setup=2 '
+       CALL ereport('UKCA_INIT', errcode, cmessage)
+     END IF
   ELSE
-    cmessage=' i_mode_setup has unrecognised value'
-    WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup
-    CALL umPrint(umMessage,src='ukca_init')
-    errcode = 4
-    CALL ereport('UKCA_INIT',errcode,cmessage)
+    IF ( glomap_config%i_mode_setup == i_suss_4mode ) THEN ! 1
+      CALL ukca_indices_sv1
+      CALL ukca_indices_suss_4mode
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcoc_5mode ) THEN ! 2
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_sussbcoc_5mode
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcoc_4mode ) THEN ! 3
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_sussbcoc_4mode
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocso_5mode ) THEN ! 4
+      CALL ukca_indices_orgv1_soto6
+      CALL ukca_indices_sussbcocso_5mode
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocso_4mode ) THEN ! 5
+      CALL ukca_indices_orgv1_soto6
+      CALL ukca_indices_sussbcocso_4mode
+    ELSE IF ( glomap_config%i_mode_setup == i_du_2mode ) THEN ! 6
+      !!    CALL ukca_indices_nochem
+      !! temporarily run 2-mode dust only with chemistry, though it's not needed
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_duonly_2mode
+      !!  ELSE IF ( glomap_config%i_mode_setup == 7 ) THEN
+        !!    CALL ukca_indices_nochem
+        !!    CALL ukca_indices_duonly_3mode
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocdu_7mode ) THEN ! 8
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_sussbcocdu_7mode
+      !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
+        !!    CALL ukca_indices_orgv1_soto3
+        !!    CALL ukca_indices_sussbcocdu_4mode
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN ! 10
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_sussbcocntnh_5mode
+    ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
+      CALL ukca_indices_orgv1_soto3_solinsol
+      CALL ukca_indices_solinsol_6mode
+    ELSE
+      cmessage=' i_mode_setup has unrecognised value'
+      WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup
+      CALL umPrint(umMessage,src='ukca_init')
+      errcode = 4
+      CALL ereport('UKCA_INIT',errcode,cmessage)
+    END IF           
   END IF       ! i_mode_setup
 
   CALL ukca_mode_setup_interface ( glomap_config%i_mode_setup,                 &
@@ -385,11 +397,20 @@ IF ( (glomap_config%marine_pom_ems_scaling < 0.0 .OR.                          &
 END IF
 
 ! soa_yield_scaling - valid range 0. - 5.
-IF ( (ukca_config%soa_yield_scaling < 0.0 .OR.                                 &
-      ukca_config%soa_yield_scaling > 5.0) .AND.                               &
-     ukca_config%l_ukca_scale_soa_yield ) THEN
+IF ( (ukca_config%soa_yield_scaling_mt < 0.0 .OR.                              &
+      ukca_config%soa_yield_scaling_mt > 5.0) .AND.                            &
+     ukca_config%l_ukca_scale_soa_yield_mt) THEN
   cmessage='soa_yield_scaling should be between 0.0 - 5.0'
   errcode = 3
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! soa_yield_scaling_isop - valid range 0. - 10.
+IF ( (ukca_config%soa_yield_scaling_isop < 0.0 .OR.                            &
+      ukca_config%soa_yield_scaling_isop > 10.0) .AND.                         &
+     ukca_config%l_ukca_scale_soa_yield_isop ) THEN
+  cmessage='soa_yield_scaling_isop should be between 0.0 -10.0'
+  errcode = 37
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 

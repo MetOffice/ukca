@@ -927,6 +927,99 @@ TYPE(asad_flux_defn), PARAMETER :: asad_trop_ox_budget_loss01(23)              &
        ['HO2       ','HCHO      ','NO2       ','          '])                  &
        ]
 
+TYPE(asad_flux_defn), PARAMETER, PUBLIC :: asad_trop_ox_budget_loss01_132(23)  &
+! Version for use when i_ukca_chem_version >= 132
+! Loss of Ox
+       = [ asad_flux_defn('RXN',50011,'B',.TRUE.,0,4,                          &
+       ['O(1D)     ','H2O       '],                                            &
+       ['OH        ','OH        ','          ','          ']),                 &
+
+! Minor reactions, should have negligble impact:
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,4,                              &
+       ['O(1D)     ','CH4       '],                                            &
+       ['OH        ','MeOO      ','          ','          ']),                 &
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,4,                              &
+       ['O(1D)     ','CH4       '],                                            &
+       ['HCHO      ','H2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,5,                              &
+       ['O(1D)     ','CH4       '],                                            &
+       ['HCHO      ','HO2       ','HO2       ','          ']),                 &
+
+! Include with above. Each is loss of 2xOx, so include twice to sum
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,4,                              &
+       ['O(3P)     ','O3        '],                                            &
+       ['O2        ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,4,                              &
+       ['O(3P)     ','O3        '],                                            &
+       ['O2        ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,4,                              &
+       ['O(3P)     ','NO2       '],                                            &
+       ['NO        ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50012,'B',.TRUE.,0,4,                              &
+       ['O(3P)     ','NO2       '],                                            &
+       ['NO        ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50013,'B',.TRUE.,0,4,                              &
+       ['HO2       ','O3        '],                                            &
+       ['OH        ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50014,'B',.TRUE.,0,4,                              &
+       ['OH        ','O3        '],                                            &
+       ['HO2       ','O2        ','          ','          ']),                 &
+
+! O3 + alkene:
+! O3 + isoprene reactions
+       asad_flux_defn('RXN',50015,'B',.TRUE.,0,6,                              &
+       ['O3        ','C5H8      '],                                            &
+       ['MACR      ','HCHO      ','MACRO2    ','MeCO3     ']),                 &
+       asad_flux_defn('RXN',50015,'B',.TRUE.,0,6,                              &
+       ['O3        ','C5H8      '],                                            &
+       ['MeOO      ','HCOOH     ','CO        ','H2O2      ']),                 &
+       asad_flux_defn('RXN',50015,'B',.TRUE.,0,5,                              &
+       ['O3        ','C5H8      '],                                            &
+       ['HO2       ','OH        ','SEC_ORG_I ','          ']),                 &
+
+! O3 + MACR reactions. ratb_defs specifies 2 different rates for each of these,
+!  so need to select each one in turn
+       asad_flux_defn('RXN',50015,'B',.TRUE.,1,6,                              &
+       ['O3        ','MACR      '],                                            &
+       ['MGLY      ','HCOOH     ','HO2       ','CO        ']),                 &
+       asad_flux_defn('RXN',50015,'B',.TRUE.,1,4,                              &
+       ['O3        ','MACR      '],                                            &
+       ['OH        ','MeCO3     ','          ','          ']),                 &
+       asad_flux_defn('RXN',50015,'B',.TRUE.,2,6,                              &
+       ['O3        ','MACR      '],                                            &
+       ['MGLY      ','HCOOH     ','HO2       ','CO        ']),                 &
+       asad_flux_defn('RXN',50015,'B',.TRUE.,2,4,                              &
+       ['O3        ','MACR      '],                                            &
+       ['OH        ','MeCO3     ','          ','          ']),                 &
+! N2O5 + H20 reaction
+       asad_flux_defn('RXN',50016,'B',.TRUE.,0,4,                              &
+       ['N2O5      ','H2O       '],                                            &
+       ['HONO2     ','HONO2     ','          ','          ']),                 &
+! Heterogenious reactions are not included yet
+!RXN    50016     H       4       N2O5    H2O    HONO2    HONO2
+
+! NO3 chemical loss
+! sink of 2xOx:
+       asad_flux_defn('RXN',50017,'J',.TRUE.,0,4,                              &
+       ['NO3       ','PHOTON    '],                                            &
+       ['NO        ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50017,'J',.TRUE.,0,4,                              &
+       ['NO3       ','PHOTON    '],                                            &
+       ['NO        ','O2        ','          ','          ']),                 &
+! these are sinks of 1xOx
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['HO2       ','NO3       '],                                            &
+       ['OH        ','NO2       ','          ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['OH        ','NO3       '],                                            &
+       ['HO2       ','NO2       ','          ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['MeOO      ','NO3       '],                                            &
+       ['HO2       ','HCHO      ','NO2       ','          '])                  &
+       ]
+
+
+
 ! Whole atmosphere CH4 rxn-flux diagnostics
 TYPE(asad_flux_defn), PARAMETER :: asad_atmos_ch4_budget_loss(6)               &
   ! Whole atmosphere CH4+OH rxn-flux
@@ -1535,6 +1628,48 @@ TYPE(asad_flux_defn), PARAMETER :: asad_trop_ox_budget_loss02(12)              &
        ['NO3       ','C5H8      '],                                            &
        ['ISON      ','          ','          ','          '])                  &
        ]
+
+TYPE(asad_flux_defn), PARAMETER, PUBLIC :: asad_trop_ox_budget_loss02_132(12)  &
+! Version for use when i_ukca_chem_version >= 132
+     = [ asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                            &
+       ['EtOO      ','NO3       '],                                            &
+       ['MeCHO     ','HO2       ','NO2       ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['MeCO3     ','NO3       '],                                            &
+       ['MeOO      ','CO2       ','NO2       ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['n-PrOO    ','NO3       '],                                            &
+       ['EtCHO     ','HO2       ','NO2       ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['i-PrOO    ','NO3       '],                                            &
+       ['Me2CO     ','HO2       ','NO2       ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['EtCO3     ','NO3       '],                                            &
+       ['EtOO      ','CO2       ','NO2       ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['MeCOCH2OO ','NO3       '],                                            &
+       ['MeCO3     ','HCHO      ','NO2       ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,5,                              &
+       ['NO3       ','HCHO      '],                                            &
+       ['HONO2     ','HO2       ','CO        ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['NO3       ','MeCHO     '],                                            &
+       ['HONO2     ','MeCO3     ','          ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['NO3       ','EtCHO     '],                                            &
+       ['HONO2     ','EtCO3     ','          ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['NO3       ','Me2CO     '],                                            &
+       ['HONO2     ','MeCOCH2OO ','          ','          ']),                 &
+      ! sink of 2xOx
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['NO3       ','C5H8      '],                                            &
+       ['ISON      ','SEC_ORG_I ','          ','          ']),                 &
+       asad_flux_defn('RXN',50017,'B',.TRUE.,0,4,                              &
+       ['NO3       ','C5H8      '],                                            &
+       ['ISON      ','SEC_ORG_I ','          ','          '])                  &
+       ]
+
 
 ! CRI version with O3 loss via NO3+org reactions
 TYPE(asad_flux_defn), PARAMETER :: cri_trop_ox_budget_loss02(72)               &
@@ -3372,6 +3507,58 @@ TYPE(asad_flux_defn), PARAMETER :: asad_trop_other_fluxes(16) =                &
        [ asad_flux_defn('RXN',50042,'B',.TRUE.,0,3,                            &
        ['NO3       ','C5H8      '],                                            &
        ['ISON      ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50043,'B',.TRUE.,0,3,                              &
+       ['NO        ','ISO2      '],                                            &
+       ['ISON      ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50044,'T',.TRUE.,0,4,                              &
+       ['HO2       ','HO2       '],                                            &
+       ['H2O2      ','O2        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50044,'B',.TRUE.,0,3,                              &
+       ['HO2       ','HO2       '],                                            &
+       ['H2O2      ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','MeOO      '],                                            &
+       ['MeOOH     ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','EtOO      '],                                            &
+       ['EtOOH     ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','MeCO3     '],                                            &
+       ['MeCO3H    ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,4,                              &
+       ['HO2       ','MeCO3     '],                                            &
+       ['MeCO2H    ','O3        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','n-PrOO    '],                                            &
+       ['n-PrOOH   ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','i-PrOO    '],                                            &
+       ['i-PrOOH   ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,4,                              &
+       ['HO2       ','EtCO3     '],                                            &
+       ['O2        ','EtCO3H    ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,4,                              &
+       ['HO2       ','EtCO3     '],                                            &
+       ['EtCO2H    ','O3        ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','MeCOCH2OO '],                                            &
+       ['MeCOCH2OOH','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','ISO2      '],                                            &
+       ['ISOOH     ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50045,'B',.TRUE.,0,3,                              &
+       ['HO2       ','MACRO2    '],                                            &
+       ['MACROOH   ','          ','          ','          ']),                 &
+       asad_flux_defn('RXN',50046,'T',.TRUE.,0,4,                              &
+       ['OH        ','NO2       '],                                            &
+       ['HONO2     ','m         ','          ','          '])                  &
+       ]
+
+TYPE(asad_flux_defn), PARAMETER, PUBLIC :: asad_trop_other_fluxes_132(16) =    &
+! Extra fluxes of interest when i_ukca_chem_version >= 132
+       [ asad_flux_defn('RXN',50042,'B',.TRUE.,0,4,                            &
+       ['NO3       ','C5H8      '],                                            &
+       ['ISON      ','SEC_ORG_I ','          ','          ']),                 &
        asad_flux_defn('RXN',50043,'B',.TRUE.,0,3,                              &
        ['NO        ','ISO2      '],                                            &
        ['ISON      ','          ','          ','          ']),                 &
@@ -8342,6 +8529,95 @@ asad_flux_defn('RXN',50340,'T',.FALSE.,0,4,                                    &
 ['DMSO      ','HO2       ','          ','          '])                         &
 ]
 
+! Strat-Trop sulphur chemistry (contains explicit SO3) for
+!                                         i_ukca_chem_version >=132
+TYPE(asad_flux_defn), PARAMETER, PUBLIC ::                                     &
+                         asad_aerosol_chem_strattrop_132(27) = [               &
+asad_flux_defn('RXN',50140,'B',.FALSE.,0,3,                                    &
+['DMS       ','OH        '],                                                   &
+['SO2       ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50142,'B',.FALSE.,0,3,                                    &
+['DMS       ','NO3       '],                                                   &
+['SO2       ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50143,'B',.FALSE.,0,4,                                    &
+['DMSO      ','OH        '],                                                   &
+['SO2       ','MSA       ','          ','          ']),                        &
+asad_flux_defn('RXN',50144,'B',.FALSE.,0,4,                                    &
+['CS2       ','OH        '],                                                   &
+['COS       ','SO2       ','          ','          ']),                        &
+asad_flux_defn('RXN',50145,'B',.FALSE.,0,4,                                    &
+['H2S       ','OH        '],                                                   &
+['SO2       ','H2O       ','          ','          ']),                        &
+asad_flux_defn('RXN',50146,'B',.FALSE.,0,4,                                    &
+['COS       ','OH        '],                                                   &
+['CO2       ','SO2       ','          ','          ']),                        &
+asad_flux_defn('RXN',50147,'B',.FALSE.,0,3,                                    &
+['Monoterp  ','OH        '],                                                   &
+['Sec_Org   ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50148,'B',.FALSE.,0,3,                                    &
+['Monoterp  ','O3        '],                                                   &
+['Sec_Org   ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50149,'B',.FALSE.,0,3,                                    &
+['Monoterp  ','NO3       '],                                                   &
+['Sec_Org   ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50150,'T',.FALSE.,0,4,                                    &
+['SO2       ','OH        '],                                                   &
+['HO2       ','SO3       ','          ','          ']),                        &
+asad_flux_defn('RXN',50151,'H',.FALSE.,0,3,                                    &
+['SO2       ','H2O2      '],                                                   &
+['NULL0     ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50152,'H',.FALSE.,0,3,                                    &
+['SO2       ','O3        '],                                                   &
+['NULL1     ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50153,'H',.FALSE.,0,3,                                    &
+['SO2       ','O3        '],                                                   &
+['NULL2     ','          ','          ','          ']),                        &
+asad_flux_defn('DEP',50154,'D',.TRUE.,0,1,                                     &
+['SO2       ','          '],                                                   &
+['          ','          ','          ','          ']),                        &
+asad_flux_defn('DEP',50155,'W',.TRUE.,0,1,                                     &
+['SO2       ','          '],                                                   &
+['          ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50331,'J',.FALSE.,0,4,                                    &
+['COS       ','PHOTON    '],                                                   &
+['CO        ','SO2       ','          ','          ']),                        &
+asad_flux_defn('RXN',50332,'J',.FALSE.,0,4,                                    &
+['H2SO4     ','PHOTON    '],                                                   &
+['SO3       ','OH        ','          ','          ']),                        &
+asad_flux_defn('RXN',50333,'J',.FALSE.,0,4,                                    &
+['SO3       ','PHOTON    '],                                                   &
+['SO2       ','O(3P)     ','          ','          ']),                        &
+asad_flux_defn('RXN',50334,'B',.FALSE.,0,3,                                    &
+['SO2       ','O3        '],                                                   &
+['SO3       ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50335,'B',.FALSE.,0,3,                                    &
+['DMS       ','O(3P)     '],                                                   &
+['SO2       ','          ','          ','          ']),                        &
+asad_flux_defn('RXN',50336,'B',.FALSE.,0,4,                                    &
+['COS       ','O(3P)     '],                                                   &
+['CO        ','SO2       ','          ','          ']),                        &
+! retain H2O product here as in the original scheme
+asad_flux_defn('RXN',50337,'B',.FALSE.,0,4,                                    &
+['SO3       ','H2O       '],                                                   &
+['H2SO4     ','H2O       ','          ','          ']),                        &
+! replace 50338 with the following
+asad_flux_defn('RXN',50339,'T',.FALSE.,0,4,                                    &
+['DMS       ','OH        '],                                                   &
+['SO2       ','MeOO      ','          ','          ']),                        &
+asad_flux_defn('RXN',50340,'T',.FALSE.,0,4,                                    &
+['DMS       ','OH        '],                                                   &
+['DMSO      ','HO2       ','          ','          ']),                        &
+asad_flux_defn('RXN',50042,'B',.TRUE.,0,4,                                     &
+['NO3       ','C5H8      '],                                                   &
+['ISON      ','SEC_ORG_I ','          ','          ']),                        &
+asad_flux_defn('RXN',50440,'B',.TRUE.,0,4,                                     &
+['OH        ','C5H8      '],                                                   &
+['ISO2      ','SEC_ORG_I ','          ','          ']),                        &
+asad_flux_defn('RXN',50441,'B',.TRUE.,0,5,                                     &
+['O3        ','C5H8      '],                                                   &
+['HO2       ','OH        ','SEC_ORG_I ','          '])                         &
+]
+
 
 ! CRI-Strat with updated DMS and monoterp chemistry
 TYPE(asad_flux_defn), PARAMETER, PUBLIC ::                                     &
@@ -8479,6 +8755,8 @@ CHARACTER(LEN = 10), PARAMETER :: initstring = 'XXXXXXXXXX'
 INTEGER, PARAMETER :: ichem_version_117 = 117
 INTEGER, PARAMETER :: ichem_version_119 = 119
 INTEGER, PARAMETER :: ichem_version_121 = 121
+INTEGER, PARAMETER :: ichem_version_132 = 132
+
 INTEGER :: i, j            ! counters
 
 ! Generic temporary allocatable arrays
@@ -8532,11 +8810,21 @@ IF (ukca_config%l_ukca_strattrop) THEN
   ALLOCATE(aa_trop_ox_budget_prod01(SIZE(asad_trop_ox_budget_prod)))
   aa_trop_ox_budget_prod01 = asad_trop_ox_budget_prod
   ! aa_trop_ox_budget_loss01
-  ALLOCATE(aa_trop_ox_budget_loss01(SIZE(asad_trop_ox_budget_loss01)))
-  aa_trop_ox_budget_loss01 = asad_trop_ox_budget_loss01
+  IF (ukca_config%i_ukca_chem_version >= ichem_version_132) THEN
+    ALLOCATE(aa_trop_ox_budget_loss01(SIZE(asad_trop_ox_budget_loss01_132)))
+    aa_trop_ox_budget_loss01 = asad_trop_ox_budget_loss01_132
+  ELSE
+    ALLOCATE(aa_trop_ox_budget_loss01(SIZE(asad_trop_ox_budget_loss01)))
+    aa_trop_ox_budget_loss01 = asad_trop_ox_budget_loss01
+  END IF
   ! aa_trop_ox_budget_loss02
-  ALLOCATE(aa_trop_ox_budget_loss02(SIZE(asad_trop_ox_budget_loss02)))
-  aa_trop_ox_budget_loss02 = asad_trop_ox_budget_loss02
+  IF (ukca_config%i_ukca_chem_version >= ichem_version_132) THEN
+    ALLOCATE(aa_trop_ox_budget_loss02(SIZE(asad_trop_ox_budget_loss02_132)))
+    aa_trop_ox_budget_loss02 = asad_trop_ox_budget_loss02_132
+  ELSE
+    ALLOCATE(aa_trop_ox_budget_loss02(SIZE(asad_trop_ox_budget_loss02)))
+    aa_trop_ox_budget_loss02 = asad_trop_ox_budget_loss02
+  END IF
   ! aa_trop_ox_budget_drydep
   ALLOCATE(aa_trop_ox_budget_drydep(SIZE(asad_trop_ox_budget_drydep)))
   aa_trop_ox_budget_drydep = asad_trop_ox_budget_drydep
@@ -8544,8 +8832,13 @@ IF (ukca_config%l_ukca_strattrop) THEN
   ALLOCATE(aa_trop_ox_budget_wetdep(SIZE(asad_trop_ox_budget_wetdep)))
   aa_trop_ox_budget_wetdep = asad_trop_ox_budget_wetdep
   ! aa_trop_other_fluxes
-  ALLOCATE(aa_trop_other_fluxes(SIZE(asad_trop_other_fluxes)))
-  aa_trop_other_fluxes = asad_trop_other_fluxes
+  IF (ukca_config%i_ukca_chem_version >= ichem_version_132) THEN
+    ALLOCATE(aa_trop_other_fluxes(SIZE(asad_trop_other_fluxes_132)))
+    aa_trop_other_fluxes = asad_trop_other_fluxes_132
+  ELSE
+    ALLOCATE(aa_trop_other_fluxes(SIZE(asad_trop_other_fluxes)))
+    aa_trop_other_fluxes = asad_trop_other_fluxes
+  END IF
   ! aa_general_interest
   ALLOCATE(aa_general_interest(SIZE(asad_general_interest)))
   aa_general_interest = asad_general_interest
@@ -8594,7 +8887,10 @@ IF (ukca_config%l_ukca_strattrop) THEN
   aa_strat_o3_misc = asad_strat_o3_misc
   ! aa_aerosol_chem
   IF (ukca_config%l_ukca_chem_aero) THEN
-    IF (ukca_config%i_ukca_chem_version >= ichem_version_121) THEN
+    IF (ukca_config%i_ukca_chem_version >= ichem_version_132) THEN
+      ALLOCATE(aa_aerosol_chem(SIZE(asad_aerosol_chem_strattrop_132)))
+      aa_aerosol_chem = asad_aerosol_chem_strattrop_132
+    ELSE IF (ukca_config%i_ukca_chem_version >= ichem_version_121) THEN
       ALLOCATE(aa_aerosol_chem(SIZE(asad_aerosol_chem_strattrop_121)))
       aa_aerosol_chem = asad_aerosol_chem_strattrop_121
     ELSE IF ((ukca_config%i_ukca_chem_version < ichem_version_121) .AND.       &

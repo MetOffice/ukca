@@ -104,7 +104,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       timestep,                                                &
                       max_ageair_reset_height,                                 &
                       max_z_for_offline_chem,                                  &
-                      soa_yield_scaling,                                       &
+                      soa_yield_scaling_mt,                                    &
+                      soa_yield_scaling_isop,                                  &
                       fastjx_prescutoff,                                       &
                       mode_parfrac,                                            &
                       seadms_ems_scaling,                                      &
@@ -141,7 +142,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_ro2_ntp,                                          &
                       l_ukca_ro2_perm,                                         &
                       l_ukca_intph,                                            &
-                      l_ukca_scale_soa_yield,                                  &
+                      l_ukca_scale_soa_yield_mt,                               &
+                      l_ukca_scale_soa_yield_isop,                             &
                       l_ukca_het_psc,                                          &
                       l_ukca_limit_nat,                                        &
                       l_ukca_sa_clim,                                          &
@@ -373,13 +375,14 @@ REAL, OPTIONAL, INTENT(IN) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(IN) :: timestep
 REAL, OPTIONAL, INTENT(IN) :: max_ageair_reset_height
 REAL, OPTIONAL, INTENT(IN) :: max_z_for_offline_chem
-REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling
 REAL, OPTIONAL, INTENT(IN) :: fastjx_prescutoff
 REAL, OPTIONAL, INTENT(IN) :: mode_parfrac
 REAL, OPTIONAL, INTENT(IN) :: seadms_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: sea_salt_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: marine_pom_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: lightnox_scale_fac
+REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling_mt
+REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling_isop
 REAL, OPTIONAL, INTENT(IN) :: mode_activation_dryr
 REAL, OPTIONAL, INTENT(IN) :: mode_incld_so2_rfrac
 REAL, OPTIONAL, INTENT(IN) :: biom_aer_ems_scaling
@@ -411,7 +414,6 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_tracer_lumping
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ro2_ntp
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ro2_perm
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_intph
-LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_soa_yield
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_het_psc
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_limit_nat
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_sa_clim
@@ -425,6 +427,8 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_emsdrvn_ch4
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_enable_seadms_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_seadms_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_linox_scaling
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_soa_yield_mt
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_soa_yield_isop
 LOGICAL, OPTIONAL, INTENT(IN) :: l_support_ems_vertprof
 LOGICAL, OPTIONAL, INTENT(IN) :: l_support_ems_gridbox_units
 LOGICAL, OPTIONAL, INTENT(IN) :: l_suppress_ems
@@ -765,12 +769,19 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   ! Configuration specific to aerosol chemistry
   IF (ukca_config%l_ukca_chem_aero) THEN
-    IF (PRESENT(l_ukca_scale_soa_yield))                                       &
-      ukca_config%l_ukca_scale_soa_yield = l_ukca_scale_soa_yield
-    IF (ukca_config%l_ukca_scale_soa_yield) THEN
-      IF (PRESENT(soa_yield_scaling))                                          &
-        ukca_config%soa_yield_scaling = soa_yield_scaling
+    IF (PRESENT(l_ukca_scale_soa_yield_mt))                                    &
+      ukca_config%l_ukca_scale_soa_yield_mt = l_ukca_scale_soa_yield_mt
+    IF (ukca_config%l_ukca_scale_soa_yield_mt) THEN
+      IF (PRESENT(soa_yield_scaling_mt))                                       &
+        ukca_config%soa_yield_scaling_mt = soa_yield_scaling_mt
     END IF
+    IF (PRESENT(l_ukca_scale_soa_yield_isop))                                  &
+      ukca_config%l_ukca_scale_soa_yield_isop = l_ukca_scale_soa_yield_isop
+    IF (ukca_config%l_ukca_scale_soa_yield_isop) THEN
+      IF (PRESENT(soa_yield_scaling_isop))                                     &
+        ukca_config%soa_yield_scaling_isop = soa_yield_scaling_isop
+    END IF
+
   END IF
 
   ! -- Chemistry - Heterogeneous chemistry --

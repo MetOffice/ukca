@@ -14,6 +14,7 @@
 !    set-up in TOMCAT.
 !    Contains public subroutines:
 !      UKCA_INDICES_ORGV1_SOto3
+!      UKCA_INDICES_ORGV1_SOto3_ISOP
 !      UKCA_INDICES_ORGV1_SOto3_SOLINSOL
 !      UKCA_INDICES_ORGV1_SOto3_COUPL
 !      UKCA_INDICES_ORGV1_SOto6
@@ -25,6 +26,7 @@
 !      UKCA_INDICES_TRAQU9
 !      UKCA_INDICES_SUSS_4MODE
 !      UKCA_INDICES_SUSSBCOC_5MODE
+!      UKCA_INDICES_SUSSBCOC_5MODE_ISOP
 !      UKCA_INDICES_SUSSBCOC_4MODE
 !      UKCA_INDICES_SUSSBCOCSO_5MODE
 !      UKCA_INDICES_SUSSBCOCSO_4MODE
@@ -123,7 +125,7 @@ INTEGER :: MMeCO2H
 INTEGER :: mmeoh
 !
 ! .. (indices for advected gas phase tracers in array S0)
-! .. (8 sulfur species, H2O2, MONOTER, Sec_Org, Q3D, PT)
+! .. (8 sulphur species, H2O2, MONOTER, Sec_Org, SEC_ORG_I, Q3D, PT)
 INTEGER :: msotwo     ! for SO2
 INTEGER :: MMeSMe     ! for DMS
 INTEGER :: mh2so4     ! for H2SO4
@@ -133,7 +135,8 @@ INTEGER :: mcs2       ! for CS2
 INTEGER :: mh2s       ! for H2S
 INTEGER :: mcos       ! for COS
 INTEGER :: mmonoter   ! for lumped monoterpene species
-INTEGER :: msec_org   ! for involatile organic species
+INTEGER :: msec_org   ! for involatile organic species from monoterpene
+INTEGER :: msec_orgi  ! for involatile organic species from isoprene
 INTEGER :: mh2o2f     ! for H2O2 semi-prognostic
 INTEGER :: mq3d       ! for water vapour
 INTEGER :: mpt        ! for potential temperature
@@ -210,7 +213,7 @@ INTEGER :: ncs2       ! for CS2
 INTEGER :: nh2s       ! for H2S
 INTEGER :: ncos       ! for COS
 INTEGER :: nmonoter   ! for lumped monoterpene species
-INTEGER :: nsec_org   ! for involatile organic species
+INTEGER :: nsec_org   ! for involatile organic species from monoterpene
 INTEGER :: nh2o2f     ! for H2O2 (semi-prognostic)
 INTEGER :: no3f       ! for O3 (offline)
 INTEGER :: nohf       ! for OH (offline)
@@ -340,6 +343,13 @@ INTEGER :: nmascondocaitsol ! for conden. of OC to Aitsol
 INTEGER :: nmascondocaccsol ! for conden. of OC to accsol
 INTEGER :: nmascondoccorsol ! for conden. of OC to corsol
 INTEGER :: nmascondocaitins ! for conden. of OC to Aitins
+INTEGER :: nmascondocinucsol ! for conden. of OC from isoprene to nucsol
+INTEGER :: nmascondociaitsol ! for conden. of OC from isoprene to Aitsol
+INTEGER :: nmascondociaccsol ! for conden. of OC from isoprene to accsol
+INTEGER :: nmascondocicorsol ! for conden. of OC from isoprene to corsol
+INTEGER :: nmascondociaitins ! for conden. of OC from isoprene to Aitins
+INTEGER :: nmascondociaccins ! for conden. of OC from isoprene to accins
+INTEGER :: nmascondocicorins ! for conden. of OC from isoprene to corins
 INTEGER :: nmascondsonucsol ! for conden. of SO to nucsol
 INTEGER :: nmascondsoaitsol ! for conden. of SO to Aitsol
 INTEGER :: nmascondsoaccsol ! for conden. of SO to accsol
@@ -624,7 +634,8 @@ mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  = 0 ! not included
 MMeSMe  = 0 ! not included
 mh2so4  = 0 ! not included
@@ -635,6 +646,7 @@ mh2s    = 0 ! not included
 mcos    = 0 ! not included
 mmonoter= 0 ! not included
 msec_org= 0 ! not included
+msec_orgi =0 ! not included
 mh2o2f  = 0 ! not included
 mq3d    = 1
 mpt     = 2
@@ -873,7 +885,8 @@ mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  = 1
 MMeSMe  = 2
 mh2so4  = 3
@@ -884,6 +897,7 @@ mh2s    = 7
 mcos    = 8
 mmonoter= 9
 msec_org=10
+msec_orgi =0
 mh2o2f  =11
 mq3d    =12
 mpt     =13
@@ -1048,6 +1062,266 @@ RETURN
 END SUBROUTINE UKCA_INDICES_ORGV1_SOto3
 
 ! ######################################################################
+
+SUBROUTINE UKCA_INDICES_ORGV1_SOto3_ISOP
+
+! As previous routine, but includes a seperate gas-phase species (SEC_ORG_I)
+! derived from isoprene oxidation which participates in condensation to OC,
+! but does not nucleate
+
+IMPLICIT NONE
+
+!-----------------------------------------------------------
+!
+! MAIN ARRAY LENGTHS AND SWITCHES
+!
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_ORGV1_SOTO3_ISOP'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+nchemg=12          ! # of gas phase chemistry tracers
+ichem=1            ! 1/0 = gas phase chemistry tracers on/off
+noffox=3           ! # of offline oxidant species
+nbudchem=26        ! # of gas chem budget fields
+!      GASBUDGET=1        ! 1/0 = gas phase chemistry fluxes on/off
+!      NGASBUDGET=8       ! # of gas phase chemistry fluxes
+gasbudget=0        ! 1/0 = gas phase chemistry fluxes on/off
+ngasbudget=8       ! # of gas phase chemistry fluxes
+!
+nadvg=2+nchemg     ! # of gas phase advected tracers
+ntrag=nadvg+noffox ! total # of gas phase species
+
+! For orgv1, NTRAG=16, NADVG=13
+!
+!-----------------------------------------------------------
+!
+! GAS PHASE TRACER INDICES FOR S0 ARRAY
+!
+!
+! .. below are the 40 tropospheric chemistry species
+mox     = 0 ! not included
+mnox    = 0 ! not included
+mn2o5   = 0 ! not included
+mhno4   = 0 ! not included
+mhno3   = 0 ! not included
+mh2o2   = 0 ! not included
+mch4    = 0 ! not included
+mco     = 0 ! not included
+mch2o   = 0 ! not included
+mmhp    = 0 ! not included
+mhono   = 0 ! not included
+mc2h6   = 0 ! not included
+metooh  = 0 ! not included
+mmecho  = 0 ! not included
+mpan    = 0 ! not included
+mc3h8   = 0 ! not included
+mpnooh  = 0 ! not included
+mpiooh  = 0 ! not included
+metcho  = 0 ! not included
+mme2co  = 0 ! not included
+mmecoh  = 0 ! not included
+mppan   = 0 ! not included
+mmeno3  = 0 ! not included
+moxs    = 0 ! not included
+mnoys   = 0 ! not included
+misop   = 0 ! not included
+mc2h4   = 0 ! not included
+mc2h2   = 0 ! not included
+misooh  = 0 ! not included
+mison   = 0 ! not included
+mmacr   = 0 ! not included
+mmacrooh= 0 ! not included
+mmpan   = 0 ! not included
+mhacet  = 0 ! not included
+mmgly   = 0 ! not included
+mnald   = 0 ! not included
+mhcooh  = 0 ! not included
+mmeco3h = 0 ! not included
+mmeco2h = 0 ! not included
+mmeoh   = 0 ! not included
+!
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
+msotwo  = 1
+MMeSMe  = 2
+mh2so4  = 3
+mdmso   = 4
+mmsa    = 5
+mcs2    = 6
+mh2s    = 7
+mcos    = 8
+mmonoter= 9
+msec_org=10
+msec_orgi=11
+mh2o2f  =12
+mq3d    =13
+mpt     =14
+!
+! .. molar masses (kg/mol) for gases for orgv1
+! .. (8 S species, terp, Sec_Org, Sec_Org_I, H2O2F then 37 dummy values)
+mm_gas = [0.064,0.062,0.098,0.078,0.096,0.076,0.034,0.060,                     &
+          0.136,0.150,0.150,0.034,0.000,0.000,0.000,0.000,                     &
+          0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                     &
+          0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                     &
+          0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                     &
+          0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                     &
+          0.000,0.000]
+!
+condensable_choice = [0,0,1,0,0,0,0,0,0,3,3,0,                                 &
+                      0,0,0,0,0,0,0,0,0,0,0,0,                                 &
+                      0,0,0,0,0,0,0,0,0,0,0,0,                                 &
+                      0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+! .. H2SO4   to condense into 1st aerosol component (CP_SU)
+! .. Sec_Org to condense into 3rd aerosol component (CP_OC)
+! .. Sec_Org_i to condense into 3rd aerosol component (CP_OC)
+
+condensable=(condensable_choice > 0)
+!
+dimen = [0.0,0.0,4.5e-10,0.0,0.0,0.0,0.0,0.0,0.0,4.5e-10,4.5e-10,              &
+         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                  &
+         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                  &
+         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+! Molecular diameters of condensable gas phase species (m)
+!
+!------------------------------------------------------------
+!
+! GAS PHASE TRACER INDICES FOR ST ARRAY
+!
+! .. below are the 60 indices for tropospheric chemistry species (ST)
+no      = 0 ! not included
+no1d    = 0 ! not included
+no3     = 0 ! not included
+nno     = 0 ! not included
+nno3    = 0 ! not included
+nno2    = 0 ! not included
+nn2o5   = 0 ! not included
+nhno4   = 0 ! not included
+nhno3   = 0 ! not included
+noh     = 0 ! not included
+nho2    = 0 ! not included
+nh2o2   = 0 ! not included
+nch4    = 0 ! not included
+nco     = 0 ! not included
+nch2o   = 0 ! not included
+nmeoo   = 0 ! not included
+nh2o    = 0 ! not included
+nmhp    = 0 ! not included
+nhono   = 0 ! not included
+nc2h6   = 0 ! not included
+netoo   = 0 ! not included
+netooh  = 0 ! not included
+nmecho  = 0 ! not included
+nmeco3  = 0 ! not included
+npan    = 0 ! not included
+nc3h8   = 0 ! not included
+npnoo   = 0 ! not included
+npioo   = 0 ! not included
+npnooh  = 0 ! not included
+npiooh  = 0 ! not included
+netcho  = 0 ! not included
+netco3  = 0 ! not included
+nme2co  = 0 ! not included
+nmecoo  = 0 ! not included
+nmecoh  = 0 ! not included
+nppan   = 0 ! not included
+nmeno3  = 0 ! not included
+nos     = 0 ! not included
+no1ds   = 0 ! not included
+no3s    = 0 ! not included
+nnoxs   = 0 ! not included
+nhno3s  = 0 ! not included
+nnoys   = 0 ! not included
+nisop   = 0 ! not included
+nc2h4   = 0 ! not included
+nc2h2   = 0 ! not included
+niso2   = 0 ! not included
+nisooh  = 0 ! not included
+nison   = 0 ! not included
+nmacr   = 0 ! not included
+nmacro2 = 0 ! not included
+nmacrooh= 0 ! not included
+nmpan   = 0 ! not included
+nhacet  = 0 ! not included
+nmgly   = 0 ! not included
+nnald   = 0 ! not included
+nhcooh  = 0 ! not included
+nmeco3h = 0 ! not included
+nmeco2h = 0 ! not included
+nmeoh   = 0 ! not included
+!
+! .. below are the 8 sulphur species, 2 organics
+! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
+nsotwo  = 1
+NMeSMe  = 2
+nh2so4  = 3
+ndmso   = 4
+nmsa    = 5
+ncs2    = 6
+nh2s    = 7
+ncos    = 8
+nmonoter= 9
+nsec_org=10
+nh2o2f  =12
+no3f    =13
+nohf    =14
+nno3f   =15
+nq3d    =16
+npt     =17
+!
+!---------------------------------------------------------------
+!
+! GAS PHASE BUDGET INDICES
+!
+! .. below are 26 gas phase budget quantity indices for orgv1
+ndmsemoc  = 1
+ndmstend  = 2
+nso2eman  = 3
+nso2embm  = 4
+nso2emvl  = 5
+nso2tend  = 6
+nso2ddep  = 7
+nso2wdep  = 8
+nh2so4tend= 9
+nh2so4ddep=10
+ncoseman  =11
+ncosemoc  =12
+ncostend  =13
+ncs2eman  =14
+ncs2emoc  =15
+ncs2tend  =16
+ndmsotend =17
+ndmsoddep =18
+nmsatend  =19
+nmsaddep  =20
+nterp_em  =21
+nterp_tend=22
+nterp_ddep=23
+nsorg_tend=24
+nsorg_ddep=25
+nsorg_wdep=26
+! REACTION INDICES for gas phase chemistry fluxes
+iohdms1 =  1
+iohdms2 =  2
+ino3dms =  4
+idmsooh1=  0
+idmsooh2=  3
+ics2oh  =  5
+ih2soh  =  6
+icosoh  =  7
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+RETURN
+END SUBROUTINE UKCA_INDICES_ORGV1_SOto3_ISOP
+
+
+
+! ######################################################################
 SUBROUTINE UKCA_INDICES_ORGV1_SOto3_SOLINSOL
 
 IMPLICIT NONE
@@ -1126,7 +1400,8 @@ mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  = 1
 MMeSMe  = 2
 mh2so4  = 3
@@ -1137,6 +1412,7 @@ mh2s    = 7
 mcos    = 8
 mmonoter= 9
 msec_org=10
+msec_orgi=0 ! not included
 mh2o2f  =11
 mq3d    =12
 mpt     =13
@@ -1376,7 +1652,8 @@ mmeco3h =38
 mmeco2h =39
 mmeoh   =40
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  =41
 MMeSMe  =42
 mh2so4  =43
@@ -1387,6 +1664,7 @@ mh2s    =47
 mcos    =48
 mmonoter=49
 msec_org=50
+msec_orgi=0 ! not included
 mh2o2f  = 0 ! not included
 mq3d    =51
 mpt     =52
@@ -1629,7 +1907,8 @@ mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  = 1
 MMeSMe  = 2
 mh2so4  = 3
@@ -1640,6 +1919,7 @@ mh2s    = 7
 mcos    = 8
 mmonoter= 9
 msec_org=10
+msec_orgi=0 ! not included
 mh2o2f  =11
 mq3d    =12
 mpt     =13
@@ -1879,7 +2159,8 @@ mmeco3h =38
 mmeco2h =39
 mmeoh   =40
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  =41
 MMeSMe  =42
 mh2so4  =43
@@ -1890,6 +2171,7 @@ mh2s    =47
 mcos    =48
 mmonoter=49
 msec_org=50
+msec_orgi=0 ! not included
 mh2o2f  = 0 ! not included
 mq3d    =51
 mpt     =52
@@ -2132,8 +2414,8 @@ mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
 !
-! .. below are the 8 sulphur species, 2 organics
-! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  = 1
 MMeSMe  = 2
 mh2so4  = 3
@@ -2144,6 +2426,7 @@ mh2s    = 7
 mcos    = 8
 mmonoter= 0 ! not included
 msec_org= 0 ! not included
+msec_orgi = 0 ! not included
 mh2o2f  = 9
 mq3d    =10
 mpt     =11
@@ -2381,7 +2664,8 @@ mmeco3h =38
 mmeco2h =39
 mmeoh   =40
 !
-! .. below are the  8 sulphur species, 2 organics + Q3D,PT
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
 msotwo  =41
 MMeSMe  =42
 mh2so4  =43
@@ -2392,6 +2676,7 @@ mh2s    =47
 mcos    =48
 mmonoter= 0 ! not included
 msec_org= 0 ! not included
+msec_orgi = 0 ! not included
 mh2o2f  = 0 ! not included
 mq3d    =49
 mpt     =50
@@ -2842,6 +3127,13 @@ nmascondocaitsol=67
 nmascondocaccsol=68
 nmascondoccorsol=69
 nmascondocaitins=70
+nmascondocinucsol = 0  ! No secondary organic from isoprene
+nmascondociaitsol = 0  ! No secondary organic from isoprene
+nmascondociaccsol = 0  ! No secondary organic from isoprene
+nmascondocicorsol = 0  ! No secondary organic from isoprene
+nmascondociaitins = 0  ! No secondary organic from isoprene
+nmascondociaccins = 0  ! No secondary organic from isoprene
+nmascondocicorins = 0  ! No secondary organic from isoprene
 nmascondsonucsol= 0 ! SO stored in OC cpt
 nmascondsoaitsol= 0 ! SO stored in OC cpt
 nmascondsoaccsol= 0 ! SO stored in OC cpt
@@ -3142,6 +3434,13 @@ nmascondocaitsol=59
 nmascondocaccsol=60
 nmascondoccorsol=61
 nmascondocaitins= 0 ! only soluble modes
+nmascondocinucsol = 0  ! No secondary organic from isoprene
+nmascondociaitsol = 0  ! No secondary organic from isoprene
+nmascondociaccsol = 0  ! No secondary organic from isoprene
+nmascondocicorsol = 0  ! No secondary organic from isoprene
+nmascondociaitins = 0  ! No secondary organic from isoprene
+nmascondociaccins = 0  ! No secondary organic from isoprene
+nmascondocicorins = 0  ! No secondary organic from isoprene
 nmascondsonucsol= 0 ! SO stored in OC cpt
 nmascondsoaitsol= 0 ! SO stored in OC cpt
 nmascondsoaccsol= 0 ! SO stored in OC cpt
@@ -3502,6 +3801,13 @@ nmasprocsuintr23=105
 nmasprocbcintr23=106
 nmasprococintr23=107
 nmasprocsointr23=  0 ! stored in NMASPROCOCINTR23
+nmascondocinucsol = 0 ! OC from isoprene
+nmascondociaitsol = 0  ! OC from isoprene
+nmascondociaccsol = 0  ! OC from isoprene
+nmascondocicorsol = 0  ! OC from isoprene
+nmascondociaitins = 0  ! OC from isoprene
+nmascondociaccins = 0  ! No acc-ins mode in this setup
+nmascondocicorins = 0  ! No cor-ins mode in this setup
 
 ! .. below are new ones for dust & modes 6/7 to be integrated
 nmasprimduaccsol= 0 ! no DU in this setup
@@ -3600,10 +3906,316 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_sussbcoc_5mode
 
+SUBROUTINE ukca_indices_sussbcoc_5mode_isop
+
+IMPLICIT NONE
+!---------------------------------------------------------------
+!
+! Main array lengths and switches
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_SUSSBCOC_5MODE_ISOP'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+ntraer=20         ! # of aerosol advected tracers
+nbudaer=112       ! # of aerosol budget fields
+! When used in TOMCAT need to set NVTOT and NTRA in main run script
+!
+! For orgv1 , NTRAG=16, NADVG=13
+! For orgv1c, NTRAG=76, NADVG=52
+!
+!            NTRAER+NTRAG+NBUDGET+NTRAQU         = NVTOT
+! ..  SUSSBCOC  20    16    133     9 = 36+133+ 9=  178 (orgv1 ,traqu9 )
+! ..  SUSSBCOC  20    16    133    38 = 36+133+38=  207 (orgv1 ,traqu38)
+! ..  SUSSBCOC  20    76    133     9 = 96+133+ 9=  238 (orgv1c,traqu9 )
+! ..  SUSSBCOC  20    76    133    38 = 96+133+38=  267 (orgv1c,traqu38)
+!                         (107+26)
+!
+!            NTRAER+NADVG  NTRA
+! ..  SUSSBCOC 20    13  =  33 (orgv1 )
+! ..  SUSSBCOC 20    52  =  72 (orgv1c)
+!
+!------------------------------------------------------------------
+!
+! AEROSOL PHASE BUDGET INDICES
+!
+! .. below are 107 aerosol budget indices for SUSSBCOC [SO in OC]
+!
+! .. redo these to follow Dominicks approach as categorized under
+!
+! .. BUD_PRIM, BUD_DDEP, BUD_NUSC, BUD_IMSC which have NBOX,NMODES,NCP
+! ..
+! .. then also have:
+! ..
+! .. BUD_CLPR --- NBOX,NMODES,2 (production of sulfate by H2O2, O3)
+! .. BUD_COND --- NBOX,NMODES,2 (conden to each modes by H2SO4,Sec_Org)
+! .. BUD_NUCL --- NBOX,2 (BHN and BLN)
+! .. BUD_COAG --- NBOX,NMODES,NMODES,NCP
+! .. BUD_AGED --- NBOX,3,NCP,2 (ageing of 3 ins modes by H2SO4,Sec_Org)
+! .. BUD_MERG --- NBOX,NMODES,NCP
+! .. BUD_PROC --- NBOX,NCP (processing of Aitsol mode to accsol mode)
+! ..
+!
+nmasprimsuaitsol= 1
+nmasprimsuaccsol= 2
+nmasprimsucorsol= 3
+nmasprimssaccsol= 4
+nmasprimsscorsol= 5
+nmasprimbcaitsol= 0 ! BC only emitted to insoluble
+nmasprimbcaitins= 6
+nmasprimocaitsol= 7
+nmasprimocaitins= 8
+!
+nmasddepsunucsol= 9
+nmasddepsuaitsol=10
+nmasddepsuaccsol=11
+nmasddepsucorsol=12
+nmasddepssaccsol=13
+nmasddepsscorsol=14
+nmasddepbcaitsol=15
+nmasddepbcaccsol=16
+nmasddepbccorsol=17
+nmasddepbcaitins=18
+nmasddepocnucsol=19
+nmasddepocaitsol=20
+nmasddepocaccsol=21
+nmasddepoccorsol=22
+nmasddepocaitins=23
+nmasddepsonucsol= 0 ! SO stored in OC cpt
+nmasddepsoaitsol= 0 ! SO stored in OC cpt
+nmasddepsoaccsol= 0 ! SO stored in OC cpt
+nmasddepsocorsol= 0 ! SO stored in OC cpt
+!
+nmasnuscsunucsol=24
+nmasnuscsuaitsol=25
+nmasnuscsuaccsol=26
+nmasnuscsucorsol=27
+nmasnuscssaccsol=28
+nmasnuscsscorsol=29
+nmasnuscbcaitsol=30
+nmasnuscbcaccsol=31
+nmasnuscbccorsol=32
+nmasnuscbcaitins=33
+nmasnuscocnucsol=34
+nmasnuscocaitsol=35
+nmasnuscocaccsol=36
+nmasnuscoccorsol=37
+nmasnuscocaitins=38
+nmasnuscsonucsol= 0 ! SO stored in OC cpt
+nmasnuscsoaitsol= 0 ! SO stored in OC cpt
+nmasnuscsoaccsol= 0 ! SO stored in OC cpt
+nmasnuscsocorsol= 0 ! SO stored in OC cpt
+!
+nmasimscsunucsol=39
+nmasimscsuaitsol=40
+nmasimscsuaccsol=41
+nmasimscsucorsol=42
+nmasimscssaccsol=43
+nmasimscsscorsol=44
+nmasimscbcaitsol=45
+nmasimscbcaccsol=46
+nmasimscbccorsol=47
+nmasimscbcaitins=48
+nmasimscocnucsol=49
+nmasimscocaitsol=50
+nmasimscocaccsol=51
+nmasimscoccorsol=52
+nmasimscocaitins=53
+nmasimscsonucsol= 0 ! SO stored in OC cpt
+nmasimscsoaitsol= 0 ! SO stored in OC cpt
+nmasimscsoaccsol= 0 ! SO stored in OC cpt
+nmasimscsocorsol= 0 ! SO stored in OC cpt
+!
+nmasclprsuaitsol1=54
+nmasclprsuaccsol1=55
+nmasclprsucorsol1=56
+nmasclprsuaitsol2=57
+nmasclprsuaccsol2=58
+nmasclprsucorsol2=59
+!
+nmascondsunucsol=60
+nmascondsuaitsol=61
+nmascondsuaccsol=62
+nmascondsucorsol=63
+nmascondsuaitins=64
+nmasnuclsunucsol=65
+nmascondocnucsol=66
+nmascondocaitsol=67
+nmascondocaccsol=68
+nmascondoccorsol=69
+nmascondocaitins=70
+nmascondsonucsol= 0 ! SO stored in OC cpt
+nmascondsoaitsol= 0 ! SO stored in OC cpt
+nmascondsoaccsol= 0 ! SO stored in OC cpt
+nmascondsocorsol= 0 ! SO stored in OC cpt
+nmascondsoaitins= 0 ! SO stored in OC cpt
+!
+nmascoagsuintr12=71
+nmascoagsuintr13=72
+nmascoagsuintr14=73
+nmascoagsuintr15=74
+nmascoagocintr12=75
+nmascoagocintr13=76
+nmascoagocintr14=77
+nmascoagocintr15=78
+nmascoagsointr12= 0 ! stored in NMASCOAGOCINTR12
+nmascoagsointr13= 0 ! stored in NMASCOAGOCINTR13
+nmascoagsointr14= 0 ! stored in NMASCOAGOCINTR14
+nmascoagsointr15= 0 ! stored in NMASCOAGOCINTR15
+nmascoagsuintr23=79
+nmascoagbcintr23=80
+nmascoagocintr23=81
+nmascoagsointr23= 0 ! stored in NMASCOAGOCINTR23
+nmascoagsuintr24=82
+nmascoagbcintr24=83
+nmascoagocintr24=84
+nmascoagsointr24= 0 ! stored in NMASCOAGOCINTR24
+nmascoagsuintr34=85
+nmascoagbcintr34=86
+nmascoagocintr34=87
+nmascoagssintr34=88
+nmascoagsointr34= 0 ! stored in NMASCOAGOCINTR34
+!
+nmascoagbcintr53=89
+nmascoagocintr53=90
+nmascoagbcintr54=91
+nmascoagocintr54=92
+!
+nmasagedsuintr52=93
+nmasagedbcintr52=94
+nmasagedocintr52=95
+nmasagedsointr52= 0 ! stored in NMASAGEDOCINTR52
+!
+nmasmergsuintr12=96
+nmasmergocintr12=97
+nmasmergsointr12= 0 ! stored in NMASMERGOCINTR12
+nmasmergsuintr23=98
+nmasmergbcintr23=99
+nmasmergocintr23=100
+nmasmergsointr23=  0 ! stored in NMASMERGOCINTR12
+nmasmergsuintr34=101
+nmasmergssintr34=102
+nmasmergbcintr34=103
+nmasmergocintr34=104
+nmasmergsointr34=  0 ! stored in NMASMERGOCINTR34
+nmasprocsuintr23=105
+nmasprocbcintr23=106
+nmasprococintr23=107
+nmasprocsointr23=  0 ! stored in NMASPROCOCINTR23
+nmascondocinucsol = 108  ! OC from isoprene
+nmascondociaitsol = 109  ! OC from isoprene
+nmascondociaccsol = 110  ! OC from isoprene
+nmascondocicorsol = 111  ! OC from isoprene
+nmascondociaitins = 112  ! OC from isoprene
+nmascondociaccins = 0  ! No acc-ins mode in this setup
+nmascondocicorins = 0  ! No cor-ins mode in this setup
+
+! .. below are new ones for dust & modes 6/7 to be integrated
+nmasprimduaccsol= 0 ! no DU in this setup
+nmasprimducorsol= 0 ! no DU in this setup
+nmasprimduaccins= 0 ! no DU in this setup
+nmasprimducorins= 0 ! no DU in this setup
+nmasddepduaccsol= 0 ! no DU in this setup
+nmasddepducorsol= 0 ! no DU in this setup
+nmasddepduaccins= 0 ! no DU in this setup
+nmasddepducorins= 0 ! no DU in this setup
+nmasnuscduaccsol= 0 ! no DU in this setup
+nmasnuscducorsol= 0 ! no DU in this setup
+nmasnuscduaccins= 0 ! no DU in this setup
+nmasnuscducorins= 0 ! no DU in this setup
+nmasimscduaccsol= 0 ! no DU in this setup
+nmasimscducorsol= 0 ! no DU in this setup
+nmasimscduaccins= 0 ! no DU in this setup
+nmasimscducorins= 0 ! no DU in this setup
+nmascondsuaccins= 0 ! no acc-ins cor-ins in this setup
+nmascondsucorins= 0 ! no acc-ins cor-ins in this setup
+nmascondocaccins= 0 ! no acc-ins cor-ins in this setup
+nmascondoccorins= 0 ! no acc-ins cor-ins in this setup
+nmascondsoaccins= 0 ! no acc-ins cor-ins in this setup
+nmascondsocorins= 0 ! no acc-ins cor-ins in this setup
+nmascoagsuintr16= 0 ! no acc-ins cor-ins in this setup
+nmascoagsuintr17= 0 ! no acc-ins cor-ins in this setup
+nmascoagocintr16= 0 ! no acc-ins cor-ins in this setup
+nmascoagocintr17= 0 ! no acc-ins cor-ins in this setup
+nmascoagsointr16= 0 ! no acc-ins cor-ins in this setup
+nmascoagsointr17= 0 ! no acc-ins cor-ins in this setup
+nmascoagduintr34= 0 ! no DU in this setup
+nmascoagduintr64= 0 ! no DU in this setup
+nmasagedsuintr63= 0 ! no acc-ins cor-ins in this setup
+nmasagedduintr63= 0 ! no DU in this setup
+nmasagedocintr63= 0 ! no BC/OC/SO in this setup
+nmasagedsointr63= 0 ! no BC/OC/SO in this setup
+nmasagedsuintr74= 0 ! no acc-ins cor-ins in this setup
+nmasagedduintr74= 0 ! no DU in this setup
+nmasagedocintr74= 0 ! no BC/OC/SO in this setup
+nmasagedsointr74= 0 ! no BC/OC/SO in this setup
+nmasmergduintr34= 0 ! no DU in this setup
+
+! .. below are new ones for no3, nh4, and nano3 to be integrated
+nmasprimntnucsol= 0
+nmasprimntaitsol= 0
+nmasprimntaccsol= 0
+nmasprimntcorsol= 0
+nmasprimnhnucsol= 0
+nmasprimnhaitsol= 0
+nmasprimnhaccsol= 0
+nmasprimnhcorsol= 0
+nmascondnnaccsol= 0
+nmascondnncorsol= 0
+nmasddepntaitsol= 0
+nmasddepntaccsol= 0
+nmasddepntcorsol= 0
+nmasddepnhaitsol= 0
+nmasddepnhaccsol= 0
+nmasddepnhcorsol= 0
+nmasddepnnaccsol= 0
+nmasddepnncorsol= 0
+nmasnuscntaitsol= 0
+nmasnuscntaccsol= 0
+nmasnuscntcorsol= 0
+nmasnuscnhaitsol= 0
+nmasnuscnhaccsol= 0
+nmasnuscnhcorsol= 0
+nmasnuscnnaccsol= 0
+nmasnuscnncorsol= 0
+nmasimscntaitsol= 0
+nmasimscntaccsol= 0
+nmasimscntcorsol= 0
+nmasimscnhaitsol= 0
+nmasimscnhaccsol= 0
+nmasimscnhcorsol= 0
+nmasimscnnaccsol= 0
+nmasimscnncorsol= 0
+nmascoagntintr23= 0
+nmascoagnhintr23= 0
+nmascoagntintr24= 0
+nmascoagnhintr24= 0
+nmascoagntintr34= 0
+nmascoagnhintr34= 0
+nmascoagnnintr34= 0
+nmasmergntintr23= 0
+nmasmergnhintr23= 0
+nmasmergntintr34= 0
+nmasmergnhintr34= 0
+nmasmergnnintr34= 0
+nmasprocntintr23= 0
+nmasprocnhintr23= 0
+nmasprocntintr23= 0
+nmasprocnhintr23= 0
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE ukca_indices_sussbcoc_5mode_isop
+
 ! ######################################################################
 SUBROUTINE ukca_indices_sussbcoc_4mode
 
 IMPLICIT NONE
+
 !---------------------------------------------------------------
 !
 ! Main array lengths and switches
@@ -3618,6 +4230,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ntraer=17          ! # of aerosol advected tracers
 nbudaer=89         ! # of aerosol budget fields
+
 ! When used in TOMCAT need to set NVTOT and NTRA in main run script
 !
 ! For orgv1 , NTRAG=16, NADVG=13
@@ -3742,6 +4355,13 @@ nmascondocaitsol=59
 nmascondocaccsol=60
 nmascondoccorsol=61
 nmascondocaitins= 0 ! only soluble modes
+nmascondocinucsol = 0 ! no secondary organic from isoprene
+nmascondociaitsol = 0 ! no secondary organic from isoprene
+nmascondociaccsol = 0 ! no secondary organic from isoprene
+nmascondocicorsol = 0 ! no secondary organic from isoprene
+nmascondociaitins = 0 ! no secondary organic from isoprene
+nmascondociaccins = 0 ! No secondary organic from isoprene
+nmascondocicorins = 0 ! No secondary organic from isoprene
 nmascondsonucsol= 0 ! SO stored in OC cpt
 nmascondsoaitsol= 0 ! SO stored in OC cpt
 nmascondsoaccsol= 0 ! SO stored in OC cpt
@@ -4027,6 +4647,13 @@ nmascondocaitsol= 0 ! stored in NMASCONDSOAITSOL
 nmascondocaccsol= 0 ! stored in NMASCONDSOACCSOL
 nmascondoccorsol= 0 ! stored in NMASCONDSOCORSOL
 nmascondocaitins= 0 ! stored in NMASCONDSOAITINS
+nmascondocinucsol = 0 ! no secondary organic from isoprene
+nmascondociaitsol = 0 ! no secondary organic from isoprene
+nmascondociaccsol = 0 ! no secondary organic from isoprene
+nmascondocicorsol = 0 ! no secondary organic from isoprene
+nmascondociaitins = 0 ! no secondary organic from isoprene
+nmascondociaccins = 0 ! No secondary organic from isoprene
+nmascondocicorins = 0 ! No secondary organic from isoprene
 nmascondsonucsol=75
 nmascondsoaitsol=76
 nmascondsoaccsol=77
@@ -4310,6 +4937,13 @@ nmascondocaitsol= 0 ! stored in NMASCONDSOAITSOL
 nmascondocaccsol= 0 ! stored in NMASCONDSOACCSOL
 nmascondoccorsol= 0 ! stored in NMASCONDSOCORSOL
 nmascondocaitins= 0 ! stored in NMASCONDSOAITINS
+nmascondocinucsol = 0 ! no secondary organic from isoprene
+nmascondociaitsol = 0 ! no secondary organic from isoprene
+nmascondociaccsol = 0 ! no secondary organic from isoprene
+nmascondocicorsol = 0 ! no secondary organic from isoprene
+nmascondociaitins = 0 ! no secondary organic from isoprene
+nmascondociaccins = 0 ! No secondary organic from isoprene
+nmascondocicorins = 0 ! No secondary organic from isoprene
 nmascondsonucsol=67
 nmascondsoaitsol=68
 nmascondsoaccsol=69
@@ -4594,6 +5228,13 @@ nmascondocaitsol= 0 ! no BC/OC/SO in this setup
 nmascondocaccsol= 0 ! no BC/OC/SO in this setup
 nmascondoccorsol= 0 ! no BC/OC/SO in this setup
 nmascondocaitins= 0 ! no BC/OC/SO in this setup
+nmascondocinucsol = 0 ! no secondary organic from isoprene
+nmascondociaitsol = 0 ! no secondary organic from isoprene
+nmascondociaccsol = 0 ! no secondary organic from isoprene
+nmascondocicorsol = 0 ! no secondary organic from isoprene
+nmascondociaitins = 0 ! no secondary organic from isoprene
+nmascondociaccins = 0 ! No secondary organic from isoprene
+nmascondocicorins = 0 ! No secondary organic from isoprene
 nmascondsonucsol= 0 ! no BC/OC/SO in this setup
 nmascondsoaitsol= 0 ! no BC/OC/SO in this setup
 nmascondsoaccsol= 0 ! no BC/OC/SO in this setup
@@ -4873,6 +5514,13 @@ nmascondocaitsol= 0 ! no BC/OC/SO in this setup
 nmascondocaccsol= 0 ! no BC/OC/SO in this setup
 nmascondoccorsol= 0 ! no BC/OC/SO in this setup
 nmascondocaitins= 0 ! no BC/OC/SO in this setup
+nmascondocinucsol = 0 ! no secondary organic from isoprene
+nmascondociaitsol = 0 ! no secondary organic from isoprene
+nmascondociaccsol = 0 ! no secondary organic from isoprene
+nmascondocicorsol = 0 ! no secondary organic from isoprene
+nmascondociaitins = 0 ! no secondary organic from isoprene
+nmascondociaccins = 0 ! No secondary organic from isoprene
+nmascondocicorins = 0 ! No secondary organic from isoprene
 nmascondsonucsol= 0 ! no BC/OC/SO in this setup
 nmascondsoaitsol= 0 ! no BC/OC/SO in this setup
 nmascondsoaccsol= 0 ! no BC/OC/SO in this setup
@@ -5172,6 +5820,13 @@ nmascondocaitsol=99
 nmascondocaccsol=100
 nmascondoccorsol=101
 nmascondocaitins=102
+nmascondocinucsol = 0 ! no secondary organic from isoprene
+nmascondociaitsol = 0 ! no secondary organic from isoprene
+nmascondociaccsol = 0 ! no secondary organic from isoprene
+nmascondocicorsol = 0 ! no secondary organic from isoprene
+nmascondociaitins = 0 ! no secondary organic from isoprene
+nmascondociaccins = 0 ! No secondary organic from isoprene
+nmascondocicorins = 0 ! No secondary organic from isoprene
 nmascondsonucsol= 0 ! SO stored in OC cpt
 nmascondsoaitsol= 0 ! SO stored in OC cpt
 nmascondsoaccsol= 0 ! SO stored in OC cpt

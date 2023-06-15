@@ -207,12 +207,19 @@ TYPE :: ukca_config_spec_type
                                        ! the interactive cloud pH code
   REAL :: ph_fit_intercept             ! y-intercept value of the relationship
                                        ! for the interactive cloud pH code
-  LOGICAL :: l_ukca_scale_soa_yield    ! True to apply scaling factor to
+  LOGICAL :: l_ukca_scale_soa_yield_mt ! True to apply scaling factor to
                                        ! production of Secondary Organic
-                                       ! Aerosol (SOA)
-  REAL :: soa_yield_scaling            ! Scaling factor for production of SOA
+                                       ! Aerosol (SOA) from monoterpene
+  REAL :: soa_yield_scaling_mt         ! Scaling factor for production of SOA
+                                       ! from monoterpene
+  LOGICAL :: l_ukca_scale_soa_yield_isop ! True to apply scaling factor to
+                                       ! production of Secondary Organic
+                                       ! Aerosol (SOA) from isoprene
+  REAL :: soa_yield_scaling_isop       ! Scaling factor for production of SOA
+                                       ! from isoprene
 
   ! -- Chemistry - Heterogeneous chemistry --
+
   LOGICAL :: l_ukca_het_psc            ! True for heterogeneous polar
                                        ! stratospheric cloud chemistry
   INTEGER :: i_ukca_hetconfig          ! 0 = default (5 reactions); 1 = JPL-15
@@ -841,8 +848,10 @@ ukca_config%l_ukca_intph = .FALSE.
 ukca_config%ph_fit_coeff_a = rmdi
 ukca_config%ph_fit_coeff_b = rmdi
 ukca_config%ph_fit_intercept = rmdi
-ukca_config%l_ukca_scale_soa_yield = .FALSE.
-ukca_config%soa_yield_scaling = rmdi
+ukca_config%l_ukca_scale_soa_yield_mt = .FALSE.
+ukca_config%soa_yield_scaling_mt = rmdi
+ukca_config%l_ukca_scale_soa_yield_isop = .FALSE.
+ukca_config%soa_yield_scaling_isop = rmdi
 
 ! -- Chemistry - Heterogeneous chemistry --
 ukca_config%l_ukca_het_psc = .FALSE.
@@ -1064,7 +1073,7 @@ SUBROUTINE ukca_get_config(                                                    &
    timestep,                                                                   &
    max_ageair_reset_height,                                                    &
    max_z_for_offline_chem,                                                     &
-   soa_yield_scaling,                                                          &
+   soa_yield_scaling_mt, soa_yield_scaling_isop,                               &
    fastjx_prescutoff,                                                          &
    mode_parfrac,                                                               &
    seadms_ems_scaling,                                                         &
@@ -1093,7 +1102,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_tracer_lumping,                                                           &
    l_ukca_ro2_ntp, l_ukca_ro2_perm,                                            &
    l_ukca_intph,ph_fit_coeff_a,ph_fit_coeff_b,ph_fit_intercept,                &
-   l_ukca_scale_soa_yield,                                                     &
+   l_ukca_scale_soa_yield_mt,l_ukca_scale_soa_yield_isop,                      &
    l_ukca_het_psc,                                                             &
    l_ukca_limit_nat,                                                           &
    l_ukca_sa_clim,                                                             &
@@ -1243,7 +1252,8 @@ REAL, OPTIONAL, INTENT(OUT) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(OUT) :: timestep
 REAL, OPTIONAL, INTENT(OUT) :: max_ageair_reset_height
 REAL, OPTIONAL, INTENT(OUT) :: max_z_for_offline_chem
-REAL, OPTIONAL, INTENT(OUT) :: soa_yield_scaling
+REAL, OPTIONAL, INTENT(OUT) :: soa_yield_scaling_mt
+REAL, OPTIONAL, INTENT(OUT) :: soa_yield_scaling_isop
 REAL, OPTIONAL, INTENT(OUT) :: fastjx_prescutoff
 REAL, OPTIONAL, INTENT(OUT) :: mode_parfrac
 REAL, OPTIONAL, INTENT(OUT) :: seadms_ems_scaling
@@ -1281,7 +1291,8 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_tracer_lumping
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ro2_ntp
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ro2_perm
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_intph
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_soa_yield
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_soa_yield_mt
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_soa_yield_isop
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_het_psc
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_limit_nat
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_sa_clim
@@ -1484,10 +1495,14 @@ IF (PRESENT(l_ukca_intph)) l_ukca_intph = ukca_config%l_ukca_intph
 IF (PRESENT(ph_fit_coeff_a)) ph_fit_coeff_a = ukca_config%ph_fit_coeff_a
 IF (PRESENT(ph_fit_coeff_b)) ph_fit_coeff_b = ukca_config%ph_fit_coeff_b
 IF (PRESENT(ph_fit_intercept)) ph_fit_intercept = ukca_config%ph_fit_intercept
-IF (PRESENT(l_ukca_scale_soa_yield))                                           &
-  l_ukca_scale_soa_yield = ukca_config%l_ukca_scale_soa_yield
-IF (PRESENT(soa_yield_scaling))                                                &
-  soa_yield_scaling = ukca_config%soa_yield_scaling
+IF (PRESENT(l_ukca_scale_soa_yield_mt))                                        &
+  l_ukca_scale_soa_yield_mt = ukca_config%l_ukca_scale_soa_yield_mt
+IF (PRESENT(soa_yield_scaling_mt))                                             &
+  soa_yield_scaling_mt = ukca_config%soa_yield_scaling_mt
+IF (PRESENT(l_ukca_scale_soa_yield_isop))                                      &
+  l_ukca_scale_soa_yield_isop = ukca_config%l_ukca_scale_soa_yield_isop
+IF (PRESENT(soa_yield_scaling_isop))                                           &
+  soa_yield_scaling_isop = ukca_config%soa_yield_scaling_isop
 
 ! -- Chemistry - Heterogeneous chemistry --
 IF (PRESENT(l_ukca_het_psc)) l_ukca_het_psc = ukca_config%l_ukca_het_psc

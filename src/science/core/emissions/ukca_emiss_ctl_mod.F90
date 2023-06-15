@@ -752,9 +752,9 @@ END DO  ! loop through number of emission fields
 
 ! --------------------------------
 ! Aerosol emissions into modes:
-! Online emissions first (fire, sea salt, dust) which return number and mass
-! for each mode, and these are mapped onto a seperate emissions structure
-! for each mode/moment.
+! Online emissions first (fire, sea salt, dust, marine OC) which return number
+! and mass for each mode, and these are mapped onto a seperate emissions
+! structure for each mode/moment.
 ! Then offline emissions, which are provided as total mass and are projected
 ! onto number and mass for each mode by ukca_emiss_update_mode, before being
 ! mapped to emissions structures for each mode/moment in the same way as the
@@ -1138,7 +1138,8 @@ IF (ukca_config%l_enable_diag_um) THEN
       sf(204,section) .OR. sf(205,section) .OR. sf(206,section) .OR.           &
       sf(207,section) .OR. sf(208,section) .OR. sf(209,section) .OR.           &
       sf(210,section) .OR. sf(211,section) .OR. sf(212,section) .OR.           &
-      sf(213,section) .OR. sf(575,section) .OR. sf(576,section) .OR.           &
+      sf(213,section) .OR. sf(388,section) .OR. sf(389,section) .OR.           &
+      sf(575,section) .OR. sf(576,section) .OR.                                &
       sf(577,section) .OR. sf(579,section) .OR. sf(580,section) .OR.           &
       sf(581,section) .OR. sf(582,section) .OR. sf(583,section)) THEN
     CALL ukca_emiss_diags_mode (row_length, rows, model_levels, area,          &

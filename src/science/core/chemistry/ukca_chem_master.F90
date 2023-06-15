@@ -103,11 +103,11 @@ INTEGER, PARAMETER :: rm = 1024   ! Used to remove reactions that existed at
                                   ! later ones
 
 ! Define size of master chemistry
-INTEGER, PARAMETER :: n_chch_master = 356 ! number of known species
+INTEGER, PARAMETER :: n_chch_master = 357 ! number of known species
 INTEGER, PARAMETER :: n_het_master  =  18 ! number of heterogeneous reactions
-INTEGER, PARAMETER :: n_dry_master  = 161 ! number of dry deposition reactions
-INTEGER, PARAMETER :: n_wet_master  = 159 ! number of wet deposition reactions
-INTEGER, PARAMETER :: n_bimol_master = 1209 ! number of bimolecular reactions
+INTEGER, PARAMETER :: n_dry_master  = 162 ! number of dry deposition reactions
+INTEGER, PARAMETER :: n_wet_master  = 160 ! number of wet deposition reactions
+INTEGER, PARAMETER :: n_bimol_master = 1212 ! number of bimolecular reactions
 INTEGER, PARAMETER :: n_ratj_master = 183 ! number of photolysis reactions
 INTEGER, PARAMETER :: n_ratt_master = 116 ! number of termolecular reactions
 
@@ -917,7 +917,9 @@ chch_t1(281,'RU12NO3   ',1,'TR        ','          ',1,1,cs,0,0,119),          &
 ! 282
 chch_t1(282,'RU10NO3   ',1,'TR        ','          ',1,1,cs,0,0,119),          &
 ! 283
-chch_t1(283,'MACO3     ',1,'OO        ','          ',0,0,cs,rp,0,119)          &
+chch_t1(283,'MACO3     ',1,'OO        ','          ',0,0,cs,rp,0,119),         &
+! 284
+chch_t1(284,'SEC_ORG_I ',1,'TR        ','          ',1,1,st,a,0,132)           &
 ]
 
 
@@ -2494,7 +2496,9 @@ wetdep(119, 'RU12NO3   ',                                                      &
 [1.84e+05,6.00e+03,0.00e+00,0.00e+00,0.00e+00,0.00e+00],cs,0,0,119),           &
 ! WD: 120  (Schwantes (2020) MVKN)
 wetdep(120, 'RU10NO3   ',                                                      &
-[1.84e+05,6.00e+03,0.00e+00,0.00e+00,0.00e+00,0.00e+00],cs,0,0,119)            &
+[1.84e+05,6.00e+03,0.00e+00,0.00e+00,0.00e+00,0.00e+00],cs,0,0,119),           &
+wetdep(121, 'SEC_ORG_I ',                                                      &
+[0.10e+06,0.12e+02,0.00e+00,0.00e+00,0.00e+00,0.00e+00],st,a,0,132)            &
 ]
 
 ! ---------------------------------------------------------------------
@@ -3090,7 +3094,7 @@ ratb_t1(90,'NO        ','NO3       ','NO2       ','NO2       ','          ',   &
 ! Start and end bounds for 4th section of ratb_defs.
 ! If you add extra reactions to this section, increment n_ratb_e
 n_ratb_s = n_ratb_e+1
-n_ratb_e = n_ratb_s+68
+n_ratb_e = n_ratb_s+69
 ratb_defs_master(n_ratb_s:n_ratb_e) = [                                        &
 ratb_t1(90,'NO        ','NO3       ','NO2       ','NO2       ','          ',   &
 '          ',1.80e-11,  0.00, -110.00, 0.00, 0.00,0.00,0.00,ti+t+s+cs,0,0,107),&
@@ -3123,6 +3127,8 @@ ratb_t1(95,'NO3       ','C5H8      ','ISON      ','          ','          ',   &
 ! updates for 121 - st only
 ratb_t1(95,'NO3       ','C5H8      ','ISON      ','          ','          ',   &
 '          ',2.95e-12,  0.00,  450.00, 0.00, 0.00, 0.00, 0.00,st,0,0,121),     &
+ratb_t1(95,'NO3       ','C5H8      ','ISON      ','SEC_ORG_I ','          ',   &
+'          ',2.95e-12,  0.00,  450.00, 1.00, 0.015, 0.00, 0.00,st,a,0,132),    &
 ! '(NO3)C4H6CHO' is too long for the ratb_t1 constructor (12 characters
 ! instead of 10). We truncate `prod1` to be '(NO3)C4H6C'.
 ratb_t1(95,'NO3       ','C5H8      ','(NO3)C4H6C','HO2       ','          ',   &
@@ -3287,7 +3293,7 @@ ratb_t1(115,'O(1D)     ','O2        ','O(3P)     ','O2        ','          ',  &
 ! Start and end bounds for 5th section of ratb_defs.
 ! If you add extra reactions to this section, increment n_ratb_e
 n_ratb_s = n_ratb_e+1
-n_ratb_e = n_ratb_s+66
+n_ratb_e = n_ratb_s+68
 ratb_defs_master(n_ratb_s:n_ratb_e) = [                                        &
 ! B116 JPL2011
 ! Not in TI scheme (or CRI)
@@ -3381,6 +3387,8 @@ ratb_t1(133,'O3        ','C5H8      ','HO2       ','OH        ','          ',  &
 ! updates for 121 - st only
 ratb_t1(133,'O3        ','C5H8      ','HO2       ','OH        ','          ',  &
 '          ',3.30e-15,  0.00, 2000.00, 0.75, 0.75, 0.00, 0.00,st,0,0,121),     &
+ratb_t1(133,'O3        ','C5H8      ','HO2       ','OH        ','SEC_ORG_I ',  &
+'          ',3.30e-15,  0.00, 2000.00, 0.75, 0.75, 0.045, 0.00,st,a,0,132),    &
 ! Number mislabelled - renamed to 133!
 ratb_t1(133,'O3        ','C5H8      ','OH        ','          ','          ',  &
 '          ',3.93e-15,  0.00, 1913.00, 0.54, 0.00, 0.00, 0.00,r,0,0,107),      &
@@ -3466,6 +3474,8 @@ ratb_t1(144,'OH        ','C5H8      ','ISO2      ','          ','          ',  &
 ! updates for 121 - st only
 ratb_t1(144,'OH        ','C5H8      ','ISO2      ','          ','          ',  &
 '          ',3.00e-11,  0.00, -390.00, 0.00, 0.00, 0.00, 0.00,st,0,0,121),     &
+ratb_t1(144,'OH        ','C5H8      ','ISO2      ','SEC_ORG_I ','          ',  &
+'          ',3.00e-11,  0.00, -390.00, 1.00, 0.015, 0.00, 0.00,st,a,0,132),    &
 ratb_t1(144,'OH        ','C5H8      ','HOIPO2    ','H2O       ','          ',  &
 '          ',2.54e-11,  0.00, -410.00, 0.00, 0.00, 0.00, 0.00,r,0,0,107),      &
 ! B144 - Different rates and prods in CRI
@@ -8322,7 +8332,16 @@ depvel_t(161,'DHCARB9  ',                                                      &
   0.63,  0.06,  0.35,  0.08,  0.06,  0.07,                                     &
   0.03,  0.03,  0.03,  0.03,  0.03,  0.03,                                     &
   0.01,  0.01,  0.01,  0.01,  0.01,  0.01],                                    &
-  cs,0,0,119)                                                                  &
+  cs,0,0,119),                                                                 &
+! For vn 122
+!  162 SEC_ORG_I: as SEC_ORG, not in R scheme
+depvel_t(162,'SEC_ORG_I ',                                                     &
+[0.20,  0.20,  0.20,  0.20,  0.20,  0.20,                                      &
+ 0.10,  0.10,  0.10,  0.10,  0.10,  0.10,                                      &
+ 0.10,  0.10,  0.10,  0.10,  0.10,  0.10,                                      &
+ 0.10,  0.10,  0.10,  0.10,  0.10,  0.10,                                      &
+ 0.10,  0.10,  0.10,  0.10,  0.10,  0.10],                                     &
+ st,a,0,132)                                                                   &
 ]
 
 ! ----------------------------------------------------------------------

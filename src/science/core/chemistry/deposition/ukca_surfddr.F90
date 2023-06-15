@@ -783,7 +783,7 @@ IF (first) THEN
         ELSE
           rsurf(:,n)=aerosol
         END IF
-      CASE ('Sec_Org   ')
+      CASE ('Sec_Org   ','SEC_ORG_I ')
         IF (l_fix_improve_drydep) THEN
           rsurf(:,n)=aerosol
         ELSE
@@ -970,7 +970,7 @@ IF (first) THEN
         rsurf(1:6,n)=[ 13698.6,11111.1,11194.0,13129.1,13043.5,20979.0 ]
       CASE ('BSOA      ','ASOA      ','ISOSOA    ')
         rsurf(:,n)=aerosol
-      CASE ('Sec_Org   ')
+      CASE ('Sec_Org   ','SEC_ORG_I ')
         IF (l_fix_improve_drydep) THEN
           rsurf(:,n)=aerosol
         ELSE
@@ -2634,7 +2634,8 @@ DO j = 1, ndepd
             speci(nldepd(j)) == 'BSOA      '  .OR.                             &
             speci(nldepd(j)) == 'ASOA      '  .OR.                             &
             speci(nldepd(j)) == 'ISOSOA    ') .OR.                             &
-           (speci(nldepd(j)) =='Sec_Org   ' .AND. (l_fix_improve_drydep))) THEN
+           (speci(nldepd(j)) =='Sec_Org   ' .AND. (l_fix_improve_drydep)) .OR. &
+           (speci(nldepd(j)) =='SEC_ORG_I ' .AND. (l_fix_improve_drydep))) THEN
 
     DO n = 1, urban     ! for all the functional plant types as
                         ! well as for surface type urban (n=npft+1)

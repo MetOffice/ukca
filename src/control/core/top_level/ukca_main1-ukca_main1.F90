@@ -2797,7 +2797,8 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
       item = UkcaD1codes(imode_first+l-1)%item
       section = stashcode_glomap_sec
       IF (sf(item,section) .AND. item > item1_mode_diags+12 .AND.              &
-          item < item1_mode_diags+284) THEN
+          item < item1_mode_diags+284 .AND. item /= 388 .AND.                  &
+          item /= 389) THEN
         CALL copydiag_3d (stashwork38(si(item,section,im_index):               &
           si_last(item,section,im_index)),                                     &
           mode_diags(:,:,:,icnt),                                              &

@@ -80,6 +80,7 @@ USE ukca_constants,          ONLY:                                             &
     m_pan,                                                                     &
     m_ppan,                                                                    &
     m_sec_org,                                                                 &
+    m_sec_org_i,                                                               &
     m_etoh,                                                                    &
     m_proh,                                                                    &
     m_hoc2h4ooh,                                                               &
@@ -353,6 +354,8 @@ IF (first) THEN
       d0(j) = d_h2o * SQRT(m_h2o / m_dmso)
     CASE ('Sec_Org   ')
       d0(j) = d_h2o * SQRT(m_h2o / m_sec_org)
+    CASE ('SEC_ORG_I ')
+      d0(j) = d_h2o * SQRT(m_h2o / m_sec_org_i)
     CASE ('H2SO4     ')
       d0(j) = d_h2o * SQRT(m_h2o / m_h2so4)
     CASE ('MSA       ')

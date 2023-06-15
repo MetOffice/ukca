@@ -100,6 +100,10 @@ INTEGER, PUBLIC :: iso2_inferno        ! Index for INFERNO emiss of SO2
 INTEGER, PUBLIC :: ioc_inferno         ! Index for INFERNO emiss of OC
 INTEGER, PUBLIC :: ibc_inferno         ! Index for INFERNO emiss of BC
 
+! Name for online emissions of OC
+CHARACTER(LEN=30), PUBLIC :: marine_oc_online =                                &
+                                  'pmoc_online_emission          '
+
 ! Super array of emissions
 TYPE (ukca_em_struct), ALLOCATABLE, PUBLIC :: emissions (:)
 
@@ -918,14 +922,14 @@ END IF  ! l_ukca_primss
 ! Allow emission into any mode for flexibility. Emissions are 2D and emit into
 ! OC component.
 ! Number flux is multiplied by MM_DA/AVC to give units of kg(air) m-2 s-1
-! Set from_emiss=ipmao_first to identify as pmao for ukca_emiss_mode_map
+! Set from_emiss=ipmoc_first to identify as pmoc for ukca_emiss_mode_map
 IF (glomap_config%l_ukca_prim_moc) THEN
   ecount = ipmoc_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
       IF (mode(imode) .AND. component(imode,this_cp_oc)) THEN
         ecount = ecount + 1
-        emissions(ecount)%var_name    = 'pmoc_online_emissions'
+        emissions(ecount)%var_name    = marine_oc_online
         emissions(ecount)%tracer_name = 'mode_emiss'
         emissions(ecount)%from_emiss  = ipmoc_first
 

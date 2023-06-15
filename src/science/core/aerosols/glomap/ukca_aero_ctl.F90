@@ -289,7 +289,7 @@ USE ukca_mode_verbose_mod, ONLY: verbose => glob_verbose
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_mode_check_artefacts_mod, ONLY:                                       &
                             ukca_mode_check_artefacts
-USE ukca_cspecies,    ONLY: n_h2so4,n_h2o2,n_so2,n_o3,n_sec_org
+USE ukca_cspecies,    ONLY: n_h2so4,n_h2o2,n_so2,n_o3,n_sec_org, n_sec_org_i
 USE ukca_mode_diags_mod,  ONLY: l_ukca_cmip6_diags,                            &
                             l_ukca_pm_diags, mdwat_diag,                       &
                             wetdp_diag
@@ -307,7 +307,7 @@ USE ukca_config_specification_mod, ONLY:                                       &
 USE ukca_ntp_mod,     ONLY: ntp_type, dim_ntp, name2ntpindex
 
 USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
-                              mm_gas, mox, msec_org, msotwo,                   &
+                              mm_gas, mox, msec_org, msec_orgi, msotwo,        &
                               nadvg, nchemg,                                   &
                               nmasagedsuintr52, nmasagedbcintr52,              &
                               nmasagedocintr52, nmasagedsointr52,              &
@@ -340,7 +340,11 @@ USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
                               nmascondocnucsol, nmascondocaitsol,              &
                               nmascondocaccsol, nmascondoccorsol,              &
                               nmascondocaitins, nmascondocaccins,              &
-                              nmascondoccorins, nmascondsonucsol,              &
+                              nmascondoccorins, nmascondocinucsol,             &
+                              nmascondociaitsol, nmascondociaccsol,            &
+                              nmascondocicorsol, nmascondociaitins,            &
+                              nmascondociaccins, nmascondocicorins,            &
+                              nmascondsonucsol,                                &
                               nmascondsoaitsol, nmascondsoaccsol,              &
                               nmascondsocorsol, nmascondsoaitins,              &
                               nmascondsoaccins, nmascondsocorins,              &
@@ -1220,10 +1224,10 @@ END IF
 !$OMP land_fraction, lcvrainout,  mass, mfrac_0, mh2o2f, mh2so4,               &
 !$OMP mlo, mm, mm_da, mm_gas, mmid, mmr_index, mode, mode_diags, mdwat_diag,   &
 !$OMP wetdp_diag, l_dust_slinn_impc_scav,                                      &
-!$OMP mode_tracers, model_levels, modesol, mox, msec_org, msotwo,              &
+!$OMP mode_tracers, model_levels, modesol, mox, msec_org, msec_orgi, msotwo,   &
 !$OMP n_h2o2, n_h2so4, n_merge_3d,                                             &
-!$OMP n_o3, n_sec_org, n_so2, nadvg, nbadmdt_3d, nbox, nbox_s, nbudaer,        &
-!$OMP nchemg, ncol_s, ncp,                                                     &
+!$OMP n_o3, n_sec_org, n_sec_org_i, n_so2, nadvg, nbadmdt_3d, nbox, nbox_s,    &
+!$OMP nbudaer, nchemg, ncol_s, ncp,                                            &
 !$OMP nmasddepsunucsol, nmasddepsuaitsol, nmasddepsuaccsol, nmasddepsucorsol,  &
 !$OMP nmasddepssaccsol, nmasddepsscorsol, nmasddepbcaitsol, nmasddepbcaccsol,  &
 !$OMP nmasddepbccorsol, nmasddepbcaitins, nmasddepocnucsol, nmasddepocaitsol,  &
@@ -1247,7 +1251,9 @@ END IF
 !$OMP nmasprocsointr23, nmascondsunucsol, nmascondsuaitsol, nmascondsuaccsol,  &
 !$OMP nmascondsucorsol, nmascondsuaitins, nmascondsuaccins, nmascondsucorins,  &
 !$OMP nmascondocnucsol, nmascondocaitsol, nmascondocaccsol, nmascondoccorsol,  &
-!$OMP nmascondocaitins, nmascondocaccins, nmascondoccorins, nmascondsonucsol,  &
+!$OMP nmascondocaitins, nmascondocaccins, nmascondoccorins, nmascondocinucsol, &
+!$OMP nmascondociaitsol,nmascondociaccsol,nmascondocicorsol,nmascondociaitins, &
+!$OMP nmascondociaccins,nmascondocicorins,nmascondsonucsol,                    &
 !$OMP nmascondsoaitsol, nmascondsoaccsol, nmascondsocorsol, nmascondsoaitins,  &
 !$OMP nmascondsoaccins, nmascondsocorins, nmasnuclsunucsol, nmascoagsuintr12,  &
 !$OMP nmascoagsuintr13, nmascoagsuintr14, nmascoagsuintr15, nmascoagsuintr16,  &
@@ -1584,6 +1590,11 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
       seg%s0_dot_condensable(:,msec_org)=0.0
       ! for L_classSO2_inAer=T or F set Sec_Org prodn--> 0 (done in UKCA)
     END IF
+
+    IF (msec_orgi > 0) THEN
+      seg%s0_dot_condensable(:,msec_orgi)=0.0
+      ! for L_classSO2_inAer=T or F set Sec_Org prodn--> 0 (done in UKCA)
+    END IF
     !
   END IF      ! dryox_in_aer
   ! Set H2O2, O3 and SO2 for aqueous oxidation
@@ -1656,6 +1667,13 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
     WRITE(umMessage,'(A20,I6)') cmessage,' msec_org = ',msec_org
     CALL umPrint(umMessage,src='ukca_aero_ctl')
     CALL ereport('UKCA_AERO_CTL',errcode,cmessage)
+  END IF
+
+  ! .. Secondary Organic tracer from isoprene mmr in kg[SEC_ORG I]/kg[dryair]
+  IF (msec_orgi > 0) THEN
+    CALL extract_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,           &
+                       chemistry_tracers(1,1,1,n_sec_org_i), seg%v1d_tmp )
+    seg%s0(:,msec_orgi) = seg%sm(:)*(mm_da/mm_gas(msec_orgi))*seg%v1d_tmp
   END IF
 
 
@@ -1939,6 +1957,13 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
     seg%v1d_tmp(:) = (seg%s0(:,msec_org)/seg%sm(:))*(mm_gas(msec_org)/mm_da)
     CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,            &
                       seg%v1d_tmp(:), chemistry_tracers(1,1,1,n_sec_org))
+  END IF
+
+  IF (msec_orgi > 0) THEN
+    ! .. update gas phase Sec_Org mmr following condensation/nucleation
+    seg%v1d_tmp(:) = (seg%s0(:,msec_orgi)/seg%sm(:))*(mm_gas(msec_orgi)/mm_da)
+    CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,            &
+                      seg%v1d_tmp(:), chemistry_tracers(1,1,1,n_sec_org_i))
   END IF
 
   ! Set H2O2, O3 and SO2 for aqueous oxidation
@@ -2728,19 +2753,39 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
                       seg%bud_aer_mas(:,nmasmergsuintr34), mode_diags(1,1,1,k) )
         CASE (item1_mode_diags+182)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
-                      seg%bud_aer_mas(:,nmasmergbcintr34), mode_diags(1,1,1,k) )
+                      seg%bud_aer_mas(:,nmasmergssintr34), mode_diags(1,1,1,k) )
         CASE (item1_mode_diags+183)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
-                      seg%bud_aer_mas(:,nmasmergocintr34), mode_diags(1,1,1,k) )
+                      seg%bud_aer_mas(:,nmasmergbcintr34), mode_diags(1,1,1,k) )
         CASE (item1_mode_diags+184)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
-                      seg%bud_aer_mas(:,nmasmergssintr34), mode_diags(1,1,1,k) )
+                      seg%bud_aer_mas(:,nmasmergocintr34), mode_diags(1,1,1,k) )
         CASE (item1_mode_diags+185)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
                       seg%bud_aer_mas(:,nmasmergduintr34), mode_diags(1,1,1,k) )
         CASE (item1_mode_diags+186)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
                       seg%bud_aer_mas(:,nmasmergsointr34), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+187)
+          ! Do nothing here, used for marine OM emissions
+        CASE (item1_mode_diags+188)
+          ! Do nothing here, used for marine OM emissions
+          ! SEC_ORG_I condensation
+        CASE (item1_mode_diags+189)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondocinucsol), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+190)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondociaitsol), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+191)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondociaccsol), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+192)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondocicorsol), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+193)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                     seg%bud_aer_mas(:,nmascondociaitins), mode_diags(1,1,1,k) )
         CASE (item1_mode_diags+200)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
                                            seg%drydp(:,1), mode_diags(1,1,1,k) )

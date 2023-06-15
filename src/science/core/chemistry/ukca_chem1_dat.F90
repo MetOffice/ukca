@@ -63,6 +63,8 @@ USE umPrintMgr, ONLY:                                                          &
 
 USE ukca_chem_master_mod, ONLY: ukca_chem_master
 
+USE errormessagelength_mod, ONLY: errormessagelength
+
 
 IMPLICIT NONE
 
@@ -70,6 +72,8 @@ PRIVATE
 SAVE
 
 PUBLIC ukca_chem1_init
+
+INTEGER, PARAMETER            :: ichem_ver132 = 132  ! To identify chemical vn
 
 ! No of dry deposited tracers
 INTEGER, PARAMETER, PUBLIC :: ndry_trop  = 22
@@ -575,6 +579,7 @@ INTEGER :: errcode                ! Variable passed to ereport
 INTEGER :: ierr
 INTEGER :: isizes(7)
 CHARACTER(LEN=72) :: cmessage
+INTEGER, PARAMETER :: ichem_ver132 = 132
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -791,8 +796,13 @@ ELSE
 END IF
 
 !====================================================================
-IF (ukca_config%l_ukca_chem_aero .AND. ukca_config%l_ukca_scale_soa_yield) THEN
+IF (ukca_config%l_ukca_chem_aero .AND. ukca_config%l_ukca_scale_soa_yield_mt) THEN
   CALL ukca_scale_soa_yield
+END IF
+
+IF (ukca_config%l_ukca_chem_aero .AND. ukca_config%l_ukca_scale_soa_yield_isop &
+    .AND. ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
+  CALL ukca_scale_soa_yield_isop
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -876,7 +886,7 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_SCALE_SOA_YIELD'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-   ! A scaling factor soa_yield_scaling can be used to tune the SOA
+   ! A scaling factor soa_yield_scaling_mt can be used to tune the SOA
    ! yield from the oxidaton of monoterpene. E.g this could be
    ! increased to compensate for the lack of SOA production
    ! from other BVOCs such as isoprene.
@@ -885,7 +895,7 @@ DO i = 1, SIZE(ratb_defs)
   IF (ratb_defs(i)%react1 == 'Monoterp  ' .AND.                                &
        ratb_defs(i)%prod1 == 'Sec_Org   ') THEN
     ratb_defs(i)%pyield1 =                                                     &
-         ratb_defs(i)%pyield1 * ukca_config%soa_yield_scaling
+         ratb_defs(i)%pyield1 * ukca_config%soa_yield_scaling_mt
   END IF
 END DO
 
@@ -893,6 +903,61 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 
 END SUBROUTINE ukca_scale_soa_yield
+
+SUBROUTINE ukca_scale_soa_yield_isop
+IMPLICIT NONE
+
+INTEGER :: i
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_SCALE_SOA_YIELD_ISOP'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+   ! A scaling factor soa_yield_scaling_isop can be used to tune the SOA
+   ! yield from the oxidation of isoprene.
+
+DO i = 1, SIZE(ratb_defs)
+  IF (ratb_defs(i)%react1 == 'NO3       ' .AND.                                &
+      ratb_defs(i)%react2 == 'C5H8      ' .AND.                                &
+       ratb_defs(i)%prod2 == 'SEC_ORG_I ') THEN
+    ratb_defs(i)%pyield2 =                                                     &
+         ratb_defs(i)%pyield2 * ukca_config%soa_yield_scaling_isop
+  END IF
+
+  IF (ratb_defs(i)%react1 == 'O3        ' .AND.                                &
+      ratb_defs(i)%react2 == 'C5H8      ' .AND.                                &
+       ratb_defs(i)%prod3 == 'SEC_ORG_I ') THEN
+    ratb_defs(i)%pyield3 =                                                     &
+         ratb_defs(i)%pyield3 * ukca_config%soa_yield_scaling_isop
+  END IF
+
+  IF (ratb_defs(i)%react1 == 'OH        ' .AND.                                &
+      ratb_defs(i)%react2 == 'C5H8      ' .AND.                                &
+       ratb_defs(i)%prod2 == 'SEC_ORG_I ') THEN
+    ratb_defs(i)%pyield2 =                                                     &
+         ratb_defs(i)%pyield2 * ukca_config%soa_yield_scaling_isop
+  END IF
+END DO
+
+
+IF (ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
+  IF ( ABS(ukca_config%soa_yield_scaling_mt - 1.0) > EPSILON(0.0) ) THEN
+    ! Error message if a scaling of MT SOA yield
+    ! other than unity is used  when isoprene SOA is also included
+    errcode=1
+    cmessage    = 'If isop SOA is on, default yield '       //                 &
+                  'scaling for MT SOA is 1 '
+    CALL ereport('UKCA_CHEM1_INIT',errcode,cmessage)
+  END IF
+END IF
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+
+END SUBROUTINE ukca_scale_soa_yield_isop
 
 END SUBROUTINE ukca_chem1_init
 

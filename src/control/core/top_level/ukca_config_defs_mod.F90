@@ -77,6 +77,7 @@ IMPLICIT NONE
 
 ! Local variables
 
+INTEGER, PARAMETER :: ichem_ver132 = 132
 INTEGER :: n_mode_emissions       ! No. of emissions for MODE
 INTEGER :: errcode                ! Variable passed to ereport
 CHARACTER (LEN=errormessagelength) :: cmessage        ! Error message
@@ -320,7 +321,12 @@ ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
             'OM_biofuel','Monoterp  ','MeOH      ','SO2_low   ',               &
             'SO2_high  ','NH3       ','DMS       ','SO2_nat   ',               &
             'BC_biomass','OM_biomass','NO_aircrft']
-      n_aero_tracers = 12
+      IF (ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
+        ! Include secondary organic species from isoprene oxidation (SEC_ORG_I)
+        n_aero_tracers = 13
+      ELSE
+        n_aero_tracers = 12
+      END IF
       n_chem_tracers = 71         ! No chem tracers
       IF (ukca_config%l_ukca_trophet) THEN
         nr_therm     = 241        ! thermal reactions

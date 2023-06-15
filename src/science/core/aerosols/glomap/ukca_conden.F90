@@ -151,10 +151,12 @@ USE ukca_mode_setup,      ONLY:                                                &
     mode_acc_insol,                                                            &
     mode_cor_insol
 
-USE ukca_setup_indices,   ONLY: mh2so4, msec_org,                              &
+USE ukca_setup_indices,   ONLY: mh2so4, msec_org, msec_orgi,                   &
     nmascondocaccins, nmascondocaccsol, nmascondocaitins,                      &
     nmascondocaitsol, nmascondoccorins, nmascondoccorsol,                      &
-    nmascondocnucsol, nmascondsoaccins, nmascondsoaccsol,                      &
+    nmascondocnucsol, nmascondocinucsol, nmascondociaitsol,                    &
+    nmascondociaccsol, nmascondocicorsol, nmascondociaitins,                   &
+    nmascondsoaccins, nmascondsoaccsol,                                        &
     nmascondsoaitins, nmascondsoaitsol, nmascondsocorins,                      &
     nmascondsocorsol, nmascondsonucsol, nmascondsuaccins,                      &
     nmascondsuaccsol, nmascondsuaitins, nmascondsuaitsol,                      &
@@ -309,9 +311,10 @@ DO jv=1,nchemg
 
         !!          IF(JV == MH2SO4  ) DIFVOL=DH2SO4 ! as H2SO4+H2O hydrate
         !!          IF(JV == msec_org) DIFVOL=DSECOR ! as OH-a-pinene radical
+        !!          IF(JV == msec_orgi) DIFVOL=DSECOR ! as OH-a-pinene radical
         IF (jv == mh2so4) THEN
           difvol = 51.96          ! values from dist_data (BIN)
-        ELSE IF (jv == msec_org) THEN
+        ELSE IF (jv == msec_org .OR. jv == msec_orgi) THEN
           difvol = 204.14         ! values from dist_data (BIN)
         ELSE            ! trap if DIFVOL is being used w/o being defined
           ierr = 100+jv
@@ -380,15 +383,24 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondocnucsol > 0)) THEN
-            WHERE (mask3(:))
-
-              deltams(:)=delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
-
-              bud_aer_mas(:,nmascondocnucsol)=                                 &
-              bud_aer_mas(:,nmascondocnucsol)+deltams(:)
-
-            END WHERE
+          IF (msec_orgi > 0 .AND. jv == msec_orgi) THEN
+            IF ((icp == cp_oc) .AND. (nmascondocinucsol > 0)) THEN
+              ! condensation of sec_org_i to nucleation-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondocinucsol) =                             &
+                bud_aer_mas(:,nmascondocinucsol) + deltams(:)
+              END WHERE
+            END IF
+          ELSE
+              ! condensation of sec_org to nucleation-sol
+            IF ((icp == cp_oc) .AND. (nmascondocnucsol > 0)) THEN
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondocnucsol) =                              &
+                bud_aer_mas(:,nmascondocnucsol) + deltams(:)
+              END WHERE
+            END IF
           END IF
 
           IF ((icp == cp_so) .AND. (nmascondsonucsol > 0)) THEN
@@ -430,28 +442,46 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondocaitsol > 0)) THEN
-            WHERE (mask3(:))
-
-              deltams(:)=delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
-
-              bud_aer_mas(:,nmascondocaitsol)=                                 &
-              bud_aer_mas(:,nmascondocaitsol)+deltams(:)
-
-            END WHERE
+          IF (msec_orgi > 0 .AND. jv == msec_orgi) THEN
+            IF ((icp == cp_oc) .AND. (nmascondociaitsol > 0)) THEN
+              ! condensation of sec_org_i to Aitken-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondociaitsol) =                             &
+                bud_aer_mas(:,nmascondociaitsol) + deltams(:)
+              END WHERE
+            END IF
+          ELSE
+            IF ((icp == cp_oc) .AND. (nmascondocaitsol > 0)) THEN
+              ! condensation of sec_org to Aitken-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondocaitsol) =                              &
+                bud_aer_mas(:,nmascondocaitsol) + deltams(:)
+              END WHERE
+            END IF
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondocaitins > 0)) THEN
-            WHERE (mask3i(:))
-
-              deltami(:)=delgc_cond(:,jv)*nc(:,mode_ait_insol)/sumnc(:)
-
-              bud_aer_mas(:,nmascondocaitins)=                                 &
-              bud_aer_mas(:,nmascondocaitins)+deltami(:)
-
-              ageterm1(:,mode_nuc_sol,jv)=deltami(:)
-
-            END WHERE
+          IF (msec_orgi > 0 .AND. jv == msec_orgi) THEN
+            IF ((icp == cp_oc) .AND. (nmascondociaitins > 0)) THEN
+              ! condensation of sec_org_i to Aitken-insol
+              WHERE (mask3i(:))
+                deltami(:) = delgc_cond(:,jv)*nc(:,mode_ait_insol)/sumnc(:)
+                bud_aer_mas(:,nmascondociaitins) =                             &
+                bud_aer_mas(:,nmascondociaitins) + deltami(:)
+                ageterm1(:,mode_nuc_sol,jv) = deltami(:)
+              END WHERE
+            END IF
+          ELSE
+            IF ((icp == cp_oc) .AND. (nmascondocaitins > 0)) THEN
+              ! condensation of sec_org to Aitken-insol
+              WHERE (mask3i(:))
+                deltami(:) = delgc_cond(:,jv)*nc(:,mode_ait_insol)/sumnc(:)
+                bud_aer_mas(:,nmascondocaitins) =                              &
+                bud_aer_mas(:,nmascondocaitins) + deltami(:)
+                ageterm1(:,mode_nuc_sol,jv) = deltami(:)
+              END WHERE
+            END IF
           END IF
 
           IF ((icp == cp_so) .AND. (nmascondsoaitsol > 0)) THEN
@@ -506,16 +536,39 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondocaccsol > 0)) THEN
-            WHERE (mask3(:))
+          IF (msec_orgi > 0 .AND. jv == msec_orgi) THEN
+            IF ((icp == cp_oc) .AND. (nmascondociaccsol > 0)) THEN
+              ! condensation of sec_org_i to accumulation-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondociaccsol) =                             &
+                bud_aer_mas(:,nmascondociaccsol) + deltams(:)
+              END WHERE
+            END IF
+          ELSE
+            IF ((icp == cp_oc) .AND. (nmascondocaccsol > 0)) THEN
+              ! condensation of sec_org to accumulation-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondocaccsol) =                              &
+                bud_aer_mas(:,nmascondocaccsol) + deltams(:)
+              END WHERE
+            END IF
+          END IF
 
-              deltams(:)=delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+          IF ((icp == cp_oc) .AND. (nmascondocaccins > 0)) THEN
+            WHERE (mask3i(:))
 
-              bud_aer_mas(:,nmascondocaccsol)=                                 &
-              bud_aer_mas(:,nmascondocaccsol)+deltams(:)
+              deltami(:)=delgc_cond(:,jv)*nc(:,mode_acc_insol)/sumnc(:)
+
+              bud_aer_mas(:,nmascondocaccins)=                                 &
+              bud_aer_mas(:,nmascondocaccins)+deltami(:)
+
+              ageterm1(:,mode_ait_sol,jv)=deltami(:)
 
             END WHERE
           END IF
+
 
           IF ((icp == cp_oc) .AND. (nmascondocaccins > 0)) THEN
             WHERE (mask3i(:))
@@ -582,15 +635,24 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondoccorsol > 0)) THEN
-            WHERE (mask3(:))
-
-              deltams(:)=delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
-
-              bud_aer_mas(:,nmascondoccorsol)=                                 &
-              bud_aer_mas(:,nmascondoccorsol)+deltams(:)
-
-            END WHERE
+          IF (msec_orgi > 0 .AND. jv == msec_orgi) THEN
+            IF ((icp == cp_oc) .AND. (nmascondocicorsol > 0)) THEN
+              ! condensation of sec_org_i to coarse-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondocicorsol) =                             &
+                bud_aer_mas(:,nmascondocicorsol) + deltams(:)
+              END WHERE
+            END IF
+          ELSE
+            IF ((icp == cp_oc) .AND. (nmascondoccorsol > 0)) THEN
+              ! condensation of sec_org to coarse-sol
+              WHERE (mask3(:))
+                deltams(:) = delgc_cond(:,jv)*nc(:,imode)/sumnc(:)
+                bud_aer_mas(:,nmascondoccorsol) =                              &
+                bud_aer_mas(:,nmascondoccorsol) + deltams(:)
+              END WHERE
+            END IF
           END IF
 
           IF ((icp == cp_oc) .AND. (nmascondoccorins > 0)) THEN

@@ -56,6 +56,7 @@ INTEGER, SAVE, PUBLIC :: n_so2
 INTEGER, SAVE, PUBLIC :: n_so3
 INTEGER, SAVE, PUBLIC :: n_h2so4
 INTEGER, SAVE, PUBLIC :: n_sec_org
+INTEGER, SAVE, PUBLIC :: n_sec_org_i  ! Secondary organic from isoprene
 INTEGER, SAVE, PUBLIC :: n_cfcl3    ! CFC-11
 INTEGER, SAVE, PUBLIC :: n_cf2cl2   ! CFC-12
 INTEGER, SAVE, PUBLIC :: n_bro
@@ -164,6 +165,7 @@ USE ukca_constants,  ONLY: c_br, c_brcl, c_bro, c_brono2, c_buoo,              &
     c_no2, c_no3, c_o1d, c_o3, c_o3p, c_oclo, c_oh, c_orgnit,                  &
     c_oxyl1, c_oxylene, c_pan, c_ppan, c_proo, c_prooh, c_rnc2h4,              &
     c_rnc3h6, c_sec_org, c_so2, c_so3, c_tolp1, c_toluene, c_noa,              &
+    c_rnc3h6, c_sec_org, c_sec_org_i, c_so2, c_so3, c_tolp1, c_toluene, c_noa, &
     c_meo2no2, c_etono2, c_prono2, c_c2h2, c_benzene, c_tbut2ene,              &
     c_proh, c_etoh, c_etco3h, c_hoch2co3, c_hoch2co3h, c_hoch2ch2o2,           &
     c_hoch2cho, c_hoc2h4ooh, c_hoc2h4no3, c_phan, c_ch3sch2oo,                 &
@@ -298,6 +300,7 @@ WHERE (advt == 'NH3       ') c_species = c_nh3
 WHERE (advt == 'MeOH      ') c_species = c_meoh
 WHERE (advt == 'Monoterp  ') c_species = c_monoterp
 WHERE (advt == 'Sec_Org   ') c_species = c_sec_org
+WHERE (advt == 'SEC_ORG_I ') c_species = c_sec_org_i
 WHERE (advt == 'O(3P)     ') c_species = c_o3p
 WHERE (advt == 'OH        ') c_species = c_oh
 WHERE (advt == 'HO2       ') c_species = c_ho2
@@ -572,6 +575,7 @@ n_so2    = 0
 n_so3    = 0
 n_h2so4  = 0
 n_sec_org= 0
+n_sec_org_i = 0
 n_passive = 0
 n_hcho   = 0
 n_c2h6   = 0
@@ -654,6 +658,8 @@ DO m=1,jpctr
     n_h2so4  = m
   CASE ('Sec_Org   ')
     n_sec_org= m
+  CASE ('SEC_ORG_I ')
+    n_sec_org_i = m
   CASE ('BrO       ')
     n_bro    = m
   CASE ('HCl       ')

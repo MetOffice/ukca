@@ -25,6 +25,7 @@ PUBLIC :: ukca_emiss_diags_mode
 !    The routine ukca_emiss_diags_mode loops over each diagnostic, finds
 !    corresponding mass emissions and copies the diags elements of this into a
 !    local array em_diags. em_diags is then copied to stash in copydiag_3d.
+!    Marine OC emissions are separated by name.
 !
 !  Part of the UKCA model, a community model supported by
 !  The Met Office and NCAS, with components provided initially
@@ -43,9 +44,11 @@ TYPE :: type_mode_diag_struct
   INTEGER :: item  ! stash item number
   INTEGER :: mode  ! diag's mode
   INTEGER :: component  ! diag's component
+  CHARACTER(LEN=30) :: vname  ! name of variable in file
 END TYPE type_mode_diag_struct
 
-INTEGER, PARAMETER :: num_mode_diags = 21  ! 13 + 8 for nitrate scheme
+INTEGER, PARAMETER :: num_mode_diags = 23  ! 13 + 8 for nitrate scheme
+                                           ! + 2 for marine OC
 TYPE(type_mode_diag_struct) :: mode_diag(num_mode_diags)
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_EMISS_DIAGS_MODE_MOD'
@@ -71,15 +74,31 @@ USE ukca_mode_setup,  ONLY:                                                    &
     mode_acc_insol,                                                            &
     mode_cor_insol
 
+USE ukca_emiss_mod,  ONLY: marine_oc_online
+USE yomhook,  ONLY: lhook, dr_hook
+USE parkind1, ONLY: jprb, jpim
+
+
 IMPLICIT NONE
 
 INTEGER :: icount
 CHARACTER (LEN=errormessagelength) :: cmessage
 
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_EMISS_DIAGS_MODE_INIT'
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in=0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out=1
+REAL   (KIND=jprb)            :: zhook_handle
+
+! End of header
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
 icount = 0
 mode_diag(:)%item = -1
 mode_diag(:)%mode = -1
 mode_diag(:)%component = -1
+mode_diag(:)%vname = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 
 ! SO4 to aitken-sol
 icount = icount + 1
@@ -134,6 +153,20 @@ icount = icount + 1
 mode_diag(icount)%item = 209
 mode_diag(icount)%mode = mode_ait_insol
 mode_diag(icount)%component = cp_oc
+
+! marine OC to Aitken-sol
+icount = icount + 1
+mode_diag(icount)%item = 388
+mode_diag(icount)%mode = mode_ait_sol
+mode_diag(icount)%component = cp_oc
+mode_diag(icount)%vname = marine_oc_online
+
+! marine OC to Aitken-insol
+icount = icount + 1
+mode_diag(icount)%item = 389
+mode_diag(icount)%mode = mode_ait_insol
+mode_diag(icount)%component = cp_oc
+mode_diag(icount)%vname = marine_oc_online
 
 ! dust to accum-sol
 icount = icount + 1
@@ -213,6 +246,8 @@ IF (icount /= num_mode_diags) THEN
   CALL ereport ('UKCA_EMISS_DIAGS_MODE_INIT', icount, cmessage)
 END IF
 
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
 END SUBROUTINE ukca_emiss_diags_mode_init
 
 
@@ -223,9 +258,11 @@ USE ukca_config_specification_mod, ONLY: glomap_variables
 
 USE ukca_mode_setup,    ONLY: moment_mass
 
-USE ukca_emiss_mod,     ONLY: emissions, num_em_flds
+USE ukca_emiss_mod,     ONLY: emissions, num_em_flds, marine_oc_online
+USE parkind1,           ONLY: jprb, jpim
 
 USE yomhook,            ONLY: lhook, dr_hook
+USE copydiag_mod,       ONLY: copydiag
 
 USE ukca_um_legacy_mod, ONLY: len_stlist, stindex, stlist, num_stash_levels,   &
                               stash_levels, si, sf, si_last,                   &
@@ -265,6 +302,7 @@ INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1
 REAL    (KIND=jprb)            :: zhook_handle
 
+CHARACTER(LEN=30) :: varname                   ! Name of emission
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_EMISS_DIAGS_MODE'
 
 ! End of header
@@ -286,31 +324,53 @@ DO k = 1, num_mode_diags
   imode = mode_diag(k)%mode
   icp = mode_diag(k)%component
   item = mode_diag(k)%item
+  varname = mode_diag(k)%vname
 
   IF (sf(item, section)) THEN
     ! Loop through all emissions to store the diagnostics for this mode/cpt
     em_diags(:,:,:) = 0.0
     lfound = .FALSE.
     DO l = 1, num_em_flds
+      IF (varname == marine_oc_online) THEN
+        ! Match emissions to name for online marine OC to separate
+        IF ((emissions(l)%tracer_name == 'mode_emiss') .AND.                   &
+            (emissions(l)%moment == moment_mass)       .AND.                   &
+            (emissions(l)%mode == imode)               .AND.                   &
+            (emissions(l)%var_name == 'pmoc_online_emission') .AND.            &
+            (emissions(l)%component == icp)) THEN
 
-      IF ((emissions(l)%tracer_name == 'mode_emiss') .AND.                     &
-          (emissions(l)%moment == moment_mass)       .AND.                     &
-          (emissions(l)%mode == imode)               .AND.                     &
-          (emissions(l)%component == icp)) THEN
+          lfound = .TRUE.
 
-        lfound = .TRUE.
-        IF (emissions(l)%three_dim) THEN
-          em_diags(:,:,:) = em_diags(:,:,:) + emissions(l)%diags(:,:,:)
-        ELSE
-          ! For 2D emissions, diags stored in level 1 but vertical scaling
-          ! stored and we use it to re-project onto levels. Column total of
-          ! vert_scaling_3d is always equal to 1.
-          DO ilev = 1, model_levels
-            em_diags(:,:,ilev) = em_diags(:,:,ilev) +                          &
-              emissions(l)%diags(:,:,1) * emissions(l)%vert_scaling_3d(:,:,ilev)
-          END DO
-        END IF  ! three_dim
-      END IF  ! if this emission matches the diagnostic
+          IF (emissions(l)%three_dim) THEN
+            em_diags(:,:,:) = em_diags(:,:,:) + emissions(l)%diags(:,:,:)
+          ELSE
+            em_diags(:,:,1) = em_diags(:,:,1) + emissions(l)%diags(:,:,1)
+            ! For 2D emissions, diags stored in level 1, vert_scaling unused
+          END IF
+        END IF  ! if this emission matches the diagnostic
+      ELSE
+        ! Not marine OC emissions
+        IF ((emissions(l)%tracer_name == 'mode_emiss') .AND.                   &
+            (emissions(l)%moment == moment_mass)       .AND.                   &
+            (emissions(l)%mode == imode)               .AND.                   &
+            (emissions(l)%component == icp)) THEN
+
+          lfound = .TRUE.
+          IF (emissions(l)%three_dim) THEN
+            em_diags(:,:,:) = em_diags(:,:,:) + emissions(l)%diags(:,:,:)
+          ELSE
+            ! For 2D emissions, diags stored in level 1 but vertical scaling
+            ! stored and we use it to re-project onto levels.  Column total of
+            ! vert_scaling_3d is always equal to 1.
+            DO ilev = 1, model_levels
+              em_diags(:,:,ilev) = em_diags(:,:,ilev) +                        &
+                             emissions(l)%diags(:,:,1) *                       &
+                             emissions(l)%vert_scaling_3d(:,:,ilev)
+            END DO
+          END IF  ! three_dim
+        END IF  ! if this emission matches the diagnostic
+
+      END IF    ! varname
 
     END DO  ! loop over emissions
 
@@ -326,12 +386,21 @@ DO k = 1, num_mode_diags
     ! Convert from kg/m2/s to mol/gridbox/s
     em_diags(:,:,:) = em_diags(:,:,:) * area(:,:,:) / glomap_variables%mm(icp)
 
-    CALL copydiag_3d (stashwork (si(item,section,im_index):                    &
-         si_last(item,section,im_index)),                                      &
-             em_diags (:,:,:),                                                 &
-             row_length, rows,model_levels,                                    &
-             stlist(:,stindex(1,item,section,im_index)), len_stlist,           &
-             stash_levels, num_stash_levels+1)
+    IF (varname == marine_oc_online) THEN
+      ! Use first layer of em_diags only
+      CALL copydiag(stashwork (si(item,section,im_index):                      &
+                 si_last(item,section,im_index)),                              &
+                 em_diags(:,:,1), row_length, rows)
+    ELSE
+      ! everything else
+
+      CALL copydiag_3d (stashwork (si(item,section,im_index):                  &
+           si_last(item,section,im_index)),                                    &
+               em_diags (:,:,:),                                               &
+               row_length, rows,model_levels,                                  &
+               stlist(:,stindex(1,item,section,im_index)), len_stlist,         &
+               stash_levels, num_stash_levels+1)
+    END IF  ! varname
   END IF  ! if diagnostic requested
 END DO  ! loop over diags
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
