@@ -66,12 +66,7 @@ USE ukca_config_specification_mod, ONLY:                                       &
   rad_ait,                                                                     &
   rad_acc,                                                                     &
   chi,                                                                         &
-  sigma,                                                                       &
-  i_liss_merlivat,                                                             &
-  i_wanninkhof,                                                                &
-  i_nightingale
-
-USE ukca_dms_flux_mod, ONLY: dms_flux_4a => ukca_dms_flux
+  sigma
 
 IMPLICIT NONE
 

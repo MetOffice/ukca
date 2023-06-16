@@ -78,7 +78,7 @@ USE ukca_emiss_mode_mod,  ONLY: aero_ems_species
 USE ukca_emiss_factors,   ONLY: vertical_emiss_factors
 USE ukca_add_emiss_mod,   ONLY: ukca_add_emiss
 USE ukca_um_legacy_mod,   ONLY: sf, stashcode_glomap_sec, ukca_diag_sect,      &
-                                rgas => r, dms_flux_4a
+                                rgas => r
 USE ukca_config_defs_mod, ONLY: n_chem_emissions, n_3d_emissions, em_chem_spec,&
                                 n_chem_tracers, n_aero_tracers, n_mode_tracers
 USE ukca_emiss_diags_mod, ONLY: ukca_emiss_diags
@@ -118,6 +118,8 @@ USE yomhook,              ONLY: lhook, dr_hook  ! DrHook
 
 USE ukca_diurnal_isop_ems_mod, ONLY: ukca_diurnal_isop_ems
 USE ukca_light_ctl_mod, ONLY: ukca_light_ctl
+USE ukca_dms_flux_mod, ONLY: ukca_dms_flux
+
 USE ukca_prim_ss_mod, ONLY: ukca_prim_ss
 USE ukca_prim_moc_mod, ONLY: ukca_prim_moc
 
@@ -684,7 +686,7 @@ END IF ! (l_ukca_inferno)
 
 ! Call DMS flux routine if marine DMS emissions are required
 IF (ukca_config%l_seawater_dms) THEN
-  CALL dms_flux_4a(row_length, rows,                                           &
+  CALL ukca_dms_flux(row_length, rows,                                         &
            u_scalar_10m, tstar, land_fraction, dms_sea_conc,                   &
            ukca_config%i_ukca_dms_flux, f_dms_sea)
 

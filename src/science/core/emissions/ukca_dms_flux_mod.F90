@@ -12,9 +12,9 @@
 !
 ! Method:
 !
-!   The sea-air exchange can be determined according to one of three
+!   The sea-air exchange can be determined according to one of four
 !   commonly-used parametrization schemes, those of Liss & Merlivat (1986),
-!   Wanninkhof (1992) and Nightingale et al. (2000).
+!   Wanninkhof (1992), Nightingale et al. (2000), and Blomquist et al. (2017).
 !
 !   The Schmidt number for DMS is calculated as in Saltzman et al. (1993)
 !   and used with the windspeed to determine the mass transfer (or
@@ -45,7 +45,7 @@
 MODULE ukca_dms_flux_mod
 
 USE ukca_config_specification_mod, ONLY: i_liss_merlivat, i_wanninkhof,        &
-                                         i_nightingale, zerodegc
+                                         i_nightingale, i_blomquist, zerodegc
 
 IMPLICIT NONE
 
@@ -162,6 +162,19 @@ CASE (i_nightingale)
       n = -0.5
       IF (land_fract(i, j)  <   1.0) THEN
         k_dms(i, j) = k_600 * (sc(i, j)/600.0)**n
+      ELSE
+        k_dms(i, j) = 0.0
+      END IF
+    END DO
+  END DO
+
+CASE (i_blomquist)
+  DO j = 1, rows
+    DO i = 1, row_length
+      k_600 = 0.7432 * (wind_10m(i, j)**1.33)
+      n = -0.5
+      IF (land_fract(i, j)  <   1.0) THEN
+        k_dms(i, j) = k_600 * (sc(i, j)/660.0)**n
       ELSE
         k_dms(i, j) = 0.0
       END IF

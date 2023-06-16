@@ -19,3 +19,4 @@ Charlotte Norris		Met Office
 Marc Stringer                   National Centre for Atmospheric Science and
                                 University of Reading
 James Weber                     University of Sheffield
+Yusuf Bhatti                    University of Canterbury

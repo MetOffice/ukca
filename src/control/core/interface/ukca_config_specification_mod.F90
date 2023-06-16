@@ -598,6 +598,7 @@ INTEGER, PARAMETER :: i_dms_flux_off = 0    ! No marine DMS flux
 INTEGER, PARAMETER :: i_liss_merlivat = 1   ! Liss & Merlivat (1986)
 INTEGER, PARAMETER :: i_wanninkhof = 2      ! Wanninkhof (1992)
 INTEGER, PARAMETER :: i_nightingale = 3     ! Nightingale et al. (2000)
+INTEGER, PARAMETER :: i_blomquist = 4       ! Blomquist et al. (2017)
 
 ! -- Data structures specifying details of the active UKCA configuration --
 ! ---------------------------------------------------------------------------

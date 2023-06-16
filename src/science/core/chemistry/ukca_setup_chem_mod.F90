@@ -48,8 +48,8 @@ USE ukca_config_specification_mod, ONLY:                                       &
 USE asad_mod, ONLY: jpctr, jpspec, jpbk, jptk, jppj, jphk, jpdd, jpdw,         &
                     jpcspf, jpnr
 
-USE ukca_um_legacy_mod, ONLY: i_liss_merlivat, i_wanninkhof,                   &
-                              i_nightingale
+USE ukca_config_specification_mod, ONLY: i_liss_merlivat, i_wanninkhof,        &
+                              i_nightingale, i_blomquist
 USE missing_data_mod, ONLY: imdi
 USE ereport_mod,     ONLY: ereport
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Diag
@@ -371,11 +371,14 @@ IF (ukca_config%l_ukca_chem_aero .AND. ukca_config%l_seawater_dms) THEN
     !    Do nothing
   CASE (i_nightingale)
     !    Do nothing
+  CASE (i_blomquist)
+    !    Do nothing
+
   CASE DEFAULT
     ! If not set or set to unknown value, throw up an error
     CALL umPrint(                                                              &
       'Marine DMS emissions expected but no UKCA DMS scheme is selected '      &
-      // 'i_ukca_dms_flux should be 1,2 or 3')
+      // 'i_ukca_dms_flux should be 1,2,3 or 4')
     errcode = 4
     cmessage = 'RUN_UKCA: DMS flux scheme not specified'
     CALL ereport('UKCA_SETUP_CHEM_MOD',errcode,cmessage)
