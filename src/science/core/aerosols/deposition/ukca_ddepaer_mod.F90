@@ -211,7 +211,8 @@ USE ukca_mode_setup,         ONLY: nmodes,                                     &
                                    mode_nuc_sol, mode_ait_sol, mode_acc_sol,   &
                                    mode_cor_sol, mode_ait_insol,               &
                                    mode_acc_insol, mode_cor_insol,             &
-                                   cp_no3, cp_nh4, cp_nn
+                                   cp_no3, cp_nh4, cp_nn,                      &
+                                   mode_sup_insol
 
 USE ukca_setup_indices,      ONLY: nmasddepbcaccsol,                           &
                                    nmasddepbcaitins, nmasddepbcaitsol,         &
@@ -228,7 +229,8 @@ USE ukca_setup_indices,      ONLY: nmasddepbcaccsol,                           &
                                    nmasddepntaitsol, nmasddepntaccsol,         &
                                    nmasddepntcorsol, nmasddepnhaitsol,         &
                                    nmasddepnhaccsol, nmasddepnhcorsol,         &
-                                   nmasddepnnaccsol, nmasddepnncorsol
+                                   nmasddepnnaccsol, nmasddepnncorsol,         &
+                                   nmasddepdusupins
 USE ukca_ddepaer_coeff_mod,  ONLY: alpha, cr, yr, ls_ice, ls_ocean, ls_soil,   &
                                    ls_water
 
@@ -557,6 +559,11 @@ DO imode=1,nmodes
             WHERE (mask4(:))                                                   &
              bud_aer_mas(:,nmasddepducorins)=                                  &
              bud_aer_mas(:,nmasddepducorins)+delmddep(:)
+          END IF
+          IF ((imode == mode_sup_insol) .AND. (nmasddepdusupins > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepdusupins)=                                  &
+             bud_aer_mas(:,nmasddepdusupins)+delmddep(:)
           END IF
         END IF
         ! Nitrate scheme (MS10)

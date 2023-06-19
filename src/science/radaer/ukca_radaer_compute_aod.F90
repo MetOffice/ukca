@@ -70,6 +70,8 @@ USE ukca_radaer_lut,        ONLY:                                              &
     ip_ukca_lut_accum,                                                         &
     ip_ukca_lut_coarse,                                                        &
     ip_ukca_lut_accnarrow,                                                     &
+    ip_ukca_lut_cornarrow,                                                     &
+    ip_ukca_lut_supercoarse,                                                   &
     ip_ukca_lut_sw,                                                            &
     ukca_lut
 
@@ -80,7 +82,8 @@ USE ukca_radaer_precalc,    ONLY:                                              &
 USE ukca_mode_setup,        ONLY:                                              &
     ip_ukca_mode_aitken,                                                       &
     ip_ukca_mode_accum,                                                        &
-    ip_ukca_mode_coarse
+    ip_ukca_mode_coarse,                                                       &
+    ip_ukca_mode_supercoarse
 
 USE ukca_radaer_struct_mod, ONLY:                                              &
     ukca_radaer_struct,                                                        &
@@ -265,6 +268,9 @@ DO i_mode = 1, n_ukca_mode
     ! accumulation types are treated in the same way.
     ! Accumulation soluble mode may use a narrower width (i.e. another
     ! look-up table) than other Aitken and accumulation modes.
+    ! The coarse insoluble mode in the 3 dust mode setup may have a
+    ! narrower width than the default 2.0 which is the case if the
+    ! super-coarse insoluble mode is selected
     ! Once we know which look-up table to select, make local copies
     ! of info needed for nearest-neighbour calculations.
     ! For aerosol optical depth calculations, the shortwave spectrum
@@ -284,7 +290,15 @@ DO i_mode = 1, n_ukca_mode
       END IF
 
     CASE (ip_ukca_mode_coarse)
-      this_mode_type = ip_ukca_lut_coarse
+      IF ((.NOT. ukca_radaer%l_soluble(i_mode)) .AND.                          &
+          ukca_radaer%l_cornarrow_ins) THEN
+        this_mode_type = ip_ukca_lut_cornarrow
+      ELSE
+        this_mode_type = ip_ukca_lut_coarse
+      END IF
+
+    CASE (ip_ukca_mode_supercoarse)
+      this_mode_type = ip_ukca_lut_supercoarse
 
     END SELECT
 

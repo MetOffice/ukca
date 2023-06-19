@@ -342,7 +342,7 @@ IF ( first .AND. PrintStatus >= PrStatus_Oper ) THEN
   CALL umPrint(umMessage,src=RoutineName)
   WRITE(umMessage,'(A,2I4)') 'nmodes, ncp ', nmodes, ncp
   CALL umPrint(umMessage,src=RoutineName)
-  WRITE(umMessage,'(A,7L1)') 'mode ', mode
+  WRITE(umMessage,'(A,8L1)') 'mode ', mode
   CALL umPrint(umMessage,src=RoutineName)
 END IF
 

@@ -87,7 +87,7 @@ USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 
 USE ukca_config_specification_mod, ONLY: glomap_variables
 
-USE ukca_mode_setup,        ONLY: nmodes, cp_du
+USE ukca_mode_setup,        ONLY: nmodes, cp_du, mode_sup_insol
 
 USE ukca_environment_fields_mod, ONLY: drep
 USE ereport_mod,            ONLY: ereport
@@ -155,14 +155,22 @@ END IF
 
 ! Mapping of dust bins to insoluble modes. Currently only bins 2-5 used.
 ! NB This mapping is not ideal, and will be changed in future versions.
-
-fracduem(1,:)=[0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-fracduem(2,:)=[0.0,0.0,0.0,0.0,0.0,1.0,0.0]
-fracduem(3,:)=[0.0,0.0,0.0,0.0,0.0,0.5,0.5]
-fracduem(4,:)=[0.0,0.0,0.0,0.0,0.0,0.0,1.0]
-fracduem(5,:)=[0.0,0.0,0.0,0.0,0.0,0.0,1.0]
-fracduem(6,:)=[0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-!
+! Different emissions mapping for 3 mode setup to 2 mode setup
+IF (glomap_variables%mode(mode_sup_insol)) THEN
+  fracduem(1,:)=[0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+  fracduem(2,:)=[0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+  fracduem(3,:)=[0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0]
+  fracduem(4,:)=[0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0]
+  fracduem(5,:)=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0]
+  fracduem(6,:)=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0]
+ELSE
+  fracduem(1,:)=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+  fracduem(2,:)=[0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0]
+  fracduem(3,:)=[0.0,0.0,0.0,0.0,0.0,0.5,0.5,0.0]
+  fracduem(4,:)=[0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0]
+  fracduem(5,:)=[0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0]
+  fracduem(6,:)=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+END IF
 
 ! convert from molecules_air/particles to kg(air)
 ms_part_to_kg = mm_da/avogadro

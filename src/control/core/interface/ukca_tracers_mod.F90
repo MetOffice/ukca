@@ -74,6 +74,8 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_acc_ins_du,                                                          &
   fldname_cor_ins_n,                                                           &
   fldname_cor_ins_du,                                                          &
+  fldname_sup_ins_n,                                                           &
+  fldname_sup_ins_du,                                                          &
   fldname_nuc_sol_om,                                                          &
   fldname_ait_sol_ss,                                                          &
   fldname_nuc_sol_so,                                                          &
@@ -162,7 +164,8 @@ USE asad_mod, ONLY: jpctr
 USE ukca_mode_setup, ONLY: nmodes,                                             &
                            mode_nuc_sol, mode_ait_sol, mode_acc_sol,           &
                            mode_cor_sol, mode_ait_insol, mode_acc_insol,       &
-                           mode_cor_insol, cp_su, cp_bc, cp_oc, cp_cl,         &
+                           mode_cor_insol, mode_sup_insol,                     &
+                           cp_su, cp_bc, cp_oc, cp_cl,                         &
                            cp_du, cp_so, cp_no3, cp_nh4, cp_nn
 
 IMPLICIT NONE
@@ -194,7 +197,7 @@ TYPE :: mode_tr_entry
                                                 ! (0 for the mode's NMR tracer)
 END TYPE mode_tr_entry
 
-INTEGER, PARAMETER :: n_mode_tracers = 41       ! No. of recognised MODE tracers
+INTEGER, PARAMETER :: n_mode_tracers = 43       ! No. of recognised MODE tracers
 TYPE(mode_tr_entry):: mode_info(n_mode_tracers) ! Table of associations
 
 ! Local variables
@@ -258,7 +261,9 @@ mode_info=[                                                                    &
   mode_tr_entry(fldname_acc_sol_nt, mode_acc_sol, cp_no3),                     &
   mode_tr_entry(fldname_cor_sol_nt, mode_cor_sol, cp_no3),                     &
   mode_tr_entry(fldname_acc_sol_nn, mode_acc_sol, cp_nn),                      &
-  mode_tr_entry(fldname_cor_sol_nn, mode_cor_sol, cp_nn)                       &
+  mode_tr_entry(fldname_cor_sol_nn, mode_cor_sol, cp_nn),                      &
+  mode_tr_entry(fldname_sup_ins_n, mode_sup_insol, 0),                         &
+  mode_tr_entry(fldname_sup_ins_du, mode_sup_insol, cp_du)                     &
 ]
 
 ! Ensure all tracer-related data are in uninitialised state

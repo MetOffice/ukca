@@ -60,7 +60,7 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
 ! MD        : Component median aerosol mass (molecules per ptcl)
 ! MDT       : Total median aerosol mass (molecules per ptcl)
 ! AGETERM1  : Depletion rate of each component (molecules cpt/cc/DTZ)
-!             from condensation onto the 3 insoluble modes.
+!             from condensation onto the 4 insoluble modes.
 ! AGETERM2  : Rate of accomodation of material to each insoluble mode
 !             as a result of coagulation with smaller soluble modes
 !             (in molecules cpt /cm3/DTZ)
@@ -98,6 +98,8 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
 ! Inputted by module UKCA_MODE_SETUP
 ! ----------------------------------
 ! NMODES    : Number of possible aerosol modes
+! NMODES_SOL: Number of possible soluble aerosol modes
+! NMODES_INS: Number of possible insoluble aerosol modes
 ! NCP       : Number of possible aerosol components
 ! MODE      : Which modes are being carried
 ! COMPONENT : Which components are in each of modes
@@ -122,6 +124,8 @@ USE ukca_config_specification_mod, ONLY:                                       &
 
 USE ukca_mode_setup,    ONLY:                                                  &
     nmodes,                                                                    &
+    nmodes_sol,                                                                &
+    nmodes_ins,                                                                &
     cp_su,                                                                     &
     cp_bc,                                                                     &
     cp_oc,                                                                     &
@@ -131,14 +135,16 @@ USE ukca_mode_setup,    ONLY:                                                  &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
-    mode_cor_insol
+    mode_cor_insol,                                                            &
+    mode_sup_insol
 
 USE ukca_setup_indices, ONLY: condensable,                                     &
         condensable_choice, mm_gas, dimen, nmasagedsuintr52,                   &
         nmasagedocintr52, nmasagedsointr52, nmasagedbcintr52,                  &
         nmasagedsuintr63, nmasagedocintr63, nmasagedsointr63,                  &
         nmasagedduintr63, nmasagedsuintr74, nmasagedocintr74,                  &
-        nmasagedsointr74, nmasagedduintr74
+        nmasagedsointr74, nmasagedduintr74, nmasagedsuintr84,                  &
+        nmasagedocintr84, nmasagedsointr84, nmasagedduintr84
 
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
@@ -149,8 +155,9 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: nbox
 INTEGER, INTENT(IN) :: nchemg
 INTEGER, INTENT(IN) :: nbudaer
-REAL, INTENT(IN)    :: ageterm1(nbox,3,nchemg)
-REAL, INTENT(IN)    :: ageterm2(nbox,4,3,glomap_variables%ncp)
+REAL, INTENT(IN)    :: ageterm1(nbox,nmodes_ins,nchemg)
+REAL, INTENT(IN)    :: ageterm2(nbox,nmodes_sol,nmodes_ins,                    &
+                                glomap_variables%ncp)
 REAL, INTENT(IN)    :: wetdp(nbox,nmodes)
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
@@ -173,6 +180,7 @@ INTEGER :: jl
 INTEGER :: jv
 INTEGER :: imode
 INTEGER :: jmode
+INTEGER :: tmode ! target mode
 INTEGER :: icp
 INTEGER :: cp_coag_added(glomap_variables%ncp)
 INTEGER :: topmode
@@ -207,13 +215,19 @@ num_eps     => glomap_variables%num_eps
 
 !set limit of modes to be aged
 IF (iagecoagnucl67 == 1 ) THEN
-  topmode = mode_cor_insol
+  topmode = mode_sup_insol
 ELSE
   topmode = mode_ait_insol
 END IF
 
 DO imode=mode_ait_insol,topmode ! loop over insoluble modes
   IF (mode(imode)) THEN
+    ! Set the target mode
+    IF (imode < mode_sup_insol) THEN
+      tmode = imode-3
+    ELSE
+      tmode = imode-4
+    END IF
     DO jl=1,nbox
       IF (nd(jl,imode) > num_eps(imode)) THEN
         cp_coag_added(:)=0
@@ -231,7 +245,7 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
             ! .. Below add on amount of soluble material taken up by insoluble
             !     modes
             ! .. as result of condensation of this gas onto insoluble modes
-            ! .. This is stored in AGETERM1(:,3,NCP) for the 3 insoluble modes
+            ! .. This is stored in AGETERM1(:,4,NCP) for the 4 insoluble modes
             icp=condensable_choice(jv)
             f_mm(icp)=mm_gas(jv)/mm(icp)
             totage_jv=ageterm1(jl,imode-4,jv)/f_mm(icp)
@@ -291,7 +305,7 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
           !
           ndinsnew=nd(jl,imode)-naged
           ! set new insoluble mode no. (but don't update ND yet)
-          ndsolnew=nd(jl,imode-3)+naged
+          ndsolnew=nd(jl,tmode)+naged
           ! set new   soluble mode no. (but don't update ND yet)
           !
 
@@ -299,72 +313,109 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
             DO icp=1,ncp
               ! below transfers aged cpt masses from ins modes
               !  (doesn't include SU)
-              IF (component(imode-3,icp)) THEN
+              IF (component(tmode,icp)) THEN
                 ! above if statement checks whether cpt is in corresponding
                 !  soluble mode
                 IF (imode == mode_ait_insol) THEN
-                  IF ((icp == cp_su) .AND. (nmasagedsuintr52 > 0))             &
-                bud_aer_mas(jl,nmasagedsuintr52)=                              &
-                bud_aer_mas(jl,nmasagedsuintr52)+totage(icp)*f_mm(icp)
-                  IF ((icp == cp_oc) .AND. (nmasagedocintr52 > 0))             &
-                bud_aer_mas(jl,nmasagedocintr52)=                              &
-                bud_aer_mas(jl,nmasagedocintr52)+totage(icp)*f_mm(icp)
-                  IF ((icp == cp_so) .AND. (nmasagedsointr52 > 0))             &
-                bud_aer_mas(jl,nmasagedsointr52)=                              &
-                bud_aer_mas(jl,nmasagedsointr52)+totage(icp)*f_mm(icp)
+                  IF ((icp == cp_su) .AND. (nmasagedsuintr52 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsuintr52)=                          &
+                    bud_aer_mas(jl,nmasagedsuintr52)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_oc) .AND. (nmasagedocintr52 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedocintr52)=                          &
+                    bud_aer_mas(jl,nmasagedocintr52)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_so) .AND. (nmasagedsointr52 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsointr52)=                          &
+                    bud_aer_mas(jl,nmasagedsointr52)+totage(icp)*f_mm(icp)
+                  END IF
                   !! above accounts for transfer of mass of condensed/coagulated
                   !! material multiply above by F_MM 'cos TOTAGE is in molecules
                   !! of gas phase species (H2SO4/Sec_Org) whereas needs to be
                   !! in "molecules" of aerosol component (CP_SU/CP_OC/CP_SU)
-                  IF ((icp == cp_bc) .AND. (nmasagedbcintr52 > 0))             &
-                bud_aer_mas(jl,nmasagedbcintr52)=                              &
-                bud_aer_mas(jl,nmasagedbcintr52)+naged*md(jl,imode,icp)
-                  IF ((icp == cp_oc) .AND. (nmasagedocintr52 > 0))             &
-                bud_aer_mas(jl,nmasagedocintr52)=                              &
-                bud_aer_mas(jl,nmasagedocintr52)+naged*md(jl,imode,icp)
+                  IF ((icp == cp_bc) .AND. (nmasagedbcintr52 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedbcintr52)=                          &
+                    bud_aer_mas(jl,nmasagedbcintr52)+naged*md(jl,imode,icp)
+                  END IF
+                  IF ((icp == cp_oc) .AND. (nmasagedocintr52 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedocintr52)=                          &
+                    bud_aer_mas(jl,nmasagedocintr52)+naged*md(jl,imode,icp)
+                  END IF
                   !! .. above 2 lines account for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is Aitken-insoluble
                 IF (imode == mode_acc_insol) THEN
-                  IF ((icp == cp_su) .AND. (nmasagedsuintr63 > 0))             &
-                bud_aer_mas(jl,nmasagedsuintr63)=                              &
-                bud_aer_mas(jl,nmasagedsuintr63)+totage(icp)*f_mm(icp)
-                  IF ((icp == cp_oc) .AND. (nmasagedocintr63 > 0))             &
-                bud_aer_mas(jl,nmasagedocintr63)=                              &
-                bud_aer_mas(jl,nmasagedocintr63)+totage(icp)*f_mm(icp)
-                  IF ((icp == cp_so) .AND. (nmasagedsointr63 > 0))             &
-                bud_aer_mas(jl,nmasagedsointr63)=                              &
-                bud_aer_mas(jl,nmasagedsointr63)+totage(icp)*f_mm(icp)
+                  IF ((icp == cp_su) .AND. (nmasagedsuintr63 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsuintr63)=                          &
+                    bud_aer_mas(jl,nmasagedsuintr63)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_oc) .AND. (nmasagedocintr63 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedocintr63)=                          &
+                    bud_aer_mas(jl,nmasagedocintr63)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_so) .AND. (nmasagedsointr63 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsointr63)=                          &
+                    bud_aer_mas(jl,nmasagedsointr63)+totage(icp)*f_mm(icp)
+                  END IF
                   !! above accounts for transfer of mass of condensed/coagulated
                   !! material multiply above by F_MM 'cos TOTAGE is in molecules
                   !! of gas phase species (H2SO4/Sec_Org) whereas needs to be in
                   !! "molecules" of aerosol component (CP_SU/CP_OC/CP_SU)
-                  IF ((icp == cp_du) .AND. (nmasagedduintr63 > 0))             &
-                bud_aer_mas(jl,nmasagedduintr63)=                              &
-                bud_aer_mas(jl,nmasagedduintr63)+naged*md(jl,imode,icp)
+                  IF ((icp == cp_du) .AND. (nmasagedduintr63 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedduintr63)=                          &
+                    bud_aer_mas(jl,nmasagedduintr63)+naged*md(jl,imode,icp)
+                  END IF
                   !! .. above 1 line accounts for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is accum.-insoluble
                 IF (imode == mode_cor_insol) THEN
-                  IF ((icp == cp_su) .AND. (nmasagedsuintr74 > 0))             &
-                bud_aer_mas(jl,nmasagedsuintr74)=                              &
-                bud_aer_mas(jl,nmasagedsuintr74)+totage(icp)*f_mm(icp)
-                  IF ((icp == cp_oc) .AND. (nmasagedocintr74 > 0))             &
-                bud_aer_mas(jl,nmasagedocintr74)=                              &
-                bud_aer_mas(jl,nmasagedocintr74)+totage(icp)*f_mm(icp)
-                  IF ((icp == cp_so) .AND. (nmasagedsointr74 > 0))             &
-                bud_aer_mas(jl,nmasagedsointr74)=                              &
-                bud_aer_mas(jl,nmasagedsointr74)+totage(icp)*f_mm(icp)
+                  IF ((icp == cp_su) .AND. (nmasagedsuintr74 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsuintr74)=                          &
+                    bud_aer_mas(jl,nmasagedsuintr74)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_oc) .AND. (nmasagedocintr74 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedocintr74)=                          &
+                    bud_aer_mas(jl,nmasagedocintr74)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_so) .AND. (nmasagedsointr74 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsointr74)=                          &
+                    bud_aer_mas(jl,nmasagedsointr74)+totage(icp)*f_mm(icp)
+                  END IF
                   !! above accounts for transfer of mass of condensed/coagulated
                   !! material multiply above by F_MM 'cos TOTAGE is in molecules
                   !! of gas phase species (H2SO4/Sec_Org) whereas needs to be in
                   !! "molecules" of aerosol component (CP_SU/CP_OC/CP_SU)
-                  IF ((icp == cp_du) .AND. (nmasagedduintr74 > 0))             &
-                bud_aer_mas(jl,nmasagedduintr74)=                              &
-                bud_aer_mas(jl,nmasagedduintr74)+naged*md(jl,imode,icp)
+                  IF ((icp == cp_du) .AND. (nmasagedduintr74 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedduintr74)=                          &
+                    bud_aer_mas(jl,nmasagedduintr74)+naged*md(jl,imode,icp)
+                  END IF
                   !! .. above 1 line accounts for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is coarse-insoluble
+                IF (imode == mode_sup_insol) THEN
+                  IF ((icp == cp_su) .AND. (nmasagedsuintr84 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsuintr84)=                          &
+                    bud_aer_mas(jl,nmasagedsuintr84)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_oc) .AND. (nmasagedocintr84 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedocintr84)=                          &
+                    bud_aer_mas(jl,nmasagedocintr84)+totage(icp)*f_mm(icp)
+                  END IF
+                  IF ((icp == cp_so) .AND. (nmasagedsointr84 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedsointr84)=                          &
+                    bud_aer_mas(jl,nmasagedsointr84)+totage(icp)*f_mm(icp)
+                  END IF
+                  !! above accounts for transfer of mass of condensed/coagulated
+                  !! material multiply above by F_MM 'cos TOTAGE is in molecules
+                  !! of gas phase species (H2SO4/Sec_Org) whereas needs to be in
+                  !! "molecules" of aerosol component (CP_SU/CP_OC/CP_SU)
+                  IF ((icp == cp_du) .AND. (nmasagedduintr84 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedduintr84)=                          &
+                    bud_aer_mas(jl,nmasagedduintr84)+naged*md(jl,imode,icp)
+                  END IF
+                  !! .. above 1 line accounts for transfer of mass due to aged
+                  !      aerosol
+                END IF ! if mode is super-coarse insoluble
 
                 !! .. below calculates new cpt total masses in soluble modes
                 !! .. due to transfer of mass from Ait-ins/acc-ins/cor-ins
@@ -377,7 +428,7 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
                   ! corresponding soluble mode cpt mass due to trans from
                   ! ins. mode & cond onto ins (n.b. coag already transferred
                   ! in coagulation routine using COAG_MODE)
-                  md(jl,imode-3,icp)=(nd(jl,imode-3)*md(jl,imode-3,icp)        &
+                  md(jl,tmode,icp)=(nd(jl,tmode)*md(jl,tmode,icp)              &
                    +naged*md(jl,imode,icp)+totage1(icp)*f_mm(icp))/ndsolnew
                 ELSE ! if in sol mode but not in insoluble mode
                   ! if sol. mode component is not in insoluble mode then just
@@ -385,7 +436,7 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
                   ! (& change in number)
                   ! (n.b. coag already transferred in coagulation routine
                   !  using COAG_MODE)
-                  md(jl,imode-3,icp)=(nd(jl,imode-3)*md(jl,imode-3,icp)        &
+                  md(jl,tmode,icp)=(nd(jl,tmode)*md(jl,tmode,icp)              &
                                           +totage1(icp)*f_mm(icp))/ndsolnew
                 END IF
 
@@ -403,11 +454,11 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
           END DO ! end loop over cpts
           !
           !! update ND and MDT for sol mode
-          nd(jl,imode-3)=ndsolnew
-          mdt(jl,imode-3)=0.0
+          nd(jl,tmode)=ndsolnew
+          mdt(jl,tmode)=0.0
           DO icp=1,ncp
-            IF (component(imode-3,icp)) THEN
-              mdt(jl,imode-3)=mdt(jl,imode-3)+md(jl,imode-3,icp)
+            IF (component(tmode,icp)) THEN
+              mdt(jl,tmode)=mdt(jl,tmode)+md(jl,tmode,icp)
             END IF
           END DO ! end loop over cpts
           !

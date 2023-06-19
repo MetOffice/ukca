@@ -130,6 +130,7 @@ USE ukca_mode_setup, ONLY:                                                     &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
     mode_cor_insol,                                                            &
+    mode_sup_insol,                                                            &
     cp_no3, cp_nh4, cp_nn
 
 USE ukca_setup_indices,  ONLY: nmasnuscsunucsol,                               &
@@ -147,7 +148,8 @@ USE ukca_setup_indices,  ONLY: nmasnuscsunucsol,                               &
                                nmasnuscntaitsol, nmasnuscntaccsol,             &
                                nmasnuscntcorsol, nmasnuscnhaitsol,             &
                                nmasnuscnhaccsol, nmasnuscnhcorsol,             &
-                               nmasnuscnnaccsol, nmasnuscnncorsol
+                               nmasnuscnnaccsol, nmasnuscnncorsol,             &
+                               nmasnuscdusupins
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -325,21 +327,23 @@ DO jl=1,nbox
       scav2m=0.0
     END IF  ! IF(ND(JL,IMODE) > NUM_EPS(IMODE))
 
-    rscav =[0.00,scav1 ,scav2 ,1.00,1.00,1.00,1.00]
-    rscavm=[0.00,scav1m,scav2m,1.00,1.00,1.00,1.00]
+    rscav =[0.00,scav1 ,scav2 ,1.00,1.00,1.00,1.00,1.00]
+    rscavm=[0.00,scav1m,scav2m,1.00,1.00,1.00,1.00,1.00]
 
     IF (inucscav == 3) THEN
       rscav(6)=0.0
       rscav(7)=0.0
+      rscav(8)=0.0
       rscavm(6)=0.0
       rscavm(7)=0.0
+      rscavm(8)=0.0
     END IF  !inucscav=3
 
   END IF ! INUCSCAV=1 or 3
 
   IF (inucscav == 2) THEN ! set number and mass same as M7
-    rscav =[0.10,0.25,0.85,0.99,0.20,0.40,0.40]
-    rscavm=[0.10,0.25,0.85,0.99,0.20,0.40,0.40]
+    rscav =[0.10,0.25,0.85,0.99,0.20,0.40,0.40,0.40]
+    rscavm=[0.10,0.25,0.85,0.99,0.20,0.40,0.40,0.40]
   END IF
 
   ! Determine precipitation type, and activate switch above threshold:
@@ -543,6 +547,9 @@ DO jl=1,nbox
                     IF ((imode == mode_cor_insol) .AND. (nmasnuscducorins >0)) &
                       bud_aer_mas(jl,nmasnuscducorins)=                        &
                       bud_aer_mas(jl,nmasnuscducorins)+dm(icp)
+                    IF ((imode == mode_sup_insol) .AND. (nmasnuscdusupins >0)) &
+                      bud_aer_mas(jl,nmasnuscdusupins)=                        &
+                      bud_aer_mas(jl,nmasnuscdusupins)+dm(icp)
                   END IF
                   IF (icp == cp_no3) THEN
                     IF ((imode == mode_ait_sol) .AND. (nmasnuscntaitsol > 0))  &

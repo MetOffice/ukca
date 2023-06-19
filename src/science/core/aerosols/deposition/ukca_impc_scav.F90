@@ -393,7 +393,7 @@ USE ukca_um_legacy_mod, ONLY: pi
 USE ukca_mode_setup,    ONLY:                                                  &
     cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_du, nmodes,                          &
     mode_nuc_sol, mode_ait_sol, mode_acc_sol, mode_cor_sol,                    &
-    mode_ait_insol, mode_acc_insol, mode_cor_insol,                            &
+    mode_ait_insol, mode_acc_insol, mode_cor_insol, mode_sup_insol,            &
     cp_no3, cp_nh4, cp_nn
 
 USE ukca_setup_indices, ONLY:                                                  &
@@ -407,7 +407,7 @@ USE ukca_setup_indices, ONLY:                                                  &
     nmasimscsucorsol, nmasimscsunucsol,                                        &
     nmasimscntaitsol, nmasimscntaccsol, nmasimscntcorsol,                      &
     nmasimscnhaitsol, nmasimscnhaccsol, nmasimscnhcorsol,                      &
-                      nmasimscnnaccsol, nmasimscnncorsol
+    nmasimscnnaccsol, nmasimscnncorsol, nmasimscdusupins
 
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
@@ -677,7 +677,7 @@ IF (glomap_config%l_fix_ukca_impscav) THEN
         ! within theoretical and observational uncertainties
         ! (Fig 8 of Feng 2009)
 
-        asnow(:) = [ 0.014, 0.014, 0.014, 0.10, 0.014, 0.014, 0.10 ]
+        asnow(:) = [ 0.014, 0.014, 0.014, 0.10, 0.014, 0.014, 0.10, 0.50 ]
 
         DO imode=1,nmodes
           IF (mode(imode)) THEN
@@ -834,6 +834,9 @@ IF (glomap_config%l_fix_ukca_impscav) THEN
                   IF ((imode == mode_cor_insol) .AND. (nmasimscducorins > 0))  &
                     bud_aer_mas(jl,nmasimscducorins)=                          &
                       bud_aer_mas(jl,nmasimscducorins)+dm(icp)
+                  IF ((imode == mode_sup_insol) .AND. (nmasimscdusupins > 0))  &
+                    bud_aer_mas(jl,nmasimscdusupins)=                          &
+                     bud_aer_mas(jl,nmasimscdusupins)+dm(icp)
                 END IF
                 IF (icp == cp_no3) THEN
                   IF ((imode == mode_ait_sol) .AND. (nmasimscntaitsol > 0))    &
@@ -1021,7 +1024,7 @@ ELSE ! l_fix_ukca_impscav
       ! within theoretical and observational uncertainties
       ! (Fig 8 of Feng 2009)
 
-      asnow(:) = [ 0.014, 0.014, 0.014, 0.10, 0.014, 0.014, 0.10 ]
+      asnow(:) = [ 0.014, 0.014, 0.014, 0.10, 0.014, 0.014, 0.10, 0.50 ]
 
       DO imode=1,nmodes
         IF (mode(imode)) THEN
@@ -1178,6 +1181,9 @@ ELSE ! l_fix_ukca_impscav
                   IF ((imode == mode_cor_insol) .AND. (nmasimscducorins > 0))  &
                     bud_aer_mas(jl,nmasimscducorins)=                          &
                      bud_aer_mas(jl,nmasimscducorins)+dm(icp)
+                  IF ((imode == mode_sup_insol) .AND. (nmasimscdusupins > 0))  &
+                    bud_aer_mas(jl,nmasimscdusupins)=                          &
+                     bud_aer_mas(jl,nmasimscdusupins)+dm(icp)
                 END IF
                 IF (icp == cp_no3) THEN
                   IF ((imode == mode_ait_sol) .AND. (nmasimscntaitsol > 0))    &

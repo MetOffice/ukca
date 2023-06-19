@@ -33,6 +33,7 @@
 !      UKCA_INDICES_DUonly_2MODE
 !      UKCA_INDICES_DUonly_3MODE (needs to be added at some point)
 !      UKCA_INDICES_SUSSBCOCDU_7MODE
+!      UKCA_INDICES_SUSSBCOCDUNTNH_8MODE_8CPT
 !      UKCA_INDICES_SUSSBCOCDU_4MODE
 !      UKCA_INDICES_SUSSBCOCNTNH_5MODE
 !      UKCA_INDICES_SOLINSOL_6MODE
@@ -410,30 +411,40 @@ INTEGER :: nmasprimduaccsol ! for dust emissions to accsol
 INTEGER :: nmasprimducorsol ! for dust emissions to corsol
 INTEGER :: nmasprimduaccins ! for dust emissions to accins
 INTEGER :: nmasprimducorins ! for dust emissions to corins
+INTEGER :: nmasprimdusupins ! for dust emissions to supins
 INTEGER :: nmasddepduaccsol ! for dust dry dep from accsol
 INTEGER :: nmasddepducorsol ! for dust dry dep from corsol
 INTEGER :: nmasddepduaccins ! for dust dry dep from accins
 INTEGER :: nmasddepducorins ! for dust dry dep from corins
+INTEGER :: nmasddepdusupins ! for dust dry dep from supins
 INTEGER :: nmasnuscduaccsol ! for dust nucscav from accsol
 INTEGER :: nmasnuscducorsol ! for dust nucscav from corsol
 INTEGER :: nmasnuscduaccins ! for dust nucscav from accins
 INTEGER :: nmasnuscducorins ! for dust nucscav from corins
+INTEGER :: nmasnuscdusupins ! for dust nucscav from supins
 INTEGER :: nmasimscduaccsol ! for dust impscav from accsol
 INTEGER :: nmasimscducorsol ! for dust impscav from corsol
 INTEGER :: nmasimscduaccins ! for dust impscav from accins
 INTEGER :: nmasimscducorins ! for dust impscav from corins
+INTEGER :: nmasimscdusupins ! for dust impscav from supins
 INTEGER :: nmascondsuaccins ! for conden. of SU to accins
 INTEGER :: nmascondsucorins ! for conden. of SU to corins
+INTEGER :: nmascondsusupins ! for conden. of SU to supins
 INTEGER :: nmascondocaccins ! for conden. of OC to accins
 INTEGER :: nmascondoccorins ! for conden. of OC to corins
+INTEGER :: nmascondocsupins ! for conden. of OC to supins
 INTEGER :: nmascondsoaccins ! for conden. of SO to accins
 INTEGER :: nmascondsocorins ! for conden. of SO to corins
+INTEGER :: nmascondsosupins ! for conden. of SO to supins
 INTEGER :: nmascoagsuintr16 ! for inter-modal coag SU nucsol->accins
 INTEGER :: nmascoagsuintr17 ! for inter-modal coag SU nucsol->corins
+INTEGER :: nmascoagsuintr18 ! for inter-modal coag SU nucsol->supins
 INTEGER :: nmascoagocintr16 ! for inter-modal coag OC nucsol->accins
 INTEGER :: nmascoagocintr17 ! for inter-modal coag OC nucsol->corins
+INTEGER :: nmascoagocintr18 ! for inter-modal coag OC nucsol->supins
 INTEGER :: nmascoagsointr16 ! for inter-modal coag SO nucsol->accins
 INTEGER :: nmascoagsointr17 ! for inter-modal coag SO nucsol->corins
+INTEGER :: nmascoagsointr18 ! for inter-modal coag SO nucsol->supins
 INTEGER :: nmascoagduintr34 ! for inter-modal coag DU accsol->corsol
 INTEGER :: nmascoagduintr64 ! for inter-modal coag DU accins->corsol
 INTEGER :: nmasagedsuintr63 ! for SU ageing flux accins->accsol
@@ -444,6 +455,10 @@ INTEGER :: nmasagedsuintr74 ! for SU ageing flux corins->corsol
 INTEGER :: nmasagedduintr74 ! for DU ageing flux corins->corsol
 INTEGER :: nmasagedocintr74 ! for OC ageing flux corins->corsol
 INTEGER :: nmasagedsointr74 ! for SO ageing flux corins->corsol
+INTEGER :: nmasagedsuintr84 ! for SU ageing flux supins->corsol
+INTEGER :: nmasagedduintr84 ! for DU ageing flux supins->corsol
+INTEGER :: nmasagedocintr84 ! for OC ageing flux supins->corsol
+INTEGER :: nmasagedsointr84 ! for SO ageing flux supins->corsol
 INTEGER :: nmasmergduintr34 ! for DU mode-merging flux accsol->corsol
 
 ! Nitrate scheme budgets
@@ -3285,6 +3300,22 @@ nmasprocntintr23= 0
 nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
+
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
 !
 !----------------------------------------------------------------
 
@@ -3592,6 +3623,22 @@ nmasprocntintr23= 0
 nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
+
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
 !
 !----------------------------------------------------------------
 
@@ -3901,6 +3948,22 @@ nmasprocntintr23= 0
 nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
+
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -4514,6 +4577,23 @@ nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
 
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
+
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_sussbcoc_4mode
@@ -4806,6 +4886,22 @@ nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
 
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_sussbcocso_5mode
@@ -5095,6 +5191,22 @@ nmasprocntintr23= 0
 nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
+
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -5387,6 +5499,22 @@ nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
 
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_suss_4mode
@@ -5673,6 +5801,22 @@ nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
 
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE UKCA_INDICES_DUonly_2MODE
@@ -5940,6 +6084,22 @@ nmasagedduintr74= 0 ! no DU in this setup
 nmasagedocintr74= 0 ! no BC/OC/SO in this setup
 nmasagedsointr74= 0 ! no BC/OC/SO in this setup
 nmasmergduintr34= 0 ! no DU in this setup
+
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -6209,6 +6369,21 @@ nmasprocnhintr23= 0
 nmasprocntintr23= 0
 nmasprocnhintr23= 0
 
+! 3rd insoluble mode dust
+nmasprimdusupins= 0 ! no 3M DU in this setup
+nmasddepdusupins= 0 ! no 3M DU in this setup
+nmasnuscdusupins= 0 ! no 3M DU in this setup
+nmasimscdusupins= 0 ! no 3M DU in this setup
+nmascondsusupins= 0 ! no 3M DU in this setup
+nmascondocsupins= 0 ! no 3M DU in this setup
+nmascondsosupins= 0 ! no 3M DU in this setup
+nmascoagsuintr18= 0 ! no 3M DU in this setup
+nmascoagocintr18= 0 ! no 3M DU in this setup
+nmascoagsointr18= 0 ! no 3M DU in this setup
+nmasagedsuintr84= 0 ! no 3M DU in this setup
+nmasagedduintr84= 0 ! no 3M DU in this setup
+nmasagedocintr84= 0 ! no 3M DU in this setup
+nmasagedsointr84= 0 ! no 3M DU in this setup
 !
 !----------------------------------------------------------------
 
@@ -6216,4 +6391,278 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_solinsol_6mode
 
+! ######################################################################
+SUBROUTINE ukca_indices_sussbcocduntnh_8mode_8cpt
+
+IMPLICIT NONE
+!---------------------------------------------------------------
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER ::                                                 &
+  RoutineName='UKCA_INDICES_SUSSBCOCDUNTNH_8MODE_8CPT'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Main array lengths and switches
+ntraer=36          ! # of aerosol advected tracers
+nbudaer=195        ! # of aerosol budget fields
+
+nmasprimsuaitsol= 1
+nmasprimsuaccsol= 2
+nmasprimsucorsol= 3
+nmasprimssaccsol= 4
+nmasprimsscorsol= 5
+nmasprimbcaitsol= 0 ! BC only emitted to insoluble
+nmasprimbcaitins= 6
+nmasprimocaitsol= 7
+nmasprimocaitins= 8
+nmasprimntnucsol= 0
+nmasprimntaitsol= 9 ! NO3 emissions into ait - cor sol
+nmasprimntaccsol=10
+nmasprimntcorsol=11
+nmasprimnhnucsol= 0
+nmasprimnhaitsol=12 ! NH4 emissions into ait - cor sol
+nmasprimnhaccsol=13
+nmasprimnhcorsol=14
+nmascondnnaccsol=15 ! NaNO3 emissions scheme into acc/coa sol
+nmascondnncorsol=16 ! NaNO3 emissions scheme into acc/coa sol
+!
+nmasddepsunucsol=17
+nmasddepsuaitsol=18
+nmasddepsuaccsol=19
+nmasddepsucorsol=20
+nmasddepssaccsol=21
+nmasddepsscorsol=22
+nmasddepbcaitsol=23
+nmasddepbcaccsol=24
+nmasddepbccorsol=25
+nmasddepbcaitins=26
+nmasddepocnucsol=27
+nmasddepocaitsol=28
+nmasddepocaccsol=29
+nmasddepoccorsol=30
+nmasddepocaitins=31
+nmasddepsonucsol= 0 ! SO stored in OC cpt
+nmasddepsoaitsol= 0 ! SO stored in OC cpt
+nmasddepsoaccsol= 0 ! SO stored in OC cpt
+nmasddepsocorsol= 0 ! SO stored in OC cpt
+nmasddepntaitsol=32
+nmasddepntaccsol=33
+nmasddepntcorsol=34
+nmasddepnhaitsol=35
+nmasddepnhaccsol=36
+nmasddepnhcorsol=37
+nmasddepnnaccsol=38
+nmasddepnncorsol=39
+!
+nmasnuscsunucsol=40
+nmasnuscsuaitsol=41
+nmasnuscsuaccsol=42
+nmasnuscsucorsol=43
+nmasnuscssaccsol=44
+nmasnuscsscorsol=45
+nmasnuscbcaitsol=46
+nmasnuscbcaccsol=47
+nmasnuscbccorsol=48
+nmasnuscbcaitins=49
+nmasnuscocnucsol=50
+nmasnuscocaitsol=51
+nmasnuscocaccsol=52
+nmasnuscoccorsol=53
+nmasnuscocaitins=54
+nmasnuscsonucsol= 0 ! SO stored in OC cpt
+nmasnuscsoaitsol= 0 ! SO stored in OC cpt
+nmasnuscsoaccsol= 0 ! SO stored in OC cpt
+nmasnuscsocorsol= 0 ! SO stored in OC cpt
+nmasnuscntaitsol=55
+nmasnuscntaccsol=56
+nmasnuscntcorsol=57
+nmasnuscnhaitsol=58
+nmasnuscnhaccsol=59
+nmasnuscnhcorsol=60
+nmasnuscnnaccsol=61
+nmasnuscnncorsol=62
+!
+nmasimscsunucsol=63
+nmasimscsuaitsol=64
+nmasimscsuaccsol=65
+nmasimscsucorsol=66
+nmasimscssaccsol=67
+nmasimscsscorsol=68
+nmasimscbcaitsol=69
+nmasimscbcaccsol=70
+nmasimscbccorsol=71
+nmasimscbcaitins=72
+nmasimscocnucsol=73
+nmasimscocaitsol=74
+nmasimscocaccsol=75
+nmasimscoccorsol=76
+nmasimscocaitins=77
+nmasimscsonucsol= 0 ! SO stored in OC cpt
+nmasimscsoaitsol= 0 ! SO stored in OC cpt
+nmasimscsoaccsol= 0 ! SO stored in OC cpt
+nmasimscsocorsol= 0 ! SO stored in OC cpt
+nmasimscntaitsol=78
+nmasimscntaccsol=79
+nmasimscntcorsol=80
+nmasimscnhaitsol=81
+nmasimscnhaccsol=82
+nmasimscnhcorsol=83
+nmasimscnnaccsol=84
+nmasimscnncorsol=85
+!
+nmasclprsuaitsol1=86
+nmasclprsuaccsol1=87
+nmasclprsucorsol1=88
+nmasclprsuaitsol2=89
+nmasclprsuaccsol2=90
+nmasclprsucorsol2=91
+!
+nmascondsunucsol=92
+nmascondsuaitsol=93
+nmascondsuaccsol=94
+nmascondsucorsol=95
+nmascondsuaitins=96
+nmasnuclsunucsol=97
+nmascondocnucsol=98
+nmascondocaitsol=99
+nmascondocaccsol=100
+nmascondoccorsol=101
+nmascondocaitins=102
+nmascondsonucsol= 0 ! SO stored in OC cpt
+nmascondsoaitsol= 0 ! SO stored in OC cpt
+nmascondsoaccsol= 0 ! SO stored in OC cpt
+nmascondsocorsol= 0 ! SO stored in OC cpt
+nmascondsoaitins= 0 ! SO stored in OC cpt
+!
+nmascoagsuintr12=103
+nmascoagsuintr13=104
+nmascoagsuintr14=105
+nmascoagsuintr15=106
+nmascoagocintr12=107
+nmascoagocintr13=108
+nmascoagocintr14=109
+nmascoagocintr15=110
+nmascoagsointr12= 0 ! stored in NMASCOAGOCINTR12
+nmascoagsointr13= 0 ! stored in NMASCOAGOCINTR13
+nmascoagsointr14= 0 ! stored in NMASCOAGOCINTR14
+nmascoagsointr15= 0 ! stored in NMASCOAGOCINTR15
+nmascoagsuintr23=111
+nmascoagbcintr23=112
+nmascoagocintr23=113
+nmascoagsointr23= 0 ! stored in NMASCOAGOCINTR23
+nmascoagntintr23=114
+nmascoagnhintr23=115
+nmascoagsuintr24=116
+nmascoagbcintr24=117
+nmascoagocintr24=118
+nmascoagsointr24= 0 ! stored in NMASCOAGOCINTR24
+nmascoagntintr24=119
+nmascoagnhintr24=120
+nmascoagsuintr34=121
+nmascoagbcintr34=122
+nmascoagocintr34=123
+nmascoagssintr34=124
+nmascoagsointr34= 0 ! stored in NMASCOAGOCINTR34
+nmascoagntintr34=125
+nmascoagnhintr34=126
+nmascoagnnintr34=127
+!
+nmascoagbcintr53=128
+nmascoagocintr53=129
+nmascoagbcintr54=130
+nmascoagocintr54=131
+!
+nmasagedsuintr52=132
+nmasagedbcintr52=133
+nmasagedocintr52=134
+nmasagedsointr52= 0 ! stored in NMASAGEDOCINTR52
+!
+nmasmergsuintr12=135
+nmasmergocintr12=136
+nmasmergsointr12= 0 ! stored in NMASMERGOCINTR12
+nmasmergsuintr23=137
+nmasmergbcintr23=138
+nmasmergocintr23=139
+nmasmergsointr23=  0 ! stored in NMASMERGOCINTR12
+nmasmergntintr23=140
+nmasmergnhintr23=141
+nmasmergsuintr34=142
+nmasmergssintr34=143
+nmasmergbcintr34=144
+nmasmergocintr34=145
+nmasmergsointr34=  0 ! stored in NMASMERGOCINTR34
+nmasmergntintr34=146
+nmasmergnhintr34=147
+nmasmergnnintr34=148
+nmasprocsuintr23=149
+nmasprocbcintr23=150
+nmasprococintr23=151
+nmasprocsointr23=  0 ! stored in NMASPROCOCINTR23
+nmasprocntintr23=152
+nmasprocnhintr23=153
+
+! .. below are new ones for dust & modes 6/7/8 to be integrated
+nmasprimduaccsol=  0 ! DU only emitted to insoluble modes here
+nmasprimducorsol=  0 ! DU only emitted to insoluble modes here
+nmasprimduaccins=154
+nmasprimducorins=155
+nmasprimdusupins=156
+nmasddepduaccsol=157
+nmasddepducorsol=158
+nmasddepduaccins=159
+nmasddepducorins=160
+nmasddepdusupins=161
+nmasnuscduaccsol=162
+nmasnuscducorsol=163
+nmasnuscduaccins=164
+nmasnuscducorins=165
+nmasnuscdusupins=166
+nmasimscduaccsol=167
+nmasimscducorsol=168
+nmasimscduaccins=169
+nmasimscducorins=170
+nmasimscdusupins=171
+nmascondsuaccins=172
+nmascondsucorins=173
+nmascondsusupins=174
+nmascondocaccins=175
+nmascondoccorins=176
+nmascondocsupins=177
+nmascondsoaccins=  0 ! secondary organic in OC cpt in this setup
+nmascondsocorins=  0 ! secondary organic in OC cpt in this setup
+nmascondsosupins=  0 ! secondary organic in OC cpt in this setup
+nmascoagsuintr16=178
+nmascoagsuintr17=179
+nmascoagsuintr18=180
+nmascoagocintr16=181
+nmascoagocintr17=182
+nmascoagocintr18=183
+nmascoagsointr16=  0 ! secondary organic in OC cpt in this setup
+nmascoagsointr17=  0 ! secondary organic in OC cpt in this setup
+nmascoagsointr18=  0 ! secondary organic in OC cpt in this setup
+nmascoagduintr34=184
+nmascoagduintr64=185
+nmasagedsuintr63=186
+nmasagedduintr63=187
+nmasagedocintr63=188
+nmasagedsointr63=  0 ! secondary organic in OC cpt in this setup
+nmasagedsuintr74=189
+nmasagedduintr74=190
+nmasagedocintr74=191
+nmasagedsointr74=  0 ! secondary organic in OC cpt in this setup
+nmasagedsuintr84=192
+nmasagedduintr84=193
+nmasagedocintr84=194
+nmasagedsointr84=  0 ! secondary organic in OC cpt in this setup
+nmasmergduintr34=195
+
+!----------------------------------------------------------------
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE ukca_indices_sussbcocduntnh_8mode_8cpt
 END MODULE ukca_setup_indices

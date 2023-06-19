@@ -7,7 +7,7 @@
 ! Local copy of trsrce-trsrce2a.F90 to calculate air density and burden
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: Radiation Control
+! This file belongs in section: UKCA
 !
 !------------------------------------------------------------------------------
 

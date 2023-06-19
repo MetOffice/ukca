@@ -125,6 +125,8 @@ SUBROUTINE ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
 ! Inputted by module UKCA_MODE_SETUP
 ! ----------------------------------
 ! NMODES    : Number of possible aerosol modes
+! NMODES_SOL: Number of possible soluble aerosol modes
+! NMODES_INS: Number of possible insoluble aerosol modes
 ! NCP       : Number of possible aerosol components
 ! MODE      : Defines which modes are set
 ! COMPONENT : Defines which cpts are allowed in each mode
@@ -148,11 +150,12 @@ USE ukca_constants,   ONLY: nmol, conc_eps, dn_eps
 
 USE ukca_config_specification_mod, ONLY: glomap_variables
 
-USE ukca_mode_setup,  ONLY: nmodes, coag_mode,                                 &
+USE ukca_mode_setup,  ONLY: nmodes, nmodes_sol, nmodes_ins, coag_mode,         &
                             cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_so,          &
                             mode_nuc_sol, mode_ait_sol, mode_acc_sol,          &
                             mode_cor_sol, cp_no3, cp_nh4, cp_nn,               &
-                            mode_ait_insol, mode_acc_insol, mode_cor_insol
+                            mode_ait_insol, mode_acc_insol, mode_cor_insol,    &
+                            mode_sup_insol
 
 USE ukca_setup_indices, ONLY: nmascoagsuintr12,                                &
          nmascoagocintr12, nmascoagsointr12, nmascoagsuintr13,                 &
@@ -169,7 +172,9 @@ USE ukca_setup_indices, ONLY: nmascoagsuintr12,                                &
          nmascoagbcintr54, nmascoagocintr54, nmascoagduintr64,                 &
          nmascoagntintr23, nmascoagntintr24, nmascoagntintr34,                 &
          nmascoagnhintr23, nmascoagnhintr24, nmascoagnhintr34,                 &
-         nmascoagnnintr34, mh2so4
+         nmascoagnnintr34,                                                     &
+         nmascoagsuintr18, nmascoagocintr18, nmascoagsointr18,                 &
+         mh2so4
 
 USE ukca_mode_check_artefacts_mod, ONLY: ukca_mode_check_mdt
 USE yomhook,          ONLY: lhook, dr_hook
@@ -196,7 +201,8 @@ REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
-REAL, INTENT(OUT)   :: ageterm2(nbox,4,3,glomap_variables%ncp)
+REAL, INTENT(OUT)   :: ageterm2(nbox,nmodes_sol,nmodes_ins,                    &
+                                glomap_variables%ncp)
 
 !  .. Local variables
 
@@ -263,12 +269,11 @@ num_eps     => glomap_variables%num_eps
 ageterm2 = 0.0
 
 !set limit of modes for which coagulation & nucleation occur
-IF (iagecoagnucl67 == 1 ) THEN
-  topmode = mode_cor_insol
+IF (iagecoagnucl67 == 1) THEN
+  topmode = mode_sup_insol
 ELSE
   topmode = mode_ait_insol
 END IF
-
 
 ! Copy H2SO4 values from delgc_nucl to local variable
 IF (mh2so4 > 0) THEN
@@ -461,41 +466,44 @@ DO imode=mode_ait_insol,topmode
       WHERE (mask1(:)) a(:)=-0.5*kii(:)
     END IF
 
-    DO jmode=(imode-2),mode_cor_sol ! ins inter-coag with larger soluble modes
-      IF (mode(jmode)) THEN
+    IF (imode < mode_cor_insol) THEN
+      ! ins inter-coag with larger soluble modes
+      DO jmode=(imode-2),mode_cor_sol
+        IF (mode(jmode)) THEN
 
-        kij(:)=kij_arr(:,imode,jmode) ! copy in pre-calculated KIJ
+          kij(:)=kij_arr(:,imode,jmode) ! copy in pre-calculated KIJ
 
-        ! Calculations are only done where NDOLD(:,IMODE) > NUM_EPS
-        ! and NDOLD(:,JMODE) > NUM_EPS
-        mask2(:) =(ndold(:,imode) > num_eps(imode)) .AND.                      &
-                  (ndold(:,jmode) > num_eps(jmode))
+          ! Calculations are only done where NDOLD(:,IMODE) > NUM_EPS
+          ! and NDOLD(:,JMODE) > NUM_EPS
+          mask2(:) =(ndold(:,imode) > num_eps(imode)) .AND.                    &
+                    (ndold(:,jmode) > num_eps(jmode))
 
-        IF (interoff /= 1) THEN
-          WHERE (mask2(:))
-            bterm(:)=-kij(:)*ndold(:,jmode)
-            b(:)=b(:)+bterm(:)
-          END WHERE
-        END IF
-        ! .. calculate MTRAN for ins-sol inter-modal coag for carrying
-        ! .. out transfer of mass at end of the subroutine by MTRANNET.
-        ! .. Also transfer number (include ins-sol term in B summation)
-        xxx(:)=-bterm(:)*dtz
-        mask4(:)=ABS(xxx(:)) > xxx_eps
-        ! .. above only evaluates exponential where it is "worth it"
-        ! .. (in cases where XXX is larger than specified tolerance XXX_EPS)
-        DO icp=1,ncp
-          IF (component(imode,icp)) THEN
-            WHERE (mask4(:) .AND. mask2(:))                                    &
-             mtran(:,icp,imode,jmode)=                                         &
-              mdold(:,icp,imode)*ndold(:,imode)*(1.0-EXP(-xxx(:)))
-            WHERE ((.NOT. mask4(:)) .AND. mask2(:))                            &
-             mtran(:,icp,imode,jmode)=                                         &
-              mdold(:,icp,imode)*ndold(:,imode)*xxx(:)
+          IF (interoff /= 1) THEN
+            WHERE (mask2(:))
+              bterm(:)=-kij(:)*ndold(:,jmode)
+              b(:)=b(:)+bterm(:)
+            END WHERE
           END IF
-        END DO
-      END IF
-    END DO ! end loop of JMODE over larger soluble modes
+          ! .. calculate MTRAN for ins-sol inter-modal coag for carrying
+          ! .. out transfer of mass at end of the subroutine by MTRANNET.
+          ! .. Also transfer number (include ins-sol term in B summation)
+          xxx(:)=-bterm(:)*dtz
+          mask4(:)=ABS(xxx(:)) > xxx_eps
+          ! .. above only evaluates exponential where it is "worth it"
+          ! .. (in cases where XXX is larger than specified tolerance XXX_EPS)
+          DO icp=1,ncp
+            IF (component(imode,icp)) THEN
+              WHERE (mask4(:) .AND. mask2(:))                                  &
+               mtran(:,icp,imode,jmode)=                                       &
+                mdold(:,icp,imode)*ndold(:,imode)*(1.0-EXP(-xxx(:)))
+              WHERE ((.NOT. mask4(:)) .AND. mask2(:))                          &
+               mtran(:,icp,imode,jmode)=                                       &
+                mdold(:,icp,imode)*ndold(:,imode)*xxx(:)
+            END IF
+          END DO
+        END IF
+      END DO ! end loop of JMODE over larger soluble modes
+    END IF ! imode < mode_cor_insol
 
     ndold_v(:)=ndold(:,imode)
     CALL ukca_solvecoagnucl_v(nbox,mask1,a,b,c,ndold_v,dtz,deln)
@@ -688,6 +696,23 @@ DO imode=1,nmodes
                   bud_aer_mas(:,nmascoagsointr17)+mtran(:,cp_so,imode,jmode)
               END IF
             END IF ! IF IMODE,JMODE=1,7 (from mode 1 to mode 7)
+            IF ((imode == mode_nuc_sol) .AND. (jmode == mode_sup_insol)) THEN
+              IF ((icp == cp_su) .AND. (nmascoagsuintr18 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagsuintr18)=                             &
+                  bud_aer_mas(:,nmascoagsuintr18)+mtran(:,cp_su,imode,jmode)
+              END IF
+              IF ((icp == cp_oc) .AND. (nmascoagocintr18 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagocintr18)=                             &
+                  bud_aer_mas(:,nmascoagocintr18)+mtran(:,cp_oc,imode,jmode)
+              END IF
+              IF ((icp == cp_so) .AND. (nmascoagsointr18 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagsointr18)=                             &
+                  bud_aer_mas(:,nmascoagsointr18)+mtran(:,cp_so,imode,jmode)
+              END IF
+            END IF ! IF IMODE,JMODE=1,8 (from mode 1 to mode 8)
             IF ((imode == mode_ait_sol) .AND. (jmode == mode_acc_sol)) THEN
               IF ((icp == cp_su) .AND. (nmascoagsuintr23 > 0)) THEN
                 WHERE (mask3(:))                                               &

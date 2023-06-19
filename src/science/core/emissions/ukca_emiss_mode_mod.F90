@@ -47,7 +47,8 @@ USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables,      &
                                          i_du_2mode,                           &
                                          i_sussbcocdu_7mode,                   &
                                          i_sussbcocntnh_5mode_7cpt,            &
-                                         i_solinsol_6mode
+                                         i_solinsol_6mode,                     &
+                                         i_sussbcocduntnh_8mode_8cpt
 USE ukca_constants,      ONLY: m_s, m_so2
 
 USE ereport_mod,         ONLY: ereport
@@ -246,6 +247,8 @@ IF (glomap_config%i_mode_setup == i_sussbcocdu_7mode) iso2ems=3
 IF (glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt) iso2ems=3
 ! SOL/INSOL
 IF (glomap_config%i_mode_setup == i_solinsol_6mode) iso2ems=3
+! SUSSBCOCNTNHDU_8mode
+IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) iso2ems=3
 
 ! Initialise bcoc indicators
 l_emfile_bcoc_bf = .FALSE.
@@ -289,23 +292,23 @@ CASE (3)
     mode_stdev(:) = 1.59
   CASE ('SO2_low','SO2_high')
     icp = cp_su
-    mode_frac(:) = [ 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0 ]
-    mode_diam(:) = [rmdi,rmdi,150.0,1500.0,rmdi,rmdi,rmdi]
-    mode_stdev(:) = [rmdi,rmdi,1.59, 2.0, rmdi,rmdi,rmdi]
+    mode_frac(:) = [ 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0 ]
+    mode_diam(:) = [rmdi,rmdi,150.0,1500.0,rmdi,rmdi,rmdi,rmdi]
+    mode_stdev(:) = [rmdi,rmdi,1.59, 2.0, rmdi,rmdi,rmdi,rmdi]
   CASE ('SO2_nat')
     icp = cp_su
-    mode_frac(:) = [ 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0 ]
-    mode_diam(:) = [rmdi,60.0,150.0,rmdi,rmdi,rmdi,rmdi]
-    mode_stdev(:) = [rmdi,1.59,1.59,rmdi,rmdi,rmdi,rmdi]
+    mode_frac(:) = [ 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+    mode_diam(:) = [rmdi,60.0,150.0,rmdi,rmdi,rmdi,rmdi,rmdi]
+    mode_stdev(:) = [rmdi,1.59,1.59,rmdi,rmdi,rmdi,rmdi,rmdi]
   CASE ('PMOC')
     icp = this_cp_oc
     IF (glomap_config%i_mode_setup == 11) THEN
       ! In the soluble/insoluble version of GLOMAP, carbonaceous
       ! aerosols are emitted into soluble modes only.
-      mode_frac(:) = [ 0.0, 1.00, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+      mode_frac(:) = [ 0.0, 1.00, 0.0, 0.0, 0.00, 0.0, 0.0, 0.0 ]
     ELSE
       !these settings may change in the future
-      mode_frac(:) = [ 0.0, 0.25, 0.0, 0.0, 0.75, 0.0, 0.0 ]
+      mode_frac(:) = [ 0.0, 0.25, 0.0, 0.0, 0.75, 0.0, 0.0, 0.0 ]
     END IF
     mode_diam(:) = 160.0
     mode_stdev(:) = 2.0
@@ -369,7 +372,7 @@ END IF
 IF (lwarn_mismatch_local) THEN
   jmode_loop: DO jmode = 1, nmodes
     IF ((mode_frac(jmode) > 0.0) .AND. .NOT. component(jmode,icp)) THEN
-      WRITE(umMessage,'(4A,7F6.3,A,7L2)') "Emissions for ", TRIM(tracer_name), &
+      WRITE(umMessage,'(4A,8F6.3,A,8L2)') "Emissions for ", TRIM(tracer_name), &
          " defined as entering a mode which is not used for this component.",  &
          "mode_frac:", mode_frac(:), "component:", component(:,icp)
       CALL umPrint(umMessage,src='ukca_def_mode_emiss')

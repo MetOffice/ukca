@@ -56,6 +56,7 @@ USE ukca_mode_setup,                 ONLY:                                     &
     ukca_mode_sussbcocdu_7mode,                                                &
     ukca_mode_sussbcocntnh_5mode_7cpt,                                         &
     ukca_mode_solinsol_6mode,                                                  &
+    ukca_mode_sussbcocduntnh_8mode_8cpt,                                       &
     glomap_variables_type
 
 USE ukca_config_specification_mod,   ONLY:                                     &
@@ -68,6 +69,7 @@ USE ukca_config_specification_mod,   ONLY:                                     &
     i_sussbcocdu_7mode,                                                        &
     i_sussbcocntnh_5mode_7cpt,                                                 &
     i_solinsol_6mode,                                                          &
+    i_sussbcocduntnh_8mode_8cpt,                                               &
     pi
 
 USE umPrintMgr,                      ONLY:                                     &
@@ -167,6 +169,13 @@ CASE (i_solinsol_6mode) ! 11
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
                                  pi_copy )
+
+CASE (i_sussbcocduntnh_8mode_8cpt) ! 12
+  CALL ukca_mode_sussbcocduntnh_8mode_8cpt( glomap_variables_local,            &
+                                            l_radaer_in,                       &
+                                            i_tune_bc_in,                      &
+                                            l_fix_nacl_density_in,             &
+                                            pi_copy )
 
 CASE DEFAULT
   cmessage='i_mode_setup_in has unrecognised value'

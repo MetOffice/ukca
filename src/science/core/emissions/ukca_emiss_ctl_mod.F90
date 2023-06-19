@@ -1143,7 +1143,8 @@ IF (ukca_config%l_enable_diag_um) THEN
       sf(213,section) .OR. sf(388,section) .OR. sf(389,section) .OR.           &
       sf(575,section) .OR. sf(576,section) .OR.                                &
       sf(577,section) .OR. sf(579,section) .OR. sf(580,section) .OR.           &
-      sf(581,section) .OR. sf(582,section) .OR. sf(583,section)) THEN
+      sf(581,section) .OR. sf(582,section) .OR. sf(583,section) .OR.           &
+      sf(675,section)) THEN
     CALL ukca_emiss_diags_mode (row_length, rows, model_levels, area,          &
                                 len_stashwork38, stashwork38)
   END IF

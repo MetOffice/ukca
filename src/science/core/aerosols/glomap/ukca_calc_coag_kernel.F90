@@ -160,7 +160,8 @@ USE ukca_mode_setup, ONLY:                                                     &
     mode_nuc_sol,                                                              &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
-    mode_cor_insol
+    mode_cor_insol,                                                            &
+    mode_sup_insol
 
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
@@ -194,6 +195,7 @@ INTEGER, POINTER :: modesol(:)
 
 INTEGER :: imode
 INTEGER :: jmode
+INTEGER :: jl
 REAL    :: kii(nbox)
 REAL    :: kij(nbox)
 REAL    :: vpi(nbox)
@@ -222,6 +224,20 @@ modesol     => glomap_variables%modesol
 
 mask1(:) = .TRUE. ! set to calculate kernels for all boxes
 mask2(:) = .TRUE. ! set to calculate kernels for all boxes
+
+! Initialise kii and kij arrays to zero (no coagulation)
+DO imode=1,nmodes
+  DO jl=1,nbox
+    kii_arr(jl,imode) = 0.0
+  END DO
+END DO
+DO jmode=1,nmodes
+  DO imode=1,nmodes
+    DO jl=1,nbox
+      kij_arr(jl,imode,jmode) = 0.0
+    END DO
+  END DO
+END DO
 !
 DO imode=mode_nuc_sol,mode_cor_sol ! KII for intra-coag over soluble modes
   IF (mode(imode)) THEN
@@ -251,7 +267,8 @@ DO imode=mode_nuc_sol,mode_cor_sol ! KII for intra-coag over soluble modes
       END IF
     END DO ! loop over larger soluble modes
     !
-    DO jmode=(imode+4),mode_cor_insol  !KIJ for coag with larger insoluble modes
+    DO jmode=(imode+4),mode_sup_insol
+                                     ! KIJ for coag with larger insoluble modes
 
       IF (mode(jmode)) THEN
         !
@@ -275,7 +292,7 @@ DO imode=mode_nuc_sol,mode_cor_sol ! KII for intra-coag over soluble modes
   END IF
 END DO ! loop over soluble modes
 !
-DO imode=mode_ait_insol,mode_cor_insol ! loop over insoluble modes
+DO imode=mode_ait_insol,mode_sup_insol ! loop over insoluble modes
   IF (mode(imode)) THEN
     !
     vpi(:)=wvol(:,imode)
@@ -286,20 +303,23 @@ DO imode=mode_ait_insol,mode_cor_insol ! loop over insoluble modes
     !
     kii_arr(:,imode)=kii(:) ! copy to KII_ARR
     !
-    DO jmode=(imode-2),mode_cor_sol ! ins. mode coag with larger soluble modes
-      IF (mode(jmode)) THEN
+    IF (imode < mode_cor_insol) THEN
+      ! ins. mode coag with larger soluble modes
+      DO jmode=(imode-2),mode_cor_sol
+        IF (mode(jmode)) THEN
 
-        vpj(:)=wvol(:,jmode)
-        rpj(:)=wetdp(:,jmode)/2.0
-        rhoj(:)=rhopar(:,jmode)
-        CALL ukca_coag_coff_v(nbox,mask2,rpi,rpj,vpi,vpj,rhoi,rhoj,            &
-             mfpa,dvisc,t,kij,coag_on,icoag)
-        !
-        kij_arr(:,imode,jmode)=kij(:) ! copy to KIJ_ARR
-        !
-      END IF
-    END DO
-    !
+          vpj(:)=wvol(:,jmode)
+          rpj(:)=wetdp(:,jmode)/2.0
+          rhoj(:)=rhopar(:,jmode)
+          CALL ukca_coag_coff_v(nbox,mask2,rpi,rpj,vpi,vpj,rhoi,rhoj,          &
+               mfpa,dvisc,t,kij,coag_on,icoag)
+          !
+          kij_arr(:,imode,jmode)=kij(:) ! copy to KIJ_ARR
+          !
+        END IF
+      END DO
+      !
+    END IF
   END IF
 END DO
 

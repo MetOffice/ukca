@@ -56,7 +56,8 @@ IMPLICIT NONE
 ! Arguments
 !
 
-! This is one of ip_ukca_lut_accum , ip_ukca_lut_coarse , ip_ukca_lut_accnarrow
+! This is one of ip_ukca_lut_accum , ip_ukca_lut_coarse , ip_ukca_lut_accnarrow,
+!                ip_ukca_lut_cornarrow, ip_ukca_lut_supercoarse
 INTEGER, INTENT(IN) :: aerosol_band
 
 ! This is one of ip_ukca_lut_sw , ip_ukca_lut_lw
@@ -158,7 +159,14 @@ ukca_lut(aerosol_band,wavelength_band)%x_min  = x_min
 ukca_lut(aerosol_band,wavelength_band)%x_max  = x_max
 ukca_lut(aerosol_band,wavelength_band)%nr_min = nr_min
 ukca_lut(aerosol_band,wavelength_band)%nr_max = nr_max
-ukca_lut(aerosol_band,wavelength_band)%incr_nr=(nr_max - nr_min) / REAL(n_nr-1)
+
+! Check that we are not dividing by zero
+IF (n_nr > 1) THEN
+  ukca_lut(aerosol_band,wavelength_band)%incr_nr =                             &
+    (nr_max - nr_min) / REAL(n_nr-1)
+ELSE
+  ukca_lut(aerosol_band,wavelength_band)%incr_nr = 0.0
+END IF
 
 IF (l_ukca_radaer_prescribe_ssa) THEN
   ukca_lut(aerosol_band,wavelength_band)%ni_min = 0.0

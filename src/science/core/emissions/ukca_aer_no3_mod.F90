@@ -741,7 +741,7 @@ DO jk = 1,nlevs
         DO jdu = 1,ndumodes
           ddtmp = MAX(0.0,(pndu(ji,jj,jk,jdu)*zmwca/zmwhno3*                   &
                           phno3(ji,jj,jk)*ptsphy))
-          IF ((pmdu(ji,jj,jk,jss)*pfrac_ca-ddtmp*zkhno3_dd(jdu)<0.0) .AND.     &
+          IF ((pmdu(ji,jj,jk,jdu)*pfrac_ca-ddtmp*zkhno3_dd(jdu)<0.0) .AND.     &
               (ddtmp>0.0))                                                     &
             zkhno3_dd(jdu) = pmdu(ji,jj,jk,jdu)*pfrac_ca/ddtmp
         END DO

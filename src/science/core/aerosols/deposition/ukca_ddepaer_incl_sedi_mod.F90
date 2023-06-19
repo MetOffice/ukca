@@ -233,7 +233,7 @@ USE ukca_mode_setup,         ONLY:                                             &
     mode_nuc_sol, mode_ait_sol,                                                &
     mode_acc_sol, mode_cor_sol,                                                &
     mode_ait_insol, mode_acc_insol,                                            &
-    mode_cor_insol
+    mode_cor_insol, mode_sup_insol
 
 USE ukca_setup_indices,      ONLY:                                             &
     nmasddepsunucsol,                                                          &
@@ -251,7 +251,8 @@ USE ukca_setup_indices,      ONLY:                                             &
     nmasddepntaitsol, nmasddepntaccsol,                                        &
     nmasddepntcorsol, nmasddepnhaitsol,                                        &
     nmasddepnhaccsol, nmasddepnhcorsol,                                        &
-    nmasddepnnaccsol, nmasddepnncorsol
+    nmasddepnnaccsol, nmasddepnncorsol,                                        &
+    nmasddepdusupins
 
 USE ukca_ddepaer_coeff_mod,  ONLY: alpha, cr, yr, ls_ice, ls_ocean, ls_soil,   &
                                    ls_water
@@ -370,7 +371,7 @@ REAL    :: delmddep(nbox)
 REAL    :: vgrav_lim(nbox)
 REAL, PARAMETER :: cfl_fraction = 0.9
 REAL, PARAMETER :: dtsedi(nmodes) =                                            &
-                [ 3600.0, 3600.0, 1800.0, 900.0, 3600.0, 1800.0, 900.0 ]
+                [ 3600.0, 3600.0, 1800.0, 900.0, 3600.0, 1800.0, 900.0, 300.0 ]
 
 REAL :: p_ratio(nbox)
 REAL :: p_ratio_out(nbox)
@@ -740,6 +741,9 @@ DO imode=1,nmodes
             IF ((imode == mode_cor_insol) .AND. (nmasddepducorins > 0))        &
              WHERE (mask4(:)) bud_aer_mas(:,nmasddepducorins)=                 &
                         bud_aer_mas(:,nmasddepducorins)+delmddep(:)
+            IF ((imode == mode_sup_insol) .AND. (nmasddepdusupins > 0))        &
+             WHERE (mask4(:)) bud_aer_mas(:,nmasddepdusupins)=                 &
+                        bud_aer_mas(:,nmasddepdusupins)+delmddep(:)
           END IF
           IF (icp == cp_no3) THEN
             !IF ((imode == mode_nuc_sol) .AND. (nmasddepntnucsol > 0))         &

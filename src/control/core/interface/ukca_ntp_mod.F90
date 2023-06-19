@@ -143,6 +143,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_fieldname, is_mode_ntp,                   &
   fldname_drydiam_ait_insol,                                                   &
   fldname_drydiam_acc_insol,                                                   &
   fldname_drydiam_cor_insol,                                                   &
+  fldname_drydiam_sup_insol,                                                   &
   fldname_wetdiam_ait_sol,                                                     &
   fldname_wetdiam_acc_sol,                                                     &
   fldname_wetdiam_cor_sol,                                                     &
@@ -152,6 +153,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_fieldname, is_mode_ntp,                   &
   fldname_aerdens_ait_insol,                                                   &
   fldname_aerdens_acc_insol,                                                   &
   fldname_aerdens_cor_insol,                                                   &
+  fldname_aerdens_sup_insol,                                                   &
   fldname_pvol_su_ait_sol,                                                     &
   fldname_pvol_bc_ait_sol,                                                     &
   fldname_pvol_oc_ait_sol,                                                     &
@@ -182,7 +184,8 @@ USE ukca_fieldname_mod, ONLY: maxlen_fieldname, is_mode_ntp,                   &
   fldname_pvol_du_acc_insol,                                                   &
   fldname_pvol_du_cor_insol,                                                   &
   fldname_pvol_nn_acc_sol,                                                     &
-  fldname_pvol_nn_cor_sol
+  fldname_pvol_nn_cor_sol,                                                     &
+  fldname_pvol_du_sup_insol
 
 IMPLICIT NONE
 
@@ -200,7 +203,7 @@ PUBLIC ntp_init, ukca_get_ntp_varlist, ntp_copy_in, ntp_copy_out,              &
 ! The size of the all_ntp array is defined here.
 ! If adding or removing entries remember to change
 ! the size of dim_ntp
-INTEGER, PARAMETER, PUBLIC :: dim_ntp = 127
+INTEGER, PARAMETER, PUBLIC :: dim_ntp = 130
 
 ! Type used to hold all information for each non-transported prognostic.
 ! data_3d, l_required, name
@@ -526,6 +529,7 @@ CALL add_ntp_item(varname=fldname_drydiam_cor_sol)
 CALL add_ntp_item(varname=fldname_drydiam_ait_insol)
 CALL add_ntp_item(varname=fldname_drydiam_acc_insol)
 CALL add_ntp_item(varname=fldname_drydiam_cor_insol)
+CALL add_ntp_item(varname=fldname_drydiam_sup_insol)
 
 ! Wet diameter
 CALL add_ntp_item(varname=fldname_wetdiam_ait_sol)
@@ -539,6 +543,7 @@ CALL add_ntp_item(varname=fldname_aerdens_cor_sol)
 CALL add_ntp_item(varname=fldname_aerdens_ait_insol)
 CALL add_ntp_item(varname=fldname_aerdens_acc_insol)
 CALL add_ntp_item(varname=fldname_aerdens_cor_insol)
+CALL add_ntp_item(varname=fldname_aerdens_sup_insol)
 
 ! Partial volume
 CALL add_ntp_item(varname=fldname_pvol_su_ait_sol)
@@ -572,6 +577,7 @@ CALL add_ntp_item(varname=fldname_pvol_bc_ait_insol)
 CALL add_ntp_item(varname=fldname_pvol_oc_ait_insol)
 CALL add_ntp_item(varname=fldname_pvol_du_acc_insol)
 CALL add_ntp_item(varname=fldname_pvol_du_cor_insol)
+CALL add_ntp_item(varname=fldname_pvol_du_sup_insol)
 
 ! Finally, check metadata for all entries is set
 IF (ANY(all_ntp(:)%varname == uninitialised_name)) THEN
@@ -670,8 +676,9 @@ USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
 
 USE ukca_mode_setup,       ONLY: mode_nuc_sol, mode_ait_sol, mode_acc_sol,     &
                                  mode_cor_sol, mode_ait_insol, mode_acc_insol, &
-                                 mode_cor_insol, cp_su, cp_bc, cp_oc, cp_cl,   &
-                                 cp_no3, cp_du, cp_so, cp_nh4, cp_nn
+                                 mode_cor_insol, mode_sup_insol, cp_su, cp_bc, &
+                                 cp_oc, cp_cl, cp_no3, cp_du, cp_so, cp_nh4,   &
+                                 cp_nn
 
 IMPLICIT NONE
 
@@ -721,12 +728,14 @@ IF (is_mode_ntp(varname)) THEN
       ntp_req = mode(mode_acc_sol) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_drydiam_cor_sol)          ! coarse-sol dry diameter
       ntp_req = mode(mode_cor_sol) .AND. glomap_config%l_ukca_radaer
-    CASE (fldname_drydiam_ait_insol)        ! Aitken-sol dry diameter
+    CASE (fldname_drydiam_ait_insol)        ! Aitken-ins dry diameter
       ntp_req = mode(mode_ait_insol) .AND. glomap_config%l_ukca_radaer
-    CASE (fldname_drydiam_acc_insol)        ! accumulation-sol dry diameter
+    CASE (fldname_drydiam_acc_insol)        ! accumulation-ins dry diameter
       ntp_req = mode(mode_acc_insol) .AND. glomap_config%l_ukca_radaer
-    CASE (fldname_drydiam_cor_insol)        ! coarse-sol dry diameter
+    CASE (fldname_drydiam_cor_insol)        ! coarse-ins dry diameter
       ntp_req = mode(mode_cor_insol) .AND. glomap_config%l_ukca_radaer
+    CASE (fldname_drydiam_sup_insol)        ! sup-ins dry diameter
+      ntp_req = mode(mode_sup_insol) .AND. glomap_config%l_ukca_radaer
 
       ! Wet diameter
     CASE (fldname_wetdiam_ait_sol)          ! Aitken-sol wet diameter
@@ -743,12 +752,14 @@ IF (is_mode_ntp(varname)) THEN
       ntp_req = mode(mode_acc_sol) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_aerdens_cor_sol)          ! coarse-sol aerosol density
       ntp_req = mode(mode_cor_sol) .AND. glomap_config%l_ukca_radaer
-    CASE (fldname_aerdens_ait_insol)        ! Aitken-sol aerosol density
+    CASE (fldname_aerdens_ait_insol)        ! Aitken-ins aerosol density
       ntp_req = mode(mode_ait_insol) .AND. glomap_config%l_ukca_radaer
-    CASE (fldname_aerdens_acc_insol)        ! accumulation-sol " density
+    CASE (fldname_aerdens_acc_insol)        ! accumulation-ins " density
       ntp_req = mode(mode_acc_insol) .AND. glomap_config%l_ukca_radaer
-    CASE (fldname_aerdens_cor_insol)        ! coarse-sol aerosol density
+    CASE (fldname_aerdens_cor_insol)        ! coarse-ins aerosol density
       ntp_req = mode(mode_cor_insol) .AND. glomap_config%l_ukca_radaer
+    CASE (fldname_aerdens_sup_insol)        ! sup-ins aerosol density
+      ntp_req = mode(mode_sup_insol) .AND. glomap_config%l_ukca_radaer
 
       ! Partial volume
     CASE (fldname_pvol_su_ait_sol)          ! Aitken-sol sulphate
@@ -832,6 +843,9 @@ IF (is_mode_ntp(varname)) THEN
                 glomap_config%l_ukca_radaer
     CASE (fldname_pvol_du_cor_insol)        ! coarse-insol dust
       ntp_req = component(mode_cor_insol,cp_du) .AND.                          &
+                glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_du_sup_insol)        ! sup-insol dust
+      ntp_req = component(mode_sup_insol,cp_du) .AND.                          &
                 glomap_config%l_ukca_radaer
 
       ! In hybrid model it's possible to run ACTIVATE only in senior

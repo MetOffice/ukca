@@ -33,6 +33,7 @@ USE ukca_um_legacy_mod, ONLY: stashcode_glomap_sec, pi,                        &
                               ukcaD1codes,                                     &
                               item1_mode_diags, L_ukca_mode_diags,             &
                               item1_nitrate_diags, itemN_nitrate_diags,        &
+                              item1_dust3mode_diags, itemN_dust3mode_diags,    &
                               log_v, rgas => r
 USE ukca_types_mod, ONLY: log_small, integer_32
 USE parkind1,   ONLY: jprb, jpim
@@ -280,8 +281,8 @@ USE ukca_mode_setup,  ONLY: nmodes,                                            &
                             mode_nuc_sol,mode_ait_sol,                         &
                             mode_acc_sol, mode_cor_sol,                        &
                             mode_ait_insol, mode_acc_insol,                    &
-                            mode_cor_insol, cp_su, cp_bc,                      &
-                            cp_oc, cp_so, cp_cl, cp_du,                        &
+                            mode_cor_insol, mode_sup_insol,                    &
+                            cp_su, cp_bc, cp_oc, cp_so, cp_cl, cp_du,          &
                             cp_no3, cp_nh4, cp_nn
 
 USE ukca_mode_tracer_maps_mod, ONLY:  nmr_index, mmr_index
@@ -311,6 +312,8 @@ USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
                               nadvg, nchemg,                                   &
                               nmasagedsuintr52, nmasagedbcintr52,              &
                               nmasagedocintr52, nmasagedsointr52,              &
+                              nmasagedduintr63, nmasagedduintr74,              &
+                              nmasagedduintr84,                                &
                               nmasclprsuaitsol1,nmasclprsuaccsol1,             &
                               nmasclprsucorsol1,nmasclprsuaitsol2,             &
                               nmasclprsuaccsol2,nmasclprsucorsol2,             &
@@ -414,7 +417,13 @@ USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
                               nmasmergntintr23, nmasmergnhintr23,              &
                               nmasmergntintr34, nmasmergnhintr34,              &
                               nmasmergnnintr34,                                &
-                              nmasprocntintr23, nmasprocnhintr23
+                              nmasprocntintr23, nmasprocnhintr23,              &
+                              ! 3-mode dust indices
+                              nmasddepdusupins, nmasnuscdusupins,              &
+                              nmasimscdusupins, nmascondsusupins,              &
+                              nmascondocsupins, nmascondsosupins,              &
+                              nmascoagsuintr18, nmascoagocintr18,              &
+                              nmascoagsointr18
 
 USE ukca_trop_hetchem_mod, ONLY: ukca_trop_hetchem,                            &
                                  ihet_n2o5, ihet_ho2_ho2
@@ -1266,10 +1275,13 @@ END IF
 !$OMP nmascoagssintr34, nmascoagsointr34, nmascoagduintr34, nmascoagbcintr53,  &
 !$OMP nmascoagocintr53, nmascoagbcintr54, nmascoagocintr54, nmascoagduintr64,  &
 !$OMP nmasagedsuintr52, nmasagedbcintr52, nmasagedocintr52, nmasagedsointr52,  &
+!$OMP nmasagedduintr63, nmasagedduintr74, nmasagedduintr84,                    &
 !$OMP nmasmergsuintr12, nmasmergocintr12, nmasmergsointr12, nmasmergsuintr23,  &
 !$OMP nmasmergbcintr23, nmasmergocintr23, nmasmergsointr23, nmasmergsuintr34,  &
 !$OMP nmasmergbcintr34, nmasmergocintr34, nmasmergssintr34, nmasmergduintr34,  &
-!$OMP nmasmergsointr34,                                                        &
+!$OMP nmasddepdusupins, nmasnuscdusupins, nmasimscdusupins, nmascondsusupins,  &
+!$OMP nmascondocsupins, nmascondsosupins, nmascoagsuintr18, nmascoagocintr18,  &
+!$OMP nmascoagsointr18, nmasmergsointr34,                                      &
 !$OMP nmasddepntaitsol, nmasddepntaccsol,                                      &
 !$OMP nmasddepntcorsol, nmasddepnhaitsol,nmasddepnhaccsol, nmasddepnhcorsol,   &
 !$OMP nmasnuscntaitsol, nmasnuscntaccsol,nmasnuscntcorsol, nmasnuscnhaitsol,   &
@@ -2173,7 +2185,9 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
           ((ukcaD1codes(n)%item >= item1_mode_diags .AND.                      &
             ukcaD1codes(n)%item <= item1_mode_diags+nmax_mode_diags-1) .OR.    &
            (ukcaD1codes(n)%item >= item1_nitrate_diags .AND.                   &
-            ukcaD1codes(n)%item <= itemN_nitrate_diags)) .AND.                 &
+            ukcaD1codes(n)%item <= itemN_nitrate_diags) .OR.                   &
+           (ukcaD1codes(n)%item >= item1_dust3mode_diags .AND.                 &
+            ukcaD1codes(n)%item <= itemN_dust3mode_diags)) .AND.               &
           ukcaD1codes(n)%item /= imdi) THEN
         k=k+1
 
@@ -2248,6 +2262,22 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
         ! pvol NH -- 636-639
         ! pvol NT -- 640-643
         ! pvol NN -- 644-645
+        ! ****************** DUST 3RD MODE :
+        ! prim DU  -- 675
+        ! ddep DU  -- 676
+        ! nusc DU  -- 677
+        ! imsc DU  -- 678
+        ! cond SU,OC,SO -- 679-681
+        ! htox SU  -- 682
+        ! coag SU,OC,SO -- 683-685
+        ! aged DU  -- 686-688
+        ! drydp8   -- 689
+        ! sarea8   -- 690
+        ! vconc8   -- 691
+        ! rhop8    -- 692
+        ! pvol8 DU -- 693
+        ! mdt fix mass loss -- 694
+        ! mdt fix frequency -- 695
 
         IF (firstcall .AND. verbose > 0 ) THEN
           WRITE(umMessage,'(A45,3I6)') 'About to set mode diagnostics for'//   &
@@ -3203,6 +3233,71 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
         CASE (item1_mode_diags+444)
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
                                           seg%pvol(:,4,8), mode_diags(1,1,1,k) )
+          !!
+          !!  Dust 3rd insol mode diags
+          !!
+        CASE (item1_mode_diags+474)
+          !           Do nothing, emissions not handled here now
+        CASE (item1_mode_diags+475)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmasddepdusupins), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+476)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmasnuscdusupins), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+477)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmasimscdusupins), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+478)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondsusupins), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+479)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondocsupins), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+480)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascondsosupins), mode_diags(1,1,1,k) )
+          !! Code for heterogeneous oxidation of SO2 --> SO4 on dust not yet in
+        CASE (item1_mode_diags+481)
+          mode_diags(:,:,:,k)=0.0
+        CASE (item1_mode_diags+482)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascoagsuintr18), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+483)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascoagocintr18), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+484)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmascoagsointr18), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+485)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmasagedduintr63), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+486)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmasagedduintr74), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+487)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                      seg%bud_aer_mas(:,nmasagedduintr84), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+488)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                                           seg%drydp(:,8), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+489)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                                           seg%sarea(:,8), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+490)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                                           seg%vconc(:,8), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+491)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                                          seg%rhopar(:,8), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+492)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                          seg%pvol(:,8,5), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+493)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                                      seg%mdtfixsink(:,8), mode_diags(1,1,1,k) )
+        CASE (item1_mode_diags+494)
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,model_levels,      &
+                                      seg%mdtfixflag(:,8), mode_diags(1,1,1,k) )
         CASE DEFAULT
           cmessage=' Item not found in CASE statement'
           CALL ereport('UKCA_AERO_CTL',UkcaD1codes(n)%item,cmessage)
@@ -3317,6 +3412,13 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s, model_levels,     &
                                seg%drydp(:,imode), all_ntp(i)%data_3d(1,1,1) )
           i = name2ntpindex('aerdens_cor_insol   ')
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s, model_levels,     &
+                              seg%rhopar(:,imode), all_ntp(i)%data_3d(1,1,1) )
+        CASE (mode_sup_insol)
+          i = name2ntpindex('drydiam_sup_insol   ')
+          CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s, model_levels,     &
+                               seg%drydp(:,imode), all_ntp(i)%data_3d(1,1,1) )
+          i = name2ntpindex('aerdens_sup_insol   ')
           CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s, model_levels,     &
                               seg%rhopar(:,imode), all_ntp(i)%data_3d(1,1,1) )
         CASE DEFAULT
@@ -3505,6 +3607,19 @@ DO ik = thread_min, thread_max     ! the segments on this MPI task
               SELECT CASE (icp)
               CASE (cp_du)
                 i = name2ntpindex('pvol_du_cor_insol   ')
+                CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,             &
+                     model_levels,                                             &
+                             seg%pvol(:,imode,icp), all_ntp(i)%data_3d(1,1,1) )
+              CASE DEFAULT
+                cmessage = ' Component not found in RADAER coupling CASE'//    &
+                           ' statement'
+                errcode = ABS(imode*100) + ABS(icp)
+                CALL ereport('UKCA_AERO_CTL',errcode,cmessage)
+              END SELECT
+            ELSE IF (imode == mode_sup_insol) THEN
+              SELECT CASE (icp)
+              CASE (cp_du)
+                i = name2ntpindex('pvol_du_sup_insol   ')
                 CALL insert_seg(lb,ncs,seg%nbox_this_seg,stride_s,             &
                      model_levels,                                             &
                              seg%pvol(:,imode,icp), all_ntp(i)%data_3d(1,1,1) )

@@ -310,9 +310,10 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
   stashcode_oc_nuc_sol,   stashcode_oc_ait_sol,   stashcode_oc_acc_sol,        &
   stashcode_oc_cor_sol,   stashcode_oc_ait_insol, stashcode_ss_acc_sol,        &
   stashcode_ss_cor_sol,   stashcode_du_acc_sol,   stashcode_du_cor_sol,        &
-  stashcode_du_acc_insol, stashcode_du_cor_insol, stashcode_n_nuc_sol,         &
-  stashcode_n_ait_sol,    stashcode_n_acc_sol,    stashcode_n_cor_sol,         &
-  stashcode_n_ait_insol,  stashcode_n_acc_insol,  stashcode_n_cor_insol,       &
+  stashcode_du_acc_insol, stashcode_du_cor_insol, stashcode_du_sup_insol,      &
+  stashcode_n_nuc_sol,    stashcode_n_ait_sol,    stashcode_n_acc_sol,         &
+  stashcode_n_cor_sol,    stashcode_n_ait_insol,  stashcode_n_acc_insol,       &
+  stashcode_n_cor_insol,  stashcode_n_sup_insol,                               &
   stashcode_h2o_nuc_sol,  stashcode_h2o_ait_sol,  stashcode_h2o_acc_sol,       &
   stashcode_h2o_cor_sol,  stashcode_h2o_total,    stashcode_so4_nuc_sol_load,  &
   stashcode_so4_ait_sol_load,  stashcode_so4_acc_sol_load,                     &
@@ -326,10 +327,10 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
   stashcode_ss_cor_sol_load,   stashcode_ss_total_load,                        &
   stashcode_du_acc_sol_load,   stashcode_du_cor_sol_load,                      &
   stashcode_du_acc_insol_load, stashcode_du_cor_insol_load,                    &
-  stashcode_du_total_load,     stashcode_h2o_nuc_sol_load,                     &
-  stashcode_h2o_ait_sol_load,  stashcode_h2o_acc_sol_load,                     &
-  stashcode_h2o_cor_sol_load,  stashcode_h2o_total_load,                       &
-  stashcode_h2o_mmr,                                                           &
+  stashcode_du_sup_insol_load, stashcode_du_total_load,                        &
+  stashcode_h2o_nuc_sol_load,  stashcode_h2o_ait_sol_load,                     &
+  stashcode_h2o_acc_sol_load,  stashcode_h2o_cor_sol_load,                     &
+  stashcode_h2o_total_load,    stashcode_h2o_mmr,                              &
   stashcode_nh4_ait_sol, stashcode_nh4_acc_sol,                                &
   stashcode_nh4_cor_sol, stashcode_no3_ait_sol,                                &
   stashcode_no3_acc_sol, stashcode_no3_cor_sol,                                &
@@ -391,39 +392,39 @@ INTEGER, PARAMETER :: item_component_cmip6(nmodes,ncp_max) =                   &
 ! SO4
   stashcode_so4_nuc_sol, stashcode_so4_ait_sol, stashcode_so4_acc_sol,         &
   stashcode_so4_cor_sol, -1,                    -1,                            &
-  -1,                                                                          &
+  -1                   , -1,                                                   &
 ! BC
   -1,                    stashcode_bc_ait_sol,  stashcode_bc_acc_sol,          &
   stashcode_bc_cor_sol,  stashcode_bc_ait_insol,-1,                            &
-  -1,                                                                          &
+  -1                   , -1,                                                   &
 ! OC
   stashcode_oc_nuc_sol,  stashcode_oc_ait_sol,  stashcode_oc_acc_sol,          &
   stashcode_oc_cor_sol,  stashcode_oc_ait_insol,-1,                            &
-  -1,                                                                          &
+  -1                  ,  -1,                                                   &
 ! NaCl
   -1,                    -1,                    stashcode_ss_acc_sol,          &
   stashcode_ss_cor_sol,  -1,                    -1,                            &
-  -1,                                                                          &
+  -1                  ,  -1,                                                   &
 ! Dust
   -1,                    -1,                    stashcode_du_acc_sol,          &
   stashcode_du_cor_sol,  -1,                    stashcode_du_acc_insol,        &
-  stashcode_du_cor_insol,                                                      &
+  stashcode_du_cor_insol, stashcode_du_sup_insol,                              &
 ! Secondary organic
   -1,                    -1,                    -1,                            &
   -1,                    -1,                    -1,                            &
-  -1,                                                                          &
+  -1,                    -1,                                                   &
 ! NO3
   -1,                    stashcode_no3_ait_sol, stashcode_no3_acc_sol,         &
   stashcode_no3_cor_sol,                    -1,                    -1,         &
-  -1,                                                                          &
+  -1                   , -1,                                                   &
 ! NaNO3
   -1,                                       -1,  stashcode_nn_acc_sol,         &
    stashcode_nn_cor_sol,                    -1,                    -1,         &
-  -1,                                                                          &
+  -1                   , -1,                                                   &
 ! NH4
   -1,                    stashcode_nh4_ait_sol, stashcode_nh4_acc_sol,         &
   stashcode_nh4_cor_sol,                    -1,                    -1,         &
-  -1                                                                           &
+  -1                   , -1                                                    &
   ], [nmodes, ncp_max])
 
 ! Table to locate STASH item numbers for mode and component loads
@@ -434,67 +435,67 @@ INTEGER, PARAMETER :: item_load_cmip6(nmodes,ncp_max) =                        &
   stashcode_so4_nuc_sol_load, stashcode_so4_ait_sol_load,                      &
   stashcode_so4_acc_sol_load, stashcode_so4_cor_sol_load,                      &
   -1,                         -1,                                              &
-  -1,                                                                          &
+  -1,                         -1,                                              &
 ! BC
-  -1,                                                                          &
-  stashcode_bc_ait_sol_load,  stashcode_bc_acc_sol_load,                       &
-  stashcode_bc_cor_sol_load,  stashcode_bc_ait_insol_load,                     &
-  -1,                         -1,                                              &
+  -1,                          stashcode_bc_ait_sol_load,                      &
+  stashcode_bc_acc_sol_load,   stashcode_bc_cor_sol_load,                      &
+  stashcode_bc_ait_insol_load, -1,                                             &
+  -1,                          -1,                                             &
 ! OC
-  stashcode_oc_nuc_sol_load,  stashcode_oc_ait_sol_load,                       &
-  stashcode_oc_acc_sol_load,  stashcode_oc_cor_sol_load,                       &
-  stashcode_oc_ait_insol_load,-1,                                              &
-  -1,                                                                          &
+  stashcode_oc_nuc_sol_load  , stashcode_oc_ait_sol_load,                      &
+  stashcode_oc_acc_sol_load  , stashcode_oc_cor_sol_load,                      &
+  stashcode_oc_ait_insol_load, -1,                                             &
+  -1,                          -1,                                             &
 ! NaCl
-  -1,                                                                          &
-  -1,                         stashcode_ss_acc_sol_load,                       &
-  stashcode_ss_cor_sol_load,  -1,                                              &
-  -1,                         -1,                                              &
+  -1,                          -1,                                             &
+  stashcode_ss_acc_sol_load,   stashcode_ss_cor_sol_load,                      &
+  -1,                          -1,                                             &
+  -1,                          -1,                                             &
 ! Dust
-  -1,                         -1,                                              &
-  stashcode_du_acc_sol_load,  stashcode_du_cor_sol_load,                       &
-  -1,                         stashcode_du_acc_insol_load,                     &
-  stashcode_du_cor_insol_load,                                                 &
+  -1,                          -1,                                             &
+  stashcode_du_acc_sol_load,   stashcode_du_cor_sol_load,                      &
+  -1,                          stashcode_du_acc_insol_load,                    &
+  stashcode_du_cor_insol_load, stashcode_du_sup_insol_load,                    &
 ! SO
   -1,                         -1,                                              &
   -1,                         -1,                                              &
   -1,                         -1,                                              &
-  -1,                                                                          &
+  -1,                         -1,                                              &
 !  NO3
   -1,                         stashcode_no3_ait_sol_load,                      &
   stashcode_no3_acc_sol_load, stashcode_no3_cor_sol_load,                      &
   -1,                         -1,                                              &
-  -1,                                                                          &
+  -1,                         -1,                                              &
 !  NaNO3
   -1,                                                 -1,                      &
    stashcode_nn_acc_sol_load,  stashcode_nn_cor_sol_load,                      &
   -1,                         -1,                                              &
-  -1,                                                                          &
+  -1,                         -1,                                              &
 !  NH4
   -1,                         stashcode_nh4_ait_sol_load,                      &
   stashcode_nh4_acc_sol_load, stashcode_nh4_cor_sol_load,                      &
   -1,                         -1,                                              &
-  -1                                                                           &
+  -1,                         -1                                               &
   ], [nmodes, ncp_max])
 
 ! Table to locate STASH item numbers for aerosol water density
 INTEGER :: item_water_cmip6(nmodes) = [                                        &
   stashcode_h2o_nuc_sol, stashcode_h2o_ait_sol, stashcode_h2o_acc_sol,         &
   stashcode_h2o_cor_sol, -1,                    -1,                            &
-  -1  ]
+  -1,                    -1  ]
 
 ! Table to locate STASH item numbers for aerosol water loads
 INTEGER :: item_water_load_cmip6(nmodes) = [                                   &
   stashcode_h2o_nuc_sol_load, stashcode_h2o_ait_sol_load,                      &
   stashcode_h2o_acc_sol_load, stashcode_h2o_cor_sol_load,                      &
   -1,                         -1,                                              &
-  -1  ]
+  -1,                         -1  ]
 
 ! Table to locate STASH item numbers for number density
 INTEGER :: item_number_cmip6(nmodes) =                                         &
  [stashcode_n_nuc_sol,   stashcode_n_ait_sol,   stashcode_n_acc_sol,           &
    stashcode_n_cor_sol,   stashcode_n_ait_insol, stashcode_n_acc_insol,        &
-   stashcode_n_cor_insol]
+   stashcode_n_cor_insol, stashcode_n_sup_insol]
 
 ! Table to locate STASH item numbers for total aerosol loads
 ! Positions for SO, NO3, and NH4 unused currently

@@ -42,6 +42,7 @@ SUBROUTINE ukca_radaer_band_average(                                           &
    ,  l_nitrate                                                                &
    ,  l_soluble                                                                &
    ,  l_sustrat                                                                &
+   ,  l_cornarrow_ins                                                          &
    ,  n_cpnt_in_mode                                                           &
       ! Modal mass-mixing ratios from UKCA module
    ,  ukca_modal_mmr                                                           &
@@ -79,6 +80,8 @@ USE ukca_radaer_lut,        ONLY:                                              &
     ip_ukca_lut_accum,                                                         &
     ip_ukca_lut_coarse,                                                        &
     ip_ukca_lut_accnarrow,                                                     &
+    ip_ukca_lut_cornarrow,                                                     &
+    ip_ukca_lut_supercoarse,                                                   &
     ukca_lut
 
 USE ukca_radaer_precalc,    ONLY:                                              &
@@ -87,7 +90,8 @@ USE ukca_radaer_precalc,    ONLY:                                              &
 USE ukca_mode_setup,        ONLY:                                              &
     ip_ukca_mode_aitken,                                                       &
     ip_ukca_mode_accum,                                                        &
-    ip_ukca_mode_coarse
+    ip_ukca_mode_coarse,                                                       &
+    ip_ukca_mode_supercoarse
 
 USE ukca_radaer_struct_mod, ONLY:                                              &
     threshold_mmr,                                                             &
@@ -152,6 +156,7 @@ INTEGER, INTENT(IN) :: i_mode_type( nmodes )
 LOGICAL, INTENT(IN) :: l_nitrate
 LOGICAL, INTENT(IN) :: l_soluble( nmodes )
 LOGICAL, INTENT(IN) :: l_sustrat
+LOGICAL, INTENT(IN) :: l_cornarrow_ins
 INTEGER, INTENT(IN) :: n_cpnt_in_mode( nmodes )
 
 !
@@ -360,6 +365,9 @@ DO i_band = 1, n_band
     ! accumulation types are treated in the same way.
     ! Accumulation soluble mode may use a narrower width (i.e. another
     ! look-up table) than other Aitken and accumulation modes.
+    ! The coarse insoluble mode in the 3 dust mode setup may have a
+    ! narrower width than the default 2.0 which is the case if the
+    ! super-coarse insoluble mode is selected
     ! Once we know which look-up table to select, make local copies
     ! of info needed for nearest-neighbour calculations.
     !
@@ -376,7 +384,14 @@ DO i_band = 1, n_band
       END IF
 
     CASE (ip_ukca_mode_coarse)
-      this_mode_type = ip_ukca_lut_coarse
+      IF ((.NOT. l_soluble(i_mode)) .AND. l_cornarrow_ins) THEN
+        this_mode_type = ip_ukca_lut_cornarrow
+      ELSE
+        this_mode_type = ip_ukca_lut_coarse
+      END IF
+
+    CASE (ip_ukca_mode_supercoarse)
+      this_mode_type = ip_ukca_lut_supercoarse
 
     CASE DEFAULT
       ! Likely developer is trying to pass nucleation mode to radaer

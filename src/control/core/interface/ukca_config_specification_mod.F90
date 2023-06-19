@@ -550,6 +550,7 @@ INTEGER, PARAMETER :: i_sussbcocdu_7mode        = 8
 ! i_sussbcocdu_4mode = 9 has not been included yet
 INTEGER, PARAMETER :: i_sussbcocntnh_5mode_7cpt = 10
 INTEGER, PARAMETER :: i_solinsol_6mode          = 11
+INTEGER, PARAMETER :: i_sussbcocduntnh_8mode_8cpt = 12
 
 ! Option codes for 'i_ageair_reset_method', controlling how the near-surface
 ! values of the age-of-air tracer are reset to zero

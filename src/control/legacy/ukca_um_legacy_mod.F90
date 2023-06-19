@@ -197,17 +197,19 @@ INTEGER :: modl_b(1) = [0]  ! Dummy value
 ! Required by various modules for diagnostic processing
 
 INTEGER            :: nukca_d1items = 0
-INTEGER, PARAMETER :: istrat_first = 0         ! Dummy value
-INTEGER, PARAMETER :: imode_first = 0          ! Dummy value
-INTEGER, PARAMETER :: ukca_diag_sect = 0       ! Dummy value
-INTEGER, PARAMETER :: item1_mode_diags = 0     ! Dummy value
-INTEGER, PARAMETER :: item1_nitrate_diags = 0  ! Dummy value
-INTEGER, PARAMETER :: itemN_nitrate_diags = 0  ! Dummy value
+INTEGER, PARAMETER :: istrat_first = 0          ! Dummy value
+INTEGER, PARAMETER :: imode_first = 0           ! Dummy value
+INTEGER, PARAMETER :: ukca_diag_sect = 0        ! Dummy value
+INTEGER, PARAMETER :: item1_mode_diags = 0      ! Dummy value
+INTEGER, PARAMETER :: item1_nitrate_diags = 0   ! Dummy value
+INTEGER, PARAMETER :: itemN_nitrate_diags = 0   ! Dummy value
+INTEGER, PARAMETER :: item1_dust3mode_diags = 0 ! Dummy value
+INTEGER, PARAMETER :: itemN_dust3mode_diags = 0 ! Dummy value
 INTEGER            :: n_strat_fluxdiags = 0
 INTEGER            :: n_mode_diags = 0
-INTEGER, PARAMETER :: len_stlist = 0           ! Dummy value
-INTEGER, PARAMETER :: num_stash_levels = 0     ! Dummy value
-INTEGER, PARAMETER :: num_stash_pseudo = 0     ! Dummy value
+INTEGER, PARAMETER :: len_stlist = 0            ! Dummy value
+INTEGER, PARAMETER :: num_stash_levels = 0      ! Dummy value
+INTEGER, PARAMETER :: num_stash_pseudo = 0      ! Dummy value
 
 INTEGER, ALLOCATABLE :: stindex(:,:,:,:)
 INTEGER, ALLOCATABLE :: stlist(:,:)
@@ -240,6 +242,8 @@ INTEGER, PARAMETER :: stashcode_du_acc_sol = 0
 INTEGER, PARAMETER :: stashcode_du_acc_sol_load = 0
 INTEGER, PARAMETER :: stashcode_du_cor_insol = 0
 INTEGER, PARAMETER :: stashcode_du_cor_insol_load = 0
+INTEGER, PARAMETER :: stashcode_du_sup_insol = 0
+INTEGER, PARAMETER :: stashcode_du_sup_insol_load = 0
 INTEGER, PARAMETER :: stashcode_du_cor_sol = 0
 INTEGER, PARAMETER :: stashcode_du_cor_sol_load = 0
 INTEGER, PARAMETER :: stashcode_du_total_load = 0
@@ -260,6 +264,7 @@ INTEGER, PARAMETER :: stashcode_n_acc_sol = 0
 INTEGER, PARAMETER :: stashcode_n_ait_insol = 0
 INTEGER, PARAMETER :: stashcode_n_ait_sol = 0
 INTEGER, PARAMETER :: stashcode_n_cor_insol = 0
+INTEGER, PARAMETER :: stashcode_n_sup_insol = 0
 INTEGER, PARAMETER :: stashcode_n_cor_sol = 0
 INTEGER, PARAMETER :: stashcode_n_nuc_sol = 0
 INTEGER, PARAMETER :: stashcode_nh4_acc_sol = 0

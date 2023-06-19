@@ -144,6 +144,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     imode_first, item1_mode_diags,                                             &
     UKCA_diag_sect,                                                            &
     item1_nitrate_diags, itemN_nitrate_diags,                                  &
+    item1_dust3mode_diags, itemN_dust3mode_diags,                              &
     datastart, mype,                                                           &
     gg => g, planet_radius
 #else
@@ -161,6 +162,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     imode_first, item1_mode_diags,                                             &
     UKCA_diag_sect,                                                            &
     item1_nitrate_diags, itemN_nitrate_diags,                                  &
+    item1_dust3mode_diags, itemN_dust3mode_diags,                              &
     datastart, mype,                                                           &
     gg => g, planet_radius
 #endif
@@ -314,7 +316,9 @@ INTEGER, SAVE :: wetox_in_aer   ! set for wet oxidation in MODE (=1)
 INTEGER, SAVE :: uph2so4inaer   ! update H2SO4 tracer in MODE (=1)
                                 ! or UKCA (=0) depending on chemistry
 INTEGER, SAVE :: k_be_top       ! top level for offline oxidants (BE)
+INTEGER    :: nmax_diags_inc_nitr ! number of nitrate diagnostics
 INTEGER    :: n_nitrate_diags   ! number of nitrate diagnostics
+INTEGER    :: n_sup_dust_diags  ! Number of diagnostics for dust 3rd mode
 
 REAL       :: r_minute                  ! real equiv of i_minute
 REAL       :: secondssincemidnight      ! day time
@@ -2784,6 +2788,8 @@ IF (L_asad_use_chem_diags .AND. L_asad_use_output_tracer)                      &
 !       Now adding nitrate diagnostics. 584-645 (item1_nitrate_diags to
 !       itemN_nitrate_diags) are the fluxes and partial volumes 646-668 are
 !       the CMIP diagnostics which are not accounted for here
+!       Now adding diagnostics for the super-coarse insoluble mode (dust)
+!       which was added after the other modes
 ! ----------------------------------------------------------------------
 
 IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
@@ -2827,6 +2833,26 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
       END IF
     END IF
   END DO       ! 1,n_nitrate_diags
+
+  nmax_diags_inc_nitr = nmax_mode_diags + n_nitrate_diags
+  n_sup_dust_diags = itemN_dust3mode_diags - item1_dust3mode_diags + 1
+
+  DO l=1,n_sup_dust_diags
+    IF (UkcaD1codes(imode_first+nmax_diags_inc_nitr+l-1)%item /= imdi) THEN
+      icnt = icnt + 1
+      item = UkcaD1codes(imode_first+nmax_diags_inc_nitr+l-1)%item
+      section = stashcode_glomap_sec
+      IF (sf(item,section) .AND. item >= item1_dust3mode_diags+1  .AND.        &
+          item < item1_dust3mode_diags+19) THEN
+        CALL copydiag_3d (stashwork38(si(item,section,im_index):               &
+             si_last(item,section,im_index)),                                  &
+          mode_diags(:,:,:,icnt),                                              &
+          row_length,rows,model_levels,                                        &
+          stlist(:,stindex(1,item,section,im_index)),len_stlist,               &
+          stash_levels,num_stash_levels+1)
+      END IF
+    END IF
+  END DO       ! 1,n_sup_dust_diags
 
   ! Copy CMIP6 diagnostics and/or PM diagnostics into STASHwork array
   IF (ukca_config%l_ukca_mode .AND. do_chemistry .AND.                         &

@@ -50,7 +50,8 @@ USE ukca_config_specification_mod, ONLY:                                       &
                                  i_du_2mode,                                   &
                                  i_sussbcocdu_7mode,                           &
                                  i_sussbcocntnh_5mode_7cpt,                    &
-                                 i_solinsol_6mode
+                                 i_solinsol_6mode,                             &
+                                 i_sussbcocduntnh_8mode_8cpt
 
 USE ukca_mode_setup_interface_mod, ONLY: ukca_mode_setup_interface
 
@@ -74,7 +75,8 @@ USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_sussbcocdu_7mode,                &
                                  ukca_indices_sussbcocntnh_5mode,              &
                                  ukca_indices_orgv1_soto3_solinsol,            &
-                                 ukca_indices_solinsol_6mode
+                                 ukca_indices_solinsol_6mode,                  &
+                                 ukca_indices_sussbcocduntnh_8mode_8cpt
 
 USE umPrintMgr,            ONLY: umPrint, umMessage,                           &
                                  PrintStatus, PrStatus_Oper
@@ -243,13 +245,16 @@ IF (ukca_config%l_ukca_mode) THEN
     ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
       CALL ukca_indices_orgv1_soto3_solinsol
       CALL ukca_indices_solinsol_6mode
-    ELSE
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN ! 12
+    CALL ukca_indices_orgv1_soto3
+    CALL ukca_indices_sussbcocduntnh_8mode_8cpt
+  ELSE
       cmessage=' i_mode_setup has unrecognised value'
       WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup
       CALL umPrint(umMessage,src='ukca_init')
       errcode = 4
       CALL ereport('UKCA_INIT',errcode,cmessage)
-    END IF           
+    END IF
   END IF       ! i_mode_setup
 
   CALL ukca_mode_setup_interface ( glomap_config%i_mode_setup,                 &

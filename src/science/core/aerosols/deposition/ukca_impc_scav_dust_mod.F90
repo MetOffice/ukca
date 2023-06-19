@@ -120,9 +120,11 @@ SUBROUTINE ukca_impc_scav_dust(nbox,nbudaer,nd,md,mdt,crain,drain,             &
 
 USE ukca_config_specification_mod, ONLY: glomap_variables
 
-USE ukca_mode_setup,    ONLY: cp_du, nmodes, mode_acc_insol, mode_cor_insol
+USE ukca_mode_setup,    ONLY: cp_du, nmodes, mode_acc_insol, mode_cor_insol,   &
+                              mode_sup_insol
 
-USE ukca_setup_indices, ONLY: nmasimscduaccins, nmasimscducorins
+USE ukca_setup_indices, ONLY: nmasimscduaccins, nmasimscducorins,              &
+                              nmasimscdusupins
 
 IMPLICIT NONE
 
@@ -209,7 +211,7 @@ scavm(:,:,:) = 0.0
 
 ! .. Loop over mode, rain type, and gridcell to populate the
 ! .. 3D real-time scavenging arrays
-DO imode = mode_acc_insol, mode_cor_insol
+DO imode = mode_acc_insol, mode_sup_insol
   IF (mode(imode)) THEN
 
     ! .. Nearest neighbour interpolation is used for standard
@@ -314,7 +316,7 @@ END DO ! .. imode
 ! .. Apply derived scavenging coefficients to input mass/number
 DO jl=1,nbox
   IF (totrain(jl) > 0.0) THEN
-    DO imode=mode_acc_insol, mode_cor_insol
+    DO imode=mode_acc_insol, mode_sup_insol
       IF (mode(imode)) THEN
 
         ! .. Only do anything if the initial number is greater than
@@ -392,6 +394,9 @@ DO jl=1,nbox
                 IF ((imode == mode_cor_insol) .AND. (nmasimscducorins > 0))    &
                   bud_aer_mas(jl,nmasimscducorins)=                            &
                     bud_aer_mas(jl,nmasimscducorins)+dm(icp)
+                IF ((imode == mode_sup_insol) .AND. (nmasimscdusupins > 0))    &
+                  bud_aer_mas(jl,nmasimscdusupins)=                            &
+                    bud_aer_mas(jl,nmasimscdusupins)+dm(icp)
               END IF
             END IF ! .. if component present
           END DO ! .. icp

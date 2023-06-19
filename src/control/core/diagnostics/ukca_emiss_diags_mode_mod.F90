@@ -47,8 +47,9 @@ TYPE :: type_mode_diag_struct
   CHARACTER(LEN=30) :: vname  ! name of variable in file
 END TYPE type_mode_diag_struct
 
-INTEGER, PARAMETER :: num_mode_diags = 23  ! 13 + 8 for nitrate scheme
-                                           ! + 2 for marine OC
+INTEGER, PARAMETER :: num_mode_diags = 24  ! 13 + 8 for nitrate scheme
+                                           !    + 2 for marine OC
+                                           !    + 1 for supins dust
 TYPE(type_mode_diag_struct) :: mode_diag(num_mode_diags)
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_EMISS_DIAGS_MODE_MOD'
@@ -72,7 +73,8 @@ USE ukca_mode_setup,  ONLY:                                                    &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
-    mode_cor_insol
+    mode_cor_insol,                                                            &
+    mode_sup_insol
 
 USE ukca_emiss_mod,  ONLY: marine_oc_online
 USE yomhook,  ONLY: lhook, dr_hook
@@ -190,6 +192,12 @@ mode_diag(icount)%component = cp_du
 icount = icount + 1
 mode_diag(icount)%item = 213
 mode_diag(icount)%mode = mode_cor_insol
+mode_diag(icount)%component = cp_du
+
+! dust to sup-ins
+icount = icount + 1
+mode_diag(icount)%item = 675
+mode_diag(icount)%mode = mode_sup_insol
 mode_diag(icount)%component = cp_du
 
 ! ammonium to aitken-sol

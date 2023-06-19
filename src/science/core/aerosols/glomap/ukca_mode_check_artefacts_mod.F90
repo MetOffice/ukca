@@ -34,6 +34,7 @@ MODULE ukca_mode_check_artefacts_mod
 ! Note: currently code is hard-coded so that ordering of modes must
 ! 1) nucln, 2)   soluble Aitken, 3)   soluble accum, 4)   soluble coarse
 !           5) insoluble Aitken, 6) insoluble accum, 7) insoluble coarse
+!           8) insoluble super-coarse
 
 ! Contains subroutines:
 !       1) ukca_mode_check_artefacts   .. called from ukca_aero_ctl
@@ -70,7 +71,8 @@ USE ukca_mode_setup,    ONLY:                                                  &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
-    mode_cor_insol
+    mode_cor_insol,                                                            &
+    mode_sup_insol
 
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -204,6 +206,9 @@ DO imode=1,nmodes
     !  1.4 Insoluble coarse mode : min MDT factor-10 lower in diam than
     !      min of mode
     IF (imode == mode_cor_insol) mdtmin = mlo(imode)*0.001
+    !  1.5 Insoluble super-coarse mode: min MDT factor-10 lower in diam
+    !      than min of mode
+    IF (imode == mode_sup_insol) mdtmin = mlo(imode)*0.001
 
     ! 2) Max MDT criteria
     ! -------------------
@@ -353,7 +358,8 @@ USE ukca_mode_setup,    ONLY:                                                  &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
-    mode_cor_insol
+    mode_cor_insol,                                                            &
+    mode_sup_insol
 
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -437,6 +443,10 @@ IF (imode == mode_acc_insol) mdtmin = mlo(1)*0.001
 
 ! 1.4 Insoluble coarse mode : min MDT factor-10 lower in diam than min of mode
 IF (imode == mode_cor_insol) mdtmin = mlo(imode)*0.001
+
+! 1.5 Insoluble super-coarse mode : min MDT factor-10 lower in diam than
+!     min of mode
+IF (imode == mode_sup_insol) mdtmin = mlo(imode)*0.001
 
 ! 2) Max MDT criteria
 ! -------------------

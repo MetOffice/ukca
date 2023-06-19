@@ -114,6 +114,7 @@ SUBROUTINE ukca_conden(nbox,nchemg,nbudaer,ifuchs,idcmfp,icondiam,             &
 ! Inputted by module UKCA_MODE_SETUP
 ! ----------------------------------
 ! NMODES   : Number of possible aerosol modes
+! NMODES_INS: Number of possible insoluble aerosol modes
 ! NCP      : Number of possible aerosol components
 ! MODE     : Defines which modes are set
 ! CONDENSABLE : Logical variable defining which cpts are condensable
@@ -140,6 +141,7 @@ USE ukca_config_specification_mod, ONLY: glomap_variables
 
 USE ukca_mode_setup,      ONLY:                                                &
     nmodes,                                                                    &
+    nmodes_ins,                                                                &
     cp_su,                                                                     &
     cp_oc,                                                                     &
     cp_so,                                                                     &
@@ -149,7 +151,8 @@ USE ukca_mode_setup,      ONLY:                                                &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
     mode_acc_insol,                                                            &
-    mode_cor_insol
+    mode_cor_insol,                                                            &
+    mode_sup_insol
 
 USE ukca_setup_indices,   ONLY: mh2so4, msec_org, msec_orgi,                   &
     nmascondocaccins, nmascondocaccsol, nmascondocaitins,                      &
@@ -160,7 +163,8 @@ USE ukca_setup_indices,   ONLY: mh2so4, msec_org, msec_orgi,                   &
     nmascondsoaitins, nmascondsoaitsol, nmascondsocorins,                      &
     nmascondsocorsol, nmascondsonucsol, nmascondsuaccins,                      &
     nmascondsuaccsol, nmascondsuaitins, nmascondsuaitsol,                      &
-    nmascondsucorins, nmascondsucorsol, nmascondsunucsol, dimen,               &
+    nmascondsucorins, nmascondsucorsol, nmascondsunucsol,                      &
+    nmascondsusupins, nmascondocsupins, nmascondsosupins, dimen,               &
     condensable, condensable_choice, mm_gas
 
 USE yomhook,              ONLY: lhook, dr_hook
@@ -192,7 +196,7 @@ REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: gc(nbox,nchemg)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 REAL, INTENT(OUT)   :: delgc_cond(nbox,nchemg)
-REAL, INTENT(OUT)   :: ageterm1(nbox,3,nchemg)
+REAL, INTENT(OUT)   :: ageterm1(nbox,nmodes_ins,nchemg)
 REAL, INTENT(OUT)   :: s_cond_s(nbox)
 
 ! Local variables
@@ -213,6 +217,7 @@ LOGICAL (KIND=log_small) :: mask1(nbox)
 LOGICAL (KIND=log_small) :: mask2(nbox)
 LOGICAL (KIND=log_small) :: mask3(nbox)
 LOGICAL (KIND=log_small) :: mask3i(nbox)
+LOGICAL (KIND=log_small) :: mask4i(nbox)
 REAL    :: dmol
 REAL    :: mmcg
 REAL    :: cc(nbox)
@@ -267,6 +272,7 @@ CASE (2)
   aa_modes(5) = 1.9
   aa_modes(6) = 1.5
   aa_modes(7) = 1.1
+  aa_modes(8) = 1.1
 CASE DEFAULT
   ierr = 1
   WRITE(umMessage,'(A,I5)')'Unexpected Value of ICONDIAM ',icondiam
@@ -357,6 +363,7 @@ DO jv=1,nchemg
         mask3 (:) = mask2(:) .AND. (nd(:,imode  ) > num_eps(imode))
 
         mask3i(:) = .FALSE.
+        mask4i(:) = .FALSE.
 
         IF ( mode(mode_ait_insol) .AND. ( imode == mode_ait_sol ) ) THEN
           mask3i(:) = mask2(:) .AND. ( nd(:,mode_ait_insol) > num_eps(imode) )
@@ -368,6 +375,10 @@ DO jv=1,nchemg
 
         IF ( mode(mode_cor_insol) .AND. ( imode == mode_cor_sol ) ) THEN
           mask3i(:) = mask2(:) .AND. ( nd(:,mode_cor_insol) > num_eps(imode) )
+        END IF
+
+        IF ( mode(mode_sup_insol) .AND. ( imode == mode_cor_sol ) ) THEN
+          mask4i(:) = mask2(:) .AND. ( nd(:,mode_sup_insol) > num_eps(imode) )
         END IF
 
         IF ( imode == mode_nuc_sol ) THEN
@@ -635,6 +646,19 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
+          IF ((icp == cp_su) .AND. (nmascondsusupins > 0)) THEN
+            WHERE (mask4i(:))
+
+              deltami(:)=delgc_cond(:,jv)*nc(:,mode_sup_insol)/sumnc(:)
+
+              bud_aer_mas(:,nmascondsusupins)=                                 &
+              bud_aer_mas(:,nmascondsusupins)+deltami(:)
+
+              ageterm1(:,mode_cor_sol,jv)=deltami(:)
+
+            END WHERE
+          END IF
+
           IF (msec_orgi > 0 .AND. jv == msec_orgi) THEN
             IF ((icp == cp_oc) .AND. (nmascondocicorsol > 0)) THEN
               ! condensation of sec_org_i to coarse-sol
@@ -668,6 +692,19 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
+          IF ((icp == cp_oc) .AND. (nmascondocsupins > 0)) THEN
+            WHERE (mask4i(:))
+
+              deltami(:)=delgc_cond(:,jv)*nc(:,mode_sup_insol)/sumnc(:)
+
+              bud_aer_mas(:,nmascondocsupins)=                                 &
+              bud_aer_mas(:,nmascondocsupins)+deltami(:)
+
+              ageterm1(:,mode_cor_sol,jv)=deltami(:)
+
+            END WHERE
+          END IF
+
           IF ((icp == cp_so) .AND. (nmascondsocorsol > 0)) THEN
             WHERE (mask3(:))
 
@@ -688,6 +725,19 @@ DO jv=1,nchemg
               bud_aer_mas(:,nmascondsocorins)+deltami(:)
 
               ageterm1(:,mode_acc_sol,jv)=deltami(:)
+
+            END WHERE
+          END IF
+
+          IF ((icp == cp_so) .AND. (nmascondsosupins > 0)) THEN
+            WHERE (mask4i(:))
+
+              deltami(:)=delgc_cond(:,jv)*nc(:,mode_sup_insol)/sumnc(:)
+
+              bud_aer_mas(:,nmascondsosupins)=                                 &
+              bud_aer_mas(:,nmascondsosupins)+deltami(:)
+
+              ageterm1(:,mode_cor_sol,jv)=deltami(:)
 
             END WHERE
           END IF

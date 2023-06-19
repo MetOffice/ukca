@@ -203,7 +203,7 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !  S0G_TO_GC_SEC_ORG  Molar mass ratio specifically for Sec_Org
 !                Required as Sec_Org conc needs rescaling for ukca_calnucrate
 !  AGETERM1    : Depletion rate of each component (molecules cpt/cc/DTZ)
-!                from condensation onto the 3 insoluble modes.
+!                from condensation onto the 4 insoluble modes.
 !                Used for calculation of ageing rate in UKCA_AGEING.
 !  AGETERM2    : Rate of accomodation of material to each insoluble mode
 !                as a result of coagulation with smaller soluble modes
@@ -217,6 +217,8 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !  Inputted by module UKCA_MODE_SETUP
 !  ----------------------------------
 !  NMODES      : Number of possible aerosol modes
+!  NMODES_SOL  : Number of possible soluble aerosol modes
+!  NMODES_INS  : Number of possible insoluble aerosol modes
 !  NCP         : Number of possible aerosol components
 !  MM          : Molar masses of components (kg/mole)
 !  NUM_EPS     : Value of NEWN below which do not carry out process
@@ -299,6 +301,8 @@ USE ukca_impc_scav_dust_mod,                 ONLY:                             &
 
 USE ukca_mode_setup,                         ONLY:                             &
     nmodes,                                                                    &
+    nmodes_sol,                                                                &
+    nmodes_ins,                                                                &
     cp_su
 
 USE ukca_rainout_mod,                        ONLY:                             &
@@ -471,8 +475,8 @@ REAL :: delgc_cond(nbox,nchemg)
 REAL :: delgc_nucl(nbox,nchemg)
 REAL :: deltas0g(nbox)
 REAL :: delh2so4_nucl(nbox)
-REAL :: ageterm1(nbox,3,nchemg)
-REAL :: ageterm2(nbox,4,3,glomap_variables%ncp)
+REAL :: ageterm1(nbox,nmodes_ins,nchemg)
+REAL :: ageterm2(nbox,nmodes_sol,nmodes_ins,glomap_variables%ncp)
 REAL :: s0g_to_gc
 REAL :: s0g_to_gc_sec_org
 REAL :: frac_aq_acc(nbox)

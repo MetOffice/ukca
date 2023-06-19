@@ -20,10 +20,12 @@ USE ukca_radaer_tlut_mod, ONLY: ukca_radaer_tlut
 IMPLICIT NONE
 SAVE
 
-INTEGER, PARAMETER :: npd_ukca_lut_mode     = 3
-INTEGER, PARAMETER :: ip_ukca_lut_accum     = 1
-INTEGER, PARAMETER :: ip_ukca_lut_coarse    = 2
-INTEGER, PARAMETER :: ip_ukca_lut_accnarrow = 3
+INTEGER, PARAMETER :: npd_ukca_lut_mode       = 5
+INTEGER, PARAMETER :: ip_ukca_lut_accum       = 1
+INTEGER, PARAMETER :: ip_ukca_lut_coarse      = 2
+INTEGER, PARAMETER :: ip_ukca_lut_accnarrow   = 3
+INTEGER, PARAMETER :: ip_ukca_lut_cornarrow   = 4
+INTEGER, PARAMETER :: ip_ukca_lut_supercoarse = 5
 
 INTEGER, PARAMETER :: npd_ukca_lut_spectrum = 2
 !                 those two values must be consistent with
