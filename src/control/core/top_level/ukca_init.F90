@@ -200,15 +200,15 @@ END IF
 IF (ukca_config%l_ukca_mode) THEN
   ! Call appropriate MODE setup routine
   IF ( ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
-     IF (glomap_config%i_mode_setup == i_sussbcoc_5mode) THEN
-       CALL ukca_indices_orgv1_soto3_isop
-       CALL ukca_indices_sussbcoc_5mode_isop
-     ELSE
-       errcode     = 4
-       cmessage    = 'Isoprene SOA (i_chem_version > 132)   '  //              &
-                    'only works with i_mode_setup=2 '
-       CALL ereport('UKCA_INIT', errcode, cmessage)
-     END IF
+    IF (glomap_config%i_mode_setup == i_sussbcoc_5mode) THEN
+      CALL ukca_indices_orgv1_soto3_isop
+      CALL ukca_indices_sussbcoc_5mode_isop
+    ELSE
+      errcode     = 4
+      cmessage    = 'Isoprene SOA (i_chem_version > 132)   '  //               &
+                   'only works with i_mode_setup=2 '
+      CALL ereport('UKCA_INIT', errcode, cmessage)
+    END IF
   ELSE
     IF ( glomap_config%i_mode_setup == i_suss_4mode ) THEN ! 1
       CALL ukca_indices_sv1
@@ -246,9 +246,9 @@ IF (ukca_config%l_ukca_mode) THEN
       CALL ukca_indices_orgv1_soto3_solinsol
       CALL ukca_indices_solinsol_6mode
     ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN ! 12
-    CALL ukca_indices_orgv1_soto3
-    CALL ukca_indices_sussbcocduntnh_8mode_8cpt
-  ELSE
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_sussbcocduntnh_8mode_8cpt
+    ELSE
       cmessage=' i_mode_setup has unrecognised value'
       WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup
       CALL umPrint(umMessage,src='ukca_init')

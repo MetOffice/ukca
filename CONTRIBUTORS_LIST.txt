@@ -5,7 +5,9 @@ NAME				INSTITUTION
 Nathan Luke Abraham		National Centre for Atmospheric Science and
                                 University of Cambridge
 Joseph Abram                    Met Office
+Yusuf Bhatti                    University of Canterbury
 Ian Boutle                      Met Office
+James Bruten                    Met Office
 Sara Cusworth                   Met Office
 Mohit Dalvi                     Met Office
 Daniel Grosvenor                Met Office and University of Leeds
@@ -15,9 +17,8 @@ Alan J Hewitt                   Met Office
 Jenny Hickson                   Met Office
 Ben Johnson                     Met Office
 Anthony Jones                   Met Office
+Charlotte Norris                Met Office
 Roddy Sharp                     Met Office
-Charlotte Norris		Met Office
 Marc Stringer                   National Centre for Atmospheric Science and
                                 University of Reading
 James Weber                     University of Sheffield
-Yusuf Bhatti                    University of Canterbury

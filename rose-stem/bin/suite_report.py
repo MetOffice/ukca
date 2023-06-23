@@ -806,7 +806,7 @@ class SuiteReport(object):
         # Clean up the checked out copy of the owners file
         try:
             os.remove(os.path.expanduser("~/temp_owners.txt"))
-        except FileNotFoundError:
+        except EnvironmentError:
             pass
 
         return owners_dict
@@ -832,7 +832,7 @@ class SuiteReport(object):
 
         if needed_approvals is None:
             table += [
-                " |||||| No "
+                " |||||| No UM "
                 + mode.capitalize()
                 + " Owner Approvals Required || "
             ]
@@ -926,6 +926,8 @@ class SuiteReport(object):
         # Get a list of altered files from the fcm mirror url, repo_loc
         repo_loc = self.job_sources["UM"]["repo mirror"]
         bdiff_files = get_branch_diff_filenames(repo_loc, path_override="")
+        # Remove the '@REVISION' part of repo_loc
+        repo_loc = repo_loc.split("@")[0]
         try:
             bdiff_files.remove(".")
         except ValueError:
@@ -938,6 +940,15 @@ class SuiteReport(object):
 
         # Get Owners for each file changed
         for fle in bdiff_files:
+            if '..' in fle:
+                # This is to fix an invalid path returned by fcm_bdiff in the
+                # case a branch has been reversed off trunk (see comments in
+                # get_branch_diff_filenames() for detail)
+                # The file path (fle) is split by the first example of the
+                # branch_name and then the file path as we expect is the last
+                # value of that list. We then remove any trailing '/'.
+                branch_name = repo_loc.split('/')[-1]
+                fle = fle.split(branch_name, 1)[1].strip('/')
             fpath = fle
             fle = fle.lower()
 
@@ -969,14 +980,21 @@ class SuiteReport(object):
                 else:
                     section = "stash"
             else:
+                # check that the final part of the file path has a . indicating
+                # a file extension. This is to protect against added dirs which
+                # show up in fcm bdiff.
+                if '.' not in fpath.split('/')[-1]:
+                    continue
+
                 # Find area of files in other directories
                 tfile = os.path.join(os.path.expanduser("~"), "tmp_file.txt")
+
                 subproc = "fcm export --force {}/{} {}".format(
-                    repo_loc.split("@")[0], fpath, tfile
+                    repo_loc, fpath, tfile
                 )
-                subprocess.check_output(subproc, shell=True)
 
                 try:
+                    subprocess.check_output(subproc, shell=True)
                     with open(tfile, "r") as inp_file:
                         for line in inp_file:
                             if "file belongs in" in line:
@@ -984,26 +1002,26 @@ class SuiteReport(object):
                                 break
                         else:
                             section = ""
-                except FileNotFoundError:
+                except subprocess.CalledProcessError or EnvironmentError:
                     section = ""
 
                 # Clean up the checked out file copy
                 try:
                     os.remove(tfile)
-                except FileNotFoundError:
+                except EnvironmentError:
                     pass
 
                 # Get code area name out
                 section = re.sub(r"/\*", "", section)
                 section = re.sub(r"\*/", "", section)
                 try:
-                    section = section.split(":")[1].strip()
+                    section = section.split(":")[1].strip().lower()
                 except IndexError:
                     section = ""
 
             # Compare area name to code owners list
             try:
-                owners = code_owners[section.lower()]
+                owners = code_owners[section]
                 owner, deputy = owners
                 if len(deputy) > 0:
                     owner += " (" + deputy + ")"
