@@ -572,6 +572,7 @@ CALL ukca_abdulrazzak_ghan(kbdim,   model_levels,                              &
                            zqm1,    zrdry,                                     &
                            nwbins,  zwarr,                                     &
                            zwpdf,   zwbin,                                     &
+                           glomap_config%l_fix_ukca_hygroscopicities,          &
                            zsmax,   zwchar,                                    &
                            zcdncactm, zcdncact )
 

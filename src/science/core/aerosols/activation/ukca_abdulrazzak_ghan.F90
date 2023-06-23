@@ -44,6 +44,7 @@ SUBROUTINE ukca_abdulrazzak_ghan(kbdim,   klev,                                &
                                  pqm1,    prdry,                               &
                                  nwbins,  pwarr,                               &
                                  pwpdf,   pwbin,                               &
+                                 l_fix_ukca_hygroscopicities_local,            &
                                  psmax,   pwchar,                              &
                                  pcdncactm, pcdncact )
 
@@ -121,6 +122,9 @@ REAL,INTENT(IN)     :: pwarr(kbdim,klev,nwbins)  ! lin array of vert vel [m s-1]
 REAL,INTENT(IN)     :: pwpdf(kbdim,klev,nwbins)  ! lin array of pdf of w [m s-1]
 REAL,INTENT(IN)     :: pwbin(kbdim,klev,nwbins)  ! w bin width [m s-1]
 
+! local copy of temp logical from glomap_config for hygroscopicity fix
+LOGICAL,INTENT(IN) :: l_fix_ukca_hygroscopicities_local
+
 ! max supersaturation [fraction]
 REAL, INTENT(OUT)   :: psmax(kbdim,klev)
 
@@ -145,6 +149,7 @@ INTEGER, POINTER :: ncp
 REAL,    POINTER :: no_ions(:)
 REAL,    POINTER :: rhocomp(:)
 REAL,    POINTER :: sigmag(:)
+INTEGER, POINTER :: modesol(:)
 
 REAL :: zsigmaln(nmodes)   ! ln(geometric std dev)
 
@@ -222,6 +227,8 @@ REAL, PARAMETER :: p0=101325.0     ! in Pa
 REAL :: cthomi
 REAL :: lc_sq
 
+REAL :: no_ions_div_mm( glomap_variables_local%ncp )
+
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
@@ -241,6 +248,7 @@ ncp         => glomap_variables_local%ncp
 no_ions     => glomap_variables_local%no_ions
 rhocomp     => glomap_variables_local%rhocomp
 sigmag      => glomap_variables_local%sigmag
+modesol      => glomap_variables_local%modesol
 
 cthomi  = tm-35.0
 lc_sq=lc**2
@@ -258,7 +266,6 @@ zcdncm          = 0.0
 zeps=EPSILON(1.0)
 
 !--- calculate ln(sigmag)
-
 DO jmod=1, nmodes
   zsigmaln(jmod) = LOG(sigmag(jmod))
 END DO
@@ -278,50 +285,79 @@ DO jmod=1, nmodes
     !--- 1.1.1) Calculate the mean hygroscopicity parameter B:
 
     !--- 1) Calculate weighted properties:
-    !       (Abdul-Razzak & Ghan, 2000)
+    !       (Abdul-Razzak & Ghan, 2000; see also Eqn. A2 of Ghan (2011;
+    !       doi:10.1029/2011MS000074))
+    ! N.B. Molar masses (mm) of components in UKCA already given in kg mol-1
 
-    DO jcp=1,ncp
-      IF (component(jmod,jcp)) THEN
-        DO jk=1, klev
-          DO jl=1, kbdim
-            zmasssum(jl,jk,jmod) = zmasssum(jl,jk,jmod) +                      &
-                                    pxtm1(jl,jk,jmod,jcp)
-          END DO
-        END DO
-      END IF
-    END DO
+    IF (l_fix_ukca_hygroscopicities_local) THEN
+      !Here the hygroscopicity fix is switched on which applies a bug-fix and 
+      !updates to hygroscopicity values. The 'soluble mass fraction' (epsilon
+      !in ARG2000 and Ghan, 2011) is not required since this stems from the case
+      !of a two-component insoluble core surrounded by soluble material (see
+      !the Pruppacher and Klett Microphysics of Clouds and Precipitation
+      !textbook), whereas we have several (internally mixed) components here with
+      !varying solubilities that are taken into account through the no_ions array.
 
-
-    !--- Sum properties over the number of soluble compounds:
-    !    (nion=0 for insoluble compounds)
-    ! N.B. Molar masses of components in UKCA already given in kg mol-1
-
-    DO jcp=1,ncp
-      IF (component(jmod,jcp) .AND.                                            &
-         NINT(no_ions(jcp)) > 0) THEN
-
-        DO jk=1, klev
-          DO jl=1, kbdim
-            IF (zmasssum(jl,jk,jmod) > zeps) THEN
-
-              zmassfrac=pxtm1(jl,jk,jmod,jcp)/                                 &
-                         zmasssum(jl,jk,jmod)
-
+      DO jcp=1,ncp
+        no_ions_div_mm(jcp)=no_ions(jcp)/mm(jcp)
+        IF (component(jmod,jcp)) THEN
+          DO jk=1, klev
+            DO jl=1, kbdim
               zsumtop(jl,jk)=zsumtop(jl,jk)+                                   &
-                             pxtm1(jl,jk,jmod,jcp)*                            &
-                             no_ions(jcp)*zosm*                                &
-                             zmassfrac/mm(jcp)
+                             (pxtm1(jl,jk,jmod,jcp)*no_ions_div_mm(jcp))
 
               zsumbot(jl,jk)=zsumbot(jl,jk)+                                   &
-                             pxtm1(jl,jk,jmod,jcp)/                            &
-                             rhocomp(jcp)
+                             (pxtm1(jl,jk,jmod,jcp)/rhocomp(jcp))
+            END DO        ! jl
+          END DO           ! jk
+        END IF              ! component
+      END DO                 ! loop over cpts
 
-            END IF     ! zmasssum>0
-          END DO        ! jl
-        END DO           ! jk
-      END IF              ! no_ions>0 and component
-    END DO                 ! loop over cpts
+    ELSE
+      !Hygroscopicity fix is off. 
 
+      !--- Sum properties over all composition components for the calcuation
+      ! of the 'soluble mass fraction' (zmassfrac; epsilon in ARG2000 
+      ! and Ghan, 2011). N.B., the use of zmassfrac represents a bug that is 
+      ! fixed by the l_fix_ukca_hygroscopicities temporary logical.
+      DO jcp=1,ncp
+        IF (component(jmod,jcp)) THEN
+          DO jk=1, klev
+            DO jl=1, kbdim
+              zmasssum(jl,jk,jmod) = zmasssum(jl,jk,jmod) +                    &
+                                      pxtm1(jl,jk,jmod,jcp)
+            END DO
+          END DO
+        END IF
+      END DO
+
+      DO jcp=1,ncp
+        IF (component(jmod,jcp) .AND.                                          &
+            NINT(no_ions(jcp)) > 0) THEN
+      !Sum properties over only the soluble compounds
+      !(nion=0 for insoluble compounds) 
+          DO jk=1, klev
+            DO jl=1, kbdim
+              IF (zmasssum(jl,jk,jmod) > zeps) THEN
+
+                zmassfrac=pxtm1(jl,jk,jmod,jcp)/                               &
+                           zmasssum(jl,jk,jmod)
+
+                zsumtop(jl,jk)=zsumtop(jl,jk)+                                 &
+                               (pxtm1(jl,jk,jmod,jcp)*                         &
+                               no_ions(jcp)*zosm*                              &
+                               zmassfrac/mm(jcp))
+                zsumbot(jl,jk)=zsumbot(jl,jk)+                                 &
+                               (pxtm1(jl,jk,jmod,jcp)/                         &
+                               rhocomp(jcp))
+              END IF
+            END DO        ! jl
+          END DO           ! jk
+        END IF              ! no_ions>0 and component
+      END DO                 ! loop over cpts
+
+    END IF
+    ! END IF for hygroscopicity fix
 
     DO jk=1, klev
       DO jl=1, kbdim
@@ -350,11 +386,11 @@ END DO                    !jmod=1, nmodes
 !$OMP         zf, zg, zgamma, zgrowth, zk, zka, zpwdw,                         &
 !$OMP         zrc, zsm, zsmax, zsum, zw, zwpwdw, zxi)                          &
 !$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc_sq, mode, nwbins,                 &
-!$OMP        papm1, pesw, pn, pqm1, prdry, Printstatus,                        &
+!$OMP        modesol, papm1, pesw, pn, pqm1, prdry, Printstatus,               &
 !$OMP        psmax, ptm1, pwarr, pwbin, pwpdf,                                 &
 !$OMP        za, zb, zcdnc, zeps,                                              &
 !$OMP        zndbot, zndbotm, zndtop, zndtopm,                                 &
-!$OMP        zsigmaln)
+!$OMP        zsigmaln, l_fix_ukca_hygroscopicities_local)
 
 !$OMP DO SCHEDULE(DYNAMIC)
 DO jw=1, nwbins
@@ -410,7 +446,8 @@ DO jw=1, nwbins
         zsum=0.0
 
         DO jmod=1, nmodes
-          IF (mode(jmod)) THEN
+          IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                  &
+             l_fix_ukca_hygroscopicities_local)) THEN
             IF (pn(jl,jk,jmod)   >zeps     .AND.                               &
                  prdry(jl,jk,jmod)>1.0e-9   .AND.                              &
                  za(jl,jk,jmod)   >zeps    .AND.                               &
@@ -487,7 +524,8 @@ DO jw=1, nwbins
         CALL umPrint(umMessage,src='ukca_abdulrazzak_ghan')
       END IF
       DO jmod=1, nmodes
-        IF (mode(jmod)) THEN
+        IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                    &
+            l_fix_ukca_hygroscopicities_local)) THEN
           IF (psmax2(jl,jk)          >zeps  .AND.                              &
                zsm(jl,jk,jmod)       >zeps  .AND.                              &
                pn(jl,jk,jmod)        >zeps  .AND.                              &
@@ -545,18 +583,22 @@ END DO !jw
 ! above.
 !$OMP PARALLEL DEFAULT(NONE)                                                   &
 !$OMP PRIVATE(jmod, jk, jl, jw)                                                &
-!$OMP SHARED(kbdim, klev, nwbins,                                              &
+!$OMP SHARED(kbdim, klev, nwbins, mode, modesol,                               &
+!$OMP        l_fix_ukca_hygroscopicities_local,                                &
 !$OMP        zndbot, zndbotm, zndtop, zndtopm)
 DO jw=2,nwbins
   DO jmod=1, nmodes
+    IF ((mode(jmod) .AND. modesol(jmod) == 1) .OR. .NOT.                       &
+        l_fix_ukca_hygroscopicities_local) THEN
 !$OMP DO SCHEDULE(STATIC)
-    DO jk=1, klev
-      DO jl=1, kbdim
-        zndtopm(jl,jk,jmod,1) = zndtopm(jl,jk,jmod,1) + zndtopm(jl,jk,jmod,jw)
-        zndbotm(jl,jk,jmod,1) = zndbotm(jl,jk,jmod,1) + zndbotm(jl,jk,jmod,jw)
+      DO jk=1, klev
+        DO jl=1, kbdim
+          zndtopm(jl,jk,jmod,1) = zndtopm(jl,jk,jmod,1) + zndtopm(jl,jk,jmod,jw)
+          zndbotm(jl,jk,jmod,1) = zndbotm(jl,jk,jmod,1) + zndbotm(jl,jk,jmod,jw)
+        END DO
       END DO
-    END DO
 !$OMP END DO NOWAIT
+    END IF
   END DO
 !$OMP DO SCHEDULE(STATIC)
   DO jk=1, klev
@@ -574,7 +616,8 @@ END DO
 DO jk=1, klev
   DO jl=1, kbdim
     DO jmod=1, nmodes
-      IF (mode(jmod)) THEN
+      IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                      &
+          l_fix_ukca_hygroscopicities_local)) THEN
         IF (zndbotm(jl,jk,jmod,1) < zeps) THEN
           ! Initialise to zero and print warning
           IF (PrintStatus == Prstatus_diag) THEN

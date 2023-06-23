@@ -213,6 +213,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
                       proc_bl_tracer_mix,                                      &
+                      l_fix_ukca_hygroscopicities,                             &
                       error_message, error_routine)
 
 ! ----------------------------------------------------------------------
@@ -484,6 +485,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_improve_aero_drydep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
+LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
 
@@ -1265,6 +1267,8 @@ IF (ukca_config%l_ukca_mode) THEN
       glomap_config%l_bug_repro_tke_index = l_bug_repro_tke_index
 
   END IF
+  IF (PRESENT(l_fix_ukca_hygroscopicities))                                    &
+      glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
 
 END IF
 

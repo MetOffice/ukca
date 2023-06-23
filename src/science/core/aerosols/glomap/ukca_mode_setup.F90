@@ -300,6 +300,7 @@ SUBROUTINE ukca_mode_allcp_4mode ( glomap_variables_local,                     &
                                    l_radaer_in,                                &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
+                                   l_fix_ukca_hygroscopicities_in,             &
                                    pi )
 
 ! ---------------------------------------------------------------------|
@@ -314,6 +315,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -452,8 +454,19 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
-!
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+! conversion: no_ions = kappa*(rho_water/rhocomp)*(mm/mm_water)
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 ! fractions of primary BC/POM emissions to go to each mode at emission
@@ -486,6 +499,7 @@ SUBROUTINE ukca_mode_suss_4mode( glomap_variables_local,                       &
                                  l_radaer_in,                                  &
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
+                                 l_fix_ukca_hygroscopicities_in,               &
                                  pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -500,6 +514,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -637,7 +652,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
@@ -671,6 +697,7 @@ SUBROUTINE ukca_mode_sussbcocdu_4mode( glomap_variables_local,                 &
                                        l_radaer_in,                            &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
+                                       l_fix_ukca_hygroscopicities_in,         &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -685,6 +712,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -821,7 +849,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
@@ -856,6 +895,7 @@ SUBROUTINE ukca_mode_sussbcocdu_7mode( glomap_variables_local,                 &
                                        l_radaer_in,                            &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
+                                       l_fix_ukca_hygroscopicities_in,         &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -870,6 +910,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1006,7 +1047,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
@@ -1040,6 +1092,7 @@ SUBROUTINE ukca_mode_sussbcoc_4mode( glomap_variables_local,                   &
                                      l_radaer_in,                              &
                                      i_tune_bc_in,                             &
                                      l_fix_nacl_density_in,                    &
+                                     l_fix_ukca_hygroscopicities_in,           &
                                      pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1054,6 +1107,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1191,7 +1245,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
@@ -1226,6 +1291,7 @@ SUBROUTINE ukca_mode_sussbcoc_5mode( glomap_variables_local,                   &
                                      l_radaer_in,                              &
                                      i_tune_bc_in,                             &
                                      l_fix_nacl_density_in,                    &
+                                     l_fix_ukca_hygroscopicities_in,           &
                                      pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1240,6 +1306,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1377,7 +1444,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
@@ -1411,6 +1489,7 @@ SUBROUTINE ukca_mode_sussbcocso_4mode( glomap_variables_local,                 &
                                        l_radaer_in,                            &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
+                                       l_fix_ukca_hygroscopicities_in,         &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1425,6 +1504,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1561,7 +1641,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
@@ -1595,6 +1686,7 @@ SUBROUTINE ukca_mode_sussbcocso_5mode( glomap_variables_local,                 &
                                        l_radaer_in,                            &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
+                                       l_fix_ukca_hygroscopicities_in,         &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1609,6 +1701,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1746,7 +1839,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
@@ -1781,6 +1885,7 @@ SUBROUTINE ukca_mode_duonly_2mode( glomap_variables_local,                     &
                                    l_radaer_in,                                &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
+                                   l_fix_ukca_hygroscopicities_in,             &
                                    pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1795,6 +1900,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1930,7 +2036,18 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,2.23,0.0,0.06]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.06,3.04,0.0,0.06]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0]
+END IF
+
 !
 glomap_variables_local%fracbcem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0]
@@ -1964,6 +2081,7 @@ SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt( glomap_variables_local,          &
                                               l_radaer_in,                     &
                                               i_tune_bc_in,                    &
                                               l_fix_nacl_density_in,           &
+                                              l_fix_ukca_hygroscopicities_in,  &
                                               pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1981,6 +2099,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -2138,7 +2257,21 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for cpts: 0.73,0.0,0.1,1.5,0.0,0.1,0.67,0.88,0.0
+! Assume ammonium does not contribute additional ions, it replaces H+
+! but then adjust kappa of NO3 to 0.83 to account for increased mass in
+! NH4NO3. This extra mass adjusts the kappa of sulfate correctly down to
+! ~0.61 when sulfate is ammonium bisulfate by itself
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[2.25,0.0,0.06,2.23,0.0,0.06,1.9,2.56,0.0]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[2.25,0.0,0.06,3.04,0.0,0.06,1.9,2.56,0.0]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
+END IF
 
 ! Fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
@@ -2172,6 +2305,7 @@ SUBROUTINE  ukca_mode_solinsol_6mode( glomap_variables_local,                  &
                                       l_radaer_in,                             &
                                       i_tune_bc_in,                            &
                                       l_fix_nacl_density_in,                   &
+                                      l_fix_ukca_hygroscopicities_in,          &
                                       pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -2187,6 +2321,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -2337,7 +2472,20 @@ END DO
 
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,0.0,0.0,0.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+! conversion: no_ions = kappa*(rho_water/rhocomp)*(mm/mm_water)
+! Everything set to zero here except h2so4 since only h2so4 and dust
+! are used. Dust hygroscopicity assumed zero.
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.0,0.0,0.0,0.0]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=[1.88,0.0,0.0,0.0,0.0,0.0]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,0.0,0.0,0.0]
+END IF
 !
 glomap_variables_local%fracbcem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]
 glomap_variables_local%fracocem=[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]

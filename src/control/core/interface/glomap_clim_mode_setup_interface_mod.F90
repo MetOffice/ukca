@@ -32,7 +32,8 @@ CONTAINS
 SUBROUTINE glomap_clim_mode_setup_interface ( i_mode_setup_in,                 &
                                               l_radaer_in,                     &
                                               i_tune_bc_in,                    &
-                                              l_fix_nacl_density_in )
+                                              l_fix_nacl_density_in,           &
+                                              l_fix_ukca_hygroscopicities_in )
 
 USE common_mode_setup_interface_mod, ONLY:                                     &
     common_mode_setup_interface
@@ -56,6 +57,7 @@ INTEGER, INTENT(IN) :: i_mode_setup_in
 LOGICAL, INTENT(IN) :: l_radaer_in
 INTEGER, INTENT(IN) :: i_tune_bc_in
 LOGICAL, INTENT(IN) :: l_fix_nacl_density_in
+LOGICAL, INTENT(IN) :: l_fix_ukca_hygroscopicities_in
 
 ! Local variables
 
@@ -70,7 +72,8 @@ CALL common_mode_setup_interface ( glomap_variables_climatology,               &
                                    i_mode_setup_in,                            &
                                    l_radaer_in,                                &
                                    i_tune_bc_in,                               &
-                                   l_fix_nacl_density_in )
+                                   l_fix_nacl_density_in,                      &
+                                   l_fix_ukca_hygroscopicities_in )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 END SUBROUTINE glomap_clim_mode_setup_interface

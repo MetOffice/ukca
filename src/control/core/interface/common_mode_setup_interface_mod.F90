@@ -34,7 +34,8 @@ SUBROUTINE common_mode_setup_interface ( glomap_variables_local,               &
                                          i_mode_setup_in,                      &
                                          l_radaer_in,                          &
                                          i_tune_bc_in,                         &
-                                         l_fix_nacl_density_in )
+                                         l_fix_nacl_density_in,                &
+                                         l_fix_ukca_hygroscopicities_in)
 
 USE ereport_mod,                     ONLY:                                     &
     ereport
@@ -89,6 +90,7 @@ INTEGER, INTENT(IN) :: i_mode_setup_in
 LOGICAL, INTENT(IN) :: l_radaer_in
 INTEGER, INTENT(IN) :: i_tune_bc_in
 LOGICAL, INTENT(IN) :: l_fix_nacl_density_in
+LOGICAL, INTENT(IN) :: l_fix_ukca_hygroscopicities_in
 
 ! Local variables
 
@@ -112,6 +114,7 @@ CASE (i_suss_4mode) ! 1
                              l_radaer_in,                                      &
                              i_tune_bc_in,                                     &
                              l_fix_nacl_density_in,                            &
+                             l_fix_ukca_hygroscopicities_in,                   &
                              pi_copy )
 
 CASE (i_sussbcoc_5mode) ! 2
@@ -119,6 +122,7 @@ CASE (i_sussbcoc_5mode) ! 2
                                  l_radaer_in,                                  &
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
+                                 l_fix_ukca_hygroscopicities_in,               &
                                  pi_copy )
 
 CASE (i_sussbcoc_4mode) ! 3
@@ -126,6 +130,7 @@ CASE (i_sussbcoc_4mode) ! 3
                                  l_radaer_in,                                  &
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
+                                 l_fix_ukca_hygroscopicities_in,               &
                                  pi_copy )
 
 CASE (i_sussbcocso_5mode) ! 4
@@ -133,6 +138,7 @@ CASE (i_sussbcocso_5mode) ! 4
                                    l_radaer_in,                                &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
+                                   l_fix_ukca_hygroscopicities_in,             &
                                    pi_copy )
 
 CASE (i_sussbcocso_4mode) ! 5
@@ -140,6 +146,7 @@ CASE (i_sussbcocso_4mode) ! 5
                                    l_radaer_in,                                &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
+                                   l_fix_ukca_hygroscopicities_in,             &
                                    pi_copy )
 
 CASE (i_du_2mode) ! 6
@@ -147,6 +154,7 @@ CASE (i_du_2mode) ! 6
                                l_radaer_in,                                    &
                                i_tune_bc_in,                                   &
                                l_fix_nacl_density_in,                          &
+                               l_fix_ukca_hygroscopicities_in,                 &
                                pi_copy )
 
 CASE (i_sussbcocdu_7mode) ! 8
@@ -154,6 +162,7 @@ CASE (i_sussbcocdu_7mode) ! 8
                                    l_radaer_in,                                &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
+                                   l_fix_ukca_hygroscopicities_in,             &
                                    pi_copy )
 
 CASE (i_sussbcocntnh_5mode_7cpt) ! 10
@@ -161,6 +170,7 @@ CASE (i_sussbcocntnh_5mode_7cpt) ! 10
                                           l_radaer_in,                         &
                                           i_tune_bc_in,                        &
                                           l_fix_nacl_density_in,               &
+                                          l_fix_ukca_hygroscopicities_in,      &
                                           pi_copy )
 
 CASE (i_solinsol_6mode) ! 11
@@ -168,6 +178,7 @@ CASE (i_solinsol_6mode) ! 11
                                  l_radaer_in,                                  &
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
+                                 l_fix_ukca_hygroscopicities_in,               &
                                  pi_copy )
 
 CASE (i_sussbcocduntnh_8mode_8cpt) ! 12

@@ -75,7 +75,8 @@ SUBROUTINE ukca_fixeds(kbdim,                                                  &
 ! Abdul-Razzak and Ghan, JGR, 105, D5, 6837-6844, 2000.
 ! Pruppacher and Klett, Kluewer Ac. Pub., 1997.
 
-USE ukca_config_specification_mod, ONLY: glomap_variables
+USE ukca_config_specification_mod, ONLY: glomap_variables,                     &
+  glomap_config
 
 USE ukca_mode_setup,       ONLY: nmodes
 
@@ -122,6 +123,7 @@ INTEGER, POINTER :: ncp
 REAL,    POINTER :: no_ions(:)
 REAL,    POINTER :: rhocomp(:)
 REAL,    POINTER :: sigmag(:)
+INTEGER, POINTER :: modesol(:)
 
 
 INTEGER :: jmod                    !
@@ -175,6 +177,7 @@ ncp         => glomap_variables%ncp
 no_ions     => glomap_variables%no_ions
 rhocomp     => glomap_variables%rhocomp
 sigmag      => glomap_variables%sigmag
+modesol      => glomap_variables%modesol
 
 !--- 0) Initializations:
 
@@ -199,44 +202,61 @@ END DO
 DO jmod=1, nmodes
   IF (mode(jmod)) THEN
     !--- 1.1.0 Initializations:
-
     zsumtop(:)    = 0.0
     zsumbot(:)    = 0.0
 
-    DO jcp=1,ncp
-      IF (component(jmod,jcp)) THEN
-        DO jl=1, kbdim
-          zmasssum(jl,jmod)=zmasssum(jl,jmod)+                                 &
-               pxtm1(jl,jmod,jcp)
-        END DO !jl
-      END IF !cpt=true
-    END DO !jcp
+    IF (glomap_config%l_fix_ukca_hygroscopicities) THEN
 
-
-    !--- Sum properties over the number of soluble compounds:
-    !    (nion=0 for insoluble compounds)
-    ! N.B. Molar masses of components in UKCA already given in kg mol-1
-
-    DO jcp=1,ncp
-      IF (component(jmod,jcp) .AND.                                            &
-         NINT(no_ions(jcp)) > 0) THEN
-
-        DO jl=1, kbdim
-          IF (zmasssum(jl,jmod) > zeps) THEN
-
-            zmassfrac = pxtm1(jl,jmod,jcp)/zmasssum(jl,jmod)
-
-            zsumtop(jl) = zsumtop(jl) + pxtm1(jl,jmod,jcp)*                    &
-                          no_ions(jcp)*zosm*                                   &
-                          zmassfrac/mm(jcp)
+      !--- Sum properties over the number of soluble compounds:
+      !    (nion=0 for insoluble compounds)
+      ! N.B. Molar masses of components in UKCA already given in kg mol-1
+      DO jcp=1,ncp
+        IF (component(jmod,jcp)) THEN
+          DO jl=1, kbdim
+            zsumtop(jl) = zsumtop(jl)+                                         &
+                            pxtm1(jl,jmod,jcp)*                                &
+                            no_ions(jcp)/                                      &
+                            mm(jcp)
 
             zsumbot(jl) = zsumbot(jl) + pxtm1(jl,jmod,jcp)/                    &
                           rhocomp(jcp)
+          END DO     ! jl
+        END IF           ! no_ions>0 and component
+      END DO              ! loop over cpts
 
-          END IF  ! zmasssum>0
-        END DO     ! jl
-      END IF           ! no_ions>0 and component
-    END DO              ! loop over cpts
+    ELSE
+
+      DO jcp=1,ncp
+        IF (component(jmod,jcp)) THEN
+          DO jl=1, kbdim
+            zmasssum(jl,jmod)=zmasssum(jl,jmod)+                               &
+                 pxtm1(jl,jmod,jcp)
+          END DO !jl
+        END IF !cpt=true
+      END DO !jcp
+
+      !--- Sum properties over the number of soluble compounds:
+      !    (nion=0 for insoluble compounds)
+      ! N.B. Molar masses of components in UKCA already given in kg mol-1
+      DO jcp=1,ncp
+        IF (component(jmod,jcp) .AND.                                          &
+            NINT(no_ions(jcp)) > 0) THEN
+          DO jl=1, kbdim
+            IF (zmasssum(jl,jmod) > zeps) THEN
+              zmassfrac = pxtm1(jl,jmod,jcp)/zmasssum(jl,jmod)
+
+              zsumtop(jl) = zsumtop(jl) + pxtm1(jl,jmod,jcp)*                  &
+                            no_ions(jcp)*zosm*                                 &
+                            zmassfrac/mm(jcp)
+
+              zsumbot(jl) = zsumbot(jl) + pxtm1(jl,jmod,jcp)/                  &
+                          rhocomp(jcp)
+            END IF
+          END DO     ! jl
+        END IF           ! no_ions>0 and component
+      END DO              ! loop over cpts
+
+    END IF
 
     DO jl=1, kbdim
       IF (zsumbot(jl)>zeps) THEN
@@ -261,7 +281,9 @@ END DO                !jmod=1, nmodes
 !--- 3) Calculate activation:
 
 DO jmod=1, nmodes
-  IF (mode(jmod)) THEN
+  IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                          &
+      glomap_config%l_fix_ukca_hygroscopicities)) THEN
+
     DO jsfix=1, nsfix
       DO jl=1, kbdim
         IF (psfix(jsfix)  >zeps  .AND.                                         &

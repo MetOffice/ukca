@@ -506,6 +506,11 @@ TYPE :: glomap_config_spec_type
                                        ! in the calculation of updraft pdf
                                        ! spread related to TKE indexing in the
                                        ! Unified Model
+  LOGICAL :: l_fix_ukca_hygroscopicities
+                                       ! True to update aerosol component
+                                       ! hygroscopicities to kappa-Kohler
+                                       ! values and fix bug in calculation of
+                                       ! volume-weighted hygroscopicity value
 
   ! -- GLOMAP internal configuration variables (not modifiable by parent) --
   INTEGER :: n_dust_emissions          ! Number of dust emission size ranges
@@ -999,6 +1004,7 @@ glomap_config%l_improve_aero_drydep = .FALSE.
 glomap_config%l_fix_ukca_activate_pdf = .FALSE.
 glomap_config%l_fix_ukca_activate_vert_rep = .FALSE.
 glomap_config%l_bug_repro_tke_index = .FALSE.
+glomap_config%l_fix_ukca_hygroscopicities = .FALSE.
 
 ! -- GLOMAP internal configuration variables --
 glomap_config%n_dust_emissions = imdi
@@ -1170,6 +1176,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_bug_repro_tke_index,                                                      &
    l_6bin_dust_no3,                                                            &
    l_2bin_dust_no3,                                                            &
+   l_fix_ukca_hygroscopicities,                                                &
    l_config_available)
 ! ----------------------------------------------------------------------
 ! Description:
@@ -1385,6 +1392,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_improve_aero_drydep
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_bug_repro_tke_index
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_hygroscopicities
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_6bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_2bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_config_available
@@ -1715,6 +1723,8 @@ IF (PRESENT(l_fix_ukca_activate_vert_rep))                                     &
   l_fix_ukca_activate_vert_rep = glomap_config%l_fix_ukca_activate_vert_rep
 IF (PRESENT(l_bug_repro_tke_index))                                            &
   l_bug_repro_tke_index = glomap_config%l_bug_repro_tke_index
+IF (PRESENT(l_fix_ukca_hygroscopicities))                                      &
+  l_fix_ukca_hygroscopicities = glomap_config%l_fix_ukca_hygroscopicities
 
 ! -- GLOMAP internal configuration variables --
 IF (PRESENT(n_dust_emissions)) n_dust_emissions = glomap_config%n_dust_emissions
