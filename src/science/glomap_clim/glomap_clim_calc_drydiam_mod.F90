@@ -82,8 +82,8 @@ USE glomap_clim_identify_fields_mod, ONLY:                                     &
 USE glomap_clim_option_mod,          ONLY:                                     &
     i_glomap_clim_setup
 
-USE glomap_clim_pop_md_mdt_nd_mod,   ONLY:                                     &
-    glomap_clim_pop_md_mdt_nd
+USE ukca_calc_md_mdt_nd_mod,         ONLY:                                     &
+    ukca_calc_md_mdt_nd
 
 USE nlsizes_namelist_mod,            ONLY:                                     &
     row_length,                                                                &
@@ -154,11 +154,6 @@ IF (.NOT. ALLOCATED(md))                                                       &
           ALLOCATE( md(n_points,nmodes,glomap_variables_climatology%ncp))
 IF (.NOT. ALLOCATED(mdt))           ALLOCATE(mdt(n_points,nmodes))
 
-! Initialise arrays
-nd(:,:)   = 0.0
-md(:,:,:) = 0.0
-mdt(:,:) = 0.0
-
 IF (.NOT. ALLOCATED(aird))          ALLOCATE(aird(n_points))
 IF (.NOT. ALLOCATED(nmr1d))         ALLOCATE(nmr1d(n_points,nmodes))
 IF (.NOT. ALLOCATED(mmr1d))                                                    &
@@ -179,9 +174,10 @@ CALL get_gc_aerosol_fields( gc_nd_nuc_sol, gc_nuc_sol_su, gc_nuc_sol_oc,       &
                             gc_nd_ait_ins, gc_ait_ins_bc, gc_ait_ins_oc,       &
                             n_points, mmr1d, nmr1d)
 
-! Populate the md, mdt & nd arrays
-CALL glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup, n_points, aird,          &
-                                 mmr1d, nmr1d, md, mdt, nd )
+! Calculate the md, mdt & nd arrays
+CALL ukca_calc_md_mdt_nd ( i_glomap_clim_setup, n_points,                      &
+                           glomap_variables_climatology,                       &
+                           aird, mmr1d, nmr1d, md, mdt, nd )
 
 IF (ALLOCATED(mmr1d))               DEALLOCATE(mmr1d)
 IF (ALLOCATED(nmr1d))               DEALLOCATE(nmr1d)

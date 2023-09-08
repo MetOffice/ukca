@@ -49,8 +49,11 @@ USE get_gc_aerosol_fields_1d_mod,    ONLY:                                     &
 USE glomap_clim_calc_aird_mod,       ONLY:                                     &
     glomap_clim_calc_aird
 
-USE glomap_clim_pop_md_mdt_nd_mod,   ONLY:                                     &
-    glomap_clim_pop_md_mdt_nd
+USE ukca_calc_md_mdt_nd_mod,         ONLY:                                     &
+    ukca_calc_md_mdt_nd
+
+USE ukca_config_specification_mod,   ONLY:                                     &
+    glomap_variables_climatology
 
 USE parkind1,                        ONLY:                                     &
     jprb,                                                                      &
@@ -154,11 +157,6 @@ CHARACTER(LEN=*), PARAMETER   :: RoutineName='GLOMAP_CLIM_CALC_MD_MDT_ND'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
-! Initialise arrays
-nd(:,:)   = 0.0
-md(:,:,:) = 0.0
-mdt(:,:) = 0.0
-
 ! Calculate aird
 CALL glomap_clim_calc_aird( n_points, p_theta_levels_1d, t_theta_levels_1d,    &
                             aird )
@@ -176,9 +174,10 @@ CALL get_gc_aerosol_fields_1d( n_points, ncp, i_glomap_clim_setup_in,          &
   gc_nd_cor_ins_1d, gc_cor_ins_du_1d,                                          &
   nmr1d, mmr1d )
 
-! Populate the md, mdt & nd arrays
-CALL glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup_in, n_points,             &
-                                 aird, mmr1d, nmr1d, md, mdt, nd )
+! Calculate the md, mdt & nd arrays
+CALL ukca_calc_md_mdt_nd ( i_glomap_clim_setup_in, n_points,                   &
+                           glomap_variables_climatology,                       &
+                           aird, mmr1d, nmr1d, md, mdt, nd )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

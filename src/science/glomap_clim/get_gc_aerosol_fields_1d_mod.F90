@@ -65,6 +65,7 @@ USE ukca_mode_setup,        ONLY:                                              &
     nmodes
 
 USE ukca_config_specification_mod, ONLY:                                       &
+    glomap_variables_climatology,                                              &
     i_sussbcoc_5mode,                                                          &
     i_sussbcocdu_7mode
 
@@ -146,6 +147,10 @@ REAL(KIND=real_umphys),INTENT(OUT) :: mmr1d( n_points, nmodes, ncp )
 
 ! Local Variables
 
+INTEGER :: loop
+INTEGER :: icp
+INTEGER :: imode
+
 INTEGER                           :: errcode
 CHARACTER(LEN=errormessagelength) :: cmessage
 CHARACTER(LEN=*), PARAMETER       :: RoutineName='GET_GC_AEROSOL_FIELDS_1D'
@@ -156,32 +161,47 @@ REAL(KIND=jprb)               :: zhook_handle
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-nmr1d(:,:)   = 0.0
-mmr1d(:,:,:) = 0.0
+DO icp = 1, glomap_variables_climatology%ncp
+  DO imode = 1, nmodes
+    DO loop = 1, n_points
+      mmr1d(loop,imode,icp) = 0.0
+    END DO
+  END DO
+END DO
+
+DO imode = 1, nmodes
+  DO loop = 1, n_points
+    nmr1d(loop,imode) = 0.0
+  END DO
+END DO
 
 SELECT CASE(i_glomap_clim_setup_in)
 CASE (i_sussbcoc_5mode, i_sussbcocdu_7mode)
 
-  nmr1d(:,mode_nuc_sol) = gc_nd_nuc_sol_1d(:)
-  mmr1d(:,mode_nuc_sol,cp_su)   = gc_nuc_sol_su_1d(:)
-  mmr1d(:,mode_nuc_sol,cp_oc)   = gc_nuc_sol_oc_1d(:)
-  nmr1d(:,mode_ait_sol) = gc_nd_ait_sol_1d(:)
-  mmr1d(:,mode_ait_sol,cp_su)   = gc_ait_sol_su_1d(:)
-  mmr1d(:,mode_ait_sol,cp_bc)   = gc_ait_sol_bc_1d(:)
-  mmr1d(:,mode_ait_sol,cp_oc)   = gc_ait_sol_oc_1d(:)
-  nmr1d(:,mode_acc_sol) = gc_nd_acc_sol_1d(:)
-  mmr1d(:,mode_acc_sol,cp_su)   = gc_acc_sol_su_1d(:)
-  mmr1d(:,mode_acc_sol,cp_bc)   = gc_acc_sol_bc_1d(:)
-  mmr1d(:,mode_acc_sol,cp_oc)   = gc_acc_sol_oc_1d(:)
-  mmr1d(:,mode_acc_sol,cp_cl)   = gc_acc_sol_ss_1d(:)
-  nmr1d(:,mode_cor_sol) = gc_nd_cor_sol_1d(:)
-  mmr1d(:,mode_cor_sol,cp_su)   = gc_cor_sol_su_1d(:)
-  mmr1d(:,mode_cor_sol,cp_bc)   = gc_cor_sol_bc_1d(:)
-  mmr1d(:,mode_cor_sol,cp_oc)   = gc_cor_sol_oc_1d(:)
-  mmr1d(:,mode_cor_sol,cp_cl)   = gc_cor_sol_ss_1d(:)
-  nmr1d(:,mode_ait_insol) = gc_nd_ait_ins_1d(:)
-  mmr1d(:,mode_ait_insol,cp_bc) = gc_ait_ins_bc_1d(:)
-  mmr1d(:,mode_ait_insol,cp_oc) = gc_ait_ins_oc_1d(:)
+  DO loop = 1, n_points
+
+    nmr1d(loop,mode_nuc_sol) = gc_nd_nuc_sol_1d(loop)
+    mmr1d(loop,mode_nuc_sol,cp_su)   = gc_nuc_sol_su_1d(loop)
+    mmr1d(loop,mode_nuc_sol,cp_oc)   = gc_nuc_sol_oc_1d(loop)
+    nmr1d(loop,mode_ait_sol) = gc_nd_ait_sol_1d(loop)
+    mmr1d(loop,mode_ait_sol,cp_su)   = gc_ait_sol_su_1d(loop)
+    mmr1d(loop,mode_ait_sol,cp_bc)   = gc_ait_sol_bc_1d(loop)
+    mmr1d(loop,mode_ait_sol,cp_oc)   = gc_ait_sol_oc_1d(loop)
+    nmr1d(loop,mode_acc_sol) = gc_nd_acc_sol_1d(loop)
+    mmr1d(loop,mode_acc_sol,cp_su)   = gc_acc_sol_su_1d(loop)
+    mmr1d(loop,mode_acc_sol,cp_bc)   = gc_acc_sol_bc_1d(loop)
+    mmr1d(loop,mode_acc_sol,cp_oc)   = gc_acc_sol_oc_1d(loop)
+    mmr1d(loop,mode_acc_sol,cp_cl)   = gc_acc_sol_ss_1d(loop)
+    nmr1d(loop,mode_cor_sol) = gc_nd_cor_sol_1d(loop)
+    mmr1d(loop,mode_cor_sol,cp_su)   = gc_cor_sol_su_1d(loop)
+    mmr1d(loop,mode_cor_sol,cp_bc)   = gc_cor_sol_bc_1d(loop)
+    mmr1d(loop,mode_cor_sol,cp_oc)   = gc_cor_sol_oc_1d(loop)
+    mmr1d(loop,mode_cor_sol,cp_cl)   = gc_cor_sol_ss_1d(loop)
+    nmr1d(loop,mode_ait_insol) = gc_nd_ait_ins_1d(loop)
+    mmr1d(loop,mode_ait_insol,cp_bc) = gc_ait_ins_bc_1d(loop)
+    mmr1d(loop,mode_ait_insol,cp_oc) = gc_ait_ins_oc_1d(loop)
+
+  END DO
 
 CASE DEFAULT
   errcode = 1
@@ -191,15 +211,20 @@ CASE DEFAULT
   CALL ereport(RoutineName,errcode,cmessage)
 END SELECT
 
-
 SELECT CASE(i_glomap_clim_setup_in)
 CASE (i_sussbcocdu_7mode)
-  mmr1d(:,mode_acc_sol,cp_du)   = gc_acc_sol_du_1d(:)
-  mmr1d(:,mode_cor_sol,cp_du)   = gc_cor_sol_du_1d(:)
-  nmr1d(:,mode_acc_insol)       = gc_nd_acc_ins_1d(:)
-  mmr1d(:,mode_acc_insol,cp_du) = gc_acc_ins_du_1d(:)
-  nmr1d(:,mode_cor_insol)       = gc_nd_cor_ins_1d(:)
-  mmr1d(:,mode_cor_insol,cp_du) = gc_cor_ins_du_1d(:)
+
+  DO loop = 1, n_points
+
+    mmr1d(loop,mode_acc_sol,cp_du)   = gc_acc_sol_du_1d(loop)
+    mmr1d(loop,mode_cor_sol,cp_du)   = gc_cor_sol_du_1d(loop)
+    nmr1d(loop,mode_acc_insol)       = gc_nd_acc_ins_1d(loop)
+    mmr1d(loop,mode_acc_insol,cp_du) = gc_acc_ins_du_1d(loop)
+    nmr1d(loop,mode_cor_insol)       = gc_nd_cor_ins_1d(loop)
+    mmr1d(loop,mode_cor_insol,cp_du) = gc_cor_ins_du_1d(loop)
+
+  END DO
+
 CASE DEFAULT
   ! Do nothing
 END SELECT

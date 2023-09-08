@@ -52,9 +52,12 @@ REAL(KIND=real_umphys),INTENT(IN) :: p_theta_levels_1d( n_points )
 !                                   Temperature on theta levels (in 1D)
 REAL(KIND=real_umphys),INTENT(IN) :: t_theta_levels_1d( n_points )
 
-REAL(KIND=real_umphys),INTENT(OUT):: aird(n_points)
+REAL(KIND=real_umphys),INTENT(OUT):: aird( n_points )
 
 ! Local variables
+
+INTEGER :: loop
+REAL(KIND=real_umphys) :: boltzmann_times_million
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -64,9 +67,13 @@ CHARACTER(LEN=*), PARAMETER   :: RoutineName='GLOMAP_CLIM_CALC_AIRD'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+boltzmann_times_million = boltzmann * 1000000.0
+
 ! The density of dry air is calculated using the ideal gas law
-aird(:) = p_theta_levels_1d(:) /                                               &
-          ( t_theta_levels_1d(:) * ( boltzmann * 1000000.0 ) )
+DO loop = 1, n_points
+  aird(loop) = p_theta_levels_1d(loop) /                                       &
+               ( t_theta_levels_1d(loop) * boltzmann_times_million )
+END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

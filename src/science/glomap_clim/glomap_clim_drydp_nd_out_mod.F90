@@ -63,8 +63,11 @@ USE glomap_clim_identify_fields_mod, ONLY:                                     &
 USE glomap_clim_option_mod,          ONLY:                                     &
     i_glomap_clim_setup
 
-USE glomap_clim_pop_md_mdt_nd_mod,   ONLY:                                     &
-    glomap_clim_pop_md_mdt_nd
+USE ukca_calc_md_mdt_nd_mod,         ONLY:                                     &
+    ukca_calc_md_mdt_nd
+
+USE ukca_config_specification_mod,   ONLY:                                     &
+    glomap_variables_climatology
 
 USE parkind1,                        ONLY:                                     &
     jpim,                                                                      &
@@ -223,11 +226,6 @@ IF (.NOT. ALLOCATED(md))                                                       &
           ALLOCATE( md(n_points,nmodes,glomap_variables_climatology%ncp))
 IF (.NOT. ALLOCATED(mdt))           ALLOCATE(mdt(n_points,nmodes))
 
-! Initialise arrays
-nd(:,:)   = 0.0
-md(:,:,:) = 0.0
-mdt(:,:) = 0.0
-
 IF (.NOT. ALLOCATED(aird))          ALLOCATE(aird(n_points))
 IF (.NOT. ALLOCATED(nmr1d))         ALLOCATE(nmr1d(n_points,nmodes))
 IF (.NOT. ALLOCATED(mmr1d))                                                    &
@@ -246,11 +244,12 @@ CALL get_gc_aerosol_fields( gc_nd_nuc_sol, gc_nuc_sol_su, gc_nuc_sol_oc,       &
                             gc_nd_cor_sol, gc_cor_sol_su, gc_cor_sol_bc,       &
                             gc_cor_sol_oc, gc_cor_sol_ss,                      &
                             gc_nd_ait_ins, gc_ait_ins_bc, gc_ait_ins_oc,       &
-                            n_points, mmr1d, nmr1d)
+                            n_points, mmr1d, nmr1d )
 
-! Populate the md, mdt & nd arrays
-CALL glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup, n_points, aird,          &
-                                 mmr1d, nmr1d, md, mdt, nd )
+! Calculate the md, mdt & nd arrays
+CALL ukca_calc_md_mdt_nd ( i_glomap_clim_setup, n_points,                      &
+                           glomap_variables_climatology,                       &
+                           aird, mmr1d, nmr1d, md, mdt, nd )
 
 IF (ALLOCATED(mmr1d))               DEALLOCATE(mmr1d)
 IF (ALLOCATED(nmr1d))               DEALLOCATE(nmr1d)
@@ -264,14 +263,18 @@ CALL ukca_calc_drydiam( n_points, glomap_variables_climatology,                &
 
 #if !defined(LFRIC)
 
+!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(i,j,k,m)              &
+!$OMP SHARED(tdims, drydiam)
 DO m = 1, nmodes
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(k)                    &
-!$OMP SHARED(tdims, drydiam, m)
   DO k = 1, tdims%k_end
-    drydiam(:,:,k,m) = 0.0
+    DO j = 1, tdims%j_end
+      DO i = 1, tdims%i_end
+        drydiam(i,j,k,m) = 0.0
+      END DO
+    END DO
   END DO
-!$OMP END PARALLEL DO
 END DO
+!$OMP END PARALLEL DO
 
 DO m = 1, nmodes_list_sussbcoc_5mode
   imode = mode_list_sussbcoc_5mode(m)

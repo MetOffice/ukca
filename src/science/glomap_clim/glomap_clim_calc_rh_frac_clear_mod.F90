@@ -109,10 +109,10 @@ CHARACTER(LEN=*),   PARAMETER :: RoutineName='GLOMAP_CLIM_CALC_RH_FRAC_CLEAR'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-CALL qsat_wat_mix ( qsatmr_wat_1d(:), t_theta_levels_1d(:),                    &
-                    p_theta_levels_1d(:), n_points )
+CALL qsat_wat_mix ( qsatmr_wat_1d, t_theta_levels_1d, p_theta_levels_1d,       &
+                    n_points )
 
-CALL qsat ( qsatmr_1d(:), t_theta_levels_1d(:), p_theta_levels_1d(:), n_points )
+CALL qsat ( qsatmr_1d, t_theta_levels_1d, p_theta_levels_1d, n_points )
 
 ! Calculate clear sky relative humidity
 CALL lsp_qclear( q_1d, qsatmr_1d, qsatmr_wat_1d,                               &
@@ -120,7 +120,9 @@ CALL lsp_qclear( q_1d, qsatmr_1d, qsatmr_wat_1d,                               &
                  rhcrit_1d, q_clr_1d, n_points )
 
 ! Calculate clear sky relative humidity as a fraction
-rh_clr_1d(:) = q_clr_1d(:) / qsatmr_wat_1d(:)
+DO loop = 1, n_points
+  rh_clr_1d(loop) = q_clr_1d(loop) / qsatmr_wat_1d(loop)
+END DO
 
 DO loop = 1, n_points
   IF ( rh_clr_1d(loop) < 0.0 ) THEN

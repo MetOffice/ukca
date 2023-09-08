@@ -4,10 +4,22 @@
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
 !
-! Purpose: Populate md, mdt, nd fields
+! Purpose:
+!  Calculate and return md and mdt and nd
 !
-! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: GLOMAP_CLIM
+! Code Owner:
+!  Please refer to the UM file CodeOwners.txt
+!
+! This file belongs in section:
+!  UKCA
+!
+! Arguments:
+!   aird   : Dry air density
+!   mmr1d  : Avg cpt mass mixing ratio of aerosol particle in mode (particle^-1)
+!   nmr1d  : Aerosol ptcl (number density/ air density) for mode (cm^-3)
+!   md     : Component median aerosol mass (molecules per ptcl)
+!   mdt    : Total median aerosol mass (molecules per ptcl)
+!   nd     : Aerosol ptcl no. concentration (ptcls per cc)
 !
 ! Code description:
 !   Language: Fortran 2003
@@ -15,19 +27,21 @@
 !
 ! ---------------------------------------------------------------------
 
-MODULE glomap_clim_pop_md_mdt_nd_mod
+MODULE ukca_calc_md_mdt_nd_mod
 
 USE um_types,                                ONLY:                             &
     real_umphys
 
 IMPLICIT NONE
 
-CHARACTER(LEN=*),PARAMETER,PRIVATE :: ModuleName='GLOMAP_CLIM_POP_MD_MDT_ND_MOD'
+CHARACTER(LEN=*),PARAMETER,PRIVATE :: ModuleName='UKCA_CALC_MD_MDT_ND_MOD'
 
 CONTAINS
 
-SUBROUTINE glomap_clim_pop_md_mdt_nd ( i_glomap_clim_setup_in, n_points,       &
-                                       aird, mmr1d, nmr1d, md, mdt, nd )
+SUBROUTINE ukca_calc_md_mdt_nd ( i_mode_setup_local, n_points,                 &
+                                 glomap_variables_local,                       &
+                                 aird, mmr1d, nmr1d,                           &
+                                 md, mdt, nd )
 
 USE ereport_mod,                             ONLY:                             &
     ereport
@@ -44,14 +58,14 @@ USE ukca_constants,                          ONLY:                             &
 
 USE ukca_config_specification_mod,           ONLY:                             &
     i_sussbcoc_5mode,                                                          &
-    i_sussbcocdu_7mode,                                                        &
-    glomap_variables_climatology
+    i_sussbcocdu_7mode
 
 USE ukca_mode_setup,                         ONLY:                             &
     component_list_by_cp_sussbcoc_5mode,                                       &
     component_list_by_cp_sussbcocdu_7mode,                                     &
     component_list_by_mode_sussbcoc_5mode,                                     &
     component_list_by_mode_sussbcocdu_7mode,                                   &
+    glomap_variables_type,                                                     &
     mode_list_sussbcoc_5mode,                                                  &
     mode_list_sussbcocdu_7mode,                                                &
     ncp_list_sussbcoc_5mode,                                                   &
@@ -70,44 +84,46 @@ USE yomhook,                                 ONLY:                             &
 IMPLICIT NONE
 
 ! Arguments
-! aird      : Dry air density
-! md        : Component median aerosol mass (molecules per ptcl)
-! mdt       : Total median aerosol mass (molecules per ptcl)
-! nd        : Aerosol ptcl no. concentration (ptcls per cc)
 
-INTEGER, INTENT(IN) :: i_glomap_clim_setup_in
+INTEGER, INTENT(IN) :: i_mode_setup_local
 INTEGER, INTENT(IN) :: n_points
+TYPE(glomap_variables_type), TARGET, INTENT(IN) :: glomap_variables_local
+
+!   aird   : Dry air density
 REAL, INTENT(IN)    :: aird(  n_points )
-REAL, INTENT(IN)    :: mmr1d( n_points,nmodes,glomap_variables_climatology%ncp )
-REAL, INTENT(IN)    :: nmr1d( n_points,nmodes )
-REAL, INTENT(OUT)   :: md(    n_points,nmodes,glomap_variables_climatology%ncp )
-REAL, INTENT(OUT)   :: mdt(   n_points,nmodes )
-REAL, INTENT(OUT)   :: nd(    n_points,nmodes )
+
+!   mmr1d  : Avg cpt mass mixing ratio of aerosol particle in mode (particle^-1)
+REAL, INTENT(IN)    :: mmr1d( n_points, nmodes, glomap_variables_local%ncp )
+
+!   nmr1d  : Aerosol ptcl (number density/ air density) for mode (cm^-3)
+REAL, INTENT(IN)    :: nmr1d( n_points, nmodes )
+
+!   md     : Component median aerosol mass (molecules per ptcl)
+REAL, INTENT(OUT)   :: md(    n_points, nmodes, glomap_variables_local%ncp )
+
+!   mdt    : Total median aerosol mass (molecules per ptcl)
+REAL, INTENT(OUT)   :: mdt(   n_points, nmodes )
+
+!   nd     : Aerosol ptcl no. concentration (ptcls per cc)
+REAL, INTENT(OUT)   :: nd(    n_points, nmodes )
 
 ! Local variables
-
-! Caution - pointers to TYPE glomap_variables_climatology%
-!           have been included here to make the code easier to read
-!           take care when making changes involving pointers
-REAL,    POINTER :: num_eps(:)
-REAL,    POINTER :: mfrac_0(:,:)
-REAL,    POINTER :: mlo(:)
-REAL,    POINTER :: mm(:)
-REAL,    POINTER :: mmid(:)
-INTEGER, POINTER :: ncp
 
 LOGICAL :: mask(n_points,nmodes)
 
 INTEGER :: imode                      ! counter for modes
 INTEGER :: icp                        ! counter for components
-INTEGER :: m                          ! counter
-INTEGER :: i
+INTEGER :: loop                       ! counter for n_points
+INTEGER :: m                          ! counter for local list
 
 INTEGER              :: nmodes_list_local
 INTEGER              :: ncp_list_local
 INTEGER, ALLOCATABLE :: mode_list_local(:)
 INTEGER, ALLOCATABLE :: component_list_by_mode_local(:)
 INTEGER, ALLOCATABLE :: component_list_by_cp_local(:)
+
+REAL :: m_air_div_mm( glomap_variables_local%ncp )
+REAL :: mmid_times_mfrac_0( nmodes , glomap_variables_local%ncp )
 
 INTEGER                           :: ierrcode
 CHARACTER(LEN=errormessagelength) :: cmessage
@@ -118,19 +134,12 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER   :: RoutineName='GLOMAP_CLIM_POP_MD_MDT_ND'
+CHARACTER(LEN=*), PARAMETER   :: RoutineName='UKCA_CALC_MD_MDT_ND'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
-! Caution - pointers to TYPE glomap_variables_climatology%
-!           have been included here to make the code easier to read
-!           take care when making changes involving pointers
-num_eps     => glomap_variables_climatology%num_eps
-mfrac_0     => glomap_variables_climatology%mfrac_0
-mlo         => glomap_variables_climatology%mlo
-mm          => glomap_variables_climatology%mm
-mmid        => glomap_variables_climatology%mmid
-ncp         => glomap_variables_climatology%ncp
+!==============================================================================
+! Error traps for negative concentrations of mmr1d and nmr1d
 
 IF ( ANY ( nmr1d(:,:) < 0.0 ) ) THEN
   ierrcode = 1
@@ -142,117 +151,144 @@ END IF
 
 IF ( ANY ( mmr1d(:,:,:) < 0.0 ) ) THEN
   ierrcode = 1
-  WRITE(cmessage,'(A,I0,A,I0)') 'mmr1d contains negative values.'              &
+  WRITE(cmessage,'(A)') 'mmr1d contains negative values.'                      &
         //newline// 'Try setting l_ignore_ancil_grid_check=.false. in suite.'  &
         //newline// 'Check if NetCDF input contains negative values.'
   CALL ereport(Modulename//':'//RoutineName,ierrcode,cmessage)
 END IF
 
-nd(:,:)=0.0
-mdt(:,:)=0.0
-md(:,:,:)=0.0
-mask(:,:)=.FALSE.
-
 !==============================================================================
 ! Define local loops depending on GLOMAP-mode setup
 
-SELECT CASE(i_glomap_clim_setup_in)
+SELECT CASE(i_mode_setup_local)
 CASE (i_sussbcoc_5mode)
   nmodes_list_local = nmodes_list_sussbcoc_5mode
   ncp_list_local    = ncp_list_sussbcoc_5mode
+
 CASE (i_sussbcocdu_7mode)
   nmodes_list_local = nmodes_list_sussbcocdu_7mode
   ncp_list_local    = ncp_list_sussbcocdu_7mode
+
 CASE DEFAULT
   ierrcode = 1
-  WRITE(cmessage,'(A,I0,A)') 'i_glomap_clim_setup_in = ',                      &
-                              i_glomap_clim_setup_in,                          &
+  WRITE(cmessage,'(A,I0,A)') 'i_mode_setup_local = ',                          &
+                              i_mode_setup_local,                              &
                               newline // 'This option not available.'
   CALL ereport(RoutineName,ierrcode,cmessage)
+
 END SELECT
 
 ALLOCATE( mode_list_local(nmodes_list_local) )
 ALLOCATE( component_list_by_mode_local(ncp_list_local) )
 ALLOCATE( component_list_by_cp_local(ncp_list_local) )
 
-SELECT CASE(i_glomap_clim_setup_in)
+SELECT CASE(i_mode_setup_local)
 CASE (i_sussbcoc_5mode)
   mode_list_local              = mode_list_sussbcoc_5mode
   component_list_by_mode_local = component_list_by_mode_sussbcoc_5mode
   component_list_by_cp_local   = component_list_by_cp_sussbcoc_5mode
+
 CASE (i_sussbcocdu_7mode)
   mode_list_local              = mode_list_sussbcocdu_7mode
   component_list_by_mode_local = component_list_by_mode_sussbcocdu_7mode
   component_list_by_cp_local   = component_list_by_cp_sussbcocdu_7mode
+
 END SELECT
 
 !==============================================================================
-! Calculate nd
+! Calculations not made over n_points
 
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(m, imode, i)          &
-!$OMP SHARED(n_points, mode_list_local, nmodes_list_local, nd, nmr1d, aird,    &
-!$OMP        num_eps, mask)
-DO m = 1, nmodes_list_local
-  imode = mode_list_local(m)
-
-  DO i = 1, n_points
-    nd(i,imode) = nmr1d(i,imode) * aird(i)
-    ! Mask for ND threshold
-    mask(i,imode) = ( nd(i,imode) > num_eps(imode) )
-  END DO
-END DO
-!$OMP END PARALLEL DO
-
-!==============================================================================
-! Calculate md and mdt
-
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(m, imode, icp, i)                         &
-!$OMP SHARED(n_points, ncp_list_local, component_list_by_mode_local,           &
-!$OMP        component_list_by_cp_local, mask, md, mmr1d, mm, aird, nd,        &
-!$OMP        mmid, mfrac_0, mdt)
 DO m = 1, ncp_list_local
   imode = component_list_by_mode_local(m)
   icp = component_list_by_cp_local(m)
 
-!$OMP DO SCHEDULE(STATIC)
-  DO i = 1, n_points
-    IF (mask(i,imode)) THEN
-      md(i,imode,icp) = mmr1d(i,imode,icp) * ( m_air / mm(icp) ) * aird(i) /   &
-                        nd(i,imode)
-    ELSE
-      md(i,imode,icp) = mmid(imode) * mfrac_0(imode,icp)
-    END IF
+  m_air_div_mm(icp) = m_air / glomap_variables_local%mm(icp)
 
-    ! Set total mass array MDT from SUM over individual component MDs
-    mdt(i,imode) = mdt(i,imode) + md(i,imode,icp)
-  END DO
-!$OMP END DO
+  mmid_times_mfrac_0(imode,icp) = glomap_variables_local%mmid(imode) *         &
+                                  glomap_variables_local%mfrac_0(imode,icp)
+
 END DO
-!$OMP END PARALLEL
 
-!==============================================================================
-! Force minimum values of mdt and nd
-
-!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(m, imode, i)          &
-!$OMP SHARED(n_points, mode_list_local, nmodes_list_local, mlo, mdtmin, mask,  &
-!$OMP        mdt, nd, mmid)
 DO m = 1, nmodes_list_local
   imode = mode_list_local(m)
 
   ! set equiv. to DPLIM0*0.1
-  mdtmin(imode) = mlo(imode) * 0.001
+  mdtmin(imode) = glomap_variables_local%mlo(imode) * 0.001
+END DO
 
-  DO i = 1, n_points
+!==============================================================================
+! Initialise arrays
+
+! Initialise mdt(:,:) and nd(:,:) to zero everywhere
+DO imode = 1, nmodes
+  DO loop = 1, n_points
+    mdt(loop,imode)  = 0.0
+    nd(loop,imode)   = 0.0
+    mask(loop,imode) = .false.
+  END DO
+END DO
+
+! Initialise md(:,:,:) to zero everywhere
+DO icp = 1, glomap_variables_local%ncp
+  DO imode = 1, nmodes
+    DO loop = 1, n_points
+      md(loop,imode,icp) = 0.0
+    END DO
+  END DO
+END DO
+
+!==============================================================================
+! Calculate nd
+
+DO m = 1, nmodes_list_local
+  imode = mode_list_local(m)
+
+  DO loop = 1, n_points
+    nd(loop,imode) = nmr1d(loop,imode) * aird(loop)
+
+    ! Mask for ND threshold
+    mask(loop,imode) = (nd(loop,imode) > glomap_variables_local%num_eps(imode))
+  END DO
+
+END DO
+
+!==============================================================================
+! Calculate md and mdt
+
+DO m = 1, ncp_list_local
+  icp = component_list_by_cp_local(m)
+  imode = component_list_by_mode_local(m)
+
+  DO loop = 1, n_points
+    IF (mask(loop,imode)) THEN
+      md(loop,imode,icp) = mmr1d(loop,imode,icp) * m_air_div_mm(icp) *         &
+                           aird(loop) / nd(loop,imode)
+    ELSE
+      md(loop,imode,icp) = mmid_times_mfrac_0(imode,icp)
+    END IF
+
+    ! Set total mass array MDT from SUM over individual component MDs
+    mdt(loop,imode) = mdt(loop,imode) + md(loop,imode,icp)
+  END DO
+
+END DO
+
+!==============================================================================
+! Force minimum values of mdt and nd
+
+DO m = 1, nmodes_list_local
+  imode = mode_list_local(m)
+
+  DO loop = 1, n_points
     ! Set ND -> 0 where MDT too low and set MDT -> MMID
-    mask(i,imode) = ( mdt(i,imode) < mdtmin(imode) )
+    mask(loop,imode) = ( mdt(loop,imode) < mdtmin(imode) )
 
-    IF ( mask(i,imode) ) THEN
-      nd(i,imode)  = 0.0
-      mdt(i,imode) = mmid(imode)
+    IF ( mask(loop,imode) ) THEN
+      nd(loop,imode)  = 0.0
+      mdt(loop,imode) = glomap_variables_local%mmid(imode)
     END IF
   END DO
 END DO
-!$OMP END PARALLEL DO
 
 !==============================================================================
 ! Deallocate local arrays
@@ -266,6 +302,6 @@ DEALLOCATE( mode_list_local )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
-END SUBROUTINE glomap_clim_pop_md_mdt_nd
+END SUBROUTINE ukca_calc_md_mdt_nd
 
-END MODULE glomap_clim_pop_md_mdt_nd_mod
+END MODULE ukca_calc_md_mdt_nd_mod
