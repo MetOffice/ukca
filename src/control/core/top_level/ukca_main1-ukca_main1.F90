@@ -211,6 +211,7 @@ USE asad_chem_flux_diags,   ONLY:                                              &
 USE ukca_diurnal_oxidant,   ONLY: ukca_int_cosz, dealloc_diurnal_oxidant
 USE ukca_emiss_ctl_mod,     ONLY: ukca_emiss_ctl
 USE ukca_chemistry_ctl_be_mod, ONLY: ukca_chemistry_ctl_be
+USE ukca_chemistry_ctl_tropraq_mod, ONLY: ukca_chemistry_ctl_tropraq
 
 USE ukca_scenario_ctl_mod,  ONLY: ukca_scenario_ctl
 USE ukca_chem_diags_allts_mod, ONLY: ukca_chem_diags_allts
@@ -2275,6 +2276,7 @@ IF (ukca_config%l_ukca_chem) THEN
     ! now pass H_plus array to routines that use it in chem ctl
 
     IF (ukca_config%l_ukca_offline_be) THEN
+
       ! Offline chemistry with explicit backward-Euler solver
       CALL ukca_chemistry_ctl_be(                                              &
            row_length, rows, model_levels,                                     &
@@ -2323,189 +2325,243 @@ IF (ukca_config%l_ukca_chem) THEN
            H_plus_3d_arr                                                       &
            )
 
-    ELSE
-      IF (ukca_config%l_ukca_asad_columns .AND.                                &
-          (.NOT. (ukca_config%l_ukca_trop .OR.                                 &
-                  ukca_config%l_ukca_aerchem .OR.                              &
-                  ukca_config%l_ukca_raq .OR.                                  &
-                  ukca_config%l_ukca_raqaero))) THEN
-        CALL ukca_chemistry_ctl_col(                                           &
-             row_length, rows, model_levels,                                   &
-             ukca_config%bl_levels,                                            &
-             theta_field_size,                                                 &
-             n_chem_tracers+n_aero_tracers,                                    &
-             ukca_config%ntype,                                                &
-             ukca_config%npft,                                                 &
-             i_month, i_day_number, i_hour,                                    &
-             r_minute - ukca_config%timestep/60.0,                             &
-             REAL(ukca_config%chem_timestep),                                  &
-             latitude,                                                         &
-             longitude,                                                        &
-             sin_latitude,                                                     &
-             tan_latitude,                                                     &
-             p_theta_levels,                                                   &
-             t_chem,                                                           &
-             q_chem,                                                           &
-             qcf,                                                              &
-             qcl,                                                              &
-             rel_humid_frac,                                                   &
-             p_layer_boundaries,                                               &
-             r_theta_levels(1:row_length, 1:rows, :),                          &
-             z_top_of_model,                                                   &
-             all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),               &
-             all_ntp,                                                          &
-             Tstar,                                                            &
-             Thick_bl_levels,                                                  &
-             rough_length,                                                     &
-             u_s,                                                              &
-             ls_ppn3d, conv_ppn3d,                                             &
-             cloud_frac,                                                       &
-             photol_rates,                                                     &
-             volume,                                                           &
-             mass,                                                             &
-             ! Extra variables for new dry dep scheme
-             land_points, land_index,                                          &
-             tile_pts, tile_index, frac_types,                                 &
-             zbl, surf_hf, seaice_frac, stcon,                                 &
-             soil_moisture_layer1, fland,                                      &
-             laift_lp, canhtft_lp,                                             &
-             z0tile_lp, tstar_tile,                                            &
-             have_nat3d,                                                       &
-             env_ozone3d,                                                      &
-             uph2so4inaer,                                                     &
-             delso2_wet_h2o2,                                                  &
-             delso2_wet_o3,                                                    &
-             delh2so4_chem,                                                    &
-             so4_sa,                                                           &
-             ! Diagnostics
-             nat_psc,                                                          &
-             atm_ch4_mol,                                                      &
-             atm_co_mol,                                                       &
-             atm_n2o_mol,                                                      &
-             atm_cf2cl2_mol,                                                   &
-             atm_cfcl3_mol,                                                    &
-             atm_mebr_mol,                                                     &
-             atm_h2_mol,                                                       &
-             SIZE(stashwork50),                                                &
-             stashwork50,                                                      &
-             H_plus_3d_arr                                                     &
-             )
+    ELSE IF (ukca_config%l_ukca_asad_columns .AND.                             &
+             (.NOT. (ukca_config%l_ukca_trop .OR.                              &
+                     ukca_config%l_ukca_aerchem .OR.                           &
+                     ukca_config%l_ukca_raq .OR.                               &
+                     ukca_config%l_ukca_raqaero))) THEN
 
-      ELSE
-         ! Aerosol mmr / numbers (from CLASSIC aerosol scheme) are only
-         ! used by the RAQ chemistry scheme if heterogeneous chemistry
-         ! is ON. Even if that functionality is OFF they need to be
-         ! allocated before the call to UKCA_CHEMISTRY_CTL.
+      CALL ukca_chemistry_ctl_col(                                             &
+           row_length, rows, model_levels,                                     &
+           ukca_config%bl_levels,                                              &
+           theta_field_size,                                                   &
+           n_chem_tracers+n_aero_tracers,                                      &
+           ukca_config%ntype,                                                  &
+           ukca_config%npft,                                                   &
+           i_month, i_day_number, i_hour,                                      &
+           r_minute - ukca_config%timestep/60.0,                               &
+           REAL(ukca_config%chem_timestep),                                    &
+           latitude,                                                           &
+           longitude,                                                          &
+           sin_latitude,                                                       &
+           tan_latitude,                                                       &
+           p_theta_levels,                                                     &
+           t_chem,                                                             &
+           q_chem,                                                             &
+           qcf,                                                                &
+           qcl,                                                                &
+           rel_humid_frac,                                                     &
+           p_layer_boundaries,                                                 &
+           r_theta_levels(1:row_length, 1:rows, :),                            &
+           z_top_of_model,                                                     &
+           all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
+           all_ntp,                                                            &
+           Tstar,                                                              &
+           Thick_bl_levels,                                                    &
+           rough_length,                                                       &
+           u_s,                                                                &
+           ls_ppn3d, conv_ppn3d,                                               &
+           cloud_frac,                                                         &
+           photol_rates,                                                       &
+           volume,                                                             &
+           mass,                                                               &
+           ! Extra variables for new dry dep scheme
+           land_points, land_index,                                            &
+           tile_pts, tile_index, frac_types,                                   &
+           zbl, surf_hf, seaice_frac, stcon,                                   &
+           soil_moisture_layer1, fland,                                        &
+           laift_lp, canhtft_lp,                                               &
+           z0tile_lp, tstar_tile,                                              &
+           have_nat3d,                                                         &
+           env_ozone3d,                                                        &
+           uph2so4inaer,                                                       &
+           delso2_wet_h2o2,                                                    &
+           delso2_wet_o3,                                                      &
+           delh2so4_chem,                                                      &
+           so4_sa,                                                             &
+           ! Diagnostics
+           nat_psc,                                                            &
+           atm_ch4_mol,                                                        &
+           atm_co_mol,                                                         &
+           atm_n2o_mol,                                                        &
+           atm_cf2cl2_mol,                                                     &
+           atm_cfcl3_mol,                                                      &
+           atm_mebr_mol,                                                       &
+           atm_h2_mol,                                                         &
+           SIZE(stashwork50),                                                  &
+           stashwork50,                                                        &
+           H_plus_3d_arr                                                       &
+           )
 
-        IF (.NOT. ALLOCATED(so4_aitken)) THEN
-          ALLOCATE(so4_aitken(row_length,rows,model_levels))
-          so4_aitken(:,:,:) = min_SO4_val
-        END IF
+    ELSE IF (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_aerchem .OR.      &
+             ukca_config%l_ukca_raq .OR. ukca_config%l_ukca_raqaero) THEN
 
-        IF (.NOT. ALLOCATED(so4_accum)) THEN
-          ALLOCATE(so4_accum(row_length,rows,model_levels))
-          so4_accum(:,:,:) = min_SO4_val
-        END IF
+      ! Aerosol mmr / numbers (from CLASSIC aerosol scheme) are only
+      ! used by the RAQ chemistry scheme if heterogeneous chemistry
+      ! is ON. Even if that functionality is OFF they need to be
+      ! allocated before the call to UKCA_CHEMISTRY_CTL.
 
-        IF (.NOT. ALLOCATED(soot_fresh))                                       &
-            ALLOCATE (soot_fresh (row_length, rows, model_levels))
-
-        IF (.NOT. ALLOCATED(soot_aged))                                        &
-            ALLOCATE (soot_aged  (row_length, rows, model_levels))
-
-        IF (.NOT. ALLOCATED(ocff_fresh))                                       &
-            ALLOCATE (ocff_fresh (row_length, rows, model_levels))
-
-        IF (.NOT. ALLOCATED(ocff_aged))                                        &
-            ALLOCATE (ocff_aged  (row_length, rows, model_levels))
-
-        IF (.NOT. ALLOCATED(biogenic))                                         &
-            ALLOCATE (biogenic   (row_length, rows, model_levels))
-
-        IF (.NOT. ALLOCATED(sea_salt_film))                                    &
-            ALLOCATE (sea_salt_film (row_length, rows, model_levels))
-
-        IF (.NOT. ALLOCATED(sea_salt_jet))                                     &
-            ALLOCATE (sea_salt_jet  (row_length, rows, model_levels))
-
-        CALL ukca_chemistry_ctl(                                               &
-             row_length, rows, model_levels,                                   &
-             ukca_config%bl_levels,                                            &
-             theta_field_size,                                                 &
-             n_chem_tracers+n_aero_tracers,                                    &
-             ukca_config%ntype,                                                &
-             ukca_config%npft,                                                 &
-             i_month, i_day_number, i_hour,                                    &
-             r_minute - ukca_config%timestep/60.0,                             &
-             REAL(ukca_config%chem_timestep),                                  &
-             latitude,                                                         &
-             longitude,                                                        &
-             sin_latitude,                                                     &
-             tan_latitude,                                                     &
-             p_theta_levels,                                                   &
-             t_chem,                                                           &
-             q_chem,                                                           &
-             qcf,                                                              &
-             qcl,                                                              &
-             rel_humid_frac,                                                   &
-             p_layer_boundaries,                                               &
-             r_theta_levels(1:row_length, 1:rows, :),                          &
-             z_top_of_model,                                                   &
-             all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),               &
-             all_ntp,                                                          &
-             Tstar,                                                            &
-             Thick_bl_levels,                                                  &
-             rough_length,                                                     &
-             u_s,                                                              &
-             ls_ppn3d, conv_ppn3d,                                             &
-             cloud_frac,                                                       &
-             photol_rates,                                                     &
-             volume,                                                           &
-             mass,                                                             &
-             so4_aitken,                                                       &
-             so4_accum,                                                        &
-             soot_fresh,                                                       &
-             soot_aged,                                                        &
-             ocff_fresh,                                                       &
-             ocff_aged,                                                        &
-             biogenic,                                                         &
-             sea_salt_film,                                                    &
-             sea_salt_jet,                                                     &
-             ! Extra variables for new dry dep scheme
-             land_points, land_index,                                          &
-             tile_pts, tile_index, frac_types,                                 &
-             zbl, surf_hf, seaice_frac, stcon,                                 &
-             soil_moisture_layer1, fland,                                      &
-             laift_lp, canhtft_lp,                                             &
-             z0tile_lp, tstar_tile,                                            &
-             have_nat3d,                                                       &
-             env_ozone3d,                                                      &
-             uph2so4inaer,                                                     &
-             delso2_wet_h2o2,                                                  &
-             delso2_wet_o3,                                                    &
-             delh2so4_chem,                                                    &
-             delso2_drydep,                                                    &
-             delso2_wetdep,                                                    &
-             so4_sa,                                                           &
-             ! Diagnostics
-             nat_psc,                                                          &
-             trop_ch4_mol,                                                     &
-             trop_o3_mol,                                                      &
-             trop_oh_mol,                                                      &
-             strat_ch4_mol,                                                    &
-             strat_ch4loss,                                                    &
-             atm_ch4_mol,                                                      &
-             atm_co_mol,                                                       &
-             atm_n2o_mol,                                                      &
-             atm_cf2cl2_mol,                                                   &
-             atm_cfcl3_mol,                                                    &
-             atm_mebr_mol,                                                     &
-             atm_h2_mol,                                                       &
-             SIZE(stashwork50),                                                &
-             stashwork50,                                                      &
-             H_plus_3d_arr                                                     &
-             )
+      IF (.NOT. ALLOCATED(so4_aitken)) THEN
+        ALLOCATE(so4_aitken(row_length,rows,model_levels))
+        so4_aitken(:,:,:) = min_SO4_val
       END IF
+
+      IF (.NOT. ALLOCATED(so4_accum)) THEN
+        ALLOCATE(so4_accum(row_length,rows,model_levels))
+        so4_accum(:,:,:) = min_SO4_val
+      END IF
+
+      IF (.NOT. ALLOCATED(soot_fresh))                                         &
+          ALLOCATE (soot_fresh (row_length, rows, model_levels))
+
+      IF (.NOT. ALLOCATED(soot_aged))                                          &
+          ALLOCATE (soot_aged  (row_length, rows, model_levels))
+
+      IF (.NOT. ALLOCATED(ocff_fresh))                                         &
+          ALLOCATE (ocff_fresh (row_length, rows, model_levels))
+
+      IF (.NOT. ALLOCATED(ocff_aged))                                          &
+          ALLOCATE (ocff_aged  (row_length, rows, model_levels))
+
+      IF (.NOT. ALLOCATED(biogenic))                                           &
+          ALLOCATE (biogenic   (row_length, rows, model_levels))
+
+      IF (.NOT. ALLOCATED(sea_salt_film))                                      &
+          ALLOCATE (sea_salt_film (row_length, rows, model_levels))
+
+      IF (.NOT. ALLOCATED(sea_salt_jet))                                       &
+          ALLOCATE (sea_salt_jet  (row_length, rows, model_levels))
+
+      CALL ukca_chemistry_ctl_tropraq(                                         &
+           row_length, rows, model_levels,                                     &
+           ukca_config%bl_levels,                                              &
+           theta_field_size,                                                   &
+           n_chem_tracers+n_aero_tracers,                                      &
+           ukca_config%ntype,                                                  &
+           ukca_config%npft,                                                   &
+           i_month, i_day_number, i_hour,                                      &
+           r_minute - ukca_config%timestep/60.0,                               &
+           REAL(ukca_config%chem_timestep),                                    &
+           latitude,                                                           &
+           longitude,                                                          &
+           sin_latitude,                                                       &
+           tan_latitude,                                                       &
+           p_theta_levels,                                                     &
+           t_chem,                                                             &
+           q_chem,                                                             &
+           qcf,                                                                &
+           qcl,                                                                &
+           rel_humid_frac,                                                     &
+           p_layer_boundaries,                                                 &
+           r_theta_levels(1:row_length, 1:rows, :),                            &
+           all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
+           all_ntp,                                                            &
+           Tstar,                                                              &
+           Thick_bl_levels,                                                    &
+           rough_length,                                                       &
+           u_s,                                                                &
+           ls_ppn3d, conv_ppn3d,                                               &
+           cloud_frac,                                                         &
+           photol_rates,                                                       &
+           volume,                                                             &
+           mass,                                                               &
+           so4_aitken,                                                         &
+           so4_accum,                                                          &
+           soot_fresh,                                                         &
+           soot_aged,                                                          &
+           ocff_fresh,                                                         &
+           ocff_aged,                                                          &
+           biogenic,                                                           &
+           sea_salt_film,                                                      &
+           sea_salt_jet,                                                       &
+           ! Extra variables for new dry dep scheme
+           land_points, land_index,                                            &
+           tile_pts, tile_index, frac_types,                                   &
+           zbl, surf_hf, seaice_frac, stcon,                                   &
+           soil_moisture_layer1, fland,                                        &
+           laift_lp, canhtft_lp,                                               &
+           z0tile_lp, tstar_tile,                                              &
+           env_ozone3d,                                                        &
+           uph2so4inaer,                                                       &
+           delso2_wet_h2o2,                                                    &
+           delso2_wet_o3,                                                      &
+           delh2so4_chem,                                                      &
+           delso2_drydep,                                                      &
+           delso2_wetdep,                                                      &
+           ! Diagnostics
+           trop_ch4_mol,                                                       &
+           trop_o3_mol,                                                        &
+           trop_oh_mol,                                                        &
+           strat_ch4_mol,                                                      &
+           strat_ch4loss,                                                      &
+           SIZE(stashwork50),                                                  &
+           stashwork50,                                                        &
+           H_plus_3d_arr                                                       &
+           )
+
+    ELSE
+
+      CALL ukca_chemistry_ctl(                                                 &
+           row_length, rows, model_levels,                                     &
+           ukca_config%bl_levels,                                              &
+           theta_field_size,                                                   &
+           n_chem_tracers+n_aero_tracers,                                      &
+           ukca_config%ntype,                                                  &
+           ukca_config%npft,                                                   &
+           i_month, i_day_number, i_hour,                                      &
+           r_minute - ukca_config%timestep/60.0,                               &
+           REAL(ukca_config%chem_timestep),                                    &
+           latitude,                                                           &
+           longitude,                                                          &
+           sin_latitude,                                                       &
+           tan_latitude,                                                       &
+           p_theta_levels,                                                     &
+           t_chem,                                                             &
+           q_chem,                                                             &
+           qcf,                                                                &
+           qcl,                                                                &
+           rel_humid_frac,                                                     &
+           p_layer_boundaries,                                                 &
+           r_theta_levels(1:row_length, 1:rows, :),                            &
+           z_top_of_model,                                                     &
+           all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
+           all_ntp,                                                            &
+           Tstar,                                                              &
+           Thick_bl_levels,                                                    &
+           rough_length,                                                       &
+           u_s,                                                                &
+           ls_ppn3d, conv_ppn3d,                                               &
+           cloud_frac,                                                         &
+           photol_rates,                                                       &
+           volume,                                                             &
+           mass,                                                               &
+           ! Extra variables for new dry dep scheme
+           land_points, land_index,                                            &
+           tile_pts, tile_index, frac_types,                                   &
+           zbl, surf_hf, seaice_frac, stcon,                                   &
+           soil_moisture_layer1, fland,                                        &
+           laift_lp, canhtft_lp,                                               &
+           z0tile_lp, tstar_tile,                                              &
+           have_nat3d,                                                         &
+           env_ozone3d,                                                        &
+           uph2so4inaer,                                                       &
+           delso2_wet_h2o2,                                                    &
+           delso2_wet_o3,                                                      &
+           delh2so4_chem,                                                      &
+           so4_sa,                                                             &
+           ! Diagnostics
+           nat_psc,                                                            &
+           atm_ch4_mol,                                                        &
+           atm_co_mol,                                                         &
+           atm_n2o_mol,                                                        &
+           atm_cf2cl2_mol,                                                     &
+           atm_cfcl3_mol,                                                      &
+           atm_mebr_mol,                                                       &
+           atm_h2_mol,                                                         &
+           SIZE(stashwork50),                                                  &
+           stashwork50,                                                        &
+           H_plus_3d_arr                                                       &
+           )
     END IF
 
     IF (ALLOCATED(t_chem)) DEALLOCATE(t_chem)

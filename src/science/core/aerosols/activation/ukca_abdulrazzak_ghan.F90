@@ -290,7 +290,7 @@ DO jmod=1, nmodes
     ! N.B. Molar masses (mm) of components in UKCA already given in kg mol-1
 
     IF (l_fix_ukca_hygroscopicities_local) THEN
-      !Here the hygroscopicity fix is switched on which applies a bug-fix and 
+      !Here the hygroscopicity fix is switched on which applies a bug-fix and
       !updates to hygroscopicity values. The 'soluble mass fraction' (epsilon
       !in ARG2000 and Ghan, 2011) is not required since this stems from the case
       !of a two-component insoluble core surrounded by soluble material (see
@@ -314,11 +314,11 @@ DO jmod=1, nmodes
       END DO                 ! loop over cpts
 
     ELSE
-      !Hygroscopicity fix is off. 
+      !Hygroscopicity fix is off.
 
       !--- Sum properties over all composition components for the calcuation
-      ! of the 'soluble mass fraction' (zmassfrac; epsilon in ARG2000 
-      ! and Ghan, 2011). N.B., the use of zmassfrac represents a bug that is 
+      ! of the 'soluble mass fraction' (zmassfrac; epsilon in ARG2000
+      ! and Ghan, 2011). N.B., the use of zmassfrac represents a bug that is
       ! fixed by the l_fix_ukca_hygroscopicities temporary logical.
       DO jcp=1,ncp
         IF (component(jmod,jcp)) THEN
@@ -334,8 +334,8 @@ DO jmod=1, nmodes
       DO jcp=1,ncp
         IF (component(jmod,jcp) .AND.                                          &
             NINT(no_ions(jcp)) > 0) THEN
-      !Sum properties over only the soluble compounds
-      !(nion=0 for insoluble compounds) 
+          !Sum properties over only the soluble compounds
+          !(nion=0 for insoluble compounds)
           DO jk=1, klev
             DO jl=1, kbdim
               IF (zmasssum(jl,jk,jmod) > zeps) THEN
