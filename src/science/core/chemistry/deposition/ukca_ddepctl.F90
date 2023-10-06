@@ -206,6 +206,24 @@ DO k = 1, rows
     IF (seaice_frac(i,k) > 0.0) THEN
       gsf(i,k,lake) = (1.0 - seaice_frac(i,k)) * seafrac
       gsf(i,k,ntype) = gsf(i,k,ntype) + seaice_frac(i,k) * seafrac
+
+      ! The equation above, involving sea ice, implicitly assumes that
+      ! the last surface type is ice. This is valid for 3 out of the 4 allowed
+      ! UKCA surface tile configurations, 5 pft/9 tile, 9 pft/13 tile and
+      ! 13 pft/17 tile, as ice is usually the last surface type. However, it is
+      ! not valid for the fourth UKCA surface tile configuration
+      ! (13 pft/27 tile), where the last surface type is element 10 of
+      ! elevated ice.
+
+      ! To maintain outputs and comparisons with known good output for UKESM1
+      ! and UKESM1.1, the UKCA code is left unchanged and this comment added.
+      ! The equation has been corrected in the equivalent JULES-based
+      ! deposition routines, with ntype replaced by ice. This will ensure
+      ! that the allocation of sea ice to ice is correct in all surface tile
+      ! configurations, especially those where ice is not the last surface
+      ! type, e.g., in UKESM2, where element 10 of elevated rock will be
+      ! the last surface type.
+
     END IF
   END DO
 END DO

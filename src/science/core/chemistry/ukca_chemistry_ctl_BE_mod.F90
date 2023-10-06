@@ -327,7 +327,7 @@ IF (ndepd /= 0 .AND. (.NOT. ukca_config%l_ukca_drydep_off)) THEN
         land_points, land_index, tile_pts, tile_index,                         &
         secs_per_step, sinlat, frac_types, t_surf,                             &
         p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                     &
-        rh, stcon, soilmc_lp, fland, seaice_frac, laift_lp,                    &
+        rh(:,:,1), stcon, soilmc_lp, fland, seaice_frac, laift_lp,             &
         canhtft_lp, z0tile_lp, t0tile_lp,                                      &
         nlev_in_bl, zdryrt, len_stashwork, stashwork)
 
