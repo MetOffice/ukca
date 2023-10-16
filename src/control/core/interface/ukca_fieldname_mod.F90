@@ -13,11 +13,13 @@
 !  This module provides field name parameters for referring to fields
 !  within UKCA. These parameters should be used in place of character literals
 !  so that any changes made to names in this module will propagate throughout
-!  the code base. The names defined here will be used in communications with
-!  parent applications via the UKCA API.
+!  the code base. The literals defined here will be used in communications with
+!  parent applications via the UKCA API. They are thus considered part of the
+!  API definition and cannot be changed without affecting the API.
 !
 !  N.B. IMPLEMENTATION OF THIS METHOD IS NOT YET COMPLETE: NAMES SHOULD NOT
-!  BE MODIFIED UNTIL THE UKCA CODE BASE IS FULLY COMPLIANT
+!  BE MODIFIED (EVEN AS PART OF AN API CHANGE) UNTIL THE UKCA CODE BASE IS
+!  FULLY COMPLIANT
 !
 ! Part of the UKCA model, a community model supported by the
 ! Met Office and NCAS, with components provided initially
@@ -40,8 +42,11 @@ IMPLICIT NONE
 PUBLIC
 
 INTEGER, PARAMETER :: maxlen_fieldname = 20
+INTEGER, PARAMETER :: maxlen_diagname = 160
 
+! -----------------------------------------------------------------
 ! Prognostic Fields (i.e. Tracers and Non-transported Prognostics)
+! -----------------------------------------------------------------
 CHARACTER(LEN=*), PARAMETER :: fldname_nuc_sol_n = 'Nuc_SOL_N'
 CHARACTER(LEN=*), PARAMETER :: fldname_nuc_sol_su = 'Nuc_SOL_SU'
 CHARACTER(LEN=*), PARAMETER :: fldname_ait_sol_n = 'Ait_SOL_N'
@@ -218,7 +223,9 @@ CHARACTER(LEN=*), PARAMETER :: fldname_pvol_du_acc_insol = 'pvol_du_acc_insol'
 CHARACTER(LEN=*), PARAMETER :: fldname_pvol_du_cor_insol = 'pvol_du_cor_insol'
 CHARACTER(LEN=*), PARAMETER :: fldname_pvol_du_sup_insol = 'pvol_du_sup_insol'
 
+!--------------------
 ! Environment fields
+!--------------------
 
 ! --- Scalar values of type real ---
 CHARACTER(LEN=*), PARAMETER :: fldname_sin_declination =                       &
@@ -502,6 +509,8 @@ CHARACTER(LEN=*), PARAMETER :: fldname_interf_z =                              &
                                       'interf_z'
 CHARACTER(LEN=*), PARAMETER :: fldname_grid_area_fullht =                      &
                                       'grid_area_fullht'
+CHARACTER(LEN=*), PARAMETER :: fldname_grid_volume =                           &
+                                      'grid_volume'
 
 ! Oxidants for Offline Oxidants chemistry - 3-D of type Real
 ! (can be used for other chemistry schemes if needed)
@@ -511,12 +520,54 @@ CHARACTER(LEN=*), PARAMETER :: fldname_no3_offline  = 'NO3'
 CHARACTER(LEN=*), PARAMETER :: fldname_o3_offline   = 'O3'
 CHARACTER(LEN=*), PARAMETER :: fldname_oh_offline   = 'OH'
 
-! Photolysis rates
-CHARACTER(LEN=*), PARAMETER :: fldname_jo2  = 'jo2'
-CHARACTER(LEN=*), PARAMETER :: fldname_jo2b = 'jo2b'
-
 ! --- 4D fields of type real ---
 CHARACTER(LEN=*), PARAMETER :: fldname_photol_rates = 'photol_rates'
+
+!------------------------------------------------------------------
+! Diagnostic fields
+! Note 1: CF names or names constructed using CF guidelines are used.
+!         The notation [CF] in the comments after a name defined below
+!         indicates that the name is listed in the CF Standard Names
+!         Table at cfconventions.org.
+! Note 2: Parameter names for the diagnostic fields are included in
+!         the API definition so neither the parameter names or the
+!         corresponding literals can be changed without affecting
+!         parent applications. A parent may use either in
+!         communications with UKCA via the API.
+!------------------------------------------------------------------
+
+! Photolysis rates (s-1) 'jrate_'<phot rate label>. Item numbers below refer to
+! entries in 'ratj_defs_master'; see module ukca_chem_master_mod.
+CHARACTER(LEN=*), PARAMETER :: diagname_jrate_no2 =                            &
+  'photolysis_rate_of_nitrogen_dioxide'
+                                 ! [CF] Item 11: NO2 -> NO + O(3P)
+CHARACTER(LEN=*), PARAMETER :: diagname_jrate_o3a =                            &
+  'photolysis_rate_of_ozone_to_1d_oxygen_atom'
+                                 ! [CF] Item 15: O3 -> O2 + O(1D)
+CHARACTER(LEN=*), PARAMETER :: diagname_jrate_o3b =                            &
+  'photolysis_rate_of_ozone_to_3p_oxygen_atom'
+                                 ! Item 16: O3 -> O2 + O(3P)
+CHARACTER(LEN=*), PARAMETER :: diagname_jrate_o2b =                            &
+  'photolysis_rate_of_molecular_oxygen_to_1d_oxygen_atom'
+                                 ! Item 40: O2 -> O(3P) + O(1D)
+
+! ASAD framework diagnostics by STASH code (only 1 currently)
+! A UM STASH code is used as an identifier for each ASAD diagnostic. Those
+! listed below can be requested by name via the UKCA API by non-UM parent
+! models and by the UM
+CHARACTER(LEN=*), PARAMETER :: diagname_rxnflux_oh_ch4_trop =                  &
+  'minus_tendency_of_troposphere_moles_of_methane_due_to_' //                  &
+  'reaction_with_hydroxyl_radical'
+                                 ! 50041: Reaction rate OH + CH4 -> H2O + MeOO
+                                 ! in the troposphere (mol s-1)
+
+! Pressure of PV-theta tropopause surface (Pa)
+CHARACTER(LEN=*), PARAMETER :: diagname_p_tropopause =                         &
+  'tropopause_air_pressure'      ! [CF]
+
+! [CF] Ozone column in Dobson units
+CHARACTER(LEN=*), PARAMETER :: diagname_o3_column_du =                         &
+  'equivalent_thickness_at_stp_of_atmosphere_ozone_content'  ! [CF]
 
 CONTAINS
 

@@ -89,7 +89,7 @@ LOGICAL, PARAMETER :: l_um_calc_surf_area = .FALSE.
 ! compiling UKCA in non-UM applications. The values set here are either
 ! to dummy values or to fixed values appropriate for non-UM applications.
 
-! Required for ukcad1codes (in this module) and by asad_chem_flux_diags
+! Required for ukcad1codes (in this module)
 TYPE :: code
   INTEGER :: section
   INTEGER :: item
@@ -117,7 +117,6 @@ TYPE(dummy_array_dims_type) :: pdims, tdims
 ! Required by ukca_main1_mod
 
 INTEGER, PARAMETER :: rh_z_top_theta = 0     ! Dummy value
-INTEGER, PARAMETER :: global_row_length = 0  ! Dummy value
 
 INTEGER, PARAMETER :: datastart(2) = [0,0]   ! Dummy value
 
@@ -126,7 +125,6 @@ REAL, PARAMETER :: delta_phi = 0.0           ! Dummy value
 REAL, PARAMETER :: base_phi = 0.0            ! Dummy value
 
 REAL, ALLOCATABLE :: a_realhd(:)
-REAL, ALLOCATABLE :: fv_cos_theta_latitude(:,:)
 REAL :: rhcrit(1) = [0]                      ! Dummy value
 
 ! Required by ukca_main1_mod and ukca_chemistry_ctl_col_mod
@@ -217,6 +215,10 @@ INTEGER, ALLOCATABLE :: si(:,:,:)
 INTEGER, ALLOCATABLE :: si_last(:,:,:)
 INTEGER, ALLOCATABLE :: stash_levels(:,:)
 INTEGER, ALLOCATABLE :: stash_pseudo_levels(:,:)
+
+REAL, ALLOCATABLE :: stashwork34(:)
+REAL, ALLOCATABLE :: stashwork38(:)
+REAL, ALLOCATABLE :: stashwork50(:)
 
 LOGICAL :: l_ukca_stratflux = .FALSE.
 LOGICAL :: l_ukca_mode_diags = .FALSE.
@@ -647,23 +649,6 @@ dep_loss_rate_ij(:,:,:) = 0.0
 RETURN
 
 END SUBROUTINE deposition_from_ukca_chemistry
-
-! Ozone column calculation subroutine required by ukca_chem_diags_allts_mod
-
-SUBROUTINE ukca_calc_ozonecol(row_length, rows, model_levels, z_top_of_model,  &
-                              p_layer_boundaries, p_layer_centres, ozone_vmr,  &
-                              ozonecol)
-IMPLICIT NONE
-INTEGER, INTENT(IN) :: row_length
-INTEGER, INTENT(IN) :: rows
-INTEGER, INTENT(IN) :: model_levels
-REAL, INTENT(IN) :: z_top_of_model
-REAL, INTENT(IN) :: p_layer_boundaries(:,:,:)
-REAL, INTENT(IN) :: p_layer_centres(:,:,:)
-REAL, INTENT(IN) :: ozone_vmr(:,:,:)
-REAL, INTENT(OUT) :: ozonecol(:,:,:)
-ozonecol = 0.0
-END SUBROUTINE ukca_calc_ozonecol
 
 ! Particle surface area calculation subroutine required by ukca_chemco_raq_mod
 

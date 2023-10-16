@@ -194,7 +194,8 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_inferno_oc,                                                          &
   fldname_inferno_so2,                                                         &
   fldname_lscat_zhang,                                                         &
-  fldname_grid_area_fullht
+  fldname_grid_area_fullht,                                                    &
+  fldname_grid_volume
 
 USE ukca_environment_fields_mod, ONLY: environ_field_info, environ_field_ptrs, &
                                        l_environ_field_available,              &
@@ -204,7 +205,7 @@ USE ukca_environment_fields_mod, ONLY: environ_field_info, environ_field_ptrs, &
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_env_req_uninit,                              &
                           errcode_env_field_mismatch,                          &
-                          errcode_value_missing
+                          errcode_ukca_internal_fault
 
 IMPLICIT NONE
 
@@ -336,9 +337,10 @@ CHARACTER(LEN=*), PARAMETER :: ModuleName='UKCA_ENVIRONMENT_REQ_MOD'
 CONTAINS
 
 ! ----------------------------------------------------------------------
-SUBROUTINE init_environment_req(ukca_config, glomap_config, speci, advt,       &
-                                lbc_spec, cfc_lumped, em_chem_spec, ctype,     &
-                                error_code, error_message, error_routine)
+SUBROUTINE init_environment_req(ukca_config, glomap_config,                    &
+                                speci, advt, lbc_spec, cfc_lumped,             &
+                                em_chem_spec, ctype, error_code,               &
+                                error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
 !   Determines the environment data required for the current UKCA
@@ -403,7 +405,7 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 
 ! Field counts
-INTEGER, PARAMETER :: n_max = 143  ! Maximum number of environment fields
+INTEGER, PARAMETER :: n_max = 144  ! Maximum number of environment fields
 INTEGER :: n                       ! Count of environment fields selected
 INTEGER :: i                       ! Counter for loops
 
@@ -962,6 +964,7 @@ IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
   ! of lower boundary conditions in stratospheric chemistry schemes, for
   ! emissions diagnostics and for converting offline emissions provided in
   ! gridbox units.
+  ! Note: No emissions diags. are currently supported independently of the UM
   IF (ukca_config%i_ukca_light_param /= i_light_param_off .OR.                 &
       (ukca_config%i_strat_lbc_source /= imdi .AND.                            &
        ukca_config%i_strat_lbc_source /= i_strat_lbc_off) .OR.                 &
@@ -1285,6 +1288,7 @@ IF (glomap_config%l_2bin_dust_no3) THEN
 END IF
 
 ! Grid box area on model_levels is required for certain MODE diagnostics.
+! Note: no MODE diagnostics are currently supported independently of the UM
 IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode) THEN
   n = n + 1
   IF (n <= n_max) THEN
@@ -1292,10 +1296,23 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode) THEN
   END IF
 END IF
 
+! Grid box volume is required for various chemistry scheme diagnostics
+! Note: a limited number of these diagnostics are currently supported
+! independently of the UM. Of this subset, grid box volume is required for
+! ASAD framework diagnostics.
+IF (ukca_config%l_asad_chem_diags_support .OR.                                 &
+    ukca_config%l_enable_diag_um) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_grid_volume
+  END IF
+END IF
+
 ! -- Environmental drivers in full-height plus zeroth level grid group --
 
 ! Altitudes of grid-cell interfaces are required if full support for vertical
 ! scaling of emissions is enabled or if MODE diagnostics are to be produced.
+! Note: no MODE diagnostics are currently supported independently of the UM
 IF (ukca_config%l_support_ems_vertprof .OR.                                    &
     (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode)) THEN
   n = n + 1
@@ -2112,7 +2129,7 @@ END FUNCTION environ_field_available
 
 
 ! ----------------------------------------------------------------------
-SUBROUTINE print_environment_summary(id_code, environ_ptrs, error_code,        &
+SUBROUTINE print_environment_summary(error_code_ptr, id_code, environ_ptrs,    &
                                      error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
@@ -2146,9 +2163,12 @@ USE umPrintMgr, ONLY: umMessage, UmPrint
 IMPLICIT NONE
 
 ! Subroutine arguments
+
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
 INTEGER, INTENT(IN) :: id_code
+
 TYPE(env_field_ptrs_type), INTENT(IN) :: environ_ptrs(:)
-INTEGER, INTENT(OUT) :: error_code
+
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 
@@ -2181,13 +2201,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName = 'PRINT_ENVIRONMENT_SUMMARY'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
 ! Check size of field pointers array is as expected
 IF (SIZE(environ_ptrs) /= SIZE(environ_field_varnames)) THEN
-  error_code = errcode_env_field_mismatch
+  error_code_ptr = errcode_env_field_mismatch
   IF (PRESENT(error_message))                                                  &
     WRITE(error_message, '(A)')                                                &
       'Size of environ_ptrs does not match no. of required environment fields'
@@ -2230,7 +2250,7 @@ DO i = 1, SIZE(environ_field_varnames)
             environ_ptrs(i)%value_0d_real
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
-      error_code = errcode_value_missing
+      error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_land_real)
     ! 1D field
@@ -2245,7 +2265,7 @@ DO i = 1, SIZE(environ_field_varnames)
             SIZE(environ_ptrs(i)%value_1d_real)
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
-      error_code = errcode_value_missing
+      error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_flat_integer)
     ! 2D integer field
@@ -2260,7 +2280,7 @@ DO i = 1, SIZE(environ_field_varnames)
             SIZE(environ_ptrs(i)%value_2d_integer)
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
-      error_code = errcode_value_missing
+      error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_flat_real, group_landtile_real, group_landpft_real)
     ! 2D real field
@@ -2275,7 +2295,7 @@ DO i = 1, SIZE(environ_field_varnames)
             SIZE(environ_ptrs(i)%value_2d_real)
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
-      error_code = errcode_value_missing
+      error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_flat_logical)
     ! 2D logical field (print separately later)
@@ -2293,7 +2313,7 @@ DO i = 1, SIZE(environ_field_varnames)
             SIZE(environ_ptrs(i)%value_3d_real)
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
-      error_code = errcode_value_missing
+      error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_fullht_real, group_fullht0_real, group_fullhtp1_real,            &
         group_bllev_real, group_entlev_real)
@@ -2304,14 +2324,14 @@ DO i = 1, SIZE(environ_field_varnames)
       level_min = MIN(level_min, k1)
       level_max = MAX(level_max, k2)
     ELSE
-      error_code = errcode_value_missing
+      error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_fullhtphot_real)
     ! 4D real field - photol_rates (print separately later)
     l_print_photol_rates_table = .TRUE.
   END SELECT
 
-  IF (error_code /= 0) THEN
+  IF (error_code_ptr > 0) THEN
     IF (PRESENT(error_message))                                                &
       WRITE(error_message, '(A,A)')                                            &
         'Missing pointer for environmental driver field ',                     &
@@ -2409,12 +2429,12 @@ IF (l_print_photol_rates_table) THEN
         END DO  ! i_jrat
 
       ELSE
-        error_code = errcode_value_missing
+        error_code_ptr = errcode_ukca_internal_fault
       END IF
 
     END IF
 
-    IF (error_code /= 0) THEN
+    IF (error_code_ptr /= 0) THEN
       IF (PRESENT(error_message))                                              &
         WRITE(error_message, '(A,A)')                                          &
           'Missing pointer for environmental driver field ',                   &
@@ -2451,11 +2471,11 @@ IF (l_print_logicals_table) THEN
               SIZE(environ_ptrs(i)%value_2d_logical) - n_true
         CALL umPrint(umMessage,src=RoutineName)
       ELSE
-        error_code = errcode_value_missing
+        error_code_ptr = errcode_ukca_internal_fault
       END IF
     END IF
 
-    IF (error_code /= 0) THEN
+    IF (error_code_ptr /= 0) THEN
       IF (PRESENT(error_message))                                              &
         WRITE(error_message, '(A,A)')                                          &
           'Missing pointer for environmental driver field ',                   &

@@ -762,7 +762,7 @@ END IF
 ! Check that use of actual gridbox mass is enabled if UM diagnostics are
 ! enabled with a chemistry scheme being active or if a stratospheric chemistry
 ! scheme is used without turning off emissions (since it is then needed in
-! stratospheric schemes for lower boundary condiotins).
+! stratospheric schemes for lower boundary conditions).
 IF ((.NOT. ukca_config%l_use_gridbox_mass) .AND.                               &
     ((ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                         &
       ukca_config%l_enable_diag_um) .OR.                                       &
@@ -847,6 +847,29 @@ IF ( (glomap_config%i_ukca_tune_bc < 0 .OR.                                    &
   errcode = 46
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
+
+! Fixed tropopause level - valid range 1 - model_levels
+IF (ukca_config%l_fix_tropopause_level) THEN
+  IF (ukca_config%fixed_tropopause_level < 1 .OR.                              &
+      ukca_config%fixed_tropopause_level > ukca_config%model_levels) THEN
+    cmessage='fixed_tropopause_level is out of range 1 - model_levels'
+    errcode = 47
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
+END IF
+
+! Check that use of gridbox volume is enabled if UM diagnostics are
+! enabled with a chemistry scheme being active.
+IF ((.NOT. ukca_config%l_use_gridbox_volume) .AND.                             &
+    ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
+    ukca_config%l_enable_diag_um) THEN
+  cmessage = 'Cannot run without grid box volume as it is needed'              &
+             // newline // 'for UM diagnostics'
+  errcode  = 48
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

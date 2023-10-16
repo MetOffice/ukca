@@ -122,7 +122,8 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_grid_surf_area,                                                      &
   fldname_lscat_zhang,                                                         &
   fldname_photol_rates,                                                        &
-  fldname_grid_area_fullht
+  fldname_grid_area_fullht,                                                    &
+  fldname_grid_volume
 
 USE ukca_environment_fields_mod, ONLY:                                         &
   environ_field_info,                                                          &
@@ -217,7 +218,8 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   grid_surf_area,                                                              &
   lscat_zhang,                                                                 &
   photol_rates,                                                                &
-  grid_area_fullht
+  grid_area_fullht,                                                            &
+  grid_volume
 
 USE ukca_error_mod,  ONLY: errcode_env_field_unknown,                          &
                            errcode_env_field_mismatch
@@ -751,6 +753,9 @@ CASE (fldname_oh_offline)
 CASE (fldname_grid_area_fullht)
   CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
                                  grid_area_fullht)
+CASE (fldname_grid_volume)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 grid_volume)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown

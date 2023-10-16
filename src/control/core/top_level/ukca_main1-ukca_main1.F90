@@ -19,7 +19,7 @@
 !     'ukca_emiss_struct_mod'.
 !     Configuration variables are provided in data structures
 !     'ukca_config' and 'glomap_config' in the UKCA module
-!     'ukca_config_specification' mod.
+!     'ukca_config_specification_mod'.
 !  2) UKCA routines are called depending on the scheme selected:
 !     - Emissions control routine
 !     - Chemistry control routine
@@ -45,23 +45,16 @@ IMPLICIT NONE
 PRIVATE
 PUBLIC :: ukca_main1
 
-! STASH workspace used by the Unified Model for processing of diagnostics
-! that are not currently supported by the generic UKCA API
-REAL, ALLOCATABLE, PUBLIC :: stashwork34(:)
-REAL, ALLOCATABLE, PUBLIC :: stashwork38(:)
-REAL, ALLOCATABLE, PUBLIC :: stashwork50(:)
-
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_MAIN1_MOD'
 
 CONTAINS
 !
 ! Subroutine Interface:
 ! ----------------------------------------------------------------------
-SUBROUTINE ukca_main1(timestep_number, current_time,                           &
+SUBROUTINE ukca_main1(error_code_ptr, timestep_number, current_time,           &
                       environ_ptrs, r_theta_levels, r_rho_levels,              &
-                      all_tracers, all_ntp,                                    &
-                      error_code, previous_time,                               &
-                      error_message, error_routine)
+                      diagnostics, all_tracers, all_ntp,                       &
+                      previous_time, error_message, error_routine)
 ! ----------------------------------------------------------------------
 
 USE missing_data_mod, ONLY: rmdi
@@ -109,9 +102,14 @@ USE ukca_environment_fields_mod, ONLY:                                         &
     dust_div1,              dust_div2,            dust_div3,                   &
     dust_div4,              dust_div5,            dust_div6,                   &
     interf_z,               grid_surf_area,       grid_area_fullht,            &
-    photol_rates,           ext_cg_flash,         ext_ic_flash
+    grid_volume,            photol_rates,         ext_cg_flash,                &
+    ext_ic_flash
 
 USE ukca_pr_inputs_mod, ONLY: ukca_pr_inputs
+
+USE ukca_diagnostics_type_mod, ONLY: diagnostics_type
+USE ukca_diagnostics_output_mod, ONLY: update_skipped_diag_flags,              &
+                                       blank_out_missing_diags
 
 !!!! Note: LFRIC-specific pre-processor directives used in this module are
 !!!! inappropriate in UKCA and should be removed but must be retained while
@@ -134,10 +132,9 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     delta_lambda, delta_phi, base_phi,                                         &
     l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
     rad_ait, rad_acc, chi, sigma, pi,                                          &
+    stashwork34, stashwork38, stashwork50,                                     &
     copydiag, copydiag_3d, stashcode_glomap_sec, len_stlist, stindex,          &
     stlist, num_stash_levels, stash_levels, si, sf, si_last,                   &
-    global_row_length,                                                         &
-    FV_cos_theta_latitude,                                                     &
     l_ukca_stratflux, n_strat_fluxdiags,                                       &
     l_ukca_mode_diags, n_mode_diags,                                           &
     UkcaD1Codes, istrat_first,                                                 &
@@ -152,10 +149,9 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     delta_lambda, delta_phi, base_phi,                                         &
     l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
     rad_ait, rad_acc, chi, sigma, pi,                                          &
+    stashwork34, stashwork38, stashwork50,                                     &
     copydiag, copydiag_3d, stashcode_glomap_sec, len_stlist, stindex,          &
     stlist, num_stash_levels, stash_levels, si, sf, si_last,                   &
-    global_row_length,                                                         &
-    FV_cos_theta_latitude,                                                     &
     L_ukca_stratflux, n_strat_fluxdiags,                                       &
     l_ukca_mode_diags, n_mode_diags,                                           &
     UkcaD1Codes, istrat_first,                                                 &
@@ -196,17 +192,17 @@ USE ukca_transform_halogen_mod,                                                &
 USE ukca_mode_tracer_maps_mod,                                                 &
                             ONLY: ukca_aero_tracer_init
 
-USE asad_flux_dat,          ONLY: asad_load_default_fluxes
-
 USE asad_chem_flux_diags,   ONLY:                                              &
-    asad_allocate_chemdiag,     asad_setstash_chemdiag,                        &
-    asad_init_chemdiag,         asad_tendency_ste,                             &
+    asad_allocate_chemdiag,     asad_tendency_ste,                             &
     asad_mass_diagnostic,       asad_output_tracer,                            &
-    asad_flux_put_stash,        calculate_STE,                                 &
+    calculate_STE,                                                             &
     calculate_tendency,         L_asad_use_chem_diags,                         &
     L_asad_use_STE,             L_asad_use_tendency,                           &
     L_asad_use_mass_diagnostic, L_asad_use_output_tracer,                      &
     L_asad_use_trop_mask,       asad_tropospheric_mask
+
+USE ukca_diags_output_ctl_mod, ONLY: ukca_diags_output_ctl
+USE asad_diags_output_ctl_mod, ONLY: asad_diags_output_ctl
 
 USE ukca_diurnal_oxidant,   ONLY: ukca_int_cosz, dealloc_diurnal_oxidant
 USE ukca_emiss_ctl_mod,     ONLY: ukca_emiss_ctl
@@ -214,7 +210,6 @@ USE ukca_chemistry_ctl_be_mod, ONLY: ukca_chemistry_ctl_be
 USE ukca_chemistry_ctl_tropraq_mod, ONLY: ukca_chemistry_ctl_tropraq
 
 USE ukca_scenario_ctl_mod,  ONLY: ukca_scenario_ctl
-USE ukca_chem_diags_allts_mod, ONLY: ukca_chem_diags_allts
 USE ukca_chem_diags_mod,    ONLY: ukca_chem_diags
 USE ukca_chemistry_ctl_mod, ONLY: ukca_chemistry_ctl
 USE ukca_chemistry_ctl_col_mod, ONLY: ukca_chemistry_ctl_col
@@ -264,6 +259,9 @@ IMPLICIT NONE
 ! Declarations
 ! ----------------------------------------------------------------------
 
+! Error code for status reporting
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
+
 ! Model timestep number (counted from basis time at start of run)
 INTEGER, INTENT(IN) :: timestep_number
 
@@ -276,6 +274,9 @@ TYPE(env_field_ptrs_type), INTENT(IN) :: environ_ptrs(:)
 ! Height of theta and rho levels from Earth centre
 REAL, INTENT(IN) :: r_theta_levels(:,:,0:), r_rho_levels(:,:,:)
 
+! Diagnostic request info and pointers to parent arrays for diagnostic output
+TYPE(diagnostics_type), INTENT(IN OUT) :: diagnostics
+
 ! UKCA tracers. Dimensions: X,Y,Z,N
 ! where X is row length of tracer field (= no. of columns)
 !       Y is no. of rows in tracer field
@@ -286,13 +287,10 @@ REAL, INTENT(IN OUT) :: all_tracers(:, :, :, :)
 ! Non-transported prognostics.
 TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(:)
 
-! Error code for status reporting
-INTEGER, INTENT(OUT) :: error_code
-
 ! Model time at previous timestep (required for chemistry)
 INTEGER, OPTIONAL, INTENT(IN) :: previous_time(7)
 
-! Further arguments for status reporting
+! Optional arguments for status reporting
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 
@@ -309,7 +307,7 @@ INTEGER    :: k,l,n             ! loop variables
 INTEGER    :: kk                ! loop counter
 INTEGER    :: icnt              ! counter
 INTEGER    :: icode=0           ! local error status
-INTEGER    :: im_index          ! internal model index
+INTEGER, PARAMETER :: im_index = 1  ! internal model index for STASH copy calls
 INTEGER    :: n_fld_present     ! No. of required environment fields present
 INTEGER    :: n_fld_missing     ! No. of required environment fields missing
 INTEGER, SAVE :: wetox_in_aer   ! set for wet oxidation in MODE (=1)
@@ -398,8 +396,6 @@ REAL, SAVE, ALLOCATABLE :: mass (:,:,:)
 REAL, SAVE, ALLOCATABLE :: solid_angle(:,:)   ! solid angle
 REAL, SAVE, ALLOCATABLE :: z_half(:,:,:)
 REAL, SAVE, ALLOCATABLE :: z_half_alllevs(:,:,:)
-REAL, SAVE, ALLOCATABLE :: volume(:,:,:)   ! gridbox volume on theta points
-REAL, ALLOCATABLE :: delta_r(:,:,:)        ! delta radius
 
 ! 3D array for calulated pH values to use in chem_ctl
 REAL, ALLOCATABLE :: H_plus_3d_arr(:,:,:)
@@ -591,7 +587,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! ----------------------------------------------------------------------
 
 ! Set defaults for output arguments
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
@@ -605,7 +601,7 @@ theta_field_size = row_length * rows
 ! On first call, check for availability of UKCA configuration data
 IF (l_first_call) THEN
   IF (.NOT. l_ukca_config_available) THEN
-    error_code = errcode_ukca_uninit
+    error_code_ptr = errcode_ukca_uninit
     IF (PRESENT(error_message))                                                &
       error_message = 'No UKCA configuration has been set up'
     IF (PRESENT(error_routine)) error_routine = RoutineName
@@ -613,7 +609,7 @@ IF (l_first_call) THEN
     RETURN
   END IF
   IF (.NOT. l_environ_req_available) THEN
-    error_code = errcode_env_req_uninit
+    error_code_ptr = errcode_env_req_uninit
     IF (PRESENT(error_message))                                                &
       error_message = 'No environment field requirement has been set up'
     IF (PRESENT(error_routine)) error_routine = RoutineName
@@ -630,7 +626,7 @@ IF (ukca_config%l_ukca_chem) THEN
   IF (PRESENT(previous_time)) THEN
     CALL set_previous_time(previous_time)
   ELSE
-    error_code = errcode_value_missing
+    error_code_ptr = errcode_value_missing
     IF (PRESENT(error_message))                                                &
       error_message = 'Missing previous time argument required for chemistry'
     IF (PRESENT(error_routine)) error_routine = RoutineName
@@ -644,7 +640,7 @@ END IF
 IF (ukca_config%l_ukca_chem) THEN
   CALL check_environment(n_fld_present, n_fld_missing)
   IF (n_fld_missing > 0) THEN
-    error_code = errcode_env_field_missing
+    error_code_ptr = errcode_env_field_missing
     IF (PRESENT(error_message))                                                &
       WRITE(error_message,'(A,I4,A,I4,A)') 'Missing ', n_fld_missing, ' of ',  &
       n_fld_present + n_fld_missing, ' environmental driver fields'
@@ -654,9 +650,9 @@ IF (ukca_config%l_ukca_chem) THEN
   END IF
 END IF
 
-! Ensure diagnostic output is suppressed if not using the UM STASH system
+! Ensure unsupported diagnostic output is suppressed if not using the
+! UM STASH system
 IF (.NOT. ukca_config%l_enable_diag_um) THEN
-  l_asad_use_chem_diags = .FALSE.
   l_ukca_stratflux = .FALSE.
   l_ukca_mode_diags = .FALSE.
   l_ukca_cmip6_diags = .FALSE.
@@ -667,15 +663,6 @@ IF (.NOT. ukca_config%l_enable_diag_um) THEN
   IF (.NOT. ALLOCATED(stashwork34)) ALLOCATE(stashwork34(0))
   IF (.NOT. ALLOCATED(stashwork38)) ALLOCATE(stashwork38(0))
   IF (.NOT. ALLOCATED(stashwork50)) ALLOCATE(stashwork50(0))
-  ! FV_cost_theta_latitude is required for calculation of grid box volume
-  ! used for diagnostics but may not be allocated when called from a
-  ! non-UM parent. If this is the case, set it to a dummy value of zero.
-  ! This is necessary since volume and some diagnostics are still calculated
-  ! although not output.
-  IF (.NOT. ALLOCATED(FV_cos_theta_latitude)) THEN
-    ALLOCATE(FV_cos_theta_latitude(row_length,rows))
-    FV_cos_theta_latitude = 0.0
-  END IF
 END IF
 
 #if !defined(LFRIC)
@@ -706,7 +693,7 @@ tol = 1e-10 * (r_theta_levels(1,1,model_levels) - r_theta_levels(1,1,1))
 IF (ukca_config%l_environ_z_top) THEN
   z_top_of_model_ext = a_realhd(rh_z_top_theta)
   IF (ABS(z_top_of_model_ext - z_top_of_model) > tol) THEN
-    error_code = errcode_env_field_mismatch
+    error_code_ptr = errcode_env_field_mismatch
     IF (PRESENT(error_message))                                                &
       WRITE(error_message,'(A,E15.6,A)')                                       &
         'Difference between z_top_of_model prescribed and expected value = ',  &
@@ -741,22 +728,6 @@ IF (l_first_call) THEN
       CALL ukca_iniasad(ukca_config%ukca_chem_seg_size)
     ELSE
       CALL ukca_iniasad(theta_field_size)
-    END IF
-
-    ! Initialise chemical diagnostics for N-R chemistry;
-    ! set L_asad_use_chem_diags
-    IF (ukca_config%l_enable_diag_um .AND.                                     &
-        .NOT. (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_aerchem .OR.    &
-        ukca_config%l_ukca_raq .OR. ukca_config%l_ukca_raqaero)) THEN
-      ! Load standard set of diagnostics definitions. (Each diagnostic field
-      ! in STASH can depend on multiple diagnostics in this set.)
-      CALL asad_load_default_fluxes()
-      ! Check STASH requests to see which of these chemical diagnostics are
-      ! required and set up STASH details for them.
-      CALL asad_setstash_chemdiag(row_length,rows,model_levels)
-      ! initialise chemical diagnostics
-      IF (l_asad_use_chem_diags)                                               &
-        CALL asad_init_chemdiag(errcode)
     END IF
 
     ! Check that some CLASSIC aerosol types/processes are modelled if
@@ -871,7 +842,7 @@ IF (l_first_call) THEN
 
 END IF  ! l_first_call
 
-! allocate ASAD chemical diagnostics and load the requested diagnostics
+! allocate flux array for ASAD chemical diagnostics
 IF (L_asad_use_chem_diags) THEN
   CALL asad_allocate_chemdiag(row_length,rows)
 END IF
@@ -1178,6 +1149,10 @@ IF (ukca_config%l_ukca_chem) THEN
       ALLOCATE(photol_rates(row_length, rows, model_levels, jppj))
       photol_rates(:,:,:,:) = 0.0
     END IF
+    IF (.NOT. ALLOCATED(grid_volume)) THEN
+      ALLOCATE(grid_volume(row_length,rows,model_levels))
+      grid_volume(:,:,:) = 0.0
+    END IF
   END IF
 
   ! Required in call to UKCA_AERO_CTL, but may be unallocated
@@ -1249,8 +1224,6 @@ IF (ukca_config%l_ukca_chem) THEN
 
   IF ( l_first_call .OR. ukca_config%l_ukca_persist_off ) THEN
 
-    IF ( .NOT. ALLOCATED(volume) )                                             &
-      ALLOCATE(volume(row_length,rows,model_levels))
     IF ( .NOT. ALLOCATED(mass) )                                               &
       ALLOCATE(mass(row_length, rows, model_levels))
     IF (ukca_config%l_use_gridbox_mass .AND. (.NOT. ALLOCATED(solid_angle)))   &
@@ -1266,7 +1239,7 @@ IF (ukca_config%l_ukca_chem) THEN
     IF ( .NOT. ALLOCATED(L_troposphere) )                                      &
       ALLOCATE(L_troposphere(row_length,rows,model_levels))
 
-    IF (ukca_config%l_enable_diag_um .OR. ukca_config%l_use_gridbox_mass) THEN
+    IF (ukca_config%l_use_gridbox_mass) THEN
 
       ! Calculate solid angle
 
@@ -1282,47 +1255,13 @@ IF (ukca_config%l_ukca_chem) THEN
       END DO
       sinv_latitude = SIN(v_latitude)
 
-      IF (ukca_config%l_use_gridbox_mass)                                      &
-        solid_angle(:,1:rows) = delta_lambda * (sinv_latitude(:,2:rows+1) -    &
-                                                sinv_latitude(:,1:rows))
+      solid_angle(:,1:rows) = delta_lambda * (sinv_latitude(:,2:rows+1) -      &
+                                              sinv_latitude(:,1:rows))
 
       IF (ALLOCATED(sinv_latitude)) DEALLOCATE(sinv_latitude)
       IF (ALLOCATED(v_latitude)) DEALLOCATE(v_latitude)
 
     END IF
-
-    IF (ukca_config%l_enable_diag_um) THEN
-
-      ! Compute the grid-box volume for the theta grid.
-      ! This is not valid for use with quantities held on rho grid
-      ! e.g. density and relying on global conservation
-
-      IF ( .NOT. ALLOCATED(delta_r) )                                          &
-        ALLOCATE(delta_r(row_length,rows,model_levels))
-
-      DO k=2,model_levels-1
-        delta_r(:,:,k) = (r_rho_levels(1:row_length,1:rows,k+1) -              &
-          r_rho_levels(1:row_length,1:rows,k))
-      END DO
-      delta_r(:,:,1) = (r_rho_levels(1:row_length,1:rows,2) -                  &
-        r_theta_levels(1:row_length,1:rows,0))
-      delta_r(:,:,model_levels) =                                              &
-        (r_theta_levels(1:row_length,1:rows,model_levels) -                    &
-         r_rho_levels(1:row_length,1:rows,model_levels))
-
-      DO k=1,model_levels
-        volume(:,:,k) = r_theta_levels(1:row_length,1:rows,k) *                &
-          r_theta_levels(1:row_length,1:rows,k) *                              &
-          delta_r(:,:,k) * delta_phi * delta_lambda *                          &
-          FV_cos_theta_latitude(1:row_length,1:rows)
-      END DO
-
-      IF (ALLOCATED(delta_r)) DEALLOCATE(delta_r)
-
-    ELSE
-      volume(:,:,:) = 0.0  ! Initialise for safety
-    END IF
-
 
     IF ( .NOT. ALLOCATED(z_half) )                                             &
       ALLOCATE(z_half(row_length,rows,ukca_config%bl_levels))
@@ -1763,12 +1702,12 @@ IF (ukca_config%l_ukca_chem) THEN
   ! ----------------------------------------------------------------------
 
   IF (PrintStatus >= PrStatus_Oper) THEN
-    CALL ukca_pr_inputs(timestep_number, environ_ptrs, land_fraction,          &
-                        thick_bl_levels, t_theta_levels, rel_humid_frac,       &
-                        z_half, error_code,                                    &
+    CALL ukca_pr_inputs(error_code_ptr, timestep_number, environ_ptrs,         &
+                        land_fraction, thick_bl_levels, t_theta_levels,        &
+                        rel_humid_frac, z_half,                                &
                         error_message=error_message,                           &
                         error_routine=error_routine)
-    IF (error_code > 0) THEN
+    IF (error_code_ptr > 0) THEN
       IF (lhook)                                                               &
         CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
       RETURN
@@ -1831,6 +1770,7 @@ END IF    ! ukca_config%l_ukca_ageair
 ! ----------------------------------------------------------------------
 
 IF (ukca_config%l_ukca_chem) THEN
+
 #if !defined(LFRIC)
   IF (ukca_config%l_timer) CALL timer('UKCA CHEMISTRY MODEL',5)
 #endif
@@ -1905,7 +1845,8 @@ IF (ukca_config%l_ukca_chem) THEN
         DO j=1,rows
           DO i=1,row_length
             trmol_post_atmstep(i,j,k,l) = all_tracers(i,j,k,l)                 &
-                *totnodens(i,j,k)*volume(i,j,k)/(c_species(l)*avogadro) ! moles
+                *totnodens(i,j,k)*grid_volume(i,j,k)/(c_species(l)*avogadro)
+                                                                        ! moles
           END DO
         END DO
       END DO
@@ -1943,7 +1884,7 @@ IF (ukca_config%l_ukca_chem) THEN
          CALL asad_tendency_ste(                                               &
            row_length, rows, model_levels, n_chem_tracers,                     &
            all_tracers(:,:,:,1:n_chem_tracers),                                &
-           totnodens, volume, ukca_config%timestep,                            &
+           totnodens, grid_volume, ukca_config%timestep,                       &
            calculate_STE, l_store_value, ierr)
   END IF
 
@@ -1953,7 +1894,7 @@ IF (ukca_config%l_ukca_chem) THEN
        CALL asad_tendency_ste(                                                 &
          row_length, rows, model_levels, n_chem_tracers,                       &
          all_tracers(:,:,:,1:n_chem_tracers),                                  &
-         totnodens, volume, ukca_config%timestep,                              &
+         totnodens, grid_volume, ukca_config%timestep,                         &
        calculate_tendency,l_store_value,ierr)
 
   ! Setup ozone field for use in stratosphere with troposphere-only
@@ -2134,6 +2075,13 @@ IF (ukca_config%l_ukca_chem) THEN
         SIZE(stashwork38), stashwork38,                                        &
         SIZE(stashwork50), stashwork50)
 
+    IF (error_code_ptr > 0) THEN
+      IF (lhook) THEN
+        CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+      END IF
+      RETURN
+    END IF
+
   END IF ! l_ukca_emissions_off
 
   IF (ALLOCATED(cos_zenith_angle)) DEALLOCATE(cos_zenith_angle)
@@ -2175,7 +2123,7 @@ IF (ukca_config%l_ukca_chem) THEN
          CALL asad_tendency_ste(                                               &
            row_length, rows, model_levels, n_chem_tracers,                     &
            all_tracers(:,:,:,1:n_chem_tracers),                                &
-           totnodens, volume, ukca_config%timestep,                            &
+           totnodens, grid_volume, ukca_config%timestep,                       &
            calculate_tendency, l_store_value, ierr)
 
     IF (ukca_config%l_ukca_mode) THEN
@@ -2306,7 +2254,7 @@ IF (ukca_config%l_ukca_chem) THEN
            u_s,                                                                &
            ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
-           volume,                                                             &
+           grid_volume,                                                        &
            ! Extra variables for new dry dep scheme
            land_points, land_index,                                            &
            tile_pts, tile_index, frac_types,                                   &
@@ -2363,7 +2311,7 @@ IF (ukca_config%l_ukca_chem) THEN
            ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            photol_rates,                                                       &
-           volume,                                                             &
+           grid_volume,                                                        &
            mass,                                                               &
            ! Extra variables for new dry dep scheme
            land_points, land_index,                                            &
@@ -2463,7 +2411,7 @@ IF (ukca_config%l_ukca_chem) THEN
            ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            photol_rates,                                                       &
-           volume,                                                             &
+           grid_volume,                                                        &
            mass,                                                               &
            so4_aitken,                                                         &
            so4_accum,                                                          &
@@ -2533,7 +2481,7 @@ IF (ukca_config%l_ukca_chem) THEN
            ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            photol_rates,                                                       &
-           volume,                                                             &
+           grid_volume,                                                        &
            mass,                                                               &
            ! Extra variables for new dry dep scheme
            land_points, land_index,                                            &
@@ -2581,6 +2529,13 @@ IF (ukca_config%l_ukca_chem) THEN
       DEALLOCATE(ho2_offline_diag)
     END IF
 
+  ELSE
+
+    ! The current time step is not a chemistry time step so set the
+    ! return status of any requests for diagnostics that are only output
+    ! on chemistry time steps as skipped
+    CALL update_skipped_diag_flags(diagnostics)
+
   END IF ! do_chemistry
 
   IF (n_strat_fluxdiags > 0) THEN
@@ -2589,7 +2544,7 @@ IF (ukca_config%l_ukca_chem) THEN
         DO j=1,rows
           DO i=1,row_length
             trmol_post_chem(i,j,k,l) = all_tracers(i,j,k,l)                    &
-                                *totnodens(i,j,k)*volume(i,j,k)                &
+                                *totnodens(i,j,k)*grid_volume(i,j,k)           &
                                 /(c_species(l)*avogadro)    ! moles
           END DO
         END DO
@@ -2611,7 +2566,7 @@ IF (ukca_config%l_ukca_chem) THEN
     CALL asad_tendency_ste(row_length,rows,model_levels,                       &
                            n_chem_tracers,                                     &
                            all_tracers(:,:,:,1:n_chem_tracers),                &
-                           totnodens,volume,ukca_config%timestep,              &
+                           totnodens,grid_volume,ukca_config%timestep,         &
                            calculate_tendency,l_store_value,ierr)
 
   ! Transform halogen/nitrogen/hydrogen species back
@@ -2836,21 +2791,27 @@ IF (L_asad_use_chem_diags .AND. L_asad_use_output_tracer)                      &
                              n_chem_tracers, all_tracers, ierr)
 
 ! ----------------------------------------------------------------------
-! 5.2 Add output fields to STASHwork arrays.
+! 5.2 Service diagnostic requests.
 ! ----------------------------------------------------------------------
-
-! ----------------------------------------------------------------------
-! 5.2.1 MODE diagnostics  (items 38,201 - 38,212 now done in ukca_mode_ems_um)
-!       Now adding nitrate diagnostics. 584-645 (item1_nitrate_diags to
-!       itemN_nitrate_diags) are the fluxes and partial volumes 646-668 are
-!       the CMIP diagnostics which are not accounted for here
-!       Now adding diagnostics for the super-coarse insoluble mode (dust)
-!       which was added after the other modes
+! Requests processed in this section can be UKCA diagnostics requests
+! received via the UKCA API or legacy-style requests received via the
+! UM STASH system. The latter are only supported when UKCA is coupled
+! with the UM parent model and are serviced by copying the requested
+! data to the STASH work arrays rather than passing them back via the
+! argument list.
 ! ----------------------------------------------------------------------
 
 IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
 
-  im_index = 1
+  ! ----------------------------------------------------------------------
+  ! 5.2.1 MODE diagnostics [UM legacy-style requests]
+  !       (items 38,201 - 38,212 now done in ukca_mode_ems_um)
+  !       Now adding nitrate diagnostics. 584-645 (item1_nitrate_diags to
+  !       itemN_nitrate_diags) are the fluxes and partial volumes 646-668
+  !       are the CMIP diagnostics which are not accounted for here.
+  !       Now adding diagnostics for the super-coarse insoluble mode (dust)
+  !       which was added after the other modes.
+  ! ----------------------------------------------------------------------
 
   icnt=0
   DO l=1,nmax_mode_diags
@@ -2928,7 +2889,7 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
   END IF
 
   ! ----------------------------------------------------------------------
-  ! 5.2.2 Stratospheric flux diagnostics
+  ! 5.2.2 Stratospheric flux diagnostics [UM legacy-style requests]
   ! ----------------------------------------------------------------------
   icnt = 0
   DO l=1,nmax_strat_fluxdiags
@@ -2952,18 +2913,9 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
   END DO       ! 1,nmax_strat_fluxdiags
 
   ! ----------------------------------------------------------------------
-  ! 5.2.3 diagnostics calculated from arrays passed back from
-  ! chemistry_ctl
+  ! 5.2.3 Diagnostics calculated from arrays passed back from
+  ! chemistry_ctl [UM legacy-style requests]
   ! ----------------------------------------------------------------------
-
-  CALL ukca_chem_diags_allts(                                                  &
-    row_length, rows, model_levels, n_use_tracers,                             &
-    p_tropopause,                                                              &
-    all_tracers(:,:,:,1:n_use_tracers),                                        &
-    p_theta_levels,                                                            &
-    p_layer_boundaries,                                                        &
-    z_top_of_model,                                                            &
-    SIZE(stashwork50), stashwork50)
 
   IF (do_chemistry)                                                            &
     CALL ukca_chem_diags(                                                      &
@@ -2985,38 +2937,79 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
       H_plus_3d_arr,                                                           &
       SIZE(stashwork50), stashwork50)
 
-  ! ----------------------------------------------------------------------
-  ! 5.2.4 ASAD flux diagnostics: fill STASHwork - needs to be done
-  !         BEFORE ste calc below
-  ! ----------------------------------------------------------------------
-  IF (L_asad_use_chem_diags) THEN
-    stashsize = SIZE(stashwork50)
-    CALL asad_flux_put_stash(                                                  &
-         stashsize,stashwork50,                                                &
-         row_length,rows,model_levels)
+END IF ! ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem
+
+! ---------------------------------------------------------------------
+! 5.2.4 Service any requests for available non-ASAD diagnostics
+!       recognised by UKCA's diagnostic handling system.
+!       [UKCA API requests]
+! ---------------------------------------------------------------------
+
+IF (ukca_config%l_ukca_chem) THEN
+
+  CALL ukca_diags_output_ctl(error_code_ptr, row_length, rows, model_levels,   &
+                             n_use_tracers, z_top_of_model,                    &
+                             do_chemistry, p_tropopause, p_layer_boundaries,   &
+                             p_theta_levels, all_tracers,                      &
+                             photol_rates, diagnostics,                        &
+                             error_message=error_message,                      &
+                             error_routine=error_routine)
+
+  IF (error_code_ptr > 0) THEN
+    IF (lhook) THEN
+      CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    END IF
+    RETURN
   END IF
 
+END IF
+
+! ----------------------------------------------------------------------
+! 5.2.5 ASAD flux diagnostics [UKCA API and/or UM legacy-style requests]
+!        - needs to be done BEFORE ste calc below
+! ----------------------------------------------------------------------
+
+IF (L_asad_use_chem_diags) THEN
+
+  stashsize = SIZE(stashwork50)
+
+  CALL asad_diags_output_ctl(error_code_ptr,                                   &
+                             row_length, rows, model_levels, stashsize,        &
+                             diagnostics, stashwork50,                         &
+                             error_message=error_message,                      &
+                             error_routine=error_routine)
+
+  IF (error_code_ptr > 0) THEN
+    IF (lhook)                                                                 &
+      CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
+    RETURN
+  END IF
+
+END IF
+
+IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
 
   ! ----------------------------------------------------------------------
-  ! 5.2.5 ASAD Flux Diags Strat-Trop Exchange - done AFTER asad_flux_put_stash
+  ! 5.2.6 ASAD Flux Diags Strat-Trop Exchange [UM legacy-style requests]
+  !        - done AFTER asad_diags_output_ctl
   ! ----------------------------------------------------------------------
   l_store_value = .TRUE.
   IF (L_asad_use_chem_diags .AND. L_asad_use_STE) THEN
     CALL asad_tendency_ste(                                                    &
                  row_length, rows, model_levels, n_chem_tracers,               &
-                 fluxdiag_all_tracers, totnodens, volume,                      &
+                 fluxdiag_all_tracers, totnodens, grid_volume,                 &
                  ukca_config%timestep, calculate_STE, l_store_value, ierr)
   END IF
 
   ! ----------------------------------------------------------------------
-  ! 5.2.6 Grid-cell volume.
+  ! 5.2.7 Grid-cell volume [UM legacy style request]
   ! ----------------------------------------------------------------------
   section = ukca_diag_sect
   item = 255
-  IF (sf(item,ukca_diag_sect) .AND. ALLOCATED(volume)) THEN
+  IF (sf(item,ukca_diag_sect) .AND. ALLOCATED(grid_volume)) THEN
     CALL copydiag_3d (stashwork50(si(item,section,im_index):                   &
           si_last(item,section,im_index)),                                     &
-          volume,                                                              &
+          grid_volume,                                                         &
           row_length,rows,model_levels,                                        &
           stlist(:,stindex(1,item,section,im_index)),len_stlist,               &
           stash_levels,num_stash_levels+1)
@@ -3024,8 +3017,19 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
 END IF
 
 ! ----------------------------------------------------------------------
-! 6. Finally deallocate arrays
+! 6. Finally, blank out any missing diagnostics and deallocate arrays
 ! ----------------------------------------------------------------------
+
+! Overwrite any non-valid diagnostic output if configured to do so
+IF (ukca_config%l_blankout_invalid_diags) THEN
+  CALL blank_out_missing_diags(error_code_ptr, diagnostics,                    &
+                               error_message=error_message,                    &
+                               error_routine=error_routine)
+  IF (error_code_ptr > 0) THEN
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    RETURN
+  END IF
+END IF
 
 ! Reset/deallocate environmental driver fields
 CALL clear_environment_fields()
@@ -3054,7 +3058,6 @@ IF (ukca_config%l_ukca_persist_off) THEN
   IF (ALLOCATED(p_tropopause))     DEALLOCATE(p_tropopause)
   IF (ALLOCATED(solid_angle))      DEALLOCATE(solid_angle)
   IF (ALLOCATED(mass))             DEALLOCATE(mass)
-  IF (ALLOCATED(volume))           DEALLOCATE(volume)
 END IF
 
 ! Deallocate variables local to ukca_main

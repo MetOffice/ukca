@@ -270,11 +270,10 @@ USE ukca_emiss_mod,     ONLY: emissions, num_em_flds, marine_oc_online
 USE parkind1,           ONLY: jprb, jpim
 
 USE yomhook,            ONLY: lhook, dr_hook
-USE copydiag_mod,       ONLY: copydiag
 
 USE ukca_um_legacy_mod, ONLY: len_stlist, stindex, stlist, num_stash_levels,   &
                               stash_levels, si, sf, si_last,                   &
-                              stashcode_glomap_sec, copydiag_3d
+                              stashcode_glomap_sec, copydiag_3d, copydiag
 
 IMPLICIT NONE
 

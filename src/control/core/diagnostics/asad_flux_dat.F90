@@ -95,12 +95,17 @@ TYPE :: asad_flux_defn
 END TYPE asad_flux_defn
 PUBLIC asad_flux_defn
 
-PUBLIC :: asad_chemical_fluxes
-
 ! Number of chemical fluxes defined in asad_load_default_fluxes
 INTEGER :: n_chemical_fluxes = 0
 
-TYPE(asad_flux_defn), ALLOCATABLE, SAVE :: asad_chemical_fluxes(:)
+! STASH section for ASAD diagnostics. This is hard-wired in the flux
+! definitions below (as the first 2 digits of stash_number). It is expected
+! to match the equivalent UM STASH section number to allow UM legacy style
+! requests for ASAD diagnostics to be recognised when UKCA is coupled with
+! the UM parent model. Otherwise such requests will be ignored.
+INTEGER, PARAMETER, PUBLIC :: stashcode_ukca_chem_diag = 50
+
+TYPE(asad_flux_defn), ALLOCATABLE, SAVE, PUBLIC :: asad_chemical_fluxes(:)
 
 TYPE(asad_flux_defn), PARAMETER :: asad_trop_ox_budget_prod(20) =              &
 ! Production of Ox

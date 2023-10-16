@@ -28,14 +28,11 @@
 !
 MODULE asad_chem_flux_diags
 
-USE ukca_um_legacy_mod, ONLY: copydiag, copydiag_3d,                           &
-                              modl_b, isec_b, item_b, iopl_d,                  &
-                              idom_b, ndiag, len_stlist, stindex, stlist,      &
-                              num_stash_levels, stash_levels, si, sf, si_last, &
+USE ukca_um_legacy_mod, ONLY: modl_b, isec_b, item_b, iopl_d,                  &
+                              idom_b, ndiag,                                   &
                               st_levels_model_theta, st_levels_single,         &
-                              stashcode_ukca_chem_diag,                        &
-                              submodel_for_sm, atmos_im, code, mype
-USE asad_flux_dat,    ONLY: asad_chemical_fluxes
+                              submodel_for_sm, atmos_im, mype
+USE asad_flux_dat,    ONLY: asad_chemical_fluxes, stashcode_ukca_chem_diag
 USE asad_mod,         ONLY: advt, dpd, dpw, fpsc1, fpsc2,                      &
                             jpspb, jpsph, jpspj, jpspt,                        &
                             ldepd, ldepw,                                      &
@@ -51,6 +48,7 @@ USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus,                         &
                       PrStatus_Oper, PrStatus_Diag, umPrintFlush
 USE missing_data_mod,      ONLY: imdi
 USE errormessagelength_mod, ONLY: errormessagelength
+USE ukca_fieldname_mod, ONLY: maxlen_diagname
 
 IMPLICIT NONE
 
@@ -60,8 +58,9 @@ PRIVATE
 PUBLIC :: chemdiag
 ! public variables
 PUBLIC :: asad_chemdiags
-PUBLIC :: chemD1codes
+PUBLIC :: stash_handling
 PUBLIC :: n_chemdiags
+PUBLIC :: n_asad_diags
 PUBLIC :: L_asad_use_chem_diags
 PUBLIC :: L_asad_use_air_ems
 PUBLIC :: L_asad_use_light_ems
@@ -101,13 +100,10 @@ PUBLIC :: asad_3d_emissions_diagnostics
 PUBLIC :: asad_tendency_ste
 PUBLIC :: asad_tropospheric_mask
 PUBLIC :: asad_mass_diagnostic
-PUBLIC :: asad_flux_put_stash
 PUBLIC :: asad_allocate_chemdiag
 PUBLIC :: asad_psc_diagnostic
 PUBLIC :: asad_output_tracer
 PUBLIC :: asad_lightning_diagnostics
-
-
 
 TYPE :: chemdiag
   INTEGER :: location          ! location of reaction in
@@ -132,38 +128,38 @@ TYPE :: chemdiag
   REAL, ALLOCATABLE :: throughput(:,:,:)
 END TYPE chemdiag
 
+! Type for holding STASH codes and dimension sizes and index in
+! asad_chemdiags array for requested fields
 TYPE :: stashsumdiag
+  CHARACTER(LEN=maxlen_diagname) :: diagname  ! Field name
   INTEGER :: stash_value               ! section*1000 + item
   INTEGER :: stash_section             ! section
   INTEGER :: stash_item                ! item
-  INTEGER :: chemd1codes_location      ! D1 location
   INTEGER :: number_of_fields          ! No of fields
   INTEGER :: len_dim1                  ! Array dimension
   INTEGER :: len_dim2                  ! Array dimension
   INTEGER :: len_dim3                  ! Array dimension
   INTEGER, ALLOCATABLE :: chemdiags_location(:)
+  LOGICAL :: l_um_legacy_request       ! True if this is a UM legacy-style
+                                       ! request
 END TYPE stashsumdiag
-
-INTEGER :: n_stashsumdiag              ! No of requests
 
 CHARACTER(LEN=10) :: BlankStr = '          '  ! Represents undefined string
 
 ! Array to define diagnostic properties
 TYPE(chemdiag), ALLOCATABLE, SAVE :: asad_chemdiags(:)
 
-! Array to define D1 lengths, address, etc.
-TYPE(code), ALLOCATABLE, SAVE :: chemD1codes(:)
-
 TYPE(stashsumdiag), ALLOCATABLE, SAVE :: stash_handling(:)
 
-INTEGER, SAVE :: n_asad_diags ! No. of ASAD diagnostics actually
-                             ! requested in STASH
-INTEGER, ALLOCATABLE, SAVE :: st_asad_index(:)
-                             ! Index of ASAD diags in full stash list
+INTEGER, SAVE :: n_asad_diags = 0 ! No. of ASAD diagnostics actually
+                                  ! requested in STASH (initialised to 0 here
+                                  ! to show that no ASAD diagnostics have been
+                                  ! set up)
 
-INTEGER, SAVE :: n_chemdiags
+INTEGER, SAVE :: n_chemdiags      ! No. of entries from 'asad_chemical_fluxes'
+                                  ! contributing to requested diagnostics
 
-! This is set to .FALSE. initially, and changed in setstash
+! Switch to indicate whether any ASAD diagnostics are requested.
 LOGICAL, SAVE :: L_asad_use_chem_diags=.FALSE.
 
 ! Initially set to these - if not required then will be turned off.
@@ -250,132 +246,226 @@ CONTAINS
 
 ! #####################################################################
 
-SUBROUTINE asad_setstash_chemdiag(row_length,rows,model_levels)
+SUBROUTINE asad_setstash_chemdiag(row_length, rows, model_levels,              &
+                                  diag_requests, master_diag_list)
+! Subroutine to collate some basic information about each requested ASAD
+! diagnostic in the array 'stash_handling' to support the processing of
+! the field for output by the routine 'asad_flux_put_stash'.
+! Each ASAD diagnostic is identified by a unique code, corresponding to
+! to the STASH code used for that diagnostic in the UM. A single
+! diagnostic may be the sum of multiple fluxes having the same STASH
+! code in its definition.
+! Note that the number of individual fluxes contributing to each
+! diagnostic and the location of metadata in the 'asad_chemdiags' array
+! defining these fluxes will be added subsequently when that array is
+! set up in the routine 'asad_init_chemdiag'.
+
+USE ukca_config_specification_mod, ONLY: ukca_config
+USE ukca_diagnostics_type_mod, ONLY: diag_entry_type, diag_requests_type,      &
+                                     n_diag_group, diag_status_unavailable
+
 IMPLICIT NONE
 
+! Subroutine arguments
 
 INTEGER, INTENT(IN) :: row_length     ! length of row
 INTEGER, INTENT(IN) :: rows           ! number of rows
 INTEGER, INTENT(IN) :: model_levels   ! number of levels
 
-INTEGER :: i,ierr,idiag,itm,ilast   ! counters
+TYPE(diag_requests_type), INTENT(IN) :: diag_requests(:)
+                                      ! Diagnostic request info by group
+
+TYPE(diag_entry_type), INTENT(IN) :: master_diag_list(:)
+                                      ! Master diagnostics list
+
+! Type for temporary handling of STASH item code and other info specific to
+! each requested field.
+TYPE :: field_spec_type
+  CHARACTER(LEN=maxlen_diagname) :: diagname
+  INTEGER :: item
+  INTEGER :: len_dim3
+  LOGICAL :: l_um_legacy_request
+END TYPE field_spec_type
+
+! Local variables
+
+INTEGER :: group
+INTEGER :: n_requests
+INTEGER :: i_master
+INTEGER :: i
+INTEGER :: ierr
+INTEGER :: idiag
+INTEGER :: stash_value
+INTEGER :: item
+
+LOGICAL :: l_done(999)   ! True if STASH item has already been processed
 
 CHARACTER (LEN=errormessagelength) :: cmessage          ! Error message
 
-LOGICAL, SAVE :: firsttime=.TRUE.     ! T for first call
+! Array to define STASH codes and sizes of requested fields
+TYPE(field_spec_type), ALLOCATABLE, SAVE :: chemcodes(:)
+
+! Dr Hook
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_SETSTASH_CHEMDIAG'
 
+! End of header
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-IF (firsttime) THEN
+ierr = -1
 
-  itm=0
-  ilast=0
-  n_asad_diags = 0
-  ! Allocate index array to total number of diagnostics defined in
-  ! asad_chem_fluxes. The latter array contains duplication, so number of
-  ! ASAD Stash requests should always be smaller than the allocated size.
-  ALLOCATE( st_asad_index(SIZE(asad_chemical_fluxes)) )
-  st_asad_index(:) = -99
+stash_value = 0
+n_asad_diags = 0
 
-  ! Loop over the Stash requests and determine number of ASAD diagnostics
-  ! requested (i.e. Section-50 diags that are also defined in the
-  ! asad_chem_fluxes array), and store their position in full Stash list.
-  ! The number and index will be used for all further processing.
-  DO idiag = 1, ndiag
-    IF ( modl_b(idiag) == submodel_for_sm(atmos_im) .AND.                      &
-          isec_b(idiag) == stashcode_ukca_chem_diag ) THEN
-      itm = stashcode_ukca_chem_diag*1000+item_b(idiag)
-      ! Each ASAD request is recorded just once, even though there
-      ! may be multiple instances in the Stash, so compare against the
-      ! previous item. This assumes requests are stored in serial order
-      ! by STASH
-      IF ( itm /= ilast .AND.                                                  &
-         ANY(asad_chemical_fluxes(:)%stash_number == itm) ) THEN
-        n_asad_diags = n_asad_diags + 1
-        st_asad_index(n_asad_diags) = idiag   ! Store position in Stash
-        ilast = itm
-      END IF
-    END IF    ! If isec_b = stashcode_ukca_chem_diag
-  END DO      ! Loop over Stash list
+! Allocate temporary array to total number of diagnostics defined in
+! 'asad_chemical_fluxes'. This latter array defines all the chemical fluxes
+! potentially contributing to ASAD diagnostics and contains duplicate STASH
+! codes, so the number of ASAD diagnostics requested should always be smaller
+! than the allocated size.
+ALLOCATE(chemcodes(SIZE(asad_chemical_fluxes)))
+chemcodes(:)%diagname = ''
+chemcodes(:)%item = imdi
+chemcodes(:)%len_dim3 = imdi
+chemcodes(:)%l_um_legacy_request = .FALSE.
 
-  IF ( n_asad_diags > 0 ) THEN
-    ALLOCATE(chemD1codes(n_asad_diags))
+! Loop over the diagnostic requests below to determine number of ASAD
+! diagnostics requested (i.e. those that are also defined in the
+! 'asad_chemical_fluxes' array) and collate info for each.
 
-    ! These are initialised after being read in from D1
-    chemD1codes(:)%section    = imdi
-    chemD1codes(:)%item       = imdi
-    chemD1codes(:)%n_levels   = imdi
-    chemD1codes(:)%address    = imdi
-    chemD1codes(:)%length     = imdi
-    chemD1codes(:)%halo_type  = imdi
-    chemD1codes(:)%grid_type  = imdi
-    chemD1codes(:)%field_type = imdi
-    ! These are standard
-    chemD1codes(:)%len_dim1   = row_length
-    chemD1codes(:)%len_dim2   = rows
-    ! Dry dep is single level - change when assigned, this will be
-    ! re-set in init_chemdiag
-    chemD1codes(:)%len_dim3   = model_levels
-    chemD1codes(:)%prognostic = .TRUE.
-    ! Required set after D1 reading
-    chemD1codes(:)%required   = .FALSE.
+! --- Process diagnostic requests made via the UKCA API ---
+
+! Note that the same diagnostic may be requested in different groups but only
+! one ASAD diagnostic will be set up for each diagnostic (as identified by
+! name or stash value).
+
+l_done(:) = .FALSE.
+
+DO group = 1, n_diag_group
+
+  IF (ALLOCATED(diag_requests(group)%varnames)) THEN
+    n_requests = SIZE(diag_requests(group)%varnames)
+  ELSE
+    n_requests = 0
   END IF
 
-  ! this should now set up the model to all the stash requests that are
-  ! needed
-  n_stashsumdiag = 0
+  DO i = 1, n_requests
+    IF (.NOT. diag_requests(group)%status_flags(i) ==                          &
+              diag_status_unavailable) THEN
+      ! Requested diagnostic is available in the present UKCA configuration
+      ! (The request may be active/inactive)
+      i_master = diag_requests(group)%i_master(i)
+      stash_value = master_diag_list(i_master)%asad_id
+      IF (stash_value > 0) THEN
+        ! Diagnostic is an ASAD diagnostic so add to temporary array
+        ! if not already done
+        item = stash_value - (stashcode_ukca_chem_diag * 1000)
+        IF (.NOT. l_done(item)) THEN
+          l_done(item) = .TRUE.
+          ! Check present in asad_chemical_fluxes array for safety before adding
+          IF (ANY(asad_chemical_fluxes(:)%stash_number == stash_value)) THEN
+            n_asad_diags = n_asad_diags + 1
+            chemcodes(n_asad_diags)%diagname = diag_requests(group)%varnames(i)
+            chemcodes(n_asad_diags)%item = item
+            ! Note: all ASAD diagnostics currently supported by the API
+            ! are 3D (otherwise we would need to check 'rxn_type' in the
+            ! 'asad_chemical_fluxes' entry to determine dimensionality)
+            chemcodes(n_asad_diags)%len_dim3 = model_levels
+          ELSE
+            ierr = stash_value
+            cmessage = 'Expected STASH code not found in asad_chemical_fluxes'
+            CALL ereport(RoutineName, ierr, cmessage)
+          END IF
+        END IF
+      END IF
+    END IF
+  END DO
 
-  ! should have already been set above, but re-set to .false. here
-  L_asad_use_chem_diags = .FALSE.
+END DO
 
+! --- For UM parent, also process UM legacy-style requests ---
+
+! Note that legacy-style requests are ignored for any STASH items that have
+! already been requested via the API. Also each ASAD request is recorded just
+! once, even though there may be multiple instances in STASH.
+
+IF (ukca_config%l_enable_diag_um) THEN
+  DO idiag = 1, ndiag
+    IF (modl_b(idiag) == submodel_for_sm(atmos_im) .AND.                       &
+        isec_b(idiag) == stashcode_ukca_chem_diag) THEN
+      ! Requested diagnostic is in chemistry section so process here if not
+      ! already done
+      item = item_b(idiag)
+      IF (.NOT. l_done(item)) THEN
+        l_done(item) = .TRUE.
+        stash_value = stashcode_ukca_chem_diag * 1000 + item
+        IF (ANY(asad_chemical_fluxes(:)%stash_number == stash_value)) THEN
+          ! Diagnostic is an available ASAD diagnostic so add to temporary array
+          n_asad_diags = n_asad_diags + 1
+          chemcodes(n_asad_diags)%item = item
+          ! check on size of model levels - currently only
+          ! contiguous theta levels or surface allowed
+          IF (iopl_d(idom_b(idiag)) == st_levels_model_theta) THEN
+            chemcodes(n_asad_diags)%len_dim3 = model_levels
+          ELSE IF (iopl_d(idom_b(idiag)) == st_levels_single) THEN
+            chemcodes(n_asad_diags)%len_dim3 = 1
+          ELSE
+            WRITE(cmessage,'(A,5(i6,1X),A)') 'ERROR: ',                        &
+                  idiag, modl_b(idiag),                                        &
+                  isec_b(idiag), item_b(idiag),                                &
+                  iopl_d(idom_b(idiag)),                                       &
+                  ' incorrect model levels'
+            ierr = isec_b(idiag)*1000 + item_b(idiag)
+            CALL ereport(RoutineName, ierr, cmessage)
+          END IF
+          chemcodes(n_asad_diags)%l_um_legacy_request = .TRUE.
+        END IF
+      END IF
+    END IF
+  END DO
+END IF
+
+l_asad_use_chem_diags = (n_asad_diags > 0)
+
+IF (l_asad_use_chem_diags) THEN
+
+  ! Copy STASH codes and dimension sizes from temporary array to an array
+  ! of the correct length
+
+  ALLOCATE(stash_handling(1:n_asad_diags))
+  stash_handling(:)%number_of_fields = 0
+
+  DO i = 1, n_asad_diags
+    stash_handling(i)%diagname = chemcodes(i)%diagname
+    stash_handling(i)%stash_section = stashcode_ukca_chem_diag
+    stash_handling(i)%stash_item = chemcodes(i)%item
+    stash_handling(i)%stash_value =                                            &
+          (stash_handling(i)%stash_section * 1000) +                           &
+          stash_handling(i)%stash_item
+    stash_handling(i)%len_dim1 = row_length
+    stash_handling(i)%len_dim2 = rows
+    stash_handling(i)%len_dim3 = chemcodes(i)%len_dim3
+    stash_handling(i)%l_um_legacy_request = chemcodes(i)%l_um_legacy_request
+  END DO
+
+END IF
+
+DEALLOCATE(chemcodes)
+
+IF (PrintStatus >= Prstatus_Oper) THEN
   DO i=1,n_asad_diags
-    idiag = st_asad_index(i)
-    Chemd1codes(i)%section    = stashcode_ukca_chem_diag
-    Chemd1codes(i)%item       = item_b(idiag)
-    Chemd1codes(i)%len_dim1   = row_length
-    Chemd1codes(i)%len_dim2   = rows
-    ! check on size of model levels - currently only
-    ! contiguous theta levels or surface allowed
-    IF (iopl_d(idom_b(idiag)) == st_levels_model_theta) THEN
-      Chemd1codes(i)%len_dim3 = model_levels
-    ELSE IF (iopl_d(idom_b(idiag)) == st_levels_single) THEN
-      Chemd1codes(i)%len_dim3 = 1
-    ELSE
-      WRITE(cmessage,'(A,5(i6,1X),A)') 'ERROR: ',                              &
-              idiag,modl_b(idiag),                                             &
-              isec_b(idiag),item_b(idiag),                                     &
-              iopl_d(idom_b(idiag)),                                           &
-              ' incorrect model levels'
-      ierr = isec_b(idiag)*1000 + item_b(idiag)
-      CALL ereport('ASAD_SETSTASH_CHEMDIAG',ierr,                              &
-                   cmessage)
-    END IF
-    ! required is set to true here, but in the context of a
-    ! UKCA framework, it would be set to .false.
-    Chemd1codes(i)%required   = .TRUE.
-    IF (.NOT. L_asad_use_chem_diags)                                           &
-        L_asad_use_chem_diags = .TRUE.
-    Chemd1codes(i)%prognostic = .FALSE.
-    n_stashsumdiag              = n_stashsumdiag + 1
+    WRITE(umMessage,'(A,6(I5,1x))') 'ASAD_FLUXES: ',i,                         &
+          stash_handling(i)%stash_section, stash_handling(i)%stash_item,       &
+          stash_handling(i)%len_dim1, stash_handling(i)%len_dim2,              &
+          stash_handling(i)%len_dim3
+    CALL umPrint(umMessage,src='asad_chem_flux_diags')
+  END DO
+END IF
 
-    IF (PrintStatus >= Prstatus_Oper .AND.                                     &
-             Chemd1codes(i)%section /= imdi) THEN
-      WRITE(umMessage,'(A,6(I5,1x),L1)') 'ASAD_FLUXES: ',i,                    &
-           Chemd1codes(i)%section, Chemd1codes(i)%item,                        &
-           Chemd1codes(i)%len_dim1, Chemd1codes(i)%len_dim2,                   &
-           Chemd1codes(i)%len_dim3, Chemd1codes(i)%required
-      CALL umPrint(umMessage,src='asad_chem_flux_diags')
-    END IF
-  END DO       ! I=1,n_asad_diags
-
-  firsttime = .FALSE.
-END IF ! firstime
+ierr = 0
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -422,11 +512,9 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE asad_zero_chemdiag
 ! #####################################################################
-SUBROUTINE asad_init_chemdiag(ierr)
+SUBROUTINE asad_init_chemdiag()
 
 IMPLICIT NONE
-
-INTEGER, INTENT(IN OUT) :: ierr       ! Error code
 
 INTEGER :: i,j,k
 
@@ -446,6 +534,19 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_INIT_CHEMDIAG'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+n_chemdiags = 0
+DO i = 1, n_asad_diags
+  ! calculate how many diagnostics from flux_dat we are using
+  DO j=1,SIZE(asad_chemical_fluxes)
+    IF (stash_handling(i)%stash_value ==                                       &
+               asad_chemical_fluxes(j)%stash_number) THEN
+      n_chemdiags = n_chemdiags + 1
+      ! NOTE: do not exit after first check, since we may have
+      !       more than one diagnostic associated with each
+      !       stash number.
+    END IF
+  END DO
+END DO        ! i=1,n_asad_diags
 
 ! initially set to these - if not required then will be turned off.
 ! set up above, but also re-iterate here.
@@ -461,394 +562,297 @@ L_asad_use_tendency        = .FALSE.
 L_asad_use_mass_diagnostic = .FALSE.
 L_asad_use_trop_mask       = .FALSE.
 
+! allocate diagnostics array
+ALLOCATE(asad_chemdiags(1:n_chemdiags))
+DO i=1,n_chemdiags
+  CALL asad_zero_chemdiag(asad_chemdiags(i))
+END DO
 
-ALLOCATE(stash_handling(1:n_stashsumdiag))
-stash_handling(:)%stash_value   = 0
-stash_handling(:)%stash_section = 0
-stash_handling(:)%stash_item    = 0
-stash_handling(:)%chemd1codes_location = 0
-stash_handling(:)%len_dim1 = 0
-stash_handling(:)%len_dim2 = 0
-stash_handling(:)%len_dim3 = 0
-stash_handling(:)%number_of_fields = 0
+! Now we do a rather complicated do-loop to set up the asad_chemdiags array
+jdiag = 0
+DO istash=1,n_asad_diags
+  DO j=1,SIZE(asad_chemical_fluxes)
+    ! Check for requested stash code whether
+    ! we have a corresponding flux specified
+    IF (stash_handling(istash)%stash_value ==                                  &
+        asad_chemical_fluxes(j)%stash_number) THEN
 
-! Allocate diags array since we know how large it will
-! need to be from STASH
-! get stash item numbers - used to check/ch
-! check to make sure they are required
-n_chemdiags = 0
-icount=0
-DO i=1,n_asad_diags
-  IF (chemD1codes(i)%required) THEN
-    icount=icount+1
-    stash_handling(icount)%stash_section =                                     &
-              chemd1codes(i)%section
-    stash_handling(icount)%stash_item =                                        &
-              chemd1codes(i)%item
-    stash_handling(icount)%stash_value =                                       &
-              ((stash_handling(icount)%stash_section)*1000) +                  &
-              stash_handling(icount)%stash_item
-    stash_handling(icount)%chemd1codes_location = i
-    stash_handling(icount)%len_dim1 = chemd1codes(i)%len_dim1
-    stash_handling(icount)%len_dim2 = chemd1codes(i)%len_dim2
-    stash_handling(icount)%len_dim3 =                                          &
-              MAX(chemd1codes(i)%len_dim3,                                     &
-             stash_handling(icount)%len_dim3)
-    ! calculate how many diagnostics from flux_dat we are using
-    DO j=1,SIZE(asad_chemical_fluxes)
-      IF (stash_handling(icount)%stash_value ==                                &
-                 asad_chemical_fluxes(j)%stash_number) THEN
-        n_chemdiags = n_chemdiags + 1
-        ! NOTE: do not exit after first check, since we may have
-        !       more than one diagnostic associated with each
-        !       stash number.
+      ! increment jdiag. We may have more than one
+      ! diagnostic associated with each stash number
+      jdiag = jdiag + 1
+      ! STASH number
+      asad_chemdiags(jdiag)%stash_number = asad_chemical_fluxes(j)%stash_number
+      ! diagnostic type
+      asad_chemdiags(jdiag)%diag_type =                                        &
+        TRIM(asad_cd_uppercase(asad_chemical_fluxes(j)%diag_type))
+      ! reaction (or otherwise) type
+      asad_chemdiags(jdiag)%rxn_type =                                         &
+        TRIM(asad_cd_uppercase(asad_chemical_fluxes(j)%rxn_type))
+      ! do we use a tropospheric mask only output the
+      ! troposphere?
+      IF (asad_chemical_fluxes(j)%tropospheric_mask) THEN
+        asad_chemdiags(jdiag)%tropospheric_mask = .TRUE.
+        ! set logical for global value
+        IF (.NOT. L_asad_use_trop_mask) L_asad_use_trop_mask = .TRUE.
+      ELSE
+        asad_chemdiags(jdiag)%tropospheric_mask = .FALSE.
       END IF
-    END DO
-    ! debug output
+      ! if we have two reactions with the exactly the same
+      ! reactants and products, but different rates,
+      ! find_reaction will only find the first one, this
+      ! flag over-rides that
+      IF (asad_chemical_fluxes(j)%rxn_location <= 0) THEN
+        asad_chemdiags(jdiag)%find_rxn_loc = 1
+      ELSE
+        asad_chemdiags(jdiag)%find_rxn_loc =                                   &
+          asad_chemical_fluxes(j)%rxn_location
+      END IF
+      ! fill in number of reactants and products
+      IF (asad_chemical_fluxes(j)%num_species == 1) THEN
+        ! are not dealing with a reaction
+        asad_chemdiags(jdiag)%num_reactants = 0
+        asad_chemdiags(jdiag)%num_products = 0
+      ELSE IF (asad_chemical_fluxes(j)%num_species >= 3) THEN
+        ! we have a reaction (probably, or user error!)
+        asad_chemdiags(jdiag)%num_reactants = number_of_reactants ! 2 currently
+        asad_chemdiags(jdiag)%num_products =                                   &
+           asad_chemical_fluxes(j)%num_species -                               &
+           asad_chemdiags(jdiag)%num_reactants
+      ELSE ! incorrect numbers specified!
+        WRITE(cmessage,'(A,I0,A)')                                             &
+             'WRONG NUMBER OF SPECIES: ',                                      &
+             asad_chemical_fluxes(j)%num_species, ' FOUND'
+        errcode=asad_chemdiags(jdiag)%stash_number
+        WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',             &
+             errcode,' PE: ',mype
+        CALL umPrint(umMessage,src='asad_chem_flux_diags')
+        CALL ereport(RoutineName,errcode,cmessage)
+      END IF
 
-  END IF      ! chemD1codes(i)%required
-END DO        ! i=1,n_asad_diags
-
-IF (L_asad_use_chem_diags) THEN
-
-      ! allocate diagnostics array
-  ALLOCATE(asad_chemdiags(1:n_chemdiags))
-  DO i=1,n_chemdiags
-    CALL asad_zero_chemdiag(asad_chemdiags(i))
-  END DO
-
-  ! Now we do a rather complicated do-loop to set up the asad_chemdiags array
-  jdiag = 0
-  icount=0
-  DO istash=1,n_asad_diags
-     ! check to see if stash is requested
-    IF (chemD1codes(istash)%required) THEN
-      icount=icount+1
-      DO j=1,SIZE(asad_chemical_fluxes)
-         ! check if stash code has been requested, and if
-         ! we have a corresponding flux specified
-        IF (stash_handling(icount)%stash_value ==                              &
-             asad_chemical_fluxes(j)%stash_number) THEN
-           ! increment jdiag. We may have more than one
-           ! diagnostic associated with each stash number
-          jdiag = jdiag + 1
-          ! STASH number
-          asad_chemdiags(jdiag)%stash_number=                                  &
-               asad_chemical_fluxes(j)%stash_number
-          ! diagnostic type
-          asad_chemdiags(jdiag)%diag_type =                                    &
-               TRIM(asad_cd_uppercase(                                         &
-                    asad_chemical_fluxes(j)%diag_type))
-          ! reaction (or otherwise) type
-          asad_chemdiags(jdiag)%rxn_type =                                     &
-               TRIM(asad_cd_uppercase(                                         &
-                    asad_chemical_fluxes(j)%rxn_type))
-          ! do we use a tropospheric mask only output the
-          ! troposphere?
-          IF (asad_chemical_fluxes(                                            &
-               j)%tropospheric_mask) THEN
-            asad_chemdiags(jdiag)%tropospheric_mask                            &
-                 = .TRUE.
-            ! set logical for global value
-            IF (.NOT. L_asad_use_trop_mask)                                    &
-                 L_asad_use_trop_mask = .TRUE.
-          ELSE
-            asad_chemdiags(jdiag)%tropospheric_mask                            &
-                 = .FALSE.
-          END IF
-          ! if we have two reactions with the exactly the same
-          ! reactants and products, but different rates,
-          ! find_reaction will only find the first one, this
-          ! flag over-rides that
-          IF (asad_chemical_fluxes(j)%rxn_location                             &
-               <= 0) THEN
-            asad_chemdiags(jdiag)%find_rxn_loc = 1
-          ELSE
-            asad_chemdiags(jdiag)%find_rxn_loc =                               &
-                 asad_chemical_fluxes(j)%rxn_location
-          END IF
-          ! fill in number of reactants and products
-          IF (asad_chemical_fluxes(j)%num_species                              &
-              == 1) THEN
-             ! are not dealing with a reaction
-            asad_chemdiags(jdiag)%num_reactants = 0
-            asad_chemdiags(jdiag)%num_products  = 0
-          ELSE IF (asad_chemical_fluxes(j)%num_species                         &
-               >= 3) THEN
-             ! we have a reaction (probably, or user error!)
-            asad_chemdiags(jdiag)%num_reactants =                              &
-                 number_of_reactants ! = 2 currently
-            asad_chemdiags(jdiag)%num_products  =                              &
-                 asad_chemical_fluxes(j)%num_species -                         &
-                 asad_chemdiags(jdiag)%num_reactants
-          ELSE ! incorrect numbers specified!
-            WRITE(cmessage,'(A,I0,A)')                                         &
-                 'WRONG NUMBER OF SPECIES: ',                                  &
-                 asad_chemical_fluxes(j)%num_species,                          &
-                 ' FOUND'
-            errcode=asad_chemdiags(jdiag)%stash_number
-            WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',         &
-                 errcode,' PE: ',mype
-            CALL umPrint(umMessage,src='asad_chem_flux_diags')
-            CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                          &
-                 errcode,cmessage)
-          END IF
-          ! initialise reactants and products
-          asad_chemdiags(jdiag)%reactants(:) = BlankStr
-          IF (ALLOCATED(asad_chemdiags(                                        &
-               jdiag)%products))                                               &
-               DEALLOCATE(asad_chemdiags(                                      &
-               jdiag)%products)
-          ALLOCATE(asad_chemdiags(jdiag)%products(1:                           &
+      ! initialise reactants and products
+      asad_chemdiags(jdiag)%reactants(:) = BlankStr
+      IF (ALLOCATED(asad_chemdiags(jdiag)%products))                           &
+        DEALLOCATE(asad_chemdiags(jdiag)%products)
+      ALLOCATE(asad_chemdiags(jdiag)%products(1:                               &
                asad_chemdiags(jdiag)%num_products))
-          asad_chemdiags(jdiag)%products(:) = BlankStr
-          ! fill in from list - rxn specific
-          SELECT CASE (asad_chemdiags(jdiag)%diag_type)
-          CASE (cdrxn,cdrte)
-             ! copy over reacants
-            DO i=1,number_of_reactants
-              asad_chemdiags(jdiag)%reactants(i) =                             &
-                   TRIM(ADJUSTL(                                               &
-                   asad_chemical_fluxes(                                       &
-                   j)%reactants(i)))
-            END DO
-            ! copy over products
-            DO i=1,asad_chemdiags(jdiag)%num_products
-              asad_chemdiags(jdiag)%products(i) =                              &
-                   TRIM(ADJUSTL(                                               &
-                   asad_chemical_fluxes(                                       &
-                   j)%products(i)))
-            END DO
-          CASE (cddep,cdems,cdnet,cdste,cdout)
-             ! only one species in this case
-            asad_chemdiags(jdiag)%species =                                    &
-                 TRIM(ADJUSTL(                                                 &
-                 asad_chemical_fluxes(j)%reactants(1)))
-          CASE (cdpsc,cdmas,cdtpm,cdlgt)
-             ! no need to do anything - no species
-          CASE DEFAULT
-            cmessage='DIAGNOSTIC TYPE '//                                      &
-                 asad_chemdiags(jdiag)%diag_type                               &
-                 //' NOT FOUND'
-            errcode=asad_chemdiags(jdiag)%stash_number
-            WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',         &
-                 errcode,' PE: ',mype
-            CALL umPrint(umMessage,src='asad_chem_flux_diags')
-            CALL ereport('ASAD_INIT_CHEMDIAG',                                 &
-                    errcode,cmessage)
-          END SELECT
+      asad_chemdiags(jdiag)%products(:) = BlankStr
 
-          ! Check on emissions, deposition etc, and set allocate/output logicals
-          SELECT CASE (asad_chemdiags(jdiag)%diag_type)
-          CASE (cdems)
-             ! emissions only on chemical timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate                               &
-                 = .TRUE.
-            SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
-            CASE (cdair) ! aircraft
-              L_asad_use_air_ems=.TRUE.
-            CASE (cdlight) ! lightning
-              L_asad_use_light_ems=.TRUE.
-            CASE (cdvolc) ! volcanic
-              L_asad_use_volc_ems=.TRUE.
-            CASE (cdsulp) ! volcanic
-              L_asad_use_sulp_ems = .TRUE.
-            CASE (cdsurf) ! surface
-              L_asad_use_surf_ems=.TRUE.
-            CASE DEFAULT
-              cmessage='INCORRECT EMISSION TYPE: '//                           &
-                   asad_chemdiags(jdiag)%diag_type//                           &
-                  ':'//asad_chemdiags(jdiag)%rxn_type
-              errcode=                                                         &
-                   asad_chemdiags(jdiag)%stash_number
-              WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',       &
-                   errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport('ASAD_INIT_CHEMDIAG',                               &
-                   errcode,cmessage)
-            END SELECT ! asad_chemdiags(jdiag)%rxn_type
-          CASE (cdrxn)
-             ! reactions only on chemical timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate = .TRUE.
-            SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
-            CASE (cdbimol,cdtermol,cdphot,cdhetero)
-              L_asad_use_flux_rxns=.TRUE.
-            CASE DEFAULT
-              cmessage='INCORRECT REACTION TYPE: '//                           &
-                   asad_chemdiags(jdiag)%diag_type//                           &
-                   ':'//                                                       &
-                   asad_chemdiags(jdiag)%rxn_type
-              errcode=asad_chemdiags(                                          &
-                   jdiag)%stash_number
-              WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',       &
-                   errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                        &
-                   errcode,cmessage)
-            END SELECT ! asad_chemdiags(jdiag)%rxn_type
-          CASE (cdrte)
-             ! rates only on chemical timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate                               &
-                 = .TRUE.
-            SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
-            CASE (cdbimol,cdtermol,cdphot,cdhetero)
-              L_asad_use_rxn_rates=.TRUE.
-            CASE DEFAULT
-              cmessage='INCORRECT RATE TYPE: '//                               &
-                   asad_chemdiags(jdiag)%diag_type//                           &
-                   ':'//                                                       &
-                   asad_chemdiags(jdiag)%rxn_type
-              errcode=asad_chemdiags(                                          &
-                   jdiag)%stash_number
-              WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',       &
-                   errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport('ASAD_INIT_CHEMDIAG',                               &
-                   errcode,cmessage)
-            END SELECT ! asad_chemdiags(jdiag)%rxn_type
-          CASE (cddep)
-             ! deposition only on chemical timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate = .TRUE.
-            SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
-            CASE (cdwet)
-              L_asad_use_wetdep=.TRUE.
-            CASE (cddry)
-              L_asad_use_drydep=.TRUE.
-            CASE DEFAULT
-              cmessage='INCORRECT DEPOSTITION TYPE: '//                        &
-                   asad_chemdiags(jdiag)%diag_type//                           &
-                   ':'//                                                       &
-                   asad_chemdiags(jdiag)%rxn_type
-              errcode=asad_chemdiags(                                          &
-                   jdiag)%stash_number
-              WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',       &
-                   errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport('ASAD_INIT_CHEMDIAG',                               &
-                   errcode,cmessage)
-            END SELECT ! asad_chemdiags(jdiag)%rxn_type
-          CASE (cdnet)
-             ! tendency only on chemical timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate = .TRUE.
-            ! tendency
-            L_asad_use_tendency = .TRUE.
-          CASE (cdste)
-             ! STE on all timesteps, and cannot be
-             ! deallocated at any time
-            asad_chemdiags(jdiag)%can_deallocate = .FALSE.
-            ! tendency
-            L_asad_use_STE = .TRUE.
-          CASE (cdmas)
-             ! air mass on all timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate = .TRUE.
-            L_asad_use_mass_diagnostic=.TRUE.
-          CASE (cdpsc)
-             ! air mass on all timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate = .TRUE.
-            L_asad_use_psc_diagnostic=.TRUE.
-          CASE (cdtpm)
-             ! Tropospheric mask on all timesteps, and can
-             ! deallocate at other times
-            asad_chemdiags(jdiag)%can_deallocate = .TRUE.
-            ! set logical value to T for calculation of
-            !tropospheric mask
-            L_asad_use_trop_mask = .TRUE.
-            ! set logical to true for outputting trop mask
-            L_asad_use_trop_mask_output=.TRUE.
-          CASE (cdout)
-             ! tracer on all timesteps, and cannot be
-             ! deallocated at any time
-            asad_chemdiags(jdiag)%can_deallocate                               &
-                 = .TRUE.
-            ! tracer
-            L_asad_use_output_tracer = .TRUE.
-          CASE (cdlgt)
-             ! lightning diagnostics on all timesteps, and cannot
-             ! be deallocated at any time
-            asad_chemdiags(jdiag)%can_deallocate                               &
-                 = .TRUE.
-            ! check which diagnostics
-            SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
-            CASE (cdlgttot)
-              L_asad_use_light_diags_tot = .TRUE.
-            CASE (cdlgtc2g)
-              L_asad_use_light_diags_c2g = .TRUE.
-            CASE (cdlgtc2c)
-              L_asad_use_light_diags_c2c = .TRUE.
-            CASE (cdlgtN)
-              L_asad_use_light_diags_N = .TRUE.
-            CASE DEFAULT
-              cmessage=                                                        &
-                   'INCORRECT LIGHTNING DIAG TYPE: '//                         &
-                   asad_chemdiags(jdiag)%diag_type//                           &
-                   ':'//                                                       &
-                   asad_chemdiags(jdiag)%rxn_type
-              errcode=                                                         &
-                   asad_chemdiags(jdiag)%stash_number
-              WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',       &
-                   errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport(                                                    &
-                   'ASAD_CHEMICAL_DIAGNOSTICS',                                &
-                   errcode,cmessage)
-            END SELECT
-          END SELECT ! asad_chemdiags(jdiag)%diag_type
-        END IF ! stash_handling(icount)%stash_value ==
-               ! asad_chemical_fluxes(j)%stash_number
-      END DO !j,SIZE(asad_chemical_diagnostics)
-    END IF ! chemd1codes(i)%required
-  END DO ! i,n_asad_diags
+      ! fill in from list - rxn specific
+      SELECT CASE (asad_chemdiags(jdiag)%diag_type)
+      CASE (cdrxn,cdrte)
+        ! copy over reacants
+        DO i=1,number_of_reactants
+          asad_chemdiags(jdiag)%reactants(i) =                                 &
+            TRIM(ADJUSTL(asad_chemical_fluxes(j)%reactants(i)))
+        END DO
+        ! copy over products
+        DO i=1,asad_chemdiags(jdiag)%num_products
+          asad_chemdiags(jdiag)%products(i) =                                  &
+            TRIM(ADJUSTL(asad_chemical_fluxes(j)%products(i)))
+        END DO
+      CASE (cddep,cdems,cdnet,cdste,cdout)
+        ! only one species in this case
+        asad_chemdiags(jdiag)%species =                                        &
+          TRIM(ADJUSTL(asad_chemical_fluxes(j)%reactants(1)))
+      CASE (cdpsc,cdmas,cdtpm,cdlgt)
+        ! no need to do anything - no species
+      CASE DEFAULT
+        cmessage='DIAGNOSTIC TYPE '// asad_chemdiags(jdiag)%diag_type //       &
+                 ' NOT FOUND'
+        errcode=asad_chemdiags(jdiag)%stash_number
+        WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',             &
+             errcode,' PE: ',mype
+        CALL umPrint(umMessage,src='asad_chem_flux_diags')
+        CALL ereport(RoutineName,errcode,cmessage)
+      END SELECT
 
-  ! Check on summing options - simplifies STASH output
-  DO k=1,n_stashsumdiag
-    DO i=1,n_chemdiags
-       ! calcs number of fields with the same stash code
-      IF (stash_handling(k)%stash_value ==                                     &
-           asad_chemdiags(i)%stash_number) THEN
-        stash_handling(k)%number_of_fields =                                   &
-             stash_handling(k)%number_of_fields + 1
-      END IF
-    END DO
-    ! creates an array of this size
-    ALLOCATE(stash_handling(k)%chemdiags_location(1:                           &
-         stash_handling(k)%number_of_fields))
-    stash_handling(k)%chemdiags_location(:) = 0
-    ! allocate %throughput array for each flux
-    icount=0
-    DO i=1,n_chemdiags
-      IF (stash_handling(k)%stash_value ==                                     &
-           asad_chemdiags(i)%stash_number) THEN
-        icount=icount+1
-        stash_handling(k)%chemdiags_location(icount) = i
-        ! get number of levels (needed in putstash)
-        asad_chemdiags(i)%num_levs =                                           &
-             stash_handling(k)%len_dim3
-      END IF
-    END DO           ! i,n_chemdiags
-  END DO              ! k,n_stashsumdiag
-  ! error check
-  DO k=1,n_stashsumdiag
-    IF (stash_handling(k)%number_of_fields == 0) THEN
-      cmessage=' STASH CODE NOT FOUND IN'//                                    &
-               ' stash_handling ARRAY'
-      errcode = -1*stash_handling(k)%stash_value
-      WRITE(umMessage,'(2A,I0,A,I0,A,I0)') cmessage, ' Error code: ',          &
-           errcode,' PE: ',mype,' K: ',k
-      CALL umPrint(umMessage,src='asad_chem_flux_diags')
-      CALL ereport('ASAD_INIT_CHEMDIAG',errcode,cmessage)
+      ! Check on emissions, deposition etc, and set allocate/output logicals
+      SELECT CASE (asad_chemdiags(jdiag)%diag_type)
+      CASE (cdems)
+         ! emissions only on chemical timesteps, and can
+         ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
+        CASE (cdair) ! aircraft
+          L_asad_use_air_ems=.TRUE.
+        CASE (cdlight) ! lightning
+          L_asad_use_light_ems=.TRUE.
+        CASE (cdvolc) ! volcanic
+          L_asad_use_volc_ems=.TRUE.
+        CASE (cdsulp) ! volcanic
+          L_asad_use_sulp_ems = .TRUE.
+        CASE (cdsurf) ! surface
+          L_asad_use_surf_ems=.TRUE.
+        CASE DEFAULT
+          cmessage='INCORRECT EMISSION TYPE: '//                               &
+                   asad_chemdiags(jdiag)%diag_type//                           &
+                   ':'//asad_chemdiags(jdiag)%rxn_type
+          errcode=asad_chemdiags(jdiag)%stash_number
+          WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
+               errcode,' PE: ',mype
+          CALL umPrint(umMessage,src='asad_chem_flux_diags')
+          CALL ereport(RoutineName,errcode,cmessage)
+        END SELECT ! asad_chemdiags(jdiag)%rxn_type
+      CASE (cdrxn)
+        ! reactions only on chemical timesteps, and can
+        ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
+        CASE (cdbimol,cdtermol,cdphot,cdhetero)
+          L_asad_use_flux_rxns=.TRUE.
+        CASE DEFAULT
+          cmessage='INCORRECT REACTION TYPE: '//                               &
+                   asad_chemdiags(jdiag)%diag_type//':'//                      &
+                   asad_chemdiags(jdiag)%rxn_type
+          errcode=asad_chemdiags(jdiag)%stash_number
+          WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
+               errcode,' PE: ',mype
+          CALL umPrint(umMessage,src='asad_chem_flux_diags')
+          CALL ereport(RoutineName,errcode,cmessage)
+        END SELECT ! asad_chemdiags(jdiag)%rxn_type
+      CASE (cdrte)
+         ! rates only on chemical timesteps, and can
+         ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate=.TRUE.
+        SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
+        CASE (cdbimol,cdtermol,cdphot,cdhetero)
+          L_asad_use_rxn_rates=.TRUE.
+        CASE DEFAULT
+          cmessage='INCORRECT RATE TYPE: '//asad_chemdiags(jdiag)%diag_type//  &
+                   ':'//asad_chemdiags(jdiag)%rxn_type
+          errcode=asad_chemdiags(jdiag)%stash_number
+          WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
+               errcode,' PE: ',mype
+          CALL umPrint(umMessage,src='asad_chem_flux_diags')
+          CALL ereport(RoutineName,errcode,cmessage)
+        END SELECT ! asad_chemdiags(jdiag)%rxn_type
+      CASE (cddep)
+         ! deposition only on chemical timesteps, and can
+         ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
+        CASE (cdwet)
+          L_asad_use_wetdep=.TRUE.
+        CASE (cddry)
+          L_asad_use_drydep=.TRUE.
+        CASE DEFAULT
+          cmessage='INCORRECT DEPOSTITION TYPE: '//                            &
+                   asad_chemdiags(jdiag)%diag_type//':'//                      &
+                   asad_chemdiags(jdiag)%rxn_type
+          errcode=asad_chemdiags(jdiag)%stash_number
+          WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
+               errcode,' PE: ',mype
+          CALL umPrint(umMessage,src='asad_chem_flux_diags')
+          CALL ereport(RoutineName,errcode,cmessage)
+        END SELECT ! asad_chemdiags(jdiag)%rxn_type
+      CASE (cdnet)
+        ! tendency only on chemical timesteps, and can
+        ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        ! tendency
+        L_asad_use_tendency = .TRUE.
+      CASE (cdste)
+        ! STE on all timesteps, and cannot be
+        ! deallocated at any time
+        asad_chemdiags(jdiag)%can_deallocate = .FALSE.
+        ! tendency
+        L_asad_use_STE = .TRUE.
+      CASE (cdmas)
+        ! air mass on all timesteps, and can
+        ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        L_asad_use_mass_diagnostic=.TRUE.
+      CASE (cdpsc)
+        ! air mass on all timesteps, and can
+        ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        L_asad_use_psc_diagnostic=.TRUE.
+      CASE (cdtpm)
+        ! Tropospheric mask on all timesteps, and can
+        ! deallocate at other times
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        ! set logical value to T for calculation of
+        !tropospheric mask
+        L_asad_use_trop_mask = .TRUE.
+        ! set logical to true for outputting trop mask
+        L_asad_use_trop_mask_output = .TRUE.
+      CASE (cdout)
+        ! tracer on all timesteps, and cannot be
+        ! deallocated at any time
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        ! tracer
+        L_asad_use_output_tracer = .TRUE.
+      CASE (cdlgt)
+        ! lightning diagnostics on all timesteps, and cannot
+        ! be deallocated at any time
+        asad_chemdiags(jdiag)%can_deallocate = .TRUE.
+        ! check which diagnostics
+        SELECT CASE (asad_chemdiags(jdiag)%rxn_type)
+        CASE (cdlgttot)
+          L_asad_use_light_diags_tot = .TRUE.
+        CASE (cdlgtc2g)
+          L_asad_use_light_diags_c2g = .TRUE.
+        CASE (cdlgtc2c)
+          L_asad_use_light_diags_c2c = .TRUE.
+        CASE (cdlgtN)
+          L_asad_use_light_diags_N = .TRUE.
+        CASE DEFAULT
+          cmessage='INCORRECT LIGHTNING DIAG TYPE: '//                         &
+                   asad_chemdiags(jdiag)%diag_type//':'//                      &
+                   asad_chemdiags(jdiag)%rxn_type
+          errcode=asad_chemdiags(jdiag)%stash_number
+          WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
+               errcode,' PE: ',mype
+          CALL umPrint(umMessage,src='asad_chem_flux_diags')
+          CALL ereport(RoutineName,errcode,cmessage)
+        END SELECT
+      END SELECT ! asad_chemdiags(jdiag)%diag_type
+
+    END IF ! stash_handling(istash)%stash_value ==
+           ! asad_chemical_fluxes(j)%stash_number
+  END DO !j,SIZE(asad_chemical_fluxes)
+END DO ! istash,n_asad_diags
+
+! Check on summing options - simplifies STASH output
+DO k=1,n_asad_diags
+  DO i=1,n_chemdiags
+     ! calcs number of fields with the same stash code
+    IF (stash_handling(k)%stash_value ==                                       &
+         asad_chemdiags(i)%stash_number) THEN
+      stash_handling(k)%number_of_fields =                                     &
+           stash_handling(k)%number_of_fields + 1
     END IF
   END DO
+  ! creates an array of this size
+  ALLOCATE(stash_handling(k)%chemdiags_location(1:                             &
+       stash_handling(k)%number_of_fields))
+  stash_handling(k)%chemdiags_location(:) = 0
+  ! allocate %throughput array for each flux
+  icount=0
+  DO i=1,n_chemdiags
+    IF (stash_handling(k)%stash_value ==                                       &
+         asad_chemdiags(i)%stash_number) THEN
+      icount=icount+1
+      stash_handling(k)%chemdiags_location(icount) = i
+      ! get number of levels (needed in putstash)
+      asad_chemdiags(i)%num_levs =                                             &
+           stash_handling(k)%len_dim3
+    END IF
+  END DO           ! i,n_chemdiags
+END DO              ! k,n_asad_diags
 
-END IF                 ! L_asad_use_chem_diags
-
-
+! error check
+DO k=1,n_asad_diags
+  IF (stash_handling(k)%number_of_fields == 0) THEN
+    cmessage=' STASH CODE NOT FOUND IN'//                                      &
+             ' stash_handling ARRAY'
+    errcode = -1*stash_handling(k)%stash_value
+    WRITE(umMessage,'(2A,I0,A,I0,A,I0)') cmessage, ' Error code: ',            &
+         errcode,' PE: ',mype,' K: ',k
+    CALL umPrint(umMessage,src='asad_chem_flux_diags')
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
+END DO
 
 ! print out diagnostics requested
 IF ((PrintStatus >= PrStatus_Oper ) .AND. (mype == 0)) THEN
@@ -933,8 +937,6 @@ IF (PrintStatus == Prstatus_Diag) THEN
        'L_asad_use_chem_diags      = ',L_asad_use_chem_diags
   CALL umPrint(umMessage,src='asad_chem_flux_diags')
 END IF ! PrintStatus = Prstatus_diag
-
-ierr = 0
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -2254,114 +2256,5 @@ ierr = 0
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE asad_lightning_diagnostics
-
-
-! #####################################################################
-SUBROUTINE asad_flux_put_stash(                                                &
-   stashwork_size,STASHwork,                                                   &
-   row_length,rows,model_levels)
-
-IMPLICIT NONE
-
-
-INTEGER, INTENT(IN) :: stashwork_size
-REAL, INTENT(IN OUT) :: STASHwork(1:stashwork_size)
-INTEGER, INTENT(IN) :: row_length
-INTEGER, INTENT(IN) :: rows
-INTEGER, INTENT(IN) :: model_levels
-
-! Flux arrays
-REAL, ALLOCATABLE :: upload_array_3D(:,:,:)
-REAL, ALLOCATABLE :: upload_array_2D(:,:)
-
-INTEGER       :: item                             ! stash item
-INTEGER       :: section                          ! stash section
-INTEGER       :: im_index                         ! atmos model index
-INTEGER       :: i,j,k,l                          ! Counters
-INTEGER       :: icode                            ! Error code
-CHARACTER(LEN=errormessagelength) :: cmessage     ! Error return message
-
-INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-REAL(KIND=jprb)               :: zhook_handle
-
-CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_FLUX_PUT_STASH'
-
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-icode = 0
-
-im_index = 1
-
-ALLOCATE(upload_array_2D(1:row_length,1:rows))
-ALLOCATE(upload_array_3D(1:row_length,1:rows,1:model_levels))
-
-! copy items into STASHwork array here, which is then uploaded with
-! the call to STASH at the end of UKCA_MAIN.
-DO l=1,n_stashsumdiag
-  item = stash_handling(l)%stash_item
-  section = stash_handling(l)%stash_section
-  upload_array_2D(:,:)   = 0.0
-  upload_array_3D(:,:,:) = 0.0
-
-  ! Now check if can output diagnostic, since some of these
-  !  will only be allowed on chemical timesteps
-  IF (stash_handling(l)%len_dim3 == 1) THEN                   ! 2D field
-    DO k=1,stash_handling(l)%number_of_fields
-         ! will only be summing surface fields in this case
-      upload_array_2D(:,:) = upload_array_2D(:,:) +                            &
-              asad_chemdiags(                                                  &
-              stash_handling(l)%chemdiags_location(k)                          &
-              )%throughput(:,:,1)
-    END DO
-    IF (sf(item,section)) THEN
-
-      CALL copydiag (stashwork(si(item,section,im_index):                      &
-           si_last(item,section,im_index)),                                    &
-           upload_array_2D(:,:), row_length,rows)
-    END IF
-  ELSE ! len_dim3 /= 1
-    DO k=1,stash_handling(l)%number_of_fields
-        ! may be summing both 3D and surface fields into the same 3D array
-      DO j=1,asad_chemdiags(                                                   &
-        stash_handling(l)%chemdiags_location(k))%num_levs
-        upload_array_3D(:,:,j) = upload_array_3D(:,:,j) +                      &
-                asad_chemdiags(                                                &
-                stash_handling(l)%chemdiags_location(k)                        &
-                )%throughput(:,:,j)
-      END DO
-    END DO
-
-    IF (sf(item,section)) THEN
-      CALL copydiag_3d (stashwork(si(item,section,im_index):                   &
-            si_last(item,section,im_index)),                                   &
-            upload_array_3D(:,:,:),                                            &
-            row_length,rows,model_levels,                                      &
-            stlist(:,stindex(1,item,section,im_index)),                        &
-            len_stlist,                                                        &
-            stash_levels,num_stash_levels+1)
-    END IF
-  END IF ! len_dim3
-  IF (icode >  0) THEN
-    WRITE(cmessage,'(A,A,5(I6,1X))') 'ASAD_FLUX_PUT_STASH: ',                  &
-          'ERROR WITH copydiag ',                                              &
-          item,section,im_index,atmos_im,icode
-    WRITE(umMessage,'(A)') cmessage
-    CALL umPrint(umMessage,src='asad_chem_flux_diags')
-    CALL umPrintFlush()
-    icode=(1000*section) + item
-    CALL ereport('ASAD_FLUX_PUT_STASH',icode,cmessage)
-  END IF
-END DO       ! l,n_stashsumdiag
-
-! Deallocate arrays, if are able to
-DO i=1,n_chemdiags
-  IF (asad_chemdiags(i)%can_deallocate)                                        &
-       DEALLOCATE(asad_chemdiags(i)%throughput)
-END DO
-
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-RETURN
-END SUBROUTINE asad_flux_put_stash
 
 END MODULE asad_chem_flux_diags

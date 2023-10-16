@@ -15,8 +15,9 @@
 !  It acts as a collation point for components of the API defined
 !  in other UKCA modules rather than including any definitions itself.
 !
-!  The UKCA API is currently under development. Once completed, this
-!  should be the only UKCA module to be used by a parent application.
+!  Note that 'ukca_api_mod' should be the only UKCA module used by a parent
+!  application. Where exceptions exist in UM legacy code, these are considered
+!  deprecated and may not be robust to future UKCA developments.
 !
 ! Part of the UKCA model, a community model supported by the
 ! Met Office and NCAS, with components provided initially
@@ -43,6 +44,9 @@ USE ukca_step_control_mod, ONLY: ukca_step_control
 USE ukca_step_mod, ONLY: ukca_step
 USE ukca_config_specification_mod, ONLY:                                       &
   ukca_get_config,                                                             &
+  ukca_error_method_abort => i_error_method_abort,                             &
+  ukca_error_method_return => i_error_method_return,                           &
+  ukca_error_method_warn_and_return => i_error_method_warn_and_return,         &
   ukca_chem_off => i_ukca_chem_off,                                            &
   ukca_chem_trop => i_ukca_chem_trop,                                          &
   ukca_chem_raq => i_ukca_chem_raq,                                            &
@@ -82,17 +86,29 @@ USE ukca_config_specification_mod, ONLY:                                       &
   ukca_liss_merlivat => i_liss_merlivat,                                       &
   ukca_wanninkhof => i_wanninkhof,                                             &
   ukca_nightingale => i_nightingale
-
 USE ukca_tracers_mod, ONLY: ukca_get_tracer_varlist
 USE ukca_ntp_mod, ONLY: ukca_get_ntp_varlist
-USE ukca_chem_defs_mod, ONLY: ukca_get_photol_reaction_data,                   &
+USE ukca_chem_defs_mod, ONLY:                                                  &
+  ukca_get_photol_reaction_data,                                               &
   ukca_photol_varname_len => photol_varname_len
-USE ukca_environment_req_mod, ONLY: ukca_get_environment_varlist,              &
-                                    ukca_get_envgroup_varlists
+USE ukca_environment_req_mod, ONLY:                                            &
+  ukca_get_environment_varlist,                                                &
+  ukca_get_envgroup_varlists
 USE ukca_environment_mod, ONLY: ukca_set_environment
-USE ukca_fieldname_mod, ONLY: ukca_maxlen_fieldname => maxlen_fieldname
-USE ukca_emiss_api_mod, ONLY: ukca_get_emission_varlist,                       &
-                              ukca_register_emission, ukca_set_emission
+USE ukca_fieldname_mod, ONLY:                                                  &
+  ukca_maxlen_fieldname => maxlen_fieldname,                                   &
+  ukca_maxlen_diagname => maxlen_diagname,                                     &
+  ukca_diagname_jrate_no2 => diagname_jrate_no2,                               &
+  ukca_diagname_jrate_o3a => diagname_jrate_o3a,                               &
+  ukca_diagname_jrate_o3b => diagname_jrate_o3b,                               &
+  ukca_diagname_jrate_o2b => diagname_jrate_o2b,                               &
+  ukca_diagname_rxnflux_oh_ch4_trop => diagname_rxnflux_oh_ch4_trop,           &
+  ukca_diagname_p_tropopause => diagname_p_tropopause,                         &
+  ukca_diagname_o3_column_du => diagname_o3_column_du
+USE ukca_emiss_api_mod, ONLY:                                                  &
+  ukca_get_emission_varlist,                                                   &
+  ukca_register_emission,                                                      &
+  ukca_set_emission
 USE ukca_emiss_struct_mod, ONLY:                                               &
   ukca_maxlen_emiss_var_name => maxlen_emiss_var_name,                         &
   ukca_maxlen_emiss_tracer_name => maxlen_emiss_tracer_name,                   &
@@ -102,9 +118,37 @@ USE ukca_emiss_struct_mod, ONLY:                                               &
   ukca_maxlen_emiss_hourly_fact => maxlen_emiss_hourly_fact,                   &
   ukca_maxlen_emiss_daily_fact => maxlen_emiss_daily_fact,                     &
   ukca_maxlen_emiss_vert_fact => maxlen_emiss_vert_fact
-USE ukca_error_mod, ONLY: ukca_maxlen_message => maxlen_message,               &
-                          ukca_maxlen_procname => maxlen_procname
-USE ukca_ddepaer_coeff_mod, ONLY: ukca_zhg_eg_nedleaf => zhg_eg_nedleaf,       &
+USE ukca_diagnostics_type_mod, ONLY:                                           &
+  ukca_diag_status_inactive => diag_status_inactive,                           &
+  ukca_diag_status_requested => diag_status_requested,                         &
+  ukca_diag_status_valid => diag_status_valid,                                 &
+  ukca_diag_status_skipped => diag_status_skipped,                             &
+  ukca_diag_status_unavailable => diag_status_unavailable
+USE ukca_diagnostics_init_mod, ONLY: ukca_get_available_diag_varlist
+USE ukca_diagnostics_requests_mod, ONLY:                                       &
+  ukca_set_diagnostic_requests,                                                &
+  ukca_update_diagnostic_requests,                                             &
+  ukca_get_diagnostic_request_info
+USE ukca_error_mod, ONLY:                                                      &
+  ukca_maxlen_message => maxlen_message,                                       &
+  ukca_maxlen_procname => maxlen_procname,                                     &
+  ukca_errcode_ukca_uninit => errcode_ukca_uninit,                             &
+  ukca_errcode_tracer_req_uninit => errcode_tracer_req_uninit,                 &
+  ukca_errcode_tracer_mismatch => errcode_tracer_mismatch,                     &
+  ukca_errcode_ntp_uninit => errcode_ntp_uninit,                               &
+  ukca_errcode_ntp_mismatch => errcode_ntp_mismatch,                           &
+  ukca_errcode_env_req_uninit => errcode_env_req_uninit,                       &
+  ukca_errcode_env_field_unknown => errcode_env_field_unknown,                 &
+  ukca_errcode_env_field_mismatch => errcode_env_field_mismatch,               &
+  ukca_errcode_env_field_missing => errcode_env_field_missing,                 &
+  ukca_errcode_diag_req_unknown => errcode_diag_req_unknown,                   &
+  ukca_errcode_diag_req_duplicate => errcode_diag_req_duplicate,               &
+  ukca_errcode_diag_req_mismatch => errcode_diag_mismatch,                     &
+  ukca_errcode_ukca_internal_fault => errcode_ukca_internal_fault,             &
+  ukca_errcode_value_unknown => errcode_value_unknown,                         &
+  ukca_errcode_value_invalid => errcode_value_invalid,                         &
+  ukca_errcode_value_missing => errcode_value_missing
+USE ukca_ddepaer_coeff_mod, ONLY:                                                 ukca_zhg_eg_nedleaf => zhg_eg_nedleaf, &
   ukca_zhg_eg_brdleaf => zhg_eg_brdleaf,                                       &
   ukca_zhg_dec_nedleaf => zhg_dec_nedleaf,                                     &
   ukca_zhg_dec_brdleaf => zhg_dec_brdleaf,                                     &
@@ -121,7 +165,6 @@ USE ukca_ddepaer_coeff_mod, ONLY: ukca_zhg_eg_nedleaf => zhg_eg_nedleaf,       &
   ukca_zhg_urban => zhg_urban,                                                 &
   ukca_zhg_ned_leaf => zhg_ned_leaf,                                           &
   ukca_zhg_brd_leaf => zhg_brd_leaf
-
 
 IMPLICIT NONE
 

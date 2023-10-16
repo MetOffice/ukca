@@ -17,13 +17,17 @@
 !
 !     ntp_init        - Initialise NTP structure containing all field
 !                       names and an indication of which are required
-!     ntp_copy_in     - Copy NTP fields from a 4D array to the NTP structure
-!                       (overloaded for different dimension parent arrays)
-!     ntp_copy_out    - Copy NTP fields from the NTP structure to a 4D array
-!                       (overloaded for different dimension parent arrays)
+!     ntp_copy_in_1d  - Copy NTP data for a column domain from a 2D parent
+!                       array to the NTP structure
+!     ntp_copy_in_3d  - Copy NTP data for a 3D domain from a 4D parent array
+!                       to the NTP structure
+!     ntp_copy_out_1d - Copy NTP fields from the NTP structure to a 2D
+!                       parent array
+!     ntp_copy_out_3d - Copy NTP fields from the NTP structure to a 4D
+!                       parent array
 !     print_all_ntp   - Print details of all fields in the NTP structure
 !     ntp_dealloc     - Deallocate data space in NTP structure
-!                       allocated by ntp_copy_in
+!                       allocated by the relevant copy in procedure
 !     name2ntpindex   - General purpose function for finding the index of
 !                       an NTP field in the NTP structure given its name
 !
@@ -197,7 +201,8 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 
 ! subroutines/functions which are public
-PUBLIC ntp_init, ukca_get_ntp_varlist, ntp_copy_in, ntp_copy_out,              &
+PUBLIC ntp_init, ukca_get_ntp_varlist, ntp_copy_in_1d, ntp_copy_in_3d,         &
+       ntp_copy_out_1d, ntp_copy_out_3d,                                       &
        print_all_ntp, ntp_dealloc, name2ntpindex
 
 ! The size of the all_ntp array is defined here.
@@ -224,19 +229,6 @@ CHARACTER(LEN=maxlen_fieldname), TARGET, ALLOCATABLE, SAVE ::                  &
   ntp_varnames(:)
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_NTP_MOD'
-
-! Generic interfaces for NTP copying routines - overloaded according to the
-! dimensions of the data
-
-INTERFACE ntp_copy_in
-  MODULE PROCEDURE ntp_copy_in_1d
-  MODULE PROCEDURE ntp_copy_in_3d
-END INTERFACE ntp_copy_in
-
-INTERFACE ntp_copy_out
-  MODULE PROCEDURE ntp_copy_out_1d
-  MODULE PROCEDURE ntp_copy_out_3d
-END INTERFACE ntp_copy_out
 
 CONTAINS
 
@@ -957,13 +949,12 @@ ntp_varnames_ptr => ntp_varnames
 END SUBROUTINE ukca_get_ntp_varlist
 
 ! ----------------------------------------------------------------------
-SUBROUTINE ntp_copy_in_1d(ntp_data, model_levels,                              &
-                          error_code, error_message, error_routine)
+SUBROUTINE ntp_copy_in_1d(error_code_ptr, ntp_data, model_levels,              &
+                          error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure ntp_copy_in.
-! Copy NTP fields from the given ntp_data array into the all_ntp data
-! structure. Each input field is defined for a single column.
+! Copy NTP data for a single column from the given ntp_data array into
+! the all_ntp data structure.
 ! Bounds for the vertical array dimension are checked for validity based
 ! on the UKCA extent i.e. 1:model_levels.
 ! The input fields must span the UKCA extent but may optionally extend
@@ -977,17 +968,19 @@ USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
 IMPLICIT NONE
 
 ! Subroutine arguments
-REAL, ALLOCATABLE, INTENT(IN) :: ntp_data(:,:)  ! NTP data field array
-INTEGER, INTENT(IN) :: model_levels        ! Size of UKCA z dimension
-INTEGER, INTENT(OUT) :: error_code         ! Return status code
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr ! Return status code
+REAL, ALLOCATABLE, INTENT(IN) :: ntp_data(:,:) ! NTP data field array
+INTEGER, INTENT(IN) :: model_levels            ! Size of UKCA z dimension
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
-                                           ! Return error message
+                                               ! Return error message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
-                                           ! Routine name where error trapped
+                                               ! Routine name where error
+                                               ! trapped
 
 ! Local variables
 
 INTEGER :: n_reqvar ! Count of NTP variables required
+INTEGER :: n_data   ! Number of NTP variables supplied
 INTEGER :: i_ntp    ! Index of NTP variable in data field array
 INTEGER :: i        ! Loop counter
 
@@ -996,13 +989,13 @@ REAL(KIND=jprb) :: zhook_handle
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
 ! Check that the all_ntp structure has been initialised
 IF (.NOT. l_all_ntp_available) THEN
-  error_code = errcode_ntp_uninit
+  error_code_ptr = errcode_ntp_uninit
   IF (PRESENT(error_message))                                                  &
     error_message =                                                            &
       'Non-transported prognostics requirement has not been initialised'
@@ -1016,8 +1009,13 @@ n_reqvar = 0
 DO i = 1, dim_ntp
   IF (all_ntp(i)%l_required) n_reqvar = n_reqvar + 1
 END DO
-IF (SIZE(ntp_data,DIM=2) /= n_reqvar) THEN
-  error_code = errcode_ntp_mismatch
+IF (ALLOCATED(ntp_data)) THEN
+  n_data = SIZE(ntp_data, DIM=2)
+ELSE
+  n_data = 0
+END IF
+IF (n_data /= n_reqvar) THEN
+  error_code_ptr = errcode_ntp_mismatch
   IF (PRESENT(error_message))                                                  &
     error_message =                                                            &
       'Number of non-transported prognostics fields does not match requirement'
@@ -1034,7 +1032,7 @@ IF (n_reqvar > 0) THEN
   ! the parent model.
   IF (LBOUND(ntp_data,DIM=1) > 1 .OR. UBOUND(ntp_data,DIM=1) < model_levels)   &
   THEN
-    error_code = errcode_ntp_mismatch
+    error_code_ptr = errcode_ntp_mismatch
     IF (PRESENT(error_message))                                                &
       error_message =                                                          &
         'The non-transported prognostics fields have one or more invalid ' //  &
@@ -1062,13 +1060,12 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 END SUBROUTINE ntp_copy_in_1d
 
 ! ----------------------------------------------------------------------
-SUBROUTINE ntp_copy_in_3d(ntp_data, row_length, rows, model_levels,            &
-                          error_code, error_message, error_routine)
+SUBROUTINE ntp_copy_in_3d(error_code_ptr, ntp_data, row_length, rows,          &
+                          model_levels, error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure ntp_copy_in.
-! Copy NTP fields from the given ntp_data array into the all_ntp data
-! structure. Each field is defined on a 3D grid.
+! Copy NTP fields for a 3D domain from the given ntp_data array into
+! the all_ntp data structure.
 ! Bounds are checked for validity based on the UKCA horizontal and
 ! vertical extents i.e. 1:row_length, 1:rows and 1:model_levels.
 ! The input fields must span the UKCA extents but may optionally extend
@@ -1082,19 +1079,21 @@ USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
 IMPLICIT NONE
 
 ! Subroutine arguments
-REAL, ALLOCATABLE, INTENT(IN) :: ntp_data(:,:,:,:)  ! NTP data field array
-INTEGER, INTENT(IN) :: row_length          ! Size of UKCA x dimension
-INTEGER, INTENT(IN) :: rows                ! Size of UKCA y dimension
-INTEGER, INTENT(IN) :: model_levels        ! Size of UKCA z dimension
-INTEGER, INTENT(OUT) :: error_code         ! Return status code
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr     ! Return status code
+REAL, ALLOCATABLE, INTENT(IN) :: ntp_data(:,:,:,:) ! NTP data field array
+INTEGER, INTENT(IN) :: row_length                  ! Size of UKCA x dimension
+INTEGER, INTENT(IN) :: rows                        ! Size of UKCA y dimension
+INTEGER, INTENT(IN) :: model_levels                ! Size of UKCA z dimension
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
-                                           ! Return error message
+                                                   ! Return error message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
-                                           ! Routine name where error trapped
+                                                   ! Routine name where error
+                                                   ! trapped
 
 ! Local variables
 
 INTEGER :: n_reqvar ! Count of NTP variables required
+INTEGER :: n_data   ! Number of NTP variables supplied
 INTEGER :: i_ntp    ! Index of NTP variable in data field array
 INTEGER :: i        ! Loop counter
 
@@ -1103,13 +1102,13 @@ REAL(KIND=jprb) :: zhook_handle
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
 ! Check that the all_ntp structure has been initialised
 IF (.NOT. l_all_ntp_available) THEN
-  error_code = errcode_ntp_uninit
+  error_code_ptr = errcode_ntp_uninit
   IF (PRESENT(error_message))                                                  &
     error_message =                                                            &
       'Non-transported prognostics requirement has not been initialised'
@@ -1123,8 +1122,13 @@ n_reqvar = 0
 DO i = 1, dim_ntp
   IF (all_ntp(i)%l_required) n_reqvar = n_reqvar + 1
 END DO
-IF (SIZE(ntp_data,DIM=4) /= n_reqvar) THEN
-  error_code = errcode_ntp_mismatch
+IF (ALLOCATED(ntp_data)) THEN
+  n_data = SIZE(ntp_data, DIM=4)
+ELSE
+  n_data = 0
+END IF
+IF (n_data /= n_reqvar) THEN
+  error_code_ptr = errcode_ntp_mismatch
   IF (PRESENT(error_message))                                                  &
     error_message =                                                            &
       'Number of non-transported prognostics fields does not match requirement'
@@ -1143,7 +1147,7 @@ IF (n_reqvar > 0) THEN
       LBOUND(ntp_data,DIM=2) > 1 .OR. UBOUND(ntp_data,DIM=2) < rows .OR.       &
       LBOUND(ntp_data,DIM=3) > 1 .OR. UBOUND(ntp_data,DIM=3) < model_levels)   &
   THEN
-    error_code = errcode_ntp_mismatch
+    error_code_ptr = errcode_ntp_mismatch
     IF (PRESENT(error_message))                                                &
       error_message =                                                          &
         'The non-transported prognostics fields have one or more invalid ' //  &
@@ -1175,9 +1179,8 @@ END SUBROUTINE ntp_copy_in_3d
 SUBROUTINE ntp_copy_out_1d(model_levels, ntp_data)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure ntp_copy_out.
 ! Copy the NTP fields from the all_ntp data structure to the given
-! ntp_data array. Each NTP field is defined on a single column.
+! ntp_data array for a single column domain.
 ! ----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -1213,9 +1216,8 @@ END SUBROUTINE ntp_copy_out_1d
 SUBROUTINE ntp_copy_out_3d(row_length, rows, model_levels, ntp_data)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure ntp_copy_out.
 ! Copy the NTP fields from the all_ntp data structure to the given
-! ntp_data array. Each NTP field is defined on a 3D grid.
+! ntp_data array for a 3D domain.
 ! ----------------------------------------------------------------------
 
 IMPLICIT NONE

@@ -29,9 +29,9 @@ PUBLIC :: ukca_pr_inputs
 
 CONTAINS
 
-SUBROUTINE ukca_pr_inputs(timestep_number, environ_ptrs, land_fraction,        &
-                          thick_bl_levels, t_theta_levels, rel_humid_frac,     &
-                          z_half, error_code, error_message, error_routine)
+SUBROUTINE ukca_pr_inputs(error_code_ptr, timestep_number, environ_ptrs,       &
+                          land_fraction, thick_bl_levels, t_theta_levels,      &
+                          rel_humid_frac, z_half, error_message, error_routine)
 
 USE ukca_um_legacy_mod,   ONLY: mype
 USE umPrintMgr,           ONLY: umMessage, UmPrint, PrintStatus,               &
@@ -44,16 +44,18 @@ USE ukca_error_mod,       ONLY: maxlen_message, maxlen_procname
 
 IMPLICIT NONE
 
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
 INTEGER, INTENT(IN) :: timestep_number
+
 TYPE(env_field_ptrs_type), INTENT(IN) :: environ_ptrs(:)
+
 REAL, INTENT(IN) :: land_fraction(ukca_config%row_length, ukca_config%rows)
 REAL, ALLOCATABLE, INTENT(IN) :: thick_bl_levels(:,:,:)
 REAL, ALLOCATABLE, INTENT(IN) :: t_theta_levels(:,:,:)
 REAL, ALLOCATABLE, INTENT(IN) :: rel_humid_frac(:,:,:)
 REAL, ALLOCATABLE, INTENT(IN) :: z_half(:,:,:)
 
-! Arguments for status reporting
-INTEGER, INTENT(OUT) :: error_code
+! Arguments for error reporting
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 
@@ -61,7 +63,7 @@ INTEGER :: k ! loop counter
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_PR_INPUTS'
 
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
@@ -87,9 +89,9 @@ IF (PrintStatus >= PrStatus_Oper .AND.                                         &
 
   ! Print summary stats for environmental drivers
 
-  CALL print_environment_summary(mype, environ_ptrs, error_code,               &
+  CALL print_environment_summary(error_code_ptr, mype, environ_ptrs,           &
                                  error_message, error_routine)
-  IF (error_code > 0) RETURN
+  IF (error_code_ptr > 0) RETURN
 
   ! Print some additional stats for derived values
 

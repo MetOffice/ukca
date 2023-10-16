@@ -83,6 +83,11 @@ SUBROUTINE ukca_step_control(timestep_number, current_time,                    &
                              envgroup_landtile_logical,                        &
                              ! 2D environment fields (spatial + photol species)
                              envgroup_fullhtphot_real,                         &
+                             ! Diagnostics output
+                             diag_status_flat_real,                            &
+                             diag_status_fullht_real,                          &
+                             diag_data_flat_real,                              &
+                             diag_data_fullht_real,                            &
                              ! Error return info
                              error_message, error_routine)
 ! ----------------------------------------------------------------------
@@ -96,16 +101,23 @@ SUBROUTINE ukca_step_control(timestep_number, current_time,                    &
 !   special case of environmental drivers and are grouped separately
 !   as they require different treatment.
 !   The procedure for handling the UKCA time step is:
-!   1) Set up environmental drivers are setup by calling 'ukca_set_emission'
+!   1) Set up environmental drivers by calling 'ukca_set_environment'
 !   for each field in each group.
 !   2) Set up emissions by calling 'ukca_set_emission' for each field
 !   in flat and full height emissions groups.
-!   3) Execute the time step.
+!   3) Set up a local structure for handling any diagnostic requests set
+!   up previously (required for multi-thread calls as request status is
+!   updated during the time step)
+!   4) Execute the time step.
 !   Processing of environmental drivers by groups allows the same arguments
 !   to be used for different sets of input fields so that the same
 !   'ukca_step_control' call can be used for different UKCA configurations.
 !   It also reduces the number of arguments that need to be processed
 !   (fields do not need to be processed individually).
+!
+!   N.B. Handling of environmental drivers and emissions does not yet
+!   support multi-thread calls. Local copies of the driver and emission
+!   data will be required for thread-safe operation.
 ! ----------------------------------------------------------------------
 
 USE ukca_environment_req_mod, ONLY: ukca_get_envgroup_varlists
@@ -113,7 +125,7 @@ USE ukca_environment_mod, ONLY: ukca_set_environment
 USE ukca_emiss_api_mod, ONLY: get_registered_ems_info, ukca_set_emission
 USE ukca_chem_defs_mod, ONLY: ratj_defs ! for dimension of photol_rates array
 USE ukca_step_mod, ONLY: ukca_step
-USE ukca_fieldname_mod, ONLY: maxlen_fieldname
+USE ukca_fieldname_mod, ONLY: maxlen_fieldname, maxlen_diagname
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_env_field_mismatch
 
@@ -181,6 +193,14 @@ REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: envgroup_landpft_real(:,:,:)
 
 LOGICAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: envgroup_landtile_logical(:,:,:)
 
+! Diagnostic status flags
+INTEGER, OPTIONAL, INTENT(IN OUT) :: diag_status_flat_real(:)
+INTEGER, OPTIONAL, INTENT(IN OUT) :: diag_status_fullht_real(:)
+
+! Diagnostic data
+REAL, OPTIONAL, INTENT(OUT) :: diag_data_flat_real(:)
+REAL, OPTIONAL, INTENT(OUT) :: diag_data_fullht_real(:,:)
+
 ! Further arguments for status reporting
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
@@ -219,7 +239,7 @@ IF (PRESENT(envgroup_scalar_real)) THEN
                                   varnames_scalar_real_ptr=varnames,           &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_scalar_real)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -241,12 +261,12 @@ END IF
 ! Set environmental drivers in flat grid groups
 ! (Input values are scalar for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_flat_integer)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_flat_integer)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_flat_integer_ptr=varnames,          &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_flat_integer)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -265,12 +285,12 @@ IF (error_code == 0 .AND. PRESENT(envgroup_flat_integer)) THEN
   END IF
 END IF
 
-IF (error_code == 0 .AND. PRESENT(envgroup_flat_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_flat_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_flat_real_ptr=varnames,             &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_flat_real)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -289,12 +309,12 @@ IF (error_code == 0 .AND. PRESENT(envgroup_flat_real)) THEN
   END IF
 END IF
 
-IF (error_code == 0 .AND. PRESENT(envgroup_flat_logical)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_flat_logical)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_flat_logical_ptr=varnames,          &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_flat_logical)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -316,12 +336,12 @@ END IF
 ! Set environmental drivers in flat grid plant functional type tile group
 ! (Input values are 1D for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_flatpft_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_flatpft_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_flatpft_real_ptr=varnames,          &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_flatpft_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -346,12 +366,12 @@ END IF
 ! Set environmental drivers in full-height grid group
 ! (Input values are 1D for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_fullht_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_fullht_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_fullht_real_ptr=varnames,           &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_fullht_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -376,12 +396,12 @@ END IF
 ! Set environmental drivers in full-height plus zeroth level grid group
 ! (Input values are 1D for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_fullht0_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_fullht0_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_fullht0_real_ptr=varnames,          &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_fullht0_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -407,12 +427,12 @@ END IF
 ! Set environmental drivers in full-height plus one grid group
 ! (Input values are 1D for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_fullhtp1_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_fullhtp1_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_fullhtp1_real_ptr=varnames,         &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_fullhtp1_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -438,12 +458,12 @@ END IF
 ! Set environmental drivers in boundary layer levels group
 ! (Input values are 1D for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_bllev_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_bllev_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_bllev_real_ptr=varnames,            &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_bllev_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -469,12 +489,12 @@ END IF
 ! Set environmental drivers in entrainment levels group
 ! (Input values are 1D for the column model)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_entlev_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_entlev_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_entlev_real_ptr=varnames,           &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_entlev_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -499,12 +519,12 @@ END IF
 ! Set environmental drivers in land point group
 ! (Input values are 1D for the column model, length 0 for sea or 1 for land)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_land_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_land_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_land_real_ptr=varnames,             &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_land_real,DIM=2)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -529,12 +549,12 @@ END IF
 ! Set environmental drivers in land-point tile groups
 ! (Input values are 2D for the column model, dim1 as for land point group)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_landtile_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_landtile_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_landtile_real_ptr=varnames,         &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_landtile_real,DIM=3)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -557,12 +577,12 @@ IF (error_code == 0 .AND. PRESENT(envgroup_landtile_real)) THEN
   END IF
 END IF
 
-IF (error_code == 0 .AND. PRESENT(envgroup_landtile_logical)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_landtile_logical)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_landtile_logical_ptr=varnames,      &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_landtile_logical,DIM=3)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -588,12 +608,12 @@ END IF
 ! Set environmental drivers in land-point plant functional type tile group
 ! (Input values are 2D for the column model, dim1 as for land point group)
 
-IF (error_code == 0 .AND. PRESENT(envgroup_landpft_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_landpft_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_landpft_real_ptr=varnames,          &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_landpft_real,DIM=3)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -620,12 +640,12 @@ END IF
 ! Input values are 1D spatially , 2nd dimension is no. of reactions and 3rd
 ! is no. of fields in the group (currently 1).
 
-IF (error_code == 0 .AND. PRESENT(envgroup_fullhtphot_real)) THEN
+IF (error_code <= 0 .AND. PRESENT(envgroup_fullhtphot_real)) THEN
   CALL ukca_get_envgroup_varlists(error_code,                                  &
                                   varnames_fullhtphot_real_ptr=varnames,       &
                                   error_message=error_message,                 &
                                   error_routine=error_routine)
-  IF (error_code == 0) THEN
+  IF (error_code <= 0) THEN
     n = SIZE(envgroup_fullhtphot_real,DIM=3)
     IF (n /= SIZE(varnames)) THEN
       error_code = errcode_env_field_mismatch
@@ -649,24 +669,28 @@ END IF
 
 ! Get information about registered emissions
 
-CALL get_registered_ems_info(n_flat_ems, n_fullht_ems, l_ndim_order)
+IF (error_code <= 0) THEN
 
-IF (.NOT. l_ndim_order) THEN
-  error_code = errcode_env_field_mismatch
-  IF (PRESENT(error_message))                                                  &
-    error_message =                                                            &
-      'Emissions have not been registered in order of their dimensionality'
-  IF (PRESENT(error_routine)) error_routine = RoutineName
+  CALL get_registered_ems_info(n_flat_ems, n_fullht_ems, l_ndim_order)
+
+  IF (.NOT. l_ndim_order) THEN
+    error_code = errcode_env_field_mismatch
+    IF (PRESENT(error_message))                                                &
+      error_message =                                                          &
+        'Emissions have not been registered in order of their dimensionality'
+    IF (PRESENT(error_routine)) error_routine = RoutineName
+  END IF
+
+  ! Initialise sequential emissions id
+  emiss_id = 0
+
 END IF
-
-! Initialise sequential emissions id
-emiss_id = 0
 
 ! Set flat emissions fields
 ! (Input values are scalar for the column model but must be converted to 3D
 ! since 'ukca_set_emission' does not currently allow a scalar argument)
 
-IF (error_code == 0 .AND. n_flat_ems > 0) THEN
+IF (error_code <= 0 .AND. n_flat_ems > 0) THEN
   IF (PRESENT(emissions_flat)) THEN
     n = SIZE(emissions_flat)
   ELSE
@@ -694,7 +718,7 @@ END IF
 ! (Input values are 1D for the column model nut must be converted to 3D since
 ! 'ukca_set_emission' does not currently allow a 1D argument)
 
-IF (error_code == 0 .AND. n_fullht_ems > 0) THEN
+IF (error_code <= 0 .AND. n_fullht_ems > 0) THEN
   IF (PRESENT(emissions_fullht)) THEN
     n = SIZE(emissions_fullht,DIM=2)
   ELSE
@@ -718,17 +742,19 @@ IF (error_code == 0 .AND. n_fullht_ems > 0) THEN
   END IF
 END IF
 
-! If any errors encountered above then bail out
-IF (error_code /= 0) THEN
-  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-  RETURN
-END IF
-
 ! Do the time step
-CALL ukca_step(timestep_number, current_time,                                  &
-               tracer_data, ntp_data, r_theta_levels, r_rho_levels,            &
-               error_code,  previous_time=previous_time,                       &
-               error_message=error_message, error_routine=error_routine)
+IF (error_code <= 0) THEN
+
+  CALL ukca_step(timestep_number, current_time,                                &
+                 tracer_data, ntp_data, r_theta_levels, r_rho_levels,          &
+                 error_code,  previous_time=previous_time,                     &
+                 diag_status_flat_real=diag_status_flat_real,                  &
+                 diag_status_fullht_real=diag_status_fullht_real,              &
+                 diag_data_flat_real=diag_data_flat_real,                      &
+                 diag_data_fullht_real=diag_data_fullht_real,                  &
+                 error_message=error_message, error_routine=error_routine)
+
+END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

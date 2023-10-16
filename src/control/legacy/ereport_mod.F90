@@ -11,6 +11,7 @@
 ! Method:
 !
 !  This is a simple prototype version.
+!  It is not intended for use with a parallel application.
 !
 ! Part of the UKCA model, a community model supported by the
 ! Met Office and NCAS, with components provided initially
@@ -44,12 +45,15 @@ CHARACTER(LEN=*), INTENT(IN) :: message
 
 ! Take action depending on UM error status convention
 IF (error_status > 0) THEN
-  WRITE(*,*) 'UKCA ERROR in ', routine_name, ':', message
+  WRITE(*,'(A,A,A,A)') 'UKCA ERROR in ',                                       &
+                       TRIM(routine_name), ': ', TRIM(message)
   STOP
 ELSE IF (error_status < 0) THEN
-  WRITE(*,*) 'UKCA WARNING in', routine_name, ':', message
+  WRITE(*,'(A,A,A,A)') 'UKCA WARNING in ',                                     &
+                       TRIM(routine_name), ': ', TRIM(message)
 ELSE IF (error_status == 0) THEN
-  WRITE(*,*) 'UKCA INFO in', routine_name, ':', message
+  WRITE(*,'(A,A,A,A)') 'UKCA INFO in ',                                        &
+                       TRIM(routine_name), ': ', TRIM(message)
 END IF
 
 ! Reset error_status

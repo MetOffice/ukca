@@ -14,14 +14,16 @@
 !
 !   The following additional public procedures are provided for use within UKCA.
 !
-!     init_tracer_req  - Determine tracer requirement
-!     tracer_copy_in   - Copy tracers from parent array to internal array
-!                        (overloaded for different dimension parent arrays)
-!     tracer_copy_out  - Copy tracers from internal array to parent array
-!                        (overloaded for different dimension parent arrays)
-!     tracer_dealloc   - Deallocate internal tracer array
-!     clear_tracer_req - Reset all tracer-related data to its initial state
-!                        for a new UKCA configuration.
+!     init_tracer_req    - Determine tracer requirement
+!     tracer_copy_in_1d  - Copy tracers for a single column domain from
+!                          2D parent array to internal array
+!     tracer_copy_in_3d  - Copy tracers for a 3D domain from 4D parent array to
+!                          internal array
+!     tracer_copy_out_1d - Copy tracers from internal array to 2D parent array
+!     tracer_copy_out_3d - Copy tracers from internal array to 4D parent array
+!     tracer_dealloc     - Deallocate internal tracer array
+!     clear_tracer_req   - Reset all tracer-related data to its initial state
+!                          for a new UKCA configuration.
 !
 !   The module also provides a public array 'all_tracers' to hold
 !   the UKCA tracer data (the internal array referred to above) and
@@ -103,8 +105,9 @@ IMPLICIT NONE
 PRIVATE
 
 ! Public procedures
-PUBLIC init_tracer_req, ukca_get_tracer_varlist, tracer_copy_in,               &
-       tracer_copy_out, tracer_dealloc, clear_tracer_req
+PUBLIC init_tracer_req, ukca_get_tracer_varlist, tracer_copy_in_1d,            &
+       tracer_copy_in_3d, tracer_copy_out_1d, tracer_copy_out_3d,              &
+       tracer_dealloc, clear_tracer_req
 
 ! Public UKCA tracer and tracer_names arrays for the current UKCA configuration
 REAL, ALLOCATABLE, SAVE, PUBLIC :: all_tracers(:,:,:,:)
@@ -122,19 +125,6 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 
 CHARACTER(LEN=*), PARAMETER :: ModuleName='UKCA_TRACERS_MOD'
-
-! Generic interfaces for tracer copying routines - overloaded according to the
-! dimensions of the data
-
-INTERFACE tracer_copy_in
-  MODULE PROCEDURE tracer_copy_in_1d
-  MODULE PROCEDURE tracer_copy_in_3d
-END INTERFACE tracer_copy_in
-
-INTERFACE tracer_copy_out
-  MODULE PROCEDURE tracer_copy_out_1d
-  MODULE PROCEDURE tracer_copy_out_3d
-END INTERFACE tracer_copy_out
 
 
 CONTAINS
@@ -395,13 +385,12 @@ END SUBROUTINE ukca_get_tracer_varlist
 
 
 ! ----------------------------------------------------------------------
-SUBROUTINE tracer_copy_in_1d(tracer_data, model_levels,                        &
-                             error_code, error_message, error_routine)
+SUBROUTINE tracer_copy_in_1d(error_code_ptr, tracer_data, model_levels,        &
+                             error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure tracer_copy_in.
-! Copies tracer fields from the given tracer_data array to the
-! all_tracers array. Each input tracer is defined for a single column.
+! Copies tracer data for a single column domain from the given
+! tracer_data array to the all_tracers array.
 ! Bounds for the vertical array dimension are checked for validity based
 ! on the UKCA extent i.e. 1:model_levels.
 ! The input fields must span the UKCA extent but may optionally extend
@@ -413,20 +402,21 @@ IMPLICIT NONE
 
 ! Subroutine arguments
 
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr ! Return status code
+
 ! Input tracer field array. Dimensions: Z,N
 ! where Z is no. of levels in tracer fields
 !       N is number of tracers
 REAL, ALLOCATABLE, INTENT(IN) :: tracer_data(:,:)
 
 ! Dimension of UKCA domain
-INTEGER, INTENT(IN) :: model_levels        ! Size of UKCA z dimension
+INTEGER, INTENT(IN) :: model_levels         ! Size of UKCA z dimension
 
-! Error handling arguments
-INTEGER, INTENT(OUT) :: error_code         ! Return status code
+! Error information
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
-                                           ! Return error message
+                                            ! Return error message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
-                                           ! Routine name where error trapped
+                                            ! Routine name where error trapped
 
 ! Local variables
 ! Dr Hook
@@ -436,13 +426,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName = 'TRACER_COPY_IN_1D'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
 ! Check availability of tracer requirement
 IF (.NOT. l_tracer_req_available) THEN
-  error_code = errcode_tracer_req_uninit
+  error_code_ptr = errcode_tracer_req_uninit
   IF (PRESENT(error_message)) error_message =                                  &
     'Tracer requirement has not been initialised'
   IF (PRESENT(error_routine)) error_routine = RoutineName
@@ -452,7 +442,7 @@ END IF
 
 ! Check the data field array contains the expected number of tracers
 IF (SIZE(tracer_data,DIM=2) /= n_tracers) THEN
-  error_code = errcode_tracer_mismatch
+  error_code_ptr = errcode_tracer_mismatch
   IF (PRESENT(error_message)) WRITE(error_message,'(A,I0,A,I0)')               &
     'Number of tracer fields (', SIZE(tracer_data,DIM=2),                      &
     ') does not match requirement: n_tracers = ', n_tracers
@@ -469,7 +459,7 @@ IF (n_tracers > 0) THEN
   IF (LBOUND(tracer_data,DIM=1) > 1 .OR.                                       &
       UBOUND(tracer_data,DIM=1) < model_levels)                                &
   THEN
-    error_code = errcode_tracer_mismatch
+    error_code_ptr = errcode_tracer_mismatch
     IF (PRESENT(error_message))                                                &
       error_message =                                                          &
         'The tracer fields have one or more invalid array bounds'
@@ -491,13 +481,13 @@ END SUBROUTINE tracer_copy_in_1d
 
 
 ! ----------------------------------------------------------------------
-SUBROUTINE tracer_copy_in_3d(tracer_data, row_length, rows, model_levels,      &
-                             error_code, error_message, error_routine)
+SUBROUTINE tracer_copy_in_3d(error_code_ptr, tracer_data, row_length,          &
+                             rows, model_levels, error_message,                &
+                             error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure tracer_copy_in.
-! Copies tracer fields from the given tracer_data array to the
-! all_tracers array. Each tracer is defined on a 3D grid.
+! Copies tracer data for a 3D domain from the given tracer_data array
+! to the all_tracers array.
 ! Bounds are checked for validity based on the UKCA horizontal and
 ! vertical extents i.e 1:row_length, 1:rows and 1:model_levels.
 ! The input fields must span the UKCA extents but may optionally extend
@@ -509,6 +499,8 @@ IMPLICIT NONE
 
 ! Subroutine arguments
 
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr ! Return status code
+
 ! Input tracer field array. Dimensions: X,Y,Z,N
 ! where X is row length of tracer field
 !       Y is no. of rows in tracer field
@@ -517,16 +509,15 @@ IMPLICIT NONE
 REAL, ALLOCATABLE, INTENT(IN) :: tracer_data(:,:,:,:)
 
 ! Dimensions of UKCA domain
-INTEGER, INTENT(IN) :: row_length          ! Size of UKCA x dimension
-INTEGER, INTENT(IN) :: rows                ! Size of UKCA y dimension
-INTEGER, INTENT(IN) :: model_levels        ! Size of UKCA z dimension
+INTEGER, INTENT(IN) :: row_length           ! Size of UKCA x dimension
+INTEGER, INTENT(IN) :: rows                 ! Size of UKCA y dimension
+INTEGER, INTENT(IN) :: model_levels         ! Size of UKCA z dimension
 
-! Error handling arguments
-INTEGER, INTENT(OUT) :: error_code         ! Return status code
+! Error information
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
-                                           ! Return error message
+                                            ! Return error message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
-                                           ! Routine name where error trapped
+                                            ! Routine name where error trapped
 
 ! Local variables
 ! Dr Hook
@@ -536,13 +527,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName = 'TRACER_COPY_IN_3D'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
 ! Check availability of tracer requirement
 IF (.NOT. l_tracer_req_available) THEN
-  error_code = errcode_tracer_req_uninit
+  error_code_ptr = errcode_tracer_req_uninit
   IF (PRESENT(error_message)) error_message =                                  &
     'Tracer requirement has not been initialised'
   IF (PRESENT(error_routine)) error_routine = RoutineName
@@ -552,7 +543,7 @@ END IF
 
 ! Check the data field array contains the expected number of tracers
 IF (SIZE(tracer_data,DIM=4) /= n_tracers) THEN
-  error_code = errcode_tracer_mismatch
+  error_code_ptr = errcode_tracer_mismatch
   IF (PRESENT(error_message)) WRITE(error_message,'(A,I0,A,I0)')               &
     'Number of tracer fields (', SIZE(tracer_data,DIM=4),                      &
     ') does not match requirement: n_tracers = ', n_tracers
@@ -574,7 +565,7 @@ IF (n_tracers > 0) THEN
       LBOUND(tracer_data,DIM=3) > 1 .OR.                                       &
       UBOUND(tracer_data,DIM=3) < model_levels)                                &
   THEN
-    error_code = errcode_tracer_mismatch
+    error_code_ptr = errcode_tracer_mismatch
     IF (PRESENT(error_message))                                                &
       error_message =                                                          &
         'The tracer fields have one or more invalid array bounds'
@@ -599,9 +590,8 @@ END SUBROUTINE tracer_copy_in_3d
 SUBROUTINE tracer_copy_out_1d(model_levels, tracer_data)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure tracer_copy_out.
-! Copies the tracer fields from the all_tracers array to the given
-! tracer_data array. Each output tracer is defined for a single column.
+! Copies the tracer data from the all_tracers array to the given
+! tracer_data array for a single column domain.
 ! ----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -634,9 +624,8 @@ END SUBROUTINE tracer_copy_out_1d
 SUBROUTINE tracer_copy_out_3d(row_length, rows, model_levels, tracer_data)
 ! ----------------------------------------------------------------------
 ! Description:
-! Variant of the generic procedure tracer_copy_out.
-! Copies the tracer fields from the all_tracers array to the given
-! tracer_data array. Each output tracer is defined on a 3D grid.
+! Copies the tracer data from the all_tracers array to the given
+! tracer_data array for a 3D domain.
 ! ----------------------------------------------------------------------
 
 IMPLICIT NONE

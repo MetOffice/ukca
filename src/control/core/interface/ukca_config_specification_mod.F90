@@ -138,6 +138,8 @@ TYPE :: ukca_config_spec_type
   INTEGER :: i_ageair_reset_method     ! Method for controlling age reset to 0
   INTEGER :: max_ageair_reset_level    ! Max. level for reset (Method 1)
   REAL :: max_ageair_reset_height      ! Max. height (m) for reset (Method 2)
+  LOGICAL :: l_blankout_invalid_diags  ! True to set all non-valid diagnostic
+                                       ! field data to missing data value
   LOGICAL :: l_enable_diag_um          ! True to enable diagnostic output via
                                        ! the Unified Model STASH system
   LOGICAL :: l_ukca_persist_off        ! True for no saving of horizontal
@@ -149,6 +151,7 @@ TYPE :: ukca_config_spec_type
                                        ! chemistry schemes)
   LOGICAL :: l_ukca_drydep_off         ! True to turn off dry deposition
   LOGICAL :: l_ukca_wetdep_off         ! True to turn off wet deposition
+  INTEGER :: i_error_method            ! Error handling method to use
 
   ! -- Chemistry configuration options --
   INTEGER :: i_ukca_chem_version       ! Chemical mechanism version identifier
@@ -330,6 +333,11 @@ TYPE :: ukca_config_spec_type
                                        ! only)
   LOGICAL :: l_use_classic_seasalt     ! True to use CLASSIC sea salt for het.
                                        ! chem. (RAQ only)
+  LOGICAL :: l_use_gridbox_volume      ! True to use gridbox volume in
+                                       ! diagnostic calculations. (This is
+                                       ! required for UM diagnostics and to
+                                       ! enable use of ASAD framework
+                                       ! diagnostics in non-UM applications.)
   LOGICAL :: l_use_gridbox_mass        ! True to use mass of air in grid box in
                                        ! prognostic and/or diagnostic
                                        ! calculations. This requires a parent-
@@ -340,7 +348,7 @@ TYPE :: ukca_config_spec_type
                                        ! bit-comparable results. The option is
                                        ! required for the stratospheric
                                        ! chemistry schemes and for UM
-                                       ! diagnostics)
+                                       ! diagnostics.)
   LOGICAL :: l_environ_z_top           ! True if using an external value for
                                        ! height at top of model (for bit-
                                        ! comparability with previous results
@@ -380,14 +388,16 @@ TYPE :: ukca_config_spec_type
                                        ! N-R scheme
   LOGICAL :: l_ukca_nr_aqchem          ! True when aqueous chem required for N-R
   LOGICAL :: l_ukca_advh2o             ! True if H2O treated as tracer by ASAD
+  LOGICAL :: l_asad_chem_diags_support ! True if ASAD diagnostics support is
+                                       ! included
   LOGICAL :: l_diurnal_isopems         ! True for applying diurnal cycle to
                                        ! isoprene emissions
   LOGICAL :: l_seawater_dms            ! True for seawater DMS emissions
-  LOGICAL :: l_chem_environ_ch4_scalar ! Logical switches for species used in
-  LOGICAL :: l_chem_environ_co2_scalar ! solver. TRUE if external values needed
-  LOGICAL :: l_chem_environ_h2_scalar  ! Placed here as they are dependant only
-  LOGICAL :: l_chem_environ_n2_scalar  ! on UKCA choices and not modifiable
-  LOGICAL :: l_chem_environ_o2_scalar  ! via the API.
+  LOGICAL :: l_chem_environ_ch4_scalar ! True if external CH4 needed
+  LOGICAL :: l_chem_environ_co2_scalar ! True if external CO2 needed
+  LOGICAL :: l_chem_environ_h2_scalar  ! True if external H2 needed
+  LOGICAL :: l_chem_environ_n2_scalar  ! True if external N2 needed
+  LOGICAL :: l_chem_environ_o2_scalar  ! True if external O2 needed
   INTEGER :: ukca_int_method           ! Chemical integration method
   INTEGER :: timesteps_per_day         ! No. of model timesteps in a day
   INTEGER :: timesteps_per_hour        ! No. of model timesteps in an hour
@@ -559,8 +569,16 @@ INTEGER, PARAMETER :: i_sussbcocduntnh_8mode_8cpt = 12
 
 ! Option codes for 'i_ageair_reset_method', controlling how the near-surface
 ! values of the age-of-air tracer are reset to zero
-INTEGER, PARAMETER :: i_age_reset_by_level = 1    ! Based on model level number
-INTEGER, PARAMETER :: i_age_reset_by_height = 2   ! Based on height above ground
+INTEGER, PARAMETER :: i_age_reset_by_level = 1   ! Based on model level number
+INTEGER, PARAMETER :: i_age_reset_by_height = 2  ! Based on height above ground
+
+! Option codes for 'i_error_method'
+INTEGER, PARAMETER :: i_error_method_abort = 1   ! Write error message and abort
+INTEGER, PARAMETER :: i_error_method_return = 2  ! Return control to parent
+INTEGER, PARAMETER :: i_error_method_warn_and_return = 3
+                                                 ! Return control to parent
+                                                 ! after printing error messagea
+                                                 ! as a warning
 
 ! Option codes for 'i_ukca_photol'
 INTEGER, PARAMETER :: i_ukca_nophot = 0       ! photolysis off
@@ -678,7 +696,7 @@ REAL :: sigma = rmdi    ! Std. dev. of accumulation mode particle size
 ! ---------------------------------------------------------------------------
 ! -- Templates for parent callback procedures to be used in UKCA --
 ! ---------------------------------------------------------------------------
-! These can be provided as via the ukca_setup call to perform parent-specific
+! These can be provided via the ukca_setup call to perform parent-specific
 ! processing.
 
 ABSTRACT INTERFACE
@@ -742,9 +760,27 @@ ABSTRACT INTERFACE
     ! Tracer mixing ratio (kg/kg)
   END SUBROUTINE template_proc_bl_tracer_mix
 
+  ! Subroutine to do parent-specific copy of 2D output for a named diagnostic
+  ! (for direct copy to parent workspace other than array argument in API call)
+  SUBROUTINE template_proc_diag2d_copy_out(diagname, field)
+  IMPLICIT NONE
+  CHARACTER(LEN=*), INTENT(IN) :: diagname     ! Diagnostic name
+  REAL, INTENT(IN) :: field(:,:)               ! 2D field for output
+  END SUBROUTINE template_proc_diag2d_copy_out
+
+  ! Subroutine to do parent-specific copy of 3D output for a named diagnostic
+  ! (for direct copy to parent workspace other than array argument in API call)
+  SUBROUTINE template_proc_diag3d_copy_out(diagname, field)
+  IMPLICIT NONE
+  CHARACTER(LEN=*), INTENT(IN) :: diagname     ! Diagnostic name
+  REAL, INTENT(IN) :: field(:,:,:)             ! 3D field for output
+  END SUBROUTINE template_proc_diag3d_copy_out
+
 END INTERFACE
 
 PROCEDURE(template_proc_bl_tracer_mix), POINTER :: bl_tracer_mix
+PROCEDURE(template_proc_diag2d_copy_out), POINTER :: diag2d_copy_out
+PROCEDURE(template_proc_diag3d_copy_out), POINTER :: diag3d_copy_out
 
 ! ---------------------------------------------------------------------------
 ! -- Flag to indicate whether a UKCA configuration is set up --
@@ -820,12 +856,14 @@ ukca_config%l_ukca_ageair = .FALSE.
 ukca_config%i_ageair_reset_method = imdi
 ukca_config%max_ageair_reset_level = imdi
 ukca_config%max_ageair_reset_height = rmdi
+ukca_config%l_blankout_invalid_diags = .FALSE.
 ukca_config%l_enable_diag_um = .FALSE.
 ukca_config%l_ukca_persist_off = .FALSE.
 ukca_config%l_timer = .FALSE.
 ukca_config%l_ukca_emissions_off = .FALSE.
 ukca_config%l_ukca_drydep_off = .FALSE.
 ukca_config%l_ukca_wetdep_off = .FALSE.
+ukca_config%i_error_method = imdi
 
 ! -- Chemistry configuration options --
 ukca_config%i_ukca_chem_version = imdi
@@ -911,6 +949,7 @@ ukca_config%l_use_classic_soot = .FALSE.
 ukca_config%l_use_classic_ocff = .FALSE.
 ukca_config%l_use_classic_biogenic = .FALSE.
 ukca_config%l_use_classic_seasalt = .FALSE.
+ukca_config%l_use_gridbox_volume = .FALSE.
 ukca_config%l_use_gridbox_mass = .FALSE.
 ukca_config%l_environ_z_top = .FALSE.
 ukca_config%env_log_step = imdi
@@ -939,6 +978,7 @@ ukca_config%l_ukca_stratcfc = .FALSE.
 ukca_config%l_ukca_achem = .FALSE.
 ukca_config%l_ukca_nr_aqchem = .FALSE.
 ukca_config%l_ukca_advh2o = .FALSE.
+ukca_config%l_asad_chem_diags_support = .FALSE.
 ukca_config%l_diurnal_isopems = .FALSE.
 ukca_config%l_seawater_dms = .FALSE.
 ukca_config%l_chem_environ_ch4_scalar = .FALSE.
@@ -1038,6 +1078,8 @@ sigma = 1.4
 
 ! -- Parent callback procedures --
 NULLIFY(bl_tracer_mix)
+NULLIFY(diag2d_copy_out)
+NULLIFY(diag3d_copy_out)
 
 RETURN
 END SUBROUTINE init_ukca_configuration
@@ -1055,6 +1097,7 @@ SUBROUTINE ukca_get_config(                                                    &
    i_ukca_chem,                                                                &
    fixed_tropopause_level,                                                     &
    i_ageair_reset_method, max_ageair_reset_level,                              &
+   i_error_method,                                                             &
    i_ukca_chem_version, nrsteps, chem_timestep,                                &
    dts0, nit,                                                                  &
    i_ukca_quasinewton_start, i_ukca_quasinewton_end,                           &
@@ -1096,6 +1139,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_mode,                                                                &
    l_fix_tropopause_level,                                                     &
    l_ukca_ageair,                                                              &
+   l_blankout_invalid_diags,                                                   &
    l_enable_diag_um,                                                           &
    l_ukca_persist_off,                                                         &
    l_timer,                                                                    &
@@ -1132,6 +1176,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_chem_environ_gas_scalars, l_chem_environ_co2_fld, l_ukca_prescribech4,    &
    l_use_classic_so4, l_use_classic_soot, l_use_classic_ocff,                  &
    l_use_classic_biogenic, l_use_classic_seasalt,                              &
+   l_use_gridbox_volume,                                                       &
    l_use_gridbox_mass,                                                         &
    l_environ_z_top,                                                            &
    l_fix_ukca_cloud_frac,                                                      &
@@ -1145,6 +1190,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_offline, l_ukca_cristrat, l_ukca_stratcfc, l_ukca_achem,             &
    l_ukca_nr_aqchem,                                                           &
    l_ukca_advh2o,                                                              &
+   l_asad_chem_diags_support,                                                  &
    l_diurnal_isopems,                                                          &
    l_seawater_dms,                                                             &
    l_chem_environ_ch4_scalar,                                                  &
@@ -1222,6 +1268,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_chem
 INTEGER, OPTIONAL, INTENT(OUT) :: fixed_tropopause_level
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ageair_reset_method
 INTEGER, OPTIONAL, INTENT(OUT) :: max_ageair_reset_level
+INTEGER, OPTIONAL, INTENT(OUT) :: i_error_method
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_chem_version
 INTEGER, OPTIONAL, INTENT(OUT) :: nrsteps
 INTEGER, OPTIONAL, INTENT(OUT) :: chem_timestep
@@ -1282,6 +1329,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem_aero
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_mode
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_tropopause_level
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ageair
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_blankout_invalid_diags
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_enable_diag_um
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_persist_off
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_timer
@@ -1331,6 +1379,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_classic_soot
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_classic_ocff
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_classic_biogenic
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_classic_seasalt
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_gridbox_volume
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_gridbox_mass
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_environ_z_top
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_cloud_frac
@@ -1354,6 +1403,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_stratcfc
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_achem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_nr_aqchem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_advh2o
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_asad_chem_diags_support
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_diurnal_isopems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_seawater_dms
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_chem_environ_ch4_scalar
@@ -1451,6 +1501,8 @@ IF (PRESENT(max_ageair_reset_level))                                           &
   max_ageair_reset_level = ukca_config%max_ageair_reset_level
 IF (PRESENT(max_ageair_reset_height))                                          &
   max_ageair_reset_height = ukca_config%max_ageair_reset_height
+IF (PRESENT(l_blankout_invalid_diags))                                         &
+  l_blankout_invalid_diags = ukca_config%l_blankout_invalid_diags
 IF (PRESENT(l_enable_diag_um)) l_enable_diag_um = ukca_config%l_enable_diag_um
 IF (PRESENT(l_ukca_persist_off))                                               &
   l_ukca_persist_off = ukca_config%l_ukca_persist_off
@@ -1461,6 +1513,8 @@ IF (PRESENT(l_ukca_drydep_off))                                                &
   l_ukca_drydep_off = ukca_config%l_ukca_drydep_off
 IF (PRESENT(l_ukca_wetdep_off))                                                &
   l_ukca_wetdep_off = ukca_config%l_ukca_wetdep_off
+IF (PRESENT(i_error_method))                                                   &
+  i_error_method = ukca_config%i_error_method
 
 ! -- Chemistry configuration options --
 IF (PRESENT(i_ukca_chem_version))                                              &
@@ -1591,6 +1645,8 @@ IF (PRESENT(l_use_classic_biogenic))                                           &
 IF (PRESENT(l_use_classic_seasalt))                                            &
   l_use_classic_seasalt = ukca_config%l_use_classic_seasalt
 IF (PRESENT(l_environ_z_top)) l_environ_z_top = ukca_config%l_environ_z_top
+IF (PRESENT(l_use_gridbox_volume))                                             &
+  l_use_gridbox_volume = ukca_config%l_use_gridbox_volume
 IF (PRESENT(l_use_gridbox_mass))                                               &
   l_use_gridbox_mass = ukca_config%l_use_gridbox_mass
 IF (PRESENT(env_log_step)) env_log_step = ukca_config%env_log_step
@@ -1626,6 +1682,8 @@ IF (PRESENT(l_ukca_stratcfc)) l_ukca_stratcfc = ukca_config%l_ukca_stratcfc
 IF (PRESENT(l_ukca_achem)) l_ukca_achem = ukca_config%l_ukca_achem
 IF (PRESENT(l_ukca_nr_aqchem)) l_ukca_nr_aqchem = ukca_config%l_ukca_nr_aqchem
 IF (PRESENT(l_ukca_advh2o)) l_ukca_advh2o = ukca_config%l_ukca_advh2o
+IF (PRESENT(l_asad_chem_diags_support))                                        &
+  l_asad_chem_diags_support = ukca_config%l_asad_chem_diags_support
 IF (PRESENT(l_diurnal_isopems))                                                &
   l_diurnal_isopems = ukca_config%l_diurnal_isopems
 IF (PRESENT(l_seawater_dms)) l_seawater_dms = ukca_config%l_seawater_dms

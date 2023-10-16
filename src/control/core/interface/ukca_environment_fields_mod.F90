@@ -362,6 +362,8 @@ REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: interf_z(:,:,:)
   ! Altitude of grid-cell interfaces (m)
 REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_area_fullht(:,:,:)
   ! Grid cell area (m^2) - all levels
+REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_volume(:,:,:)
+  ! Grid cell volume (m^3) - theta levels
 
 ! --- Oxidant species for Offline Oxidants chemistry - 3-D of type Real ---
 ! Note: These fields can also be used for other chemistry schemes if needed

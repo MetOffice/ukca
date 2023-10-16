@@ -183,7 +183,8 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_inferno_oc,                                                          &
   fldname_inferno_so2,                                                         &
   fldname_lscat_zhang,                                                         &
-  fldname_grid_area_fullht
+  fldname_grid_area_fullht,                                                    &
+  fldname_grid_volume
 
 USE ukca_environment_fields_mod, ONLY:                                         &
   environ_field_info,                                                          &
@@ -329,7 +330,8 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   inferno_oc,                                                                  &
   inferno_so2,                                                                 &
   lscat_zhang,                                                                 &
-  grid_area_fullht
+  grid_area_fullht,                                                            &
+  grid_volume
 
 USE ukca_environment_req_mod, ONLY: environ_field_index,                       &
                                     l_environ_req_available
@@ -706,7 +708,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: field_index
 
 ! List of 3-D fields that can be populated from 1D real data arrays
 ! Have to use DATA statement as names are not of uniform length
-CHARACTER(LEN=maxlen_fieldname), DIMENSION(57) :: fldnames_3d_real
+CHARACTER(LEN=maxlen_fieldname), DIMENSION(58) :: fldnames_3d_real
 
 DATA fldnames_3d_real / fldname_stcon, fldname_theta, fldname_q, fldname_qcf,  &
   fldname_conv_cloud_amount, fldname_rho_r2, fldname_qcl,                      &
@@ -724,7 +726,7 @@ DATA fldnames_3d_real / fldname_stcon, fldname_theta, fldname_q, fldname_qcf,  &
   fldname_co2_interactive, fldname_rim_cry, fldname_rim_agg, fldname_vertvel,  &
   fldname_bl_tke, fldname_interf_z, fldname_h2o2_offline,                      &
   fldname_ho2_offline, fldname_no3_offline, fldname_o3_offline,                &
-  fldname_oh_offline, fldname_grid_area_fullht /
+  fldname_oh_offline, fldname_grid_area_fullht, fldname_grid_volume /
 
 INTEGER :: i_field  ! Index of field in required fields array
 
@@ -1613,6 +1615,9 @@ CASE (fldname_oh_offline)
 CASE (fldname_grid_area_fullht)
   CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
                          grid_area_fullht)
+CASE (fldname_grid_volume)
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         grid_volume)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown
@@ -2150,6 +2155,7 @@ IF (ALLOCATED(ext_ic_flash)) DEALLOCATE(ext_ic_flash)
 IF (ALLOCATED(photol_rates)) DEALLOCATE(photol_rates)
 IF (ALLOCATED(lscat_zhang)) DEALLOCATE(lscat_zhang)
 IF (ALLOCATED(grid_area_fullht)) DEALLOCATE(grid_area_fullht)
+IF (ALLOCATED(grid_volume)) DEALLOCATE(grid_volume)
 
 ! Update field availability
 l_environ_field_available(:) = .FALSE.

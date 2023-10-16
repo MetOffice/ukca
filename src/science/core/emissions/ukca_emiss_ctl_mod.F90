@@ -127,7 +127,7 @@ IMPLICIT NONE
 
 ! Subroutine arguments
 
-! Iput arguments with info on model dimensions
+! Input arguments with info on model dimensions
 INTEGER,          INTENT(IN)    :: row_length
 INTEGER,          INTENT(IN)    :: rows
 INTEGER,          INTENT(IN)    :: bl_levels

@@ -71,6 +71,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       fixed_tropopause_level,                                  &
                       i_ageair_reset_method,                                   &
                       max_ageair_reset_level,                                  &
+                      i_error_method,                                          &
                       i_ukca_chem_version,                                     &
                       nrsteps,                                                 &
                       chem_timestep,                                           &
@@ -124,6 +125,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_mode,                                             &
                       l_fix_tropopause_level,                                  &
                       l_ukca_ageair,                                           &
+                      l_blankout_invalid_diags,                                &
                       l_enable_diag_um,                                        &
                       l_ukca_persist_off,                                      &
                       l_timer,                                                 &
@@ -173,6 +175,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_use_classic_ocff,                                      &
                       l_use_classic_biogenic,                                  &
                       l_use_classic_seasalt,                                   &
+                      l_use_gridbox_volume,                                    &
                       l_use_gridbox_mass,                                      &
                       l_environ_z_top,                                         &
                       l_fix_ukca_cloud_frac,                                   &
@@ -213,6 +216,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
                       proc_bl_tracer_mix,                                      &
+                      proc_diag2d_copy_out,                                    &
+                      proc_diag3d_copy_out,                                    &
                       l_fix_ukca_hygroscopicities,                             &
                       error_message, error_routine)
 
@@ -259,11 +264,15 @@ SUBROUTINE ukca_setup(error_code,                                              &
 !  7. Set up lists of environmental driver fields required.
 !  8. Clear environmental field data to ensure it is properly
 !     initialised for subsequent set up via ukca_set_environment calls.
+!  9. Initialise master diagnostics list and determine availability of
+!     each diagnostic given the configuration.
 !
 ! ----------------------------------------------------------------------
 
 USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     copy_config_vector, ukca_config, glomap_config,                            &
+    i_error_method_abort, i_error_method_return,                               &
+    i_error_method_warn_and_return,                                            &
     i_ukca_chem_off, i_ukca_chem_trop, i_ukca_chem_raq,                        &
     i_ukca_chem_offline_be, i_ukca_chem_tropisop, i_ukca_chem_strattrop,       &
     i_ukca_chem_strat, i_ukca_chem_offline, i_ukca_chem_cristrat,              &
@@ -271,7 +280,10 @@ USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     i_ukca_nophot, i_light_param_off, i_light_param_pr, i_ukca_fastjx,         &
     i_top_none, i_top_bc, i_ukca_activation_off, i_ukca_activation_arg,        &
     i_dms_flux_off,                                                            &
-    l_ukca_config_available, template_proc_bl_tracer_mix, bl_tracer_mix
+    l_ukca_config_available,                                                   &
+    template_proc_bl_tracer_mix, bl_tracer_mix,                                &
+    template_proc_diag2d_copy_out, diag2d_copy_out,                            &
+    template_proc_diag3d_copy_out, diag3d_copy_out
 
 USE ukca_um_legacy_mod, ONLY: l_dust, l_twobin_dust, l_um_infrastructure
 
@@ -283,10 +295,10 @@ USE asad_mod, ONLY: asad_mod_pre_setup_init, advt, speci, ctype
 USE asad_inrats_mod, ONLY: asad_inrats_set_sp_lists
 USE ukca_config_defs_mod, ONLY: ukca_set_config_defs, em_chem_spec, lbc_spec,  &
                                 cfc_lumped
-
 USE ukca_tracers_mod, ONLY: init_tracer_req
 USE ukca_environment_req_mod, ONLY: init_environment_req
 USE ukca_environment_mod, ONLY: clear_environment_fields
+USE ukca_diagnostics_init_mod, ONLY: init_diagnostics
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
@@ -308,7 +320,7 @@ IMPLICIT NONE
 ! can instead be added. Values set using the new names should then override
 ! corresponding values set using the old names.
 
-INTEGER, INTENT(OUT) :: error_code
+INTEGER, TARGET, INTENT(OUT) :: error_code
 
 INTEGER, OPTIONAL, INTENT(IN) :: row_length
 INTEGER, OPTIONAL, INTENT(IN) :: rows
@@ -342,6 +354,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_chem
 INTEGER, OPTIONAL, INTENT(IN) :: fixed_tropopause_level
 INTEGER, OPTIONAL, INTENT(IN) :: i_ageair_reset_method
 INTEGER, OPTIONAL, INTENT(IN) :: max_ageair_reset_level
+INTEGER, OPTIONAL, INTENT(IN) :: i_error_method
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_chem_version
 INTEGER, OPTIONAL, INTENT(IN) :: nrsteps
 INTEGER, OPTIONAL, INTENT(IN) :: chem_timestep
@@ -397,6 +410,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_chem_aero
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_mode
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_tropopause_level
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ageair
+LOGICAL, OPTIONAL, INTENT(IN) :: l_blankout_invalid_diags
 LOGICAL, OPTIONAL, INTENT(IN) :: l_enable_diag_um
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_persist_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_timer
@@ -446,6 +460,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_use_classic_soot
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_classic_ocff
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_classic_biogenic
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_classic_seasalt
+LOGICAL, OPTIONAL, INTENT(IN) :: l_use_gridbox_volume
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_gridbox_mass
 LOGICAL, OPTIONAL, INTENT(IN) :: l_environ_z_top
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_cloud_frac
@@ -488,13 +503,17 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
+PROCEDURE(template_proc_diag2d_copy_out), OPTIONAL :: proc_diag2d_copy_out
+PROCEDURE(template_proc_diag3d_copy_out), OPTIONAL :: proc_diag3d_copy_out
 
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 
 ! Local variables
 
-INTEGER :: i     ! loop counter
+INTEGER, POINTER :: error_code_ptr ! Pointer for selecting error code variable
+                                   ! (currently for 'init_diagnostics' only)
+INTEGER :: i                       ! loop counter
 
 LOGICAL :: l_be_scheme_selected    ! True if B-E solver required for chemistry
 LOGICAL :: l_nr_scheme_selected    ! True if N-R solver required for chemistry
@@ -540,13 +559,18 @@ IF (PRESENT(timestep)) ukca_config%timestep = timestep
 ! -- General UKCA configuration options --------------------------------
 
 ukca_config%i_ukca_chem = i_ukca_chem_off
+ukca_config%i_error_method = i_error_method_abort
 
 IF (PRESENT(i_ukca_chem)) ukca_config%i_ukca_chem = i_ukca_chem
 IF (PRESENT(l_ukca_ageair)) ukca_config%l_ukca_ageair = l_ukca_ageair
+IF (PRESENT(l_blankout_invalid_diags))                                         &
+ ukca_config%l_blankout_invalid_diags = l_blankout_invalid_diags
 IF (PRESENT(l_enable_diag_um)) ukca_config%l_enable_diag_um = l_enable_diag_um
 IF (PRESENT(l_ukca_persist_off))                                               &
   ukca_config%l_ukca_persist_off = l_ukca_persist_off
 IF (PRESENT(l_timer)) ukca_config%l_timer = l_timer
+IF (PRESENT(i_error_method))                                                   &
+  ukca_config%i_error_method = i_error_method
 
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
@@ -948,8 +972,9 @@ ukca_config%env_log_step = 1
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   IF (.NOT. ukca_config%l_ukca_wetdep_off .OR.                                 &
-      ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.           &
-      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
+      ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                        &
+      ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                    &
+      ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
     IF (PRESENT(l_param_conv)) ukca_config%l_param_conv = l_param_conv
   END IF
 
@@ -963,16 +988,30 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
       ukca_config%l_ukca_prescribech4 = l_ukca_prescribech4
   END IF
 
-  IF (PRESENT(l_use_classic_so4))                                              &
-    ukca_config%l_use_classic_so4 = l_use_classic_so4
-  IF (PRESENT(l_use_classic_soot))                                             &
-    ukca_config%l_use_classic_soot = l_use_classic_soot
-  IF (PRESENT(l_use_classic_ocff))                                             &
-    ukca_config%l_use_classic_ocff = l_use_classic_ocff
-  IF (PRESENT(l_use_classic_biogenic))                                         &
-    ukca_config%l_use_classic_biogenic = l_use_classic_biogenic
-  IF (PRESENT(l_use_classic_seasalt))                                          &
-    ukca_config%l_use_classic_seasalt = l_use_classic_seasalt
+  IF (ukca_config%l_ukca_classic_hetchem .OR. ukca_config%l_ukca_sa_clim) THEN
+    IF (PRESENT(l_use_classic_so4))                                            &
+      ukca_config%l_use_classic_so4 = l_use_classic_so4
+  END IF
+
+  IF (ukca_config%l_ukca_classic_hetchem) THEN
+    IF (PRESENT(l_use_classic_soot))                                           &
+      ukca_config%l_use_classic_soot = l_use_classic_soot
+    IF (PRESENT(l_use_classic_ocff))                                           &
+      ukca_config%l_use_classic_ocff = l_use_classic_ocff
+    IF (PRESENT(l_use_classic_biogenic))                                       &
+      ukca_config%l_use_classic_biogenic = l_use_classic_biogenic
+    IF (PRESENT(l_use_classic_seasalt))                                        &
+      ukca_config%l_use_classic_seasalt = l_use_classic_seasalt
+  END IF
+
+  IF (ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                    &
+      ukca_config%i_ukca_chem == i_ukca_chem_cristrat .OR.                     &
+      ukca_config%i_ukca_chem == i_ukca_chem_offline .OR.                      &
+      ukca_config%i_ukca_chem == i_ukca_chem_offline_be .OR.                   &
+      ukca_config%l_enable_diag_um) THEN
+    IF (PRESENT(l_use_gridbox_volume))                                         &
+      ukca_config%l_use_gridbox_volume = l_use_gridbox_volume
+  END IF
 
   IF (PRESENT(l_use_gridbox_mass))                                             &
     ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
@@ -1288,6 +1327,9 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
   IF (PRESENT(proc_bl_tracer_mix)) bl_tracer_mix => proc_bl_tracer_mix
 END IF
 
+IF (PRESENT(proc_diag2d_copy_out)) diag2d_copy_out => proc_diag2d_copy_out
+IF (PRESENT(proc_diag3d_copy_out)) diag3d_copy_out => proc_diag3d_copy_out
+
 ! ----------------------------------------------------------------------
 
 ! Check UKCA logicals are consistent and set internal UKCA configuration values
@@ -1375,10 +1417,24 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
     ANY(em_chem_spec == 'DMS')
 END IF
 
+! Initialise master diagnostics list and determine availability of
+! each diagnostic given the configuration.
+! Use parent supplied argument for return code. Note that this argument is
+! redundant if UKCA is configured to abort on error and may be made optional
+! in future, being replaced by an internal error code variable when absent.
+error_code_ptr => error_code
+CALL init_diagnostics(error_code_ptr, ukca_config, advt,                       &
+                      error_message=error_message,                             &
+                      error_routine=error_routine)
+IF (error_code_ptr > 0) THEN
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
+
 ! Specify environment field requirement based on details of the configuration
-CALL init_environment_req(ukca_config, glomap_config, speci, advt,             &
-                          lbc_spec, cfc_lumped, em_chem_spec, ctype,           &
-                          error_code,error_message=error_message,              &
+CALL init_environment_req(ukca_config, glomap_config,                          &
+                          speci, advt, lbc_spec, cfc_lumped, em_chem_spec,     &
+                          ctype, error_code, error_message=error_message,      &
                           error_routine=error_routine)
 IF (error_code > 0) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
