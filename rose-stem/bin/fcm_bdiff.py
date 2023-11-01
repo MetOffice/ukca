@@ -34,14 +34,14 @@ def is_trunk(url):
     """
     search = re.search(r"""
                        (svn://fcm\d+/\w+_svn/\w+/trunk|
-                       .*/svn/[\w\.]+/main/trunk|
-                       ..*_svn/main/trunk)
+                       .*/svn/[\w\.]+/\w+/trunk|
+                       ..*_svn/\w+/trunk)
                        """, url, flags=re.VERBOSE)
     return search is not None
 
 
 # ------------------------------------------------------------------------------
-def text_decoder(bytes_type, codecs=['utf8', 'cp1252']):
+def text_decoder(bytes_type_string, codecs=['utf8', 'cp1252']):
     """
     Given a bytes type string variable, attempt to decode it using the codecs
     listed.
@@ -50,7 +50,7 @@ def text_decoder(bytes_type, codecs=['utf8', 'cp1252']):
     errors = []
     for codec in codecs:
         try:
-            return bytes_type.decode(codec)
+            return bytes_type_string.decode(codec)
         except UnicodeDecodeError as err:
             errors.append(err)
 
@@ -66,6 +66,7 @@ def get_branch_info(branch, snooze=300, retries=0):
     (if the branch is the mirror, allow for a few retries in case
      it hasn't picked up the latest commit yet)
     """
+
     command = ["fcm", "binfo", branch]
     return run_fcm_command(command, retries, snooze)
 
@@ -98,9 +99,11 @@ def get_branch_diff_filenames(branch=".", path_override=None):
     # Get information about the branch
     info = get_branch_info(branch, retries=retries)
 
+    branch_url = get_url(info)
+
     # The branch should not be the trunk (a branch-diff would make no sense)
-    if is_trunk(get_url(info)):
-        print("UM Source appears to be the trunk, nothing to do!")
+    if is_trunk(branch_url):
+        print("{} appears to be the trunk, nothing to do!".format(branch_url))
         return []
 
     # The branch parent should be the trunk; if it isn't assume this is a
@@ -112,6 +115,12 @@ def get_branch_diff_filenames(branch=".", path_override=None):
         info = get_branch_info(branch, retries=retries)
         parent = get_branch_parent(info)
 
+    # The command `fcm bdiff --summarize <branch_name>` returns a different
+    # format if the branch has been reversed off the trunk. The expected format
+    # is svn://fcm1/um.xm_svn/main/trunk/rose-stem/bin/suite_report.py
+    # but if it has been reversed then we get
+    # svn://fcm1/um.xm_svn/main/branches/dev/USER/BRANCH_NAME/PATH
+    # This results in an invalid path provided by relative_paths
     bdiff = get_bdiff_summarize(branch, retries=retries)
 
     # Extract files from the bdiff that have been modified (M) or added (A).
@@ -135,14 +144,15 @@ def get_branch_diff_filenames(branch=".", path_override=None):
     # the filenames to return
     base_source_key = "SOURCE_UM_BASE"
     if path_override is not None:
-        # Allows for 'user directed' path reconstruction. Particularly useful in
-        # rose stem.
+        # Allows for 'user directed' path reconstruction.
+        # Particularly useful in rose stem.
         base = path_override
         bdiff_files = [os.path.join(base, bfile) for bfile in relative_paths]
     elif base_source_key in os.environ:
         # If running as a suite, the base path to the working copy can be used
         # However, unless the suite task is running on a machine with the same
-        # path to the working copy, the task can't really make much use of this.
+        # path to the working copy, the task can't really make much use of
+        # this.
         base = os.environ[base_source_key]
         bdiff_files = [os.path.join(base, bfile) for bfile in relative_paths]
     else:
@@ -160,8 +170,8 @@ def run_fcm_command(command, max_retries, snooze):
     retries = 0
     while True:
         output = subprocess.Popen(command,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
         _ = output.wait()
         if output.returncode == 0:
             return text_decoder(output.stdout.read())

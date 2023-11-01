@@ -344,6 +344,7 @@ class SuiteReport(object):
         self.suite_owner = None
         self.groups = []
         self.job_sources = {}
+        self.primary_project = ""
         self.projects = {}
         self.status_counts = defaultdict(int)
         self.status_counts["failed"] = 0
@@ -354,6 +355,18 @@ class SuiteReport(object):
         self.parse_suite_rc_processed()
         projects = self.check_versions_files()
         self.job_sources = _dict_merge(self.job_sources, projects)
+
+        # Work out which project this suite is run as - if UM in project sources
+        # implies it is the UM. Otherwise it will be whichever is present of
+        # Jules and UKCA. Assumes we only run suite_report for UM, Jules, UKCA
+        # Logic will require extending once running as part of lfric_apps
+        if "UM" in self.job_sources.keys():
+            self.primary_project = "UM"
+        else:
+            if "JULES" in self.job_sources.keys():
+                self.primary_project = "JULES"
+            elif "UKCA" in self.job_sources.keys():
+                self.primary_project = "UKCA"
 
         self.groups = [_remove_quotes(group) for group in self.groups]
 
@@ -435,6 +448,9 @@ class SuiteReport(object):
             )
             proj_dict["ticket no"] = self.ascertain_ticket_number(
                 proj_dict["repo mirror"], fcm_exec
+            )
+            proj_dict["bdiff_files"] = self.get_altered_files_list(
+                proj_dict["repo mirror"]
             )
 
         # Check to see if ALL the groups being run fall into the "common groups"
@@ -734,6 +750,45 @@ class SuiteReport(object):
             return True
         return False
 
+    @staticmethod
+    def export_file(repo_url, fname, outname="~/temp.txt"):
+        """
+        Runs an fcm export on a file and saves it as outname
+        Attempts to check it out 5 times to account for any network glitches.
+        Returns None if all attempts fail, otherwise the user expanded path to
+        the file
+        Inputs: repo_url, eg. fcm:um.xm_tr
+                fname: the path of the file in the repo
+                outname: the path to the output file. Default ~/temp.txt
+        """
+
+        fname = fname.lstrip("/")
+        outname = os.path.expanduser(outname)
+
+        # Try 5 times, if all fail then use working copy version
+        for _ in range(5):
+            try:
+                subproc = "fcm export -q {}/{} {} --force".format(
+                    repo_url, fname, outname
+                )
+                subprocess.check_output(subproc, shell=True)
+                return outname
+            except subprocess.CalledProcessError as error:
+                print(error)
+        else:
+            return None
+
+    @staticmethod
+    def clean_tempfile(fname="~/temp.txt"):
+        """
+        Clean up a temp file exported
+        """
+
+        try:
+            os.remove(os.path.expanduser(fname))
+        except EnvironmentError:
+            pass
+
     def generate_owner_dictionary(self, mode):
         """
         Function that parses an owners file to create a dictionary of owners,
@@ -753,61 +808,52 @@ class SuiteReport(object):
             return None
 
         # Export the Owners file from the HOT
-        # Try 5 times, if all fail then use working copy version
-        for _ in range(5):
-            try:
-                subproc = (
-                    "fcm export -q fcm:um.xm_tr/"
-                    + fname
-                    + " ~/temp_owners.txt --force"
-                )
-                subprocess.check_output(subproc, shell=True)
-                file_path = "~/temp_owners.txt"
-                file_path = os.path.expanduser(file_path)
-                break
-            except subprocess.CalledProcessError as error:
-                print(error)
-        else:
+        exported_file = "~/tmp_owners.txt"
+        file_path = self.export_file("fcm:um.xm_tr", fname, exported_file)
+        if file_path is None:
+            # Couldn't check out file - use working copy Owners file instead
             wc_path = get_working_copy_path(
                 self.job_sources["UM"]["tested source"]
             )
             if not wc_path:
-                print("Can't find working copy for Owners File")
-                return None
-            print("Using the checked out version of Owners file")
+                wc_path = ""
             file_path = os.path.join(wc_path, fname)
+            print("Using the checked out version of Owners file")
 
         # Read through file and generate dictionary
-        with open(file_path, "r") as inp_file:
-            owners_dict = {}
-            inside_listing = False
-            for line in inp_file:
-                if "{{{" in line:
-                    inside_listing = True
-                    continue
-                if "}}}" in line:
-                    inside_listing = False
-                    continue
-                if inside_listing:
-                    if line != "\n" and sep not in line:
-                        dummy_list = line.split()
-                        section = dummy_list[0].strip()
-                        owners = dummy_list[1].strip()
-                        if "umsysteam" in owners:
-                            owners = "!umsysteam@metoffice.gov.uk"
-                        try:
-                            others = dummy_list[2].replace("\n", "")
-                            if others == "--":
+        try:
+            with open(file_path, "r") as inp_file:
+                owners_dict = {}
+                inside_listing = False
+                for line in inp_file:
+                    if "{{{" in line:
+                        inside_listing = True
+                        continue
+                    if "}}}" in line:
+                        inside_listing = False
+                        continue
+                    if inside_listing:
+                        if line != "\n" and sep not in line:
+                            dummy_list = line.split()
+                            section = dummy_list[0].strip()
+                            owners = dummy_list[1].strip()
+                            if "umsysteam" in owners:
+                                owners = "!umsysteam@metoffice.gov.uk"
+                            try:
+                                others = dummy_list[2].replace("\n", "")
+                                if others == "--":
+                                    others = ""
+                            except IndexError:
                                 others = ""
-                        except IndexError:
-                            others = ""
-                        owners_dict.update({section.lower(): [owners, others]})
+                            owners_dict.update(
+                                {section.lower(): [owners, others]}
+                            )
+        except EnvironmentError:
+            print("Can't find working copy for Owners File")
+            return None
 
         # Clean up the checked out copy of the owners file
-        try:
-            os.remove(os.path.expanduser("~/temp_owners.txt"))
-        except EnvironmentError:
-            pass
+        self.clean_tempfile(exported_file)
 
         return owners_dict
 
@@ -923,32 +969,31 @@ class SuiteReport(object):
         - code_owners - dict returning code owners for a given code section
         """
 
-        # Get a list of altered files from the fcm mirror url, repo_loc
-        repo_loc = self.job_sources["UM"]["repo mirror"]
-        bdiff_files = get_branch_diff_filenames(repo_loc, path_override="")
-        # Remove the '@REVISION' part of repo_loc
-        repo_loc = repo_loc.split("@")[0]
-        try:
-            bdiff_files.remove(".")
-        except ValueError:
-            pass
+        # Get list of altered files and exit if no files changed
+        # 'UM' used here and just below as this function is currently only valid
+        # for the UM. Hopefully lfric_apps will be able to use similar in the
+        # future - at this point we can change 'UM' to self.primary_project
+        bdiff_files = self.job_sources["UM"]["bdiff_files"]
         if len(bdiff_files) == 0:
             return None
+
+        # Get the mirror repo and remove the @REVISION part
+        repo_loc = self.job_sources["UM"]["repo mirror"].split("@")[0]
 
         # Dictionary to store needed approvals
         needed_approvals = defaultdict(set)
 
         # Get Owners for each file changed
         for fle in bdiff_files:
-            if '..' in fle:
+            if ".." in fle:
                 # This is to fix an invalid path returned by fcm_bdiff in the
                 # case a branch has been reversed off trunk (see comments in
                 # get_branch_diff_filenames() for detail)
                 # The file path (fle) is split by the first example of the
                 # branch_name and then the file path as we expect is the last
                 # value of that list. We then remove any trailing '/'.
-                branch_name = repo_loc.split('/')[-1]
-                fle = fle.split(branch_name, 1)[1].strip('/')
+                branch_name = repo_loc.split("/")[-1]
+                fle = fle.split(branch_name, 1)[1].strip("/")
             fpath = fle
             fle = fle.lower()
 
@@ -963,6 +1008,8 @@ class SuiteReport(object):
                 continue
             if fle.startswith("fcm-make"):
                 section = "fcm-make_um"
+            elif fle.startswith("fab"):
+                section = "fab"
             elif fle.startswith("rose-stem"):
                 if "umdp3_check" in fle:
                     section = "umdp3_checker"
@@ -980,36 +1027,24 @@ class SuiteReport(object):
                 else:
                     section = "stash"
             else:
-                # check that the final part of the file path has a . indicating
-                # a file extension. This is to protect against added dirs which
-                # show up in fcm bdiff.
-                if '.' not in fpath.split('/')[-1]:
-                    continue
-
                 # Find area of files in other directories
-                tfile = os.path.join(os.path.expanduser("~"), "tmp_file.txt")
-
-                subproc = "fcm export --force {}/{} {}".format(
-                    repo_loc, fpath, tfile
-                )
+                file_path = self.export_file("fcm:um.xm_tr", fpath)
+                if file_path is None:
+                    file_path = ""
 
                 try:
-                    subprocess.check_output(subproc, shell=True)
-                    with open(tfile, "r") as inp_file:
+                    with open(file_path, "r") as inp_file:
                         for line in inp_file:
                             if "file belongs in" in line:
                                 section = line.strip("\n")
                                 break
                         else:
                             section = ""
-                except subprocess.CalledProcessError or EnvironmentError:
+                except EnvironmentError:
                     section = ""
 
-                # Clean up the checked out file copy
-                try:
-                    os.remove(tfile)
-                except EnvironmentError:
-                    pass
+                # Clean up checked out file
+                self.clean_tempfile()
 
                 # Get code area name out
                 section = re.sub(r"/\*", "", section)
@@ -1049,6 +1084,130 @@ class SuiteReport(object):
         approval_table = self.create_approval_table(code_approvals, "code")
 
         return approval_table
+
+    @staticmethod
+    def parse_lfric_extract_list(fpath="~/temp.txt"):
+        """
+        Read through the lfric_extract list and get a list of files and dirs.
+        Return a dictionary with keys 'files' and 'dirs'
+        """
+
+        files = []
+        dirs = []
+        in_include_section = False
+
+        with open(os.path.expanduser(fpath)) as input_file:
+            for line in input_file:
+                if in_include_section:
+                    item = line.rstrip("\\").strip()
+                    if "." in item.split("/")[-1]:
+                        files.append(item)
+                    else:
+                        dirs.append(item)
+                    if not line.endswith("\\"):
+                        in_include_section = False
+                if "extract.path-incl" in line:
+                    in_include_section = True
+
+        return {"files": files, "dirs": dirs}
+
+    def get_lfric_interactions(self, extract_list):
+        """
+        Function to count the number of project sources with modified files
+        extracted by lfric. Takes in a dict with keys files and dirs and values
+        are those extracted by lfric
+        """
+
+        num_interactions = 0
+
+        for project in self.job_sources.keys():
+            for mod_file in self.job_sources[project]["bdiff_files"]:
+                if "trunk" in mod_file:
+                    mod_file = mod_file.split("trunk/")[-1]
+                # Check modified file isn't in extracted files list
+                matching_item = False
+                if mod_file in extract_list["files"]:
+                    matching_item = True
+                # Loop over directories extracted
+                # Check that the directory doesn't contain the modified file
+                for drc in extract_list["dirs"]:
+                    if drc in mod_file:
+                        matching_item = True
+                        break
+                if matching_item:
+                    num_interactions += 1
+                    break
+
+        return num_interactions
+
+    @staticmethod
+    def write_lfric_testing_message(num_interactions):
+        """
+        Based on no. projects with lfric interaction write a message stating
+        lfric testing requirements
+        """
+
+        message = []
+
+        if num_interactions > 0:
+            if num_interactions > 1:
+                message += ["There were {} projects ".format(num_interactions)]
+            else:
+                message += ["There was 1 project "]
+            message += [
+                "with LFRic interaction.[[br]]LFRic testing is "
+                + "'''required''' before this ticket is submitted for review."
+            ]
+        else:
+            message += [
+                "No files shared with LFRic have been modified.[[br]]LFRic "
+                + "testing is not required for this ticket."
+            ]
+
+        message.append("")
+        return message
+
+    def check_lfric_extract_list(self):
+        """
+        Determine whether any files modified in source branches are extracted by
+        lfric.
+        Return a trac formatted string stating whether LFRic testing is required
+        """
+
+        return_message = ["'''LFRic Testing Requirements'''"]
+        return_message.append("")
+
+        # Export the extract list from the lfric trunk
+        exported_extract_file = "~/tmp_extract.txt"
+        extract_list_path = self.export_file(
+            "fcm:lfric.xm_tr",
+            "lfric_atm/fcm-make/extract.cfg",
+            exported_extract_file,
+        )
+
+        try:
+            extract_list_dict = self.parse_lfric_extract_list(extract_list_path)
+        except EnvironmentError or TypeError or AttributeError:
+            # Potential error here changed type between python2 and 3
+            extract_list_path = None
+
+        # If the path returned is None, the extract list failed, most likely as
+        # the user doesn't have lfric access. In this case return a warning.
+        if extract_list_path is None:
+            return_message += [
+                "Unable to export the lfric extract_list. "
+                + "LFRic testing may be required."
+            ]
+            return return_message
+
+        # Clean up the checked out copy of the extract list file
+        self.clean_tempfile(exported_extract_file)
+
+        num_interactions = self.get_lfric_interactions(extract_list_dict)
+
+        return_message += self.write_lfric_testing_message(num_interactions)
+
+        return return_message
 
     def generate_task_table(
         self,
@@ -1175,10 +1334,15 @@ class SuiteReport(object):
                 )
             status_summary.append("")
 
+        # Check whether lfric shared files have been touched
+        # Not needed if lfric the suite source
+        if "LFRIC" not in self.primary_project:
+            lfric_testing_message = self.check_lfric_extract_list()
+
         # Generate table for required config and code owners
-        # Only run if UM in source - this implies it is a UM suite run
+        # Only run if UM is the primary project
         return_list = []
-        if "UM" in self.job_sources.keys():
+        if self.primary_project == "UM":
             co_approval_table = self.required_co_approvals()
             if co_approval_table:
                 return_list += co_approval_table
@@ -1187,7 +1351,7 @@ class SuiteReport(object):
             )
             if config_approval_table:
                 return_list += config_approval_table
-        return return_list + status_summary + lines
+        return lfric_testing_message + return_list + status_summary + lines
 
     @staticmethod
     def convert_to_mirror(url, projects_dict):
@@ -1540,6 +1704,35 @@ class SuiteReport(object):
         return ticket_number
 
     @staticmethod
+    def get_altered_files_list(mirror_loc):
+        """
+        Use the get_branch_diff_filenames function from fcm_bdiff to get a list
+        of files edited on a branch. Remove any entry that doesn't contain a
+        file extension as these are likely directories.
+        """
+
+        # Get a list of altered files from the fcm mirror url
+        bdiff_files = get_branch_diff_filenames(mirror_loc, path_override="")
+
+        # If '.' is in the files list remove it
+        try:
+            bdiff_files.remove(".")
+        except ValueError:
+            pass
+
+        # Remove any item that is not a file - decide based on whether the item
+        # has a file extension
+        for item in bdiff_files:
+            # The last part of the file path
+            file_name = item.split("/")[-1]
+            # If the final part doesn't have a file extension remove this item
+            # as it is a directory
+            if "." not in file_name:
+                bdiff_files.remove(item)
+
+        return bdiff_files
+
+    @staticmethod
     def generate_groups(grouplist):
         """Convert the list of groups run into a trac-formatted string."""
         output = ""
@@ -1709,8 +1902,7 @@ class SuiteReport(object):
                     + "SuiteReport.print_report()",
                     "See output for more information",
                     "rose-stem suite output will be in the files :\n",
-                    "~/cylc-run/{0:s}/log/suite/out and "
-                    + "~/cylc-run/{0:s}/log/suite/err".format(suite_dir),
+                    "~/cylc-run/{0:s}/log/suite/log".format(suite_dir),
                 ]
             )
         finally:

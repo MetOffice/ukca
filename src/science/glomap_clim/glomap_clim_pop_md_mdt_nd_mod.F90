@@ -224,7 +224,7 @@ DO imode = 1, nmodes
   DO loop = 1, n_points
     mdt(loop,imode)  = 0.0
     nd(loop,imode)   = 0.0
-    mask(loop,imode) = .false.
+    mask(loop,imode) = .FALSE.
   END DO
 END DO
 

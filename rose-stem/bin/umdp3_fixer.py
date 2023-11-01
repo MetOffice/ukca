@@ -126,10 +126,6 @@ def get_branch_diff():
     bdiff_files = [os.path.join(os.getcwd(), bfile)
                    for bfile in bdiff_files]
 
-    # remove COSP
-    regex = re.compile(r'.*\/COSP\/.*')
-    bdiff_files = [i for i in bdiff_files if not regex.search(i)]
-
     # remove C files
     regex = re.compile(r'(.*\/include\/other\/.*\.h$)|(.*\.c$)')
     bdiff_files_f = [i for i in bdiff_files if not regex.search(i.strip())]
