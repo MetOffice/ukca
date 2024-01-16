@@ -304,7 +304,6 @@ REAL :: error_norm
 REAL :: residual_error
 
 LOGICAL :: not_first_call = .FALSE.
-LOGICAL :: lsvjac                 ! Flag for saving jacobian if not recalculated
 
 REAL :: f_initial(n_points,jpcspf) ! Concentration from previous timestep,f(t=n)
 REAL :: f_incr(n_points,jpcspf)  ! Increment at end of NR step that is added to
@@ -350,7 +349,6 @@ rafmax = 1.0e+04
 
 exit_code = 0
 error_norm = 1.0
-lsvjac = .FALSE.
 deltt = 1.0/cdt
 damp1 = 0.5
 
@@ -443,69 +441,63 @@ DO iter=1,ukca_config%nrsteps
     END DO
   END DO
 
-  IF (lsvjac) THEN
-    ! Sparse resolve routine
-    CALL spresolv2(n_points,G_f,f_incr,f_min,modified_map,spfj)
-  ELSE
+  CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
 
-    CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
-
-    IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
-      WRITE(umMessage,"('Iteration ',i4)") iter
+  IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
+    WRITE(umMessage,"('Iteration ',i4)") iter
+    CALL umPrint(umMessage,src='asad_spimpmjp')
+    DO jl=1,n_points
+      WRITE(umMessage,"('Point: ',i4)") jl
       CALL umPrint(umMessage,src='asad_spimpmjp')
-      DO jl=1,n_points
-        WRITE(umMessage,"('Point: ',i4)") jl
-        CALL umPrint(umMessage,src='asad_spimpmjp')
-        fj(jl,:,:) = 0.0
-        DO jtr=1,jpcspf
-          DO itr=1,jpcspf
-            IF (nonzero_map(jtr,itr) > 0)                                      &
-              fj(jl,jtr,itr) = spfj(jl,nonzero_map(jtr,itr))
-          END DO
-        END DO
-        DO jtr=1,jpcspf
-          WRITE(umMessage,cmessage1) jtr, (fj(jl,jtr,itr),itr=1,jpcspf)
-          CALL umPrint(umMessage,src='asad_spimpmjp')
+      fj(jl,:,:) = 0.0
+      DO jtr=1,jpcspf
+        DO itr=1,jpcspf
+          IF (nonzero_map(jtr,itr) > 0)                                        &
+            fj(jl,jtr,itr) = spfj(jl,nonzero_map(jtr,itr))
         END DO
       END DO
-    END IF
-
-    CALL splinslv2(n_points,G_f,f_incr,f_min,f_max,nonzero_map_unordered,      &
-                      modified_map,spfj)
-
-    IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
-      DO jl=1,n_points
-        WRITE(umMessage,"('Point: ',i4)") jl
-        CALL umPrint(umMessage,src='asad_spimpmjp')
-        WRITE(umMessage,cmessage2) 'G_f',(G_f(jl,jtr),jtr=1,jpcspf)
-        CALL umPrint(umMessage,src='asad_spimpmjp')
-        WRITE(umMessage,cmessage2) 'fdt',(fdot(jl,jtr),jtr=1,jpcspf)
-        CALL umPrint(umMessage,src='asad_spimpmjp')
-        WRITE(umMessage,cmessage2) 'del',                                      &
-                              ((f(jl,jtr)-f_initial(jl,jtr))*deltt,jtr=1,jpcspf)
-        CALL umPrint(umMessage,src='asad_spimpmjp')
-        WRITE(umMessage,cmessage2) 'f  ',(f(jl,jtr),jtr=1,jpcspf)
-        CALL umPrint(umMessage,src='asad_spimpmjp')
-        WRITE(umMessage,cmessage2) 'f_incr',(f_incr(jl,jtr),jtr=1,jpcspf)
+      DO jtr=1,jpcspf
+        WRITE(umMessage,cmessage1) jtr, (fj(jl,jtr,itr),itr=1,jpcspf)
         CALL umPrint(umMessage,src='asad_spimpmjp')
       END DO
-      CALL asad_fuljac(n_points)
-      WRITE(umMessage,"('Iteration ',i4)") iter
+    END DO
+  END IF
+
+  CALL splinslv2(n_points,G_f,f_incr,f_min,f_max,nonzero_map_unordered,        &
+                    modified_map,spfj)
+
+  IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
+    DO jl=1,n_points
+      WRITE(umMessage,"('Point: ',i4)") jl
       CALL umPrint(umMessage,src='asad_spimpmjp')
-      DO jl=1,n_points
-        DO jtr=1,jpcspf
-          zsum(jtr) = 0.0
-          DO itr=1,jpcspf
-            zsum(jtr)=zsum(jtr)+fj(jl,jtr,itr)*f_incr(jl,itr)
-          END DO
-          WRITE(umMessage,cmessage1) jtr,                                      &
-                                    (fj(jl,jtr,itr)*f_incr(jl,itr),itr=1,jpcspf)
-          CALL umPrint(umMessage,src='asad_spimpmjp')
+      WRITE(umMessage,cmessage2) 'G_f',(G_f(jl,jtr),jtr=1,jpcspf)
+      CALL umPrint(umMessage,src='asad_spimpmjp')
+      WRITE(umMessage,cmessage2) 'fdt',(fdot(jl,jtr),jtr=1,jpcspf)
+      CALL umPrint(umMessage,src='asad_spimpmjp')
+      WRITE(umMessage,cmessage2) 'del',                                        &
+                            ((f(jl,jtr)-f_initial(jl,jtr))*deltt,jtr=1,jpcspf)
+      CALL umPrint(umMessage,src='asad_spimpmjp')
+      WRITE(umMessage,cmessage2) 'f  ',(f(jl,jtr),jtr=1,jpcspf)
+      CALL umPrint(umMessage,src='asad_spimpmjp')
+      WRITE(umMessage,cmessage2) 'f_incr',(f_incr(jl,jtr),jtr=1,jpcspf)
+      CALL umPrint(umMessage,src='asad_spimpmjp')
+    END DO
+    CALL asad_fuljac(n_points)
+    WRITE(umMessage,"('Iteration ',i4)") iter
+    CALL umPrint(umMessage,src='asad_spimpmjp')
+    DO jl=1,n_points
+      DO jtr=1,jpcspf
+        zsum(jtr) = 0.0
+        DO itr=1,jpcspf
+          zsum(jtr)=zsum(jtr)+fj(jl,jtr,itr)*f_incr(jl,itr)
         END DO
-        WRITE(umMessage,cmessage2) 'sum', (zsum(jtr),jtr=1,jpcspf)
+        WRITE(umMessage,cmessage1) jtr,                                        &
+                                  (fj(jl,jtr,itr)*f_incr(jl,itr),itr=1,jpcspf)
         CALL umPrint(umMessage,src='asad_spimpmjp')
       END DO
-    END IF
+      WRITE(umMessage,cmessage2) 'sum', (zsum(jtr),jtr=1,jpcspf)
+      CALL umPrint(umMessage,src='asad_spimpmjp')
+    END DO
   END IF
 
   ! Damp increment on first Newton-Raphson iteration

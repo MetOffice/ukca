@@ -256,7 +256,8 @@ IF ( ndepd /= 0 ) CALL ukca_drydep(nlev, dryrt, n_points)
 gphot = .TRUE.
 IF ( method /= 0 ) THEN
 
-  DO jsubs = 1, ncsteps
+  DO js = 1, ncsteps
+    jsubs = js
 
     gfirst = jsubs  ==  1
     gphot  = gfirst

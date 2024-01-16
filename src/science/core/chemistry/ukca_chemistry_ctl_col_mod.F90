@@ -109,7 +109,7 @@ USE ukca_cspecies,        ONLY: c_species, n_cf2cl2, n_cfcl3,                  &
                                 nn_o3, nn_o3p, nn_oh, nn_so2,                  &
                                 c_na_species, n_h2so4
 USE asad_findreaction_mod, ONLY: asad_findreaction
-USE UKCA_tropopause,      ONLY: L_troposphere
+USE UKCA_tropopause,      ONLY: L_stratosphere
 USE ukca_conserve_mod,    ONLY: ukca_conserve
 USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE chemistry_constants_mod, ONLY: avogadro
@@ -579,7 +579,7 @@ END IF
 !$OMP        spro2, nlnaro2, ctype, co2_interactive, istore_h2so4,             &
 !$OMP        l_asad_use_chem_diags, l_asad_use_drydep,                         &
 !$OMP        l_asad_use_flux_rxns, l_asad_use_psc_diagnostic,                  &
-!$OMP        l_asad_use_rxn_rates, l_asad_use_wetdep, l_troposphere,           &
+!$OMP        l_asad_use_rxn_rates, l_asad_use_wetdep, l_stratosphere,          &
 !$OMP        ukca_config,                                                      &
 !$OMP        l_autotune_local,                                                 &
 !$OMP        model_levels, n_cf2cl2, n_cfcl3, n_ch4, n_co, n_h2,               &
@@ -741,7 +741,7 @@ DO i=1,rows
       have_nat1d(:) = have_nat(j,i,:)
 
       ! fill stratospheric flag indicator
-      stratflag(:) = (.NOT. L_troposphere(j,i,:))
+      stratflag(:) = L_stratosphere(j,i,:)
 
       ! pass 2D wet-dep field to cdrive
       zwetrt2(:,:) = zwetrt(j,i,:,:)
@@ -1030,8 +1030,7 @@ IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.             &
     tracer(:,:,:,n_hono2) = tracer(:,:,:,n_hono2) - shno3_3d
 
     CALL ukca_sediment(rows, row_length, model_levels, shno3_3d,               &
-             qcf, r_theta_levels, mass, secs_per_step,                         &
-             L_troposphere(:,:,:))
+             qcf, r_theta_levels, mass, secs_per_step, L_stratosphere(:,:,:))
 
     ! add solid-phase HNO3 back to gasphase HNO3
     tracer(:,:,:,n_hono2) = tracer(:,:,:,n_hono2) + shno3_3d

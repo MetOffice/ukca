@@ -39,7 +39,7 @@ USE asad_mod,         ONLY: advt, dpd, dpw, fpsc1, fpsc2,                      &
                             nbrkx, nhrkx, nprkx, ntrkx, prk,                   &
                             spb, speci, sph, spj, spt, y,                      &
                             jpspec, jpbk, jptk, jppj, jphk, jpnr, jpctr
-USE ukca_tropopause,  ONLY: L_troposphere
+USE ukca_tropopause,  ONLY: L_stratosphere
 USE ukca_cspecies,    ONLY: c_species
 USE parkind1,         ONLY: jprb, jpim
 USE yomhook,          ONLY: lhook, dr_hook
@@ -377,7 +377,7 @@ DO group = 1, n_diag_group
           ELSE
             ierr = stash_value
             cmessage = 'Expected STASH code not found in asad_chemical_fluxes'
-            CALL ereport(RoutineName, ierr, cmessage)
+            CALL ereport(ModuleName//':'//RoutineName,ierr,cmessage)
           END IF
         END IF
       END IF
@@ -419,7 +419,7 @@ IF (ukca_config%l_enable_diag_um) THEN
                   iopl_d(idom_b(idiag)),                                       &
                   ' incorrect model levels'
             ierr = isec_b(idiag)*1000 + item_b(idiag)
-            CALL ereport(RoutineName, ierr, cmessage)
+            CALL ereport(ModuleName//':'//RoutineName,ierr,cmessage)
           END IF
           chemcodes(n_asad_diags)%l_um_legacy_request = .TRUE.
         END IF
@@ -461,7 +461,7 @@ IF (PrintStatus >= Prstatus_Oper) THEN
           stash_handling(i)%stash_section, stash_handling(i)%stash_item,       &
           stash_handling(i)%len_dim1, stash_handling(i)%len_dim2,              &
           stash_handling(i)%len_dim3
-    CALL umPrint(umMessage,src='asad_chem_flux_diags')
+    CALL umPrint(umMessage,src=RoutineName)
   END DO
 END IF
 
@@ -516,7 +516,7 @@ SUBROUTINE asad_init_chemdiag()
 
 IMPLICIT NONE
 
-INTEGER :: i,j,k
+INTEGER :: i,j,k,l
 
 ! counters
 INTEGER :: icount,jdiag,istash
@@ -564,8 +564,8 @@ L_asad_use_trop_mask       = .FALSE.
 
 ! allocate diagnostics array
 ALLOCATE(asad_chemdiags(1:n_chemdiags))
-DO i=1,n_chemdiags
-  CALL asad_zero_chemdiag(asad_chemdiags(i))
+DO l=1,n_chemdiags
+  CALL asad_zero_chemdiag(asad_chemdiags(l))
 END DO
 
 ! Now we do a rather complicated do-loop to set up the asad_chemdiags array
@@ -625,8 +625,8 @@ DO istash=1,n_asad_diags
         errcode=asad_chemdiags(jdiag)%stash_number
         WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',             &
              errcode,' PE: ',mype
-        CALL umPrint(umMessage,src='asad_chem_flux_diags')
-        CALL ereport(RoutineName,errcode,cmessage)
+        CALL umPrint(umMessage,src=RoutineName)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
       END IF
 
       ! initialise reactants and products
@@ -662,8 +662,8 @@ DO istash=1,n_asad_diags
         errcode=asad_chemdiags(jdiag)%stash_number
         WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',             &
              errcode,' PE: ',mype
-        CALL umPrint(umMessage,src='asad_chem_flux_diags')
-        CALL ereport(RoutineName,errcode,cmessage)
+        CALL umPrint(umMessage,src=RoutineName)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
       END SELECT
 
       ! Check on emissions, deposition etc, and set allocate/output logicals
@@ -690,8 +690,8 @@ DO istash=1,n_asad_diags
           errcode=asad_chemdiags(jdiag)%stash_number
           WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
                errcode,' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport(RoutineName,errcode,cmessage)
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
         END SELECT ! asad_chemdiags(jdiag)%rxn_type
       CASE (cdrxn)
         ! reactions only on chemical timesteps, and can
@@ -707,8 +707,8 @@ DO istash=1,n_asad_diags
           errcode=asad_chemdiags(jdiag)%stash_number
           WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
                errcode,' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport(RoutineName,errcode,cmessage)
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
         END SELECT ! asad_chemdiags(jdiag)%rxn_type
       CASE (cdrte)
          ! rates only on chemical timesteps, and can
@@ -723,8 +723,8 @@ DO istash=1,n_asad_diags
           errcode=asad_chemdiags(jdiag)%stash_number
           WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
                errcode,' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport(RoutineName,errcode,cmessage)
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
         END SELECT ! asad_chemdiags(jdiag)%rxn_type
       CASE (cddep)
          ! deposition only on chemical timesteps, and can
@@ -742,8 +742,8 @@ DO istash=1,n_asad_diags
           errcode=asad_chemdiags(jdiag)%stash_number
           WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
                errcode,' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport(RoutineName,errcode,cmessage)
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
         END SELECT ! asad_chemdiags(jdiag)%rxn_type
       CASE (cdnet)
         ! tendency only on chemical timesteps, and can
@@ -803,8 +803,8 @@ DO istash=1,n_asad_diags
           errcode=asad_chemdiags(jdiag)%stash_number
           WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
                errcode,' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport(RoutineName,errcode,cmessage)
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
         END SELECT
       END SELECT ! asad_chemdiags(jdiag)%diag_type
 
@@ -815,10 +815,10 @@ END DO ! istash,n_asad_diags
 
 ! Check on summing options - simplifies STASH output
 DO k=1,n_asad_diags
-  DO i=1,n_chemdiags
+  DO l=1,n_chemdiags
      ! calcs number of fields with the same stash code
     IF (stash_handling(k)%stash_value ==                                       &
-         asad_chemdiags(i)%stash_number) THEN
+         asad_chemdiags(l)%stash_number) THEN
       stash_handling(k)%number_of_fields =                                     &
            stash_handling(k)%number_of_fields + 1
     END IF
@@ -829,16 +829,16 @@ DO k=1,n_asad_diags
   stash_handling(k)%chemdiags_location(:) = 0
   ! allocate %throughput array for each flux
   icount=0
-  DO i=1,n_chemdiags
+  DO l=1,n_chemdiags
     IF (stash_handling(k)%stash_value ==                                       &
-         asad_chemdiags(i)%stash_number) THEN
+         asad_chemdiags(l)%stash_number) THEN
       icount=icount+1
-      stash_handling(k)%chemdiags_location(icount) = i
+      stash_handling(k)%chemdiags_location(icount) = l
       ! get number of levels (needed in putstash)
-      asad_chemdiags(i)%num_levs =                                             &
+      asad_chemdiags(l)%num_levs =                                             &
            stash_handling(k)%len_dim3
     END IF
-  END DO           ! i,n_chemdiags
+  END DO           ! l,n_chemdiags
 END DO              ! k,n_asad_diags
 
 ! error check
@@ -849,8 +849,8 @@ DO k=1,n_asad_diags
     errcode = -1*stash_handling(k)%stash_value
     WRITE(umMessage,'(2A,I0,A,I0,A,I0)') cmessage, ' Error code: ',            &
          errcode,' PE: ',mype,' K: ',k
-    CALL umPrint(umMessage,src='asad_chem_flux_diags')
-    CALL ereport(RoutineName,errcode,cmessage)
+    CALL umPrint(umMessage,src=RoutineName)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 END DO
 
@@ -858,84 +858,73 @@ END DO
 IF ((PrintStatus >= PrStatus_Oper ) .AND. (mype == 0)) THEN
   WRITE(umMessage,'(A,A)') 'THE FOLLOWING UKCA FLUX DIAGNOSTICS ',             &
        'HAVE BEEN REQUESTED'
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  DO i=1,n_chemdiags
-    IF (asad_chemdiags(i)%num_products > 0) THEN
+  CALL umPrint(umMessage,src=RoutineName)
+  DO l=1,n_chemdiags
+    IF (asad_chemdiags(l)%num_products > 0) THEN
        ! fancy formatting to cope with variable number of prods
-      IF (asad_chemdiags(i)%num_products < 10) THEN
+      IF (asad_chemdiags(l)%num_products < 10) THEN
         WRITE(outformat,FMT='(A38,I1,A7)')                                     &
           '(I5,1X,A3,1X,A1,1X,A,1X,2(A,1X),A2,1X,',                            &
-          asad_chemdiags(i)%num_products,                                      &
+          asad_chemdiags(l)%num_products,                                      &
           '(A,1X))'
       ELSE
         WRITE(outformat,FMT='(A38,I2,A7)')                                     &
              '(I5,1X,A3,1X,A1,1X,A,1X,2(A,1X),A2,1X,',                         &
-             asad_chemdiags(i)%num_products,                                   &
+             asad_chemdiags(l)%num_products,                                   &
              '(A,1X))'
       END IF
       WRITE(umMessage,FMT=TRIM(ADJUSTL(outformat)))                            &
-           asad_chemdiags(i)%stash_number,                                     &
-           asad_chemdiags(i)%diag_type,                                        &
-           asad_chemdiags(i)%rxn_type,                                         &
-           TRIM(ADJUSTL(asad_chemdiags(i)%species)),                           &
-           (TRIM(ADJUSTL(asad_chemdiags(i)%reactants(j))),                     &
+           asad_chemdiags(l)%stash_number,                                     &
+           asad_chemdiags(l)%diag_type,                                        &
+           asad_chemdiags(l)%rxn_type,                                         &
+           TRIM(ADJUSTL(asad_chemdiags(l)%species)),                           &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%reactants(j))),                     &
            j=1,2),'->',                                                        &
-           (TRIM(ADJUSTL(asad_chemdiags(i)%products(j))),                      &
-           j=1,asad_chemdiags(i)%num_products)
-      CALL umPrint(umMessage,src='asad_chem_flux_diags')
+           (TRIM(ADJUSTL(asad_chemdiags(l)%products(j))),                      &
+           j=1,asad_chemdiags(l)%num_products)
+      CALL umPrint(umMessage,src=RoutineName)
     ELSE
        ! not a reaction (or rather, has no products)
       WRITE(umMessage,FMT='(I5,1X,A3,1X,A1,1X,A,1X,2(A,1X))')                  &
-           asad_chemdiags(i)%stash_number,                                     &
-           asad_chemdiags(i)%diag_type,                                        &
-           asad_chemdiags(i)%rxn_type,                                         &
-           TRIM(ADJUSTL(asad_chemdiags(i)%species)),                           &
-           (TRIM(ADJUSTL(asad_chemdiags(i)%reactants(j))),                     &
+           asad_chemdiags(l)%stash_number,                                     &
+           asad_chemdiags(l)%diag_type,                                        &
+           asad_chemdiags(l)%rxn_type,                                         &
+           TRIM(ADJUSTL(asad_chemdiags(l)%species)),                           &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%reactants(j))),                     &
            j=1,2)
-      CALL umPrint(umMessage,src='asad_chem_flux_diags')
+      CALL umPrint(umMessage,src=RoutineName)
     END IF
   END DO
 END IF
 
 ! print out status of logicals
 IF (PrintStatus == Prstatus_Diag) THEN
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_air_ems         = ',L_asad_use_air_ems
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_light_ems       = ',L_asad_use_light_ems
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_surf_ems        = ',L_asad_use_surf_ems
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_volc_ems        = ',L_asad_use_volc_ems
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_sulp_ems        = ',L_asad_use_sulp_ems
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_flux_rxns       = ',L_asad_use_flux_rxns
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_wetdep          = ',L_asad_use_wetdep
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-  'L_asad_use_drydep          = ',L_asad_use_drydep
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_tendency        = ',L_asad_use_tendency
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_mass_diagnostic = ',                                        &
-       L_asad_use_mass_diagnostic
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_trop_mask       = ',L_asad_use_trop_mask
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  WRITE(umMessage,'(A,A,L1)') ' asad_init_chemdiag: ',                         &
-       'L_asad_use_chem_diags      = ',L_asad_use_chem_diags
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_air_ems         = ',L_asad_use_air_ems
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_light_ems       = ',L_asad_use_light_ems
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_surf_ems        = ',L_asad_use_surf_ems
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_volc_ems        = ',L_asad_use_volc_ems
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_sulp_ems        = ',L_asad_use_sulp_ems
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_flux_rxns       = ',L_asad_use_flux_rxns
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_wetdep          = ',L_asad_use_wetdep
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_drydep          = ',L_asad_use_drydep
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_tendency        = ',L_asad_use_tendency
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_mass_diagnostic = ',                   &
+                            L_asad_use_mass_diagnostic
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_trop_mask       = ',L_asad_use_trop_mask
+  CALL umPrint(umMessage,src=RoutineName)
+  WRITE(umMessage,'(A,L1)') 'L_asad_use_chem_diags      = ',                   &
+                            L_asad_use_chem_diags
+  CALL umPrint(umMessage,src=RoutineName)
 END IF ! PrintStatus = Prstatus_diag
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -992,7 +981,7 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: row_length
 INTEGER, INTENT(IN) :: rows
 
-INTEGER :: i
+INTEGER :: l
 
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -1004,13 +993,13 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_ALLOCATE_CHEMDIAG'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Allocate flux array and initialise
-DO i=1,n_chemdiags
-  IF (.NOT. ALLOCATED(asad_chemdiags(i)%throughput)) THEN
-    ALLOCATE(asad_chemdiags(i)%throughput(                                     &
+DO l=1,n_chemdiags
+  IF (.NOT. ALLOCATED(asad_chemdiags(l)%throughput)) THEN
+    ALLOCATE(asad_chemdiags(l)%throughput(                                     &
              1:row_length,                                                     &
              1:rows,                                                           &
-             1:asad_chemdiags(i)%num_levs))
-    asad_chemdiags(i)%throughput(:,:,:) = 0.0
+             1:asad_chemdiags(l)%num_levs))
+    asad_chemdiags(l)%throughput(:,:,:) = 0.0
   END IF
 END DO
 
@@ -1019,35 +1008,13 @@ RETURN
 END SUBROUTINE asad_allocate_chemdiag
 
 ! #####################################################################
-SUBROUTINE asad_chemical_diagnostics(row_length, rows,                         &
-     model_levels, dpd_full, dpw_full, prk_full, y_full,                       &
-     ix, jy, klevel, volume, ierr)
-
-USE chemistry_constants_mod,  ONLY: avogadro
-USE ukca_config_specification_mod, ONLY: ukca_config
+SUBROUTINE asad_chemical_diagnostics_init(ierr)
 
 IMPLICIT NONE
 
-INTEGER, INTENT(IN) :: row_length       ! length of row
-INTEGER, INTENT(IN) :: rows             ! number of rows
-INTEGER, INTENT(IN) :: model_levels     ! the level that we are at
-INTEGER, INTENT(IN) :: ix               ! i counter
-INTEGER, INTENT(IN) :: jy               ! j counter
-INTEGER, INTENT(IN) :: klevel           ! the level that we are at
-REAL, INTENT(IN)    :: volume(row_length, rows, model_levels)   ! cell volume
 INTEGER, INTENT(IN OUT) :: ierr          ! error code
-REAL, INTENT(IN)    :: dpd_full(model_levels,jpspec)
-REAL, INTENT(IN)    :: dpw_full(model_levels,jpspec)
-REAL, INTENT(IN)    :: prk_full(model_levels,jpnr)
-REAL, INTENT(IN)    :: y_full(model_levels,jpspec)
 
-REAL, PARAMETER :: convfac = 1.0e6/avogadro ! conversion factor to convert
-                                            ! volume into cm^3 and result in mol
-
-LOGICAL, SAVE :: firstcall=.TRUE.
-LOGICAL, SAVE :: first_pass=.TRUE.
-
-INTEGER :: i,j,idep                     ! counters
+INTEGER :: l,j,idep                     ! counters
 
 INTEGER, ALLOCATABLE :: findrxn_tmp(:)   ! array to hold locations
 
@@ -1059,354 +1026,235 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_CHEMICAL_DIAGNOSTICS'
+CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_CHEMICAL_DIAGNOSTICS_INIT'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-ierr = -1
-! OMP CRITICAL will only allow one thread through this code at a time,
-! while the other threads are held until completion.
-!$OMP CRITICAL (asad_chemical_diagnostics_init)
-IF (first_pass) THEN
-  IF (firstcall) THEN
-
-    ! Set up locations of reactions using (an altered version of)
-    ! asad_findreaction
-    DO i=1,n_chemdiags
-      SELECT CASE (asad_chemdiags(i)%diag_type)
-      CASE (cdrxn,cdrte)
-        SELECT CASE (asad_chemdiags(i)%rxn_type)
-        CASE (cdbimol) ! bimolecular reacions/rate
-          ALLOCATE(findrxn_tmp(1:(jpbk+1)))
-          findrxn_tmp = cd_findreaction(                                       &
-               asad_chemdiags(i)%num_products,                                 &
-               asad_chemdiags(i)%reactants,                                    &
-               asad_chemdiags(i)%products,                                     &
-               spb, nbrkx, (jpbk+1), jpspb )
-          asad_chemdiags(i)%location =                                         &
-               findrxn_tmp(asad_chemdiags(i)%find_rxn_loc)
-          DEALLOCATE(findrxn_tmp)
-          IF (asad_chemdiags(i)%location <= 0) THEN
-            IF (asad_chemdiags(i)%num_products < 10) THEN
-              WRITE(outformat,FMT='(A28,I1,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            ELSE
-              WRITE(outformat,FMT='(A28,I2,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            END IF
-            WRITE(umMessage,'(A)') outformat
-            CALL umPrint(umMessage,src='asad_chem_flux_diags')
-            WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                       &
-              'RXN NOT FOUND', cdbimol,                                        &
-              (TRIM(ADJUSTL(asad_chemdiags(i)%reactants(j))),                  &
-               j=1,2),'->',                                                    &
-              (TRIM(ADJUSTL(asad_chemdiags(i)%products(j))),                   &
-               j=1,asad_chemdiags(i)%num_products)
-            errcode=asad_chemdiags(i)%stash_number
-            WRITE(umMessage,'(A,A13,I5,A5,I6)')                                &
-              cmessage, ' Error code: ',errcode, ' PE: ',mype
-            CALL umPrint(umMessage,src='asad_chem_flux_diags')
-            CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                          &
-                 errcode,cmessage)
-          END IF
-        CASE (cdhetero) ! Heterogeneous reactions/rates
-          ALLOCATE(findrxn_tmp(1:(jphk+1)))
-          findrxn_tmp = cd_findreaction(                                       &
-               asad_chemdiags(i)%num_products,                                 &
-               asad_chemdiags(i)%reactants,                                    &
-               asad_chemdiags(i)%products,                                     &
-               sph, nhrkx, (jphk+1), jpsph )
-          asad_chemdiags(i)%location =                                         &
-               findrxn_tmp(asad_chemdiags(i)%find_rxn_loc)
-          DEALLOCATE(findrxn_tmp)
-          IF (asad_chemdiags(i)%location <= 0) THEN
-            IF (asad_chemdiags(i)%num_products < 10) THEN
-              WRITE(outformat,FMT='(A28,I1,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            ELSE
-              WRITE(outformat,FMT='(A28,I2,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            END IF
-            WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                       &
-               'RXN NOT FOUND', cdhetero,                                      &
-               (TRIM(ADJUSTL(asad_chemdiags(i)%reactants(j))),                 &
-               j=1,2),'->',                                                    &
-               (TRIM(ADJUSTL(asad_chemdiags(i)%products(j))),                  &
-               j=1,asad_chemdiags(i)%num_products)
-            errcode=asad_chemdiags(i)%stash_number
-            CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                          &
-                 errcode,cmessage)
-          END IF
-        CASE (cdtermol) ! termolecular reactions/rates
-          ALLOCATE(findrxn_tmp(1:(jptk+1)))
-          findrxn_tmp = cd_findreaction(                                       &
-               asad_chemdiags(i)%num_products,                                 &
-               asad_chemdiags(i)%reactants,                                    &
-               asad_chemdiags(i)%products,                                     &
-               spt, ntrkx, (jptk+1), jpspt )
-          asad_chemdiags(i)%location =                                         &
-               findrxn_tmp(asad_chemdiags(i)%find_rxn_loc)
-          DEALLOCATE(findrxn_tmp)
-          IF (asad_chemdiags(i)%location <= 0) THEN
-            IF (asad_chemdiags(i)%num_products < 10) THEN
-              WRITE(outformat,FMT='(A28,I1,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            ELSE
-              WRITE(outformat,FMT='(A28,I2,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            END IF
-            WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                       &
-               'RXN NOT FOUND', cdtermol,                                      &
-               (TRIM(ADJUSTL(asad_chemdiags(i)%reactants(j))),                 &
-               j=1,2),'->',                                                    &
-               (TRIM(ADJUSTL(asad_chemdiags(i)%products(j))),                  &
-               j=1,asad_chemdiags(i)%num_products)
-            errcode=asad_chemdiags(i)%stash_number
-            WRITE(umMessage,'(A,A13,I5,A5,I6)')                                &
-               cmessage, ' Error code: ',errcode, ' PE: ',mype
-            CALL umPrint(umMessage,src='asad_chem_flux_diags')
-            CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                          &
-                 errcode,cmessage)
-          END IF
-        CASE (cdphot) ! photolysis reactions/rates
-          ALLOCATE(findrxn_tmp(1:(jppj+1)))
-          findrxn_tmp = cd_findreaction(                                       &
-               asad_chemdiags(i)%num_products,                                 &
-               asad_chemdiags(i)%reactants,                                    &
-               asad_chemdiags(i)%products,                                     &
-               spj, nprkx, (jppj+1), jpspj )
-          asad_chemdiags(i)%location =                                         &
-               findrxn_tmp(asad_chemdiags(i)%find_rxn_loc)
-          DEALLOCATE(findrxn_tmp)
-          IF (asad_chemdiags(i)%location <= 0) THEN
-            IF (asad_chemdiags(i)%num_products < 10) THEN
-              WRITE(outformat,FMT='(A28,I1,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            ELSE
-              WRITE(outformat,FMT='(A28,I2,A7)')                               &
-                   '(A13,1X,A1,1X,2(A,1X),A2,1X,',                             &
-                   asad_chemdiags(i)%num_products,                             &
-                   '(A,1X))'
-            END IF
-            WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                       &
-               'RXN NOT FOUND', cdphot,                                        &
-               (TRIM(ADJUSTL(asad_chemdiags(i)%reactants(j))),                 &
-               j=1,2),'->',                                                    &
-               (TRIM(ADJUSTL(asad_chemdiags(i)%products(j))),                  &
-               j=1,asad_chemdiags(i)%num_products)
-            errcode=asad_chemdiags(i)%stash_number
-            WRITE(umMessage,'(A,A13,I5,A5,I6)')                                &
-               cmessage, ' Error code: ',errcode, ' PE: ',mype
-            CALL umPrint(umMessage,src='asad_chem_flux_diags')
-            CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                          &
-                 errcode,cmessage)
-          END IF
-        CASE DEFAULT
-          cmessage='REACTION TYPE '//                                          &
-               asad_chemdiags(i)%rxn_type//' NOT FOUND'
-          errcode=asad_chemdiags(i)%stash_number
+! Set up locations of reactions using (an altered version of)
+! asad_findreaction
+DO l=1,n_chemdiags
+  SELECT CASE (asad_chemdiags(l)%diag_type)
+  CASE (cdrxn,cdrte)
+    SELECT CASE (asad_chemdiags(l)%rxn_type)
+    CASE (cdbimol) ! bimolecular reacions/rate
+      ALLOCATE(findrxn_tmp(1:(jpbk+1)))
+      findrxn_tmp = cd_findreaction(                                           &
+           asad_chemdiags(l)%num_products,                                     &
+           asad_chemdiags(l)%reactants,                                        &
+           asad_chemdiags(l)%products,                                         &
+           spb, nbrkx, (jpbk+1), jpspb )
+      asad_chemdiags(l)%location =                                             &
+           findrxn_tmp(asad_chemdiags(l)%find_rxn_loc)
+      DEALLOCATE(findrxn_tmp)
+      IF (asad_chemdiags(l)%location <= 0) THEN
+        IF (asad_chemdiags(l)%num_products < 10) THEN
+          WRITE(outformat,FMT='(A28,I1,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        ELSE
+          WRITE(outformat,FMT='(A28,I2,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        END IF
+        WRITE(umMessage,'(A)') outformat
+        CALL umPrint(umMessage,src=RoutineName)
+        WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                           &
+          'RXN NOT FOUND', cdbimol,                                            &
+          (TRIM(ADJUSTL(asad_chemdiags(l)%reactants(j))),                      &
+           j=1,2),'->',                                                        &
+          (TRIM(ADJUSTL(asad_chemdiags(l)%products(j))),                       &
+           j=1,asad_chemdiags(l)%num_products)
+        errcode=asad_chemdiags(l)%stash_number
+        WRITE(umMessage,'(A,A13,I5,A5,I6)')                                    &
+          cmessage, ' Error code: ',errcode, ' PE: ',mype
+        CALL umPrint(umMessage,src=RoutineName)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+      END IF
+    CASE (cdhetero) ! Heterogeneous reactions/rates
+      ALLOCATE(findrxn_tmp(1:(jphk+1)))
+      findrxn_tmp = cd_findreaction(                                           &
+           asad_chemdiags(l)%num_products,                                     &
+           asad_chemdiags(l)%reactants,                                        &
+           asad_chemdiags(l)%products,                                         &
+           sph, nhrkx, (jphk+1), jpsph )
+      asad_chemdiags(l)%location =                                             &
+           findrxn_tmp(asad_chemdiags(l)%find_rxn_loc)
+      DEALLOCATE(findrxn_tmp)
+      IF (asad_chemdiags(l)%location <= 0) THEN
+        IF (asad_chemdiags(l)%num_products < 10) THEN
+          WRITE(outformat,FMT='(A28,I1,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        ELSE
+          WRITE(outformat,FMT='(A28,I2,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        END IF
+        WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                           &
+           'RXN NOT FOUND', cdhetero,                                          &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%reactants(j))),                     &
+           j=1,2),'->',                                                        &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%products(j))),                      &
+           j=1,asad_chemdiags(l)%num_products)
+        errcode=asad_chemdiags(l)%stash_number
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+      END IF
+    CASE (cdtermol) ! termolecular reactions/rates
+      ALLOCATE(findrxn_tmp(1:(jptk+1)))
+      findrxn_tmp = cd_findreaction(                                           &
+           asad_chemdiags(l)%num_products,                                     &
+           asad_chemdiags(l)%reactants,                                        &
+           asad_chemdiags(l)%products,                                         &
+           spt, ntrkx, (jptk+1), jpspt )
+      asad_chemdiags(l)%location =                                             &
+           findrxn_tmp(asad_chemdiags(l)%find_rxn_loc)
+      DEALLOCATE(findrxn_tmp)
+      IF (asad_chemdiags(l)%location <= 0) THEN
+        IF (asad_chemdiags(l)%num_products < 10) THEN
+          WRITE(outformat,FMT='(A28,I1,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        ELSE
+          WRITE(outformat,FMT='(A28,I2,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        END IF
+        WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                           &
+           'RXN NOT FOUND', cdtermol,                                          &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%reactants(j))),                     &
+           j=1,2),'->',                                                        &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%products(j))),                      &
+           j=1,asad_chemdiags(l)%num_products)
+        errcode=asad_chemdiags(l)%stash_number
+        WRITE(umMessage,'(A,A13,I5,A5,I6)')                                    &
+           cmessage, ' Error code: ',errcode, ' PE: ',mype
+        CALL umPrint(umMessage,src=RoutineName)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+      END IF
+    CASE (cdphot) ! photolysis reactions/rates
+      ALLOCATE(findrxn_tmp(1:(jppj+1)))
+      findrxn_tmp = cd_findreaction(                                           &
+           asad_chemdiags(l)%num_products,                                     &
+           asad_chemdiags(l)%reactants,                                        &
+           asad_chemdiags(l)%products,                                         &
+           spj, nprkx, (jppj+1), jpspj )
+      asad_chemdiags(l)%location =                                             &
+           findrxn_tmp(asad_chemdiags(l)%find_rxn_loc)
+      DEALLOCATE(findrxn_tmp)
+      IF (asad_chemdiags(l)%location <= 0) THEN
+        IF (asad_chemdiags(l)%num_products < 10) THEN
+          WRITE(outformat,FMT='(A28,I1,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        ELSE
+          WRITE(outformat,FMT='(A28,I2,A7)')                                   &
+               '(A13,1X,A1,1X,2(A,1X),A2,1X,',                                 &
+               asad_chemdiags(l)%num_products,                                 &
+               '(A,1X))'
+        END IF
+        WRITE(cmessage,FMT=TRIM(ADJUSTL(outformat)))                           &
+           'RXN NOT FOUND', cdphot,                                            &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%reactants(j))),                     &
+           j=1,2),'->',                                                        &
+           (TRIM(ADJUSTL(asad_chemdiags(l)%products(j))),                      &
+           j=1,asad_chemdiags(l)%num_products)
+        errcode=asad_chemdiags(l)%stash_number
+        WRITE(umMessage,'(A,A13,I5,A5,I6)')                                    &
+           cmessage, ' Error code: ',errcode, ' PE: ',mype
+        CALL umPrint(umMessage,src=RoutineName)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+      END IF
+    CASE DEFAULT
+      cmessage='REACTION TYPE '//                                              &
+           asad_chemdiags(l)%rxn_type//' NOT FOUND'
+      errcode=asad_chemdiags(l)%stash_number
+      WRITE(umMessage,'(A,A13,I5,A5,I6)')                                      &
+         cmessage, ' Error code: ',errcode, ' PE: ',mype
+      CALL umPrint(umMessage,src=RoutineName)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+    END SELECT       ! asad_chemdiags(l)%rxn_type
+  CASE (cddep)
+    SELECT CASE (asad_chemdiags(l)%rxn_type)
+    CASE (cddry) ! DRY DEP
+      ! %species contains species to be dry deposited
+      ! %location contains location in requisite array
+      idep=1
+      DO j=1,jpspec
+        IF (ldepd(j) .AND. (asad_chemdiags(l)%species ==                       &
+             speci(j))) THEN
+            ! it is being deposited logically and in diagnostic sense
+          asad_chemdiags(l)%location = j
+          idep=idep+1
+        ELSE IF (.NOT. ldepd(j) .AND.                                          &
+           (asad_chemdiags(l)%species == speci(j))) THEN
+          ! diagnostics of deposition requested, but species is not
+          ! labelled as being dry deposited in the chch_defs file
+          cmessage='SPECIES '//asad_chemdiags(l)%species                       &
+                 //' NOT DRY DEPOSITED'
+          errcode=asad_chemdiags(l)%stash_number
           WRITE(umMessage,'(A,A13,I5,A5,I6)')                                  &
-             cmessage, ' Error code: ',errcode, ' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                            &
-               errcode,cmessage)
-        END SELECT       ! asad_chemdiags(i)%rxn_type
-      CASE (cddep)
-        SELECT CASE (asad_chemdiags(i)%rxn_type)
-        CASE (cddry) ! DRY DEP
-          ! %species contains species to be dry deposited
-          ! %location contains location in requisite array
-          idep=1
-          DO j=1,jpspec
-            IF (ldepd(j) .AND. (asad_chemdiags(i)%species ==                   &
-                 speci(j))) THEN
-                ! it is being deposited logically and in diagnostic sense
-              asad_chemdiags(i)%location = j
-              idep=idep+1
-            ELSE IF (.NOT. ldepd(j) .AND.                                      &
-               (asad_chemdiags(i)%species == speci(j))) THEN
-              ! diagnostics of deposition requested, but species is not
-              ! labelled as being dry deposited in the chch_defs file
-              cmessage='SPECIES '//asad_chemdiags(i)%species                   &
-                     //' NOT DRY DEPOSITED'
-              errcode=asad_chemdiags(i)%stash_number
-              WRITE(umMessage,'(A,A13,I5,A5,I6)')                              &
-                 cmessage, ' Error code: ', errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                        &
-                   errcode,cmessage)
-            END IF
-          END DO
-        CASE (cdwet) ! WET DEP
-          DO j=1,jpspec
-            IF (ldepw(j) .AND. (asad_chemdiags(i)%species ==                   &
-                 speci(j))) THEN
-              asad_chemdiags(i)%location = j
-              idep=idep+1
-            ELSE IF (.NOT. ldepw(j) .AND.                                      &
-               (asad_chemdiags(i)%species == speci(j))) THEN
-               ! diagnostics of deposition requested, but species is not
-              ! labelled as being wet deposited in the chch_defs file
-              cmessage='SPECIES '//asad_chemdiags(i)%species                   &
-                      //' NOT WET DEPOSITED'
-              errcode=asad_chemdiags(i)%stash_number
-              WRITE(umMessage,'(A,A13,I5,A5,I6)')                              &
-                 cmessage, ' Error code: ', errcode,' PE: ',mype
-              CALL umPrint(umMessage,src='asad_chem_flux_diags')
-              CALL ereport('ASAD_CHEMICAL_DIAGNOSTICS',                        &
-                   errcode,cmessage)
-            END IF
-          END DO
-          ! %species contains species to be wet deposited
-          ! %location contains location in requisite array
-        END SELECT    ! asad_chemdiags(i)%rxn_type
-      END SELECT    ! asad_chemdiags(i)%diag_type
+             cmessage, ' Error code: ', errcode,' PE: ',mype
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+        END IF
+      END DO
+    CASE (cdwet) ! WET DEP
+      DO j=1,jpspec
+        IF (ldepw(j) .AND. (asad_chemdiags(l)%species ==                       &
+             speci(j))) THEN
+          asad_chemdiags(l)%location = j
+          idep=idep+1
+        ELSE IF (.NOT. ldepw(j) .AND.                                          &
+           (asad_chemdiags(l)%species == speci(j))) THEN
+           ! diagnostics of deposition requested, but species is not
+          ! labelled as being wet deposited in the chch_defs file
+          cmessage='SPECIES '//asad_chemdiags(l)%species                       &
+                  //' NOT WET DEPOSITED'
+          errcode=asad_chemdiags(l)%stash_number
+          WRITE(umMessage,'(A,A13,I5,A5,I6)')                                  &
+             cmessage, ' Error code: ', errcode,' PE: ',mype
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+        END IF
+      END DO
+      ! %species contains species to be wet deposited
+      ! %location contains location in requisite array
+    END SELECT    ! asad_chemdiags(l)%rxn_type
+  END SELECT    ! asad_chemdiags(l)%diag_type
 
 
-      ! assumes 2 reactants
-      IF (PrintStatus == Prstatus_diag) THEN
-        SELECT CASE (asad_chemdiags(i)%diag_type)
-        CASE (cdrxn,cdrte)
-          WRITE(umMessage,'(A5,I6,A10,I5,A1,A1,A3,A10,A3,A10,A7,I6)')          &
-               'mype=',mype,' CD:FIND: ',                                      &
-               asad_chemdiags(i)%stash_number,' ',                             &
-               asad_chemdiags(i)%rxn_type,' : ',                               &
-               asad_chemdiags(i)%reactants(1),                                 &
-               ' + ',asad_chemdiags(i)%reactants(2),                           &
-               ' rxn = ',                                                      &
-               asad_chemdiags(i)%location
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-        CASE (cddep)
-          WRITE(umMessage,'(A5,I6,A10,I5,A1,A1,A3,A10,A13,I6)')                &
-               'mype=',mype,' CD:FIND: ',                                      &
-               asad_chemdiags(i)%stash_number,' ',                             &
-               asad_chemdiags(i)%rxn_type,' : ',                               &
-               asad_chemdiags(i)%species,                                      &
-               ' deposition: ',                                                &
-               asad_chemdiags(i)%location
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-        END SELECT
-      END IF           ! Printstatus
-    END DO ! i
-    firstcall=.FALSE.
-  END IF   ! firstcall
-  first_pass=.FALSE.
-END IF     ! first_pass
-!$OMP END CRITICAL (asad_chemical_diagnostics_init)
-
-! Go through and pick up fluxes from ASAD arrays
-! prk is in units of molecules.cm^-3.s^-1
-DO i=1,n_chemdiags
-
-  IF (ukca_config%l_ukca_asad_columns) THEN
-     ! in this case ASAD is being called column-by column so we need
-     ! to fill %throughput by iterating over X & Y
-    SELECT CASE (asad_chemdiags(i)%diag_type)
-    CASE (cdrxn)
-      asad_chemdiags(i)%throughput(ix,jy,:) =                                  &
-           prk_full(:,asad_chemdiags(i)%location)*volume(ix,jy,:)*convfac
-      IF (asad_chemdiags(i)%tropospheric_mask) THEN
-        WHERE (.NOT. L_troposphere(ix,jy,:))
-          asad_chemdiags(i)%throughput(ix,jy,:) = 0.0
-        END WHERE
-      END IF
+  ! assumes 2 reactants
+  IF (PrintStatus == Prstatus_diag) THEN
+    SELECT CASE (asad_chemdiags(l)%diag_type)
+    CASE (cdrxn,cdrte)
+      WRITE(umMessage,'(A5,I6,A10,I5,A1,A1,A3,A10,A3,A10,A7,I6)')              &
+           'mype=',mype,' CD:FIND: ',                                          &
+           asad_chemdiags(l)%stash_number,' ',                                 &
+           asad_chemdiags(l)%rxn_type,' : ',                                   &
+           asad_chemdiags(l)%reactants(1),                                     &
+           ' + ',asad_chemdiags(l)%reactants(2),                               &
+           ' rxn = ',                                                          &
+           asad_chemdiags(l)%location
+      CALL umPrint(umMessage,src=RoutineName)
     CASE (cddep)
-      SELECT CASE (asad_chemdiags(i)%rxn_type)
-      CASE (cddry) ! DRY DEP
-         ! dpd array is over a column, no need to consider klevel
-         ! NOTE: Current STASH settings have dry-deposition output
-         !       as 3D. If this changes the code below will no
-         !       longer work as the code expects an entire
-         !       atmospheric column.
-        asad_chemdiags(i)%throughput(ix,jy,:)=                                 &
-             dpd_full(:,asad_chemdiags(i)%location)*                           &
-             y_full(:,asad_chemdiags(i)%location)*                             &
-             volume(ix,jy,:)*convfac
-        ! Not needed (probably) but kept for consistency
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_troposphere(ix,jy,:))
-            asad_chemdiags(i)%throughput(ix,jy,:) = 0.0
-          END WHERE
-        END IF
-      CASE (cdwet) ! WET DEP
-        asad_chemdiags(i)%throughput(ix,jy,:)=                                 &
-             dpw_full(:,asad_chemdiags(i)%location)*                           &
-             y_full(:,asad_chemdiags(i)%location)*                             &
-             volume(ix,jy,:)*convfac
-        ! Not needed (probably) but kept for consistency
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_troposphere(ix,jy,:))
-            asad_chemdiags(i)%throughput(ix,jy,:) = 0.0
-          END WHERE
-        END IF
-      END SELECT
+      WRITE(umMessage,'(A5,I6,A10,I5,A1,A1,A3,A10,A13,I6)')                    &
+           'mype=',mype,' CD:FIND: ',                                          &
+           asad_chemdiags(l)%stash_number,' ',                                 &
+           asad_chemdiags(l)%rxn_type,' : ',                                   &
+           asad_chemdiags(l)%species,                                          &
+           ' deposition: ',                                                    &
+           asad_chemdiags(l)%location
+      CALL umPrint(umMessage,src=RoutineName)
     END SELECT
-  ELSE
-     ! in this case ASAD is being called horizontally so we need
-     ! to fill %throughput by iterating over Z
-    SELECT CASE (asad_chemdiags(i)%diag_type)
-    CASE (cdrxn)
-      asad_chemdiags(i)%throughput(:,:,klevel) =                               &
-           RESHAPE(prk(:,asad_chemdiags(i)%location),                          &
-           [row_length,rows])*volume(:,:,klevel)*convfac
-      IF (asad_chemdiags(i)%tropospheric_mask) THEN
-        WHERE (.NOT. L_troposphere(:,:,klevel))
-          asad_chemdiags(i)%throughput(:,:,klevel) = 0.0
-        END WHERE
-      END IF
-    CASE (cddep)
-      SELECT CASE (asad_chemdiags(i)%rxn_type)
-      CASE (cddry) ! DRY DEP
-        IF (klevel <=                                                          &
-             SIZE(asad_chemdiags(i)%throughput(:,:,:),DIM=3)) THEN
-           ! if 2D then only take lowest level, otherwise will be 3D
-          asad_chemdiags(i)%throughput(:,:,klevel)=                            &
-               RESHAPE(dpd(:,asad_chemdiags(i)%location),                      &
-                       [row_length,rows])*                                     &
-               RESHAPE(y(:,asad_chemdiags(i)%location),                        &
-                       [row_length,rows])*                                     &
-               volume(:,:,klevel)*convfac
-          IF (asad_chemdiags(i)%tropospheric_mask) THEN
-            WHERE (.NOT. L_troposphere(:,:,klevel))
-              asad_chemdiags(i)%throughput(:,:,klevel) = 0.0
-            END WHERE
-          END IF
-        END IF
-        ! Not needed (?)
-      CASE (cdwet) ! WET DEP
-        asad_chemdiags(i)%throughput(:,:,klevel)=                              &
-             RESHAPE(dpw(:,asad_chemdiags(i)%location),                        &
-                     [row_length,rows])*                                       &
-             RESHAPE(y(:,asad_chemdiags(i)%location),                          &
-                     [row_length,rows])*                                       &
-             volume(:,:,klevel)*convfac
-        ! Not needed (?)
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_troposphere(:,:,klevel))
-            asad_chemdiags(i)%throughput(:,:,klevel) = 0.0
-          END WHERE
-        END IF
-      END SELECT
-    END SELECT
-  END IF             ! l_ukca_asad_columns
-END DO                ! i=1,n_chemdiags
-
-
-ierr = 0
+  END IF           ! Printstatus
+END DO ! i
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -1514,8 +1362,8 @@ IF (nprods < numprods) THEN ! if number of products is not equal to number of
   cmessage='wrong number of products in find reaction'
   errcode=nprods
   WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',errcode,' PE: ',mype
-  CALL umPrint(umMessage,src='asad_chem_flux_diags')
-  CALL ereport('cd_findreaction',errcode,cmessage)
+  CALL umPrint(umMessage,src=RoutineName)
+  CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
 END IF
 
 ALLOCATE(prods(nprods), inprods(nprods), found(nprods) )
@@ -1610,6 +1458,163 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END FUNCTION cd_findreaction
 
+END SUBROUTINE asad_chemical_diagnostics_init
+
+! #####################################################################
+SUBROUTINE asad_chemical_diagnostics(row_length, rows,                         &
+     model_levels, dpd_full, dpw_full, prk_full, y_full,                       &
+     ix, jy, klevel, volume, ierr)
+
+USE chemistry_constants_mod,  ONLY: avogadro
+USE ukca_config_specification_mod, ONLY: ukca_config
+
+IMPLICIT NONE
+
+INTEGER, INTENT(IN) :: row_length       ! length of row
+INTEGER, INTENT(IN) :: rows             ! number of rows
+INTEGER, INTENT(IN) :: model_levels     ! the level that we are at
+INTEGER, INTENT(IN) :: ix               ! i counter
+INTEGER, INTENT(IN) :: jy               ! j counter
+INTEGER, INTENT(IN) :: klevel           ! the level that we are at
+REAL, INTENT(IN)    :: volume(row_length, rows, model_levels)   ! cell volume
+INTEGER, INTENT(IN OUT) :: ierr          ! error code
+REAL, INTENT(IN)    :: dpd_full(model_levels,jpspec)
+REAL, INTENT(IN)    :: dpw_full(model_levels,jpspec)
+REAL, INTENT(IN)    :: prk_full(model_levels,jpnr)
+REAL, INTENT(IN)    :: y_full(model_levels,jpspec)
+
+REAL, PARAMETER :: convfac = 1.0e6/avogadro ! conversion factor to convert
+                                            ! volume into cm^3 and result in mol
+
+LOGICAL, SAVE :: firstcall=.TRUE.
+LOGICAL, SAVE :: first_pass=.TRUE.
+
+INTEGER :: l                      ! counter
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_CHEMICAL_DIAGNOSTICS'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+ierr = -1
+! OMP CRITICAL will only allow one thread through this code at a time,
+! while the other threads are held until completion.
+!$OMP CRITICAL (chemical_diagnostics_init)
+IF (first_pass) THEN
+  IF (firstcall) THEN
+    CALL asad_chemical_diagnostics_init(ierr)
+    firstcall=.FALSE.
+  END IF   ! firstcall
+  first_pass=.FALSE.
+END IF     ! first_pass
+!$OMP END CRITICAL (chemical_diagnostics_init)
+
+! Go through and pick up fluxes from ASAD arrays
+! prk is in units of molecules.cm^-3.s^-1
+DO l=1,n_chemdiags
+
+  IF (ukca_config%l_ukca_asad_columns) THEN
+     ! in this case ASAD is being called column-by column so we need
+     ! to fill %throughput by iterating over X & Y
+    SELECT CASE (asad_chemdiags(l)%diag_type)
+    CASE (cdrxn)
+      asad_chemdiags(l)%throughput(ix,jy,:) =                                  &
+           prk_full(:,asad_chemdiags(l)%location)*volume(ix,jy,:)*convfac
+      IF (asad_chemdiags(l)%tropospheric_mask) THEN
+        WHERE (L_stratosphere(ix,jy,:))
+          asad_chemdiags(l)%throughput(ix,jy,:) = 0.0
+        END WHERE
+      END IF
+    CASE (cddep)
+      SELECT CASE (asad_chemdiags(l)%rxn_type)
+      CASE (cddry) ! DRY DEP
+         ! dpd array is over a column, no need to consider klevel
+         ! NOTE: Current STASH settings have dry-deposition output
+         !       as 3D. If this changes the code below will no
+         !       longer work as the code expects an entire
+         !       atmospheric column.
+        asad_chemdiags(l)%throughput(ix,jy,:)=                                 &
+             dpd_full(:,asad_chemdiags(l)%location)*                           &
+             y_full(:,asad_chemdiags(l)%location)*                             &
+             volume(ix,jy,:)*convfac
+        ! Not needed (probably) but kept for consistency
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(ix,jy,:))
+            asad_chemdiags(l)%throughput(ix,jy,:) = 0.0
+          END WHERE
+        END IF
+      CASE (cdwet) ! WET DEP
+        asad_chemdiags(l)%throughput(ix,jy,:)=                                 &
+             dpw_full(:,asad_chemdiags(l)%location)*                           &
+             y_full(:,asad_chemdiags(l)%location)*                             &
+             volume(ix,jy,:)*convfac
+        ! Not needed (probably) but kept for consistency
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(ix,jy,:))
+            asad_chemdiags(l)%throughput(ix,jy,:) = 0.0
+          END WHERE
+        END IF
+      END SELECT
+    END SELECT
+  ELSE
+     ! in this case ASAD is being called horizontally so we need
+     ! to fill %throughput by iterating over Z
+    SELECT CASE (asad_chemdiags(l)%diag_type)
+    CASE (cdrxn)
+      asad_chemdiags(l)%throughput(:,:,klevel) =                               &
+           RESHAPE(prk(:,asad_chemdiags(l)%location),                          &
+           [row_length,rows])*volume(:,:,klevel)*convfac
+      IF (asad_chemdiags(l)%tropospheric_mask) THEN
+        WHERE (L_stratosphere(:,:,klevel))
+          asad_chemdiags(l)%throughput(:,:,klevel) = 0.0
+        END WHERE
+      END IF
+    CASE (cddep)
+      SELECT CASE (asad_chemdiags(l)%rxn_type)
+      CASE (cddry) ! DRY DEP
+        IF (klevel <=                                                          &
+             SIZE(asad_chemdiags(l)%throughput(:,:,:),DIM=3)) THEN
+           ! if 2D then only take lowest level, otherwise will be 3D
+          asad_chemdiags(l)%throughput(:,:,klevel)=                            &
+               RESHAPE(dpd(:,asad_chemdiags(l)%location),                      &
+                       [row_length,rows])*                                     &
+               RESHAPE(y(:,asad_chemdiags(l)%location),                        &
+                       [row_length,rows])*                                     &
+               volume(:,:,klevel)*convfac
+          IF (asad_chemdiags(l)%tropospheric_mask) THEN
+            WHERE (L_stratosphere(:,:,klevel))
+              asad_chemdiags(l)%throughput(:,:,klevel) = 0.0
+            END WHERE
+          END IF
+        END IF
+        ! Not needed (?)
+      CASE (cdwet) ! WET DEP
+        asad_chemdiags(l)%throughput(:,:,klevel)=                              &
+             RESHAPE(dpw(:,asad_chemdiags(l)%location),                        &
+                     [row_length,rows])*                                       &
+             RESHAPE(y(:,asad_chemdiags(l)%location),                          &
+                     [row_length,rows])*                                       &
+             volume(:,:,klevel)*convfac
+        ! Not needed (?)
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,klevel))
+            asad_chemdiags(l)%throughput(:,:,klevel) = 0.0
+          END WHERE
+        END IF
+      END SELECT
+    END SELECT
+  END IF             ! l_ukca_asad_columns
+END DO                ! l=1,n_chemdiags
+
+
+ierr = 0
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+
 END SUBROUTINE asad_chemical_diagnostics
 
 ! #####################################################################
@@ -1638,7 +1643,7 @@ REAL, INTENT(IN) :: lbc_molmass(n_boundary_vals)
 
 INTEGER, INTENT(OUT) :: ierr                               ! error code
 
-INTEGER :: i,ntracer,mspecies                          ! loop variables
+INTEGER :: l,ntracer,mspecies                          ! loop variables
 
 LOGICAL :: L_cd_emitted(jpctr)                 ! T for emission diags
 
@@ -1661,64 +1666,63 @@ ierr = -1
 IF (firstcall) THEN
 
   L_cd_emitted(:) =.FALSE.
-  DO i=1,n_chemdiags
-    IF (asad_chemdiags(i)%diag_type == cdems) THEN
+  DO l=1,n_chemdiags
+    IF (asad_chemdiags(l)%diag_type == cdems) THEN
       DO ntracer=1,jpctr
         DO mspecies=1,n_emissions
            ! work out which molmass to take!
           IF ((advt(ntracer) == em_spec(mspecies)) .AND.                       &
-             (asad_chemdiags(i)%species==em_spec(mspecies))) THEN
-            asad_chemdiags(i)%molecular_mass = molmass(mspecies)
-            asad_chemdiags(i)%c_vmr_to_mmr = c_species(ntracer)
+             (asad_chemdiags(l)%species==em_spec(mspecies))) THEN
+            asad_chemdiags(l)%molecular_mass = molmass(mspecies)
+            asad_chemdiags(l)%c_vmr_to_mmr = c_species(ntracer)
             L_cd_emitted(ntracer) = .TRUE.
-            IF (asad_chemdiags(i)%species == 'NO        ')                     &
-                       asad_chemdiags(i)%molecular_mass =                      &
-                       asad_chemdiags(i)%molecular_mass*c_no/c_no2
+            IF (asad_chemdiags(l)%species == 'NO        ')                     &
+                       asad_chemdiags(l)%molecular_mass =                      &
+                       asad_chemdiags(l)%molecular_mass*c_no/c_no2
           END IF
         END DO        ! mspecies,n_emissions
         DO mspecies=1,n_boundary_vals
            ! work out which molmass to take!, can overwrite with
            ! lbc_molmass, since emmissions_ctl does this anyway
           IF ((advt(ntracer) == lbc_spec(mspecies)) .AND.                      &
-              (asad_chemdiags(i)%species == lbc_spec(mspecies)))               &
+              (asad_chemdiags(l)%species == lbc_spec(mspecies)))               &
                      THEN
-            asad_chemdiags(i)%molecular_mass=lbc_molmass(mspecies)
-            asad_chemdiags(i)%c_vmr_to_mmr = c_species(ntracer)
+            asad_chemdiags(l)%molecular_mass=lbc_molmass(mspecies)
+            asad_chemdiags(l)%c_vmr_to_mmr = c_species(ntracer)
             L_cd_emitted(ntracer) = .TRUE.
-            IF (asad_chemdiags(i)%species == 'NO        ')                     &
-                 asad_chemdiags(i)%molecular_mass =                            &
-                 asad_chemdiags(i)%molecular_mass*c_no/c_no2
+            IF (asad_chemdiags(l)%species == 'NO        ')                     &
+                 asad_chemdiags(l)%molecular_mass =                            &
+                 asad_chemdiags(l)%molecular_mass*c_no/c_no2
           END IF
         END DO        ! mspecies,n_boundary_vals
 
         IF (L_cd_emitted(ntracer)) THEN
-          IF (advt(ntracer) == asad_chemdiags(i)%species)                      &
-                    asad_chemdiags(i)%location = ntracer
+          IF (advt(ntracer) == asad_chemdiags(l)%species)                      &
+                    asad_chemdiags(l)%location = ntracer
         ELSE IF ((.NOT. L_cd_emitted(ntracer)) .AND.                           &
-           (advt(ntracer) == asad_chemdiags(i)%species)) THEN
-          cmessage='SPECIES '// asad_chemdiags(i)%species                      &
+           (advt(ntracer) == asad_chemdiags(l)%species)) THEN
+          cmessage='SPECIES '// asad_chemdiags(l)%species                      &
                 //' NOT EMITTED'
-          errcode=asad_chemdiags(i)%stash_number
+          errcode=asad_chemdiags(l)%stash_number
           WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',           &
                 errcode,' PE: ',mype
-          CALL umPrint(umMessage,src='asad_chem_flux_diags')
-          CALL ereport('ASAD_EMISSIONS_DIGNOSTICS',                            &
-                errcode,cmessage)
+          CALL umPrint(umMessage,src=RoutineName)
+          CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
         END IF
       END DO           ! ntracer,jpctr
     END IF              ! %diag_type == cdems
-  END DO                 ! i,n_chemdiags
+  END DO                 ! l,n_chemdiags
   firstcall=.FALSE.
 END IF                    ! first
 
-DO i=1,n_chemdiags
-  IF (asad_chemdiags(i)%diag_type == cdems) THEN
+DO l=1,n_chemdiags
+  IF (asad_chemdiags(l)%diag_type == cdems) THEN
     ! emissions are 2D and converted to (kg/m2/s)
-    asad_chemdiags(i)%throughput(:,:,1) =                                      &
-        em_field(:,:,asad_chemdiags(i)%location)*surf_area(:,:)*               &
-        (1000.0/asad_chemdiags(i)%molecular_mass)
+    asad_chemdiags(l)%throughput(:,:,1) =                                      &
+        em_field(:,:,asad_chemdiags(l)%location)*surf_area(:,:)*               &
+        (1000.0/asad_chemdiags(l)%molecular_mass)
   END IF                 ! %diag_type
-END DO                    ! i,n_chemdiags
+END DO                    ! l,n_chemdiags
 
 
 ierr = 0
@@ -1772,25 +1776,24 @@ ierr = -1
 
 IF (firstcall) THEN
   spec_emitted = .FALSE.
-  DO i=1,n_chemdiags
-    IF (asad_chemdiags(i)%diag_type == cdems .AND.                             &
-        asad_chemdiags(i)%rxn_type == emission_type .AND.                      &
-        asad_chemdiags(i)%species == advt(i_spec_emiss)) THEN
-      asad_chemdiags(i)%location = i_spec_emiss
-      asad_chemdiags(i)%molecular_mass = em_molmass
-      asad_chemdiags(i)%c_vmr_to_mmr   = c_species(i_spec_emiss)
+  DO l=1,n_chemdiags
+    IF (asad_chemdiags(l)%diag_type == cdems .AND.                             &
+        asad_chemdiags(l)%rxn_type == emission_type .AND.                      &
+        asad_chemdiags(l)%species == advt(i_spec_emiss)) THEN
+      asad_chemdiags(l)%location = i_spec_emiss
+      asad_chemdiags(l)%molecular_mass = em_molmass
+      asad_chemdiags(l)%c_vmr_to_mmr   = c_species(i_spec_emiss)
       spec_emitted = .TRUE.
     END IF         ! diag_type == cdems &etc
   END DO
   IF (.NOT. spec_emitted) THEN
-    cmessage='SPECIES '//asad_chemdiags(i)%species                             &
+    cmessage='SPECIES '//asad_chemdiags(l)%species                             &
          //' NOT EMITTED IN 3D'
-    errcode=asad_chemdiags(i)%stash_number
+    errcode=asad_chemdiags(l)%stash_number
     WRITE(umMessage,'(2A,I0,A,I0)') cmessage, ' Error code: ',errcode,         &
          ' PE: ',mype
-    CALL umPrint(umMessage,src='asad_chem_flux_diags')
-    CALL ereport('ASAD_3D_EMISSIONS_DIGNOSTICS',                               &
-         errcode,cmessage)
+    CALL umPrint(umMessage,src=RoutineName)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
   firstcall = .FALSE.
 END IF                    ! firstcall
@@ -1800,28 +1803,28 @@ END IF                    ! firstcall
 em_field_3d(:,:,:) = -1.0 ! i.e. if values are -ve, have a problem
 ! sanity check, just in case
 !em_field_3d(:,:,:) = em_field_3d_in(:,:,:)
-DO i=1,n_chemdiags
-  SELECT CASE (asad_chemdiags(i)%diag_type)
+DO l=1,n_chemdiags
+  SELECT CASE (asad_chemdiags(l)%diag_type)
   CASE (cdems)
-    IF ((asad_chemdiags(i)%rxn_type == aircraft_emissions)                     &
+    IF ((asad_chemdiags(l)%rxn_type == aircraft_emissions)                     &
          .AND. (emission_type == aircraft_emissions)) THEN
        ! these are in kg(NO2)/m2/s
        ! - need to multiply by the surface area and / air mass
       DO klevel=1,model_levels
         DO j=1,rows
-          DO l=1,row_length
-            em_field_3d(l,j,klevel) =                                          &
-             (em_field_3d_in(l,j,klevel)/mass(l,j,klevel))*                    &
-              surf_area(l,j)
-          END DO ! l
+          DO i=1,row_length
+            em_field_3d(i,j,klevel) =                                          &
+             (em_field_3d_in(i,j,klevel)/mass(i,j,klevel))*                    &
+              surf_area(i,j)
+          END DO ! i
         END DO ! j
       END DO ! klevel
-    ELSE IF ((asad_chemdiags(i)%rxn_type ==                                    &
+    ELSE IF ((asad_chemdiags(l)%rxn_type ==                                    &
          lightning_emissions) .AND. (emission_type ==                          &
          lightning_emissions)) THEN
        ! do nothing - in kg(NO)/kg(air)/gridcell/s
       em_field_3d(:,:,:) = em_field_3d_in(:,:,:)
-    ELSE IF ((asad_chemdiags(i)%rxn_type ==                                    &
+    ELSE IF ((asad_chemdiags(l)%rxn_type ==                                    &
          volcanic_emissions) .AND. (emission_type ==                           &
          volcanic_emissions)) THEN
        ! volcanic emissions are kg(SO2)/kg(air)/gridcell/timestep
@@ -1837,22 +1840,22 @@ END DO
 
 ! mass calculation method
 ! converts from kg(species)/kg(air)/s to mol/s
-DO i=1,n_chemdiags
-  IF (asad_chemdiags(i)%diag_type == cdems) THEN
-    IF ((advt(i_spec_emiss) == asad_chemdiags(i)%species) .AND.                &
-             (emission_type == asad_chemdiags(i)%rxn_type)) THEN
-      asad_chemdiags(i)%throughput(:,:,:)= (em_field_3d(                       &
+DO l=1,n_chemdiags
+  IF (asad_chemdiags(l)%diag_type == cdems) THEN
+    IF ((advt(i_spec_emiss) == asad_chemdiags(l)%species) .AND.                &
+             (emission_type == asad_chemdiags(l)%rxn_type)) THEN
+      asad_chemdiags(l)%throughput(:,:,:)= (em_field_3d(                       &
                      1:row_length,1:rows,1:model_levels)                       &
                      *mass(1:row_length,1:rows,1:model_levels))                &
-                      *(1000.0/asad_chemdiags(i)%molecular_mass)
-      IF (asad_chemdiags(i)%tropospheric_mask) THEN
-        WHERE (.NOT. L_troposphere)
-          asad_chemdiags(i)%throughput(:,:,:) = 0.0
+                      *(1000.0/asad_chemdiags(l)%molecular_mass)
+      IF (asad_chemdiags(l)%tropospheric_mask) THEN
+        WHERE (L_stratosphere)
+          asad_chemdiags(l)%throughput(:,:,:) = 0.0
         END WHERE
       END IF
     END IF              ! advt==%species
   END IF             ! %diag_type == cdems
-END DO                    ! i,n_chemdiags
+END DO                    ! l,n_chemdiags
 
 ierr = 0
 
@@ -1863,7 +1866,7 @@ END SUBROUTINE asad_3d_emissions_diagnostics
 ! #####################################################################
 SUBROUTINE asad_tropospheric_mask(ierr)
 
-USE ukca_tropopause , ONLY: L_troposphere
+USE ukca_tropopause , ONLY: L_stratosphere
 IMPLICIT NONE
 
 INTEGER, INTENT(OUT) :: ierr
@@ -1885,7 +1888,7 @@ IF (L_asad_use_trop_mask_output) THEN
     SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdtpm)
       asad_chemdiags(l)%throughput(:,:,:) = 1.0e0
-      WHERE (.NOT. L_Troposphere(:,:,:))
+      WHERE (L_stratosphere(:,:,:))
         asad_chemdiags(l)%throughput(:,:,:) = 0.0e0
       END WHERE
     END SELECT ! %diag_type
@@ -1997,7 +2000,7 @@ chemdiags_loop: DO l=1,n_chemdiags
                    /timestep
       ! Mask out stratospheric values if requested
       IF (asad_chemdiags(l)%tropospheric_mask) THEN
-        WHERE (.NOT. L_troposphere)
+        WHERE (L_stratosphere)
           asad_chemdiags(l)%throughput(:,:,:) = 0.0
         END WHERE
       END IF
@@ -2023,7 +2026,7 @@ INTEGER, INTENT(IN)  :: model_levels                         ! array dimension
 REAL,    INTENT(IN)  :: mass(row_length,rows,model_levels)   ! mass of cell
 INTEGER, INTENT(OUT) :: ierr                                 ! error code
 
-INTEGER :: i                      ! counter
+INTEGER :: l                      ! counter
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -2035,16 +2038,16 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ierr = -1
 
-DO i=1,n_chemdiags
-  IF (asad_chemdiags(i)%diag_type == cdmas) THEN
-    asad_chemdiags(i)%throughput(:,:,:) = mass(:,:,:)
-    IF (asad_chemdiags(i)%tropospheric_mask) THEN
-      WHERE (.NOT. L_Troposphere)
-        asad_chemdiags(i)%throughput(:,:,:) = 0.0
+DO l=1,n_chemdiags
+  IF (asad_chemdiags(l)%diag_type == cdmas) THEN
+    asad_chemdiags(l)%throughput(:,:,:) = mass(:,:,:)
+    IF (asad_chemdiags(l)%tropospheric_mask) THEN
+      WHERE (L_stratosphere)
+        asad_chemdiags(l)%throughput(:,:,:) = 0.0
       END WHERE
     END IF
   END IF
-END DO                    ! i,n_chemdiags
+END DO                    ! l,n_chemdiags
 
 ierr = 0
 
@@ -2069,7 +2072,7 @@ INTEGER, INTENT(OUT) :: ierr                   ! error code
 REAL, INTENT(IN) :: fpsc1_full(model_levels)
 REAL, INTENT(IN) :: fpsc2_full(model_levels)
 
-INTEGER :: i                                   ! counter
+INTEGER :: l                                   ! counter
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -2080,26 +2083,26 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_PSC_DIAGNOSTIC'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ierr = -1
 
-DO i=1,n_chemdiags
+DO l=1,n_chemdiags
 
   IF (ukca_config%l_ukca_asad_columns) THEN
      ! in this case ASAD is being called column-by column so we need
      ! to fill %throughput by iterating over X & Y
-    SELECT CASE (asad_chemdiags(i)%diag_type)
+    SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdpsc)
-      SELECT CASE (asad_chemdiags(i)%rxn_type)
+      SELECT CASE (asad_chemdiags(l)%rxn_type)
       CASE (cdpsc_typ1)
-        asad_chemdiags(i)%throughput(ix,jy,:) = fpsc1_full(:)
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_Troposphere(ix,jy,:))
-            asad_chemdiags(i)%throughput(ix,jy,:) = 0.0
+        asad_chemdiags(l)%throughput(ix,jy,:) = fpsc1_full(:)
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(ix,jy,:))
+            asad_chemdiags(l)%throughput(ix,jy,:) = 0.0
           END WHERE
         END IF
       CASE (cdpsc_typ2)
-        asad_chemdiags(i)%throughput(ix,jy,:) = fpsc2_full(:)
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_Troposphere(ix,jy,:))
-            asad_chemdiags(i)%throughput(ix,jy,:) = 0.0
+        asad_chemdiags(l)%throughput(ix,jy,:) = fpsc2_full(:)
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(ix,jy,:))
+            asad_chemdiags(l)%throughput(ix,jy,:) = 0.0
           END WHERE
         END IF
       END SELECT
@@ -2107,23 +2110,23 @@ DO i=1,n_chemdiags
   ELSE
      ! in this case ASAD is being called horizontally so we need
      ! to fill %throughput by iterating over Z
-    SELECT CASE (asad_chemdiags(i)%diag_type)
+    SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdpsc)
-      SELECT CASE (asad_chemdiags(i)%rxn_type)
+      SELECT CASE (asad_chemdiags(l)%rxn_type)
       CASE (cdpsc_typ1)
-        asad_chemdiags(i)%throughput(:,:,klevel) =                             &
+        asad_chemdiags(l)%throughput(:,:,klevel) =                             &
              RESHAPE(fpsc1(:),[row_length,rows])
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_Troposphere(:,:,klevel))
-            asad_chemdiags(i)%throughput(:,:,klevel) = 0.0
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,klevel))
+            asad_chemdiags(l)%throughput(:,:,klevel) = 0.0
           END WHERE
         END IF
       CASE (cdpsc_typ2)
-        asad_chemdiags(i)%throughput(:,:,klevel) =                             &
+        asad_chemdiags(l)%throughput(:,:,klevel) =                             &
              RESHAPE(fpsc2(:),[row_length,rows])
-        IF (asad_chemdiags(i)%tropospheric_mask) THEN
-          WHERE (.NOT. L_Troposphere(:,:,klevel))
-            asad_chemdiags(i)%throughput(:,:,klevel) = 0.0
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,klevel))
+            asad_chemdiags(l)%throughput(:,:,klevel) = 0.0
           END WHERE
         END IF
       END SELECT
@@ -2195,7 +2198,7 @@ DO l=1,n_chemdiags
     asad_chemdiags(l)%throughput(:,:,:) =                                      &
          all_tracers(:,:,:,asad_chemdiags(l)%location)
     IF (asad_chemdiags(l)%tropospheric_mask) THEN
-      WHERE (.NOT. L_Troposphere(:,:,:))
+      WHERE (L_stratosphere(:,:,:))
         asad_chemdiags(l)%throughput(:,:,:) = 0.0
       END WHERE
     END IF
@@ -2243,7 +2246,7 @@ DO l=1,n_chemdiags
 
       ! never used
       IF (asad_chemdiags(l)%tropospheric_mask) THEN
-        WHERE (.NOT. L_Troposphere(:,:,1))
+        WHERE (L_stratosphere(:,:,1))
           asad_chemdiags(l)%throughput(:,:,1) = 0.0
         END WHERE
       END IF

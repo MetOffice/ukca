@@ -174,7 +174,7 @@ USE ukca_cspecies,          ONLY: c_species, c_na_species, n_bro, n_h2o,       &
 USE chemistry_constants_mod, ONLY: boltzmann, avogadro, rho_so4
 USE ukca_tropopause,        ONLY:                                              &
     p_tropopause,           theta_trop,            pv_trop,                    &
-    tropopause_level,       l_troposphere,         ukca_calc_tropopause
+    tropopause_level,       l_stratosphere,        ukca_calc_tropopause
 
 USE ukca_mode_verbose_mod,  ONLY: glob_verbose
 USE ukca_chem_offline,      ONLY: o3_offline_diag, oh_offline_diag,            &
@@ -1236,8 +1236,8 @@ IF (ukca_config%l_ukca_chem) THEN
       ALLOCATE(theta_trop(row_length,rows))
     IF ( .NOT. ALLOCATED(pv_trop) )                                            &
       ALLOCATE(pv_trop(row_length,rows))
-    IF ( .NOT. ALLOCATED(L_troposphere) )                                      &
-      ALLOCATE(L_troposphere(row_length,rows,model_levels))
+    IF ( .NOT. ALLOCATED(L_stratosphere) )                                     &
+      ALLOCATE(L_stratosphere(row_length,rows,model_levels))
 
     IF (ukca_config%l_use_gridbox_mass) THEN
 
@@ -1791,12 +1791,12 @@ IF (ukca_config%l_ukca_chem) THEN
     ! Catch in case using box model with 1 model level
     IF (model_levels > 1) THEN
       p_tropopause(:,:) = p_theta_levels(:,:,k)
-      l_troposphere(:,:,1:k) = .TRUE.
-      l_troposphere(:,:,k+1:model_levels) = .FALSE.
+      l_stratosphere(:,:,1:k) = .FALSE.
+      l_stratosphere(:,:,k+1:model_levels) = .TRUE.
     ELSE
       ! Default to running in the troposphere if with one model level
       p_tropopause(:,:) = rmdi
-      l_troposphere(:,:,1) = .TRUE.
+      l_stratosphere(:,:,1) = .FALSE.
     END IF
   ELSE
     ! Calculate tropopause pressure using a combined
@@ -1860,12 +1860,12 @@ IF (ukca_config%l_ukca_chem) THEN
         DO k=1,model_levels
           DO j=1,rows
             DO i=1,row_length
-              IF (L_troposphere(i,j,k)) THEN              ! troposphere
+              IF (L_stratosphere(i,j,k)) THEN                    ! stratosphere
+                strat_fluxdiags(i,j,k,icnt) = 0.0
+              ELSE                                               ! troposphere
                 strat_fluxdiags(i,j,k,icnt) =                                  &
                  (trmol_post_atmstep(i,j,k,l)-                                 &
                   trmol_post_chem(i,j,k,l))/ukca_config%timestep ! moles/sec
-              ELSE                                        ! stratosphere
-                strat_fluxdiags(i,j,k,icnt) = 0.0
               END IF
             END DO
           END DO
@@ -3051,7 +3051,7 @@ IF (ukca_config%l_ukca_persist_off) THEN
   IF (ALLOCATED(int_zenith_angle)) DEALLOCATE(int_zenith_angle)
   IF (ALLOCATED(z_half_alllevs))   DEALLOCATE(z_half_alllevs)
   IF (ALLOCATED(z_half))           DEALLOCATE(z_half)
-  IF (ALLOCATED(L_troposphere))    DEALLOCATE(L_troposphere)
+  IF (ALLOCATED(L_stratosphere))   DEALLOCATE(L_stratosphere)
   IF (ALLOCATED(pv_trop))          DEALLOCATE(pv_trop)
   IF (ALLOCATED(theta_trop))       DEALLOCATE(theta_trop)
   IF (ALLOCATED(tropopause_level)) DEALLOCATE(tropopause_level)

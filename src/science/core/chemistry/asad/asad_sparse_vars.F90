@@ -681,14 +681,14 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! Filter sparse Jacobian
 #if defined(IBM_XL_FORTRAN)
 ! Version optimised for IBM by using the fsel IBM-only intrinsic
-DO j=1,spfjsize_max
+DO j=1,total
   DO i=1,n_points
     tmp=fsel(spfj(i,j)+max_val,spfj(i,j),-max_val)
     spfj(i,j)=fsel(tmp-max_val,max_val,tmp)
   END DO
 END DO
 #else
-DO j=1,spfjsize_max
+DO j=1,total
   DO i=1,n_points
     spfj(i,j)=MIN(MAX(spfj(i,j),-max_val),max_val)
   END DO
@@ -735,14 +735,14 @@ END DO
 ! Filter sparse Jacobian
 #if defined(IBM_XL_FORTRAN)
 ! Version optimised for IBM by using the fsel IBM-only intrinsic
-DO j=1,spfjsize_max
+DO j=1,total1
   DO i=1,n_points
     tmp=fsel(spfj(i,j)+max_val,spfj(i,j),-max_val)
     spfj(i,j)=fsel(tmp-max_val,max_val,tmp)
   END DO
 END DO
 #else
-DO j=1,spfjsize_max
+DO j=1,total1
   DO i=1,n_points
     spfj(i,j)=MIN(MAX(spfj(i,j),-max_val),max_val)
   END DO

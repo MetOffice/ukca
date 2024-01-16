@@ -36,7 +36,7 @@ CONTAINS
 
 SUBROUTINE ukca_sediment(rows, row_length, model_levels,                       &
                   shno3, qcf, r_theta_levels, mass, secs_per_step,             &
-                  L_troposphere)
+                  L_stratosphere)
 !
 
 USE yomhook, ONLY: lhook, dr_hook
@@ -54,7 +54,7 @@ REAL   , INTENT(IN) :: r_theta_levels(row_length, rows,                        &
                                    0:model_levels)
 REAL   , INTENT(IN) :: mass(row_length, rows, model_levels)
 REAL   , INTENT(IN) :: qcf(row_length, rows, model_levels)
-LOGICAL, INTENT(IN) :: L_troposphere(row_length, rows, model_levels)
+LOGICAL, INTENT(IN) :: L_stratosphere(row_length, rows, model_levels)
 REAL, INTENT(IN OUT) :: shno3(row_length, rows, model_levels)
 
 ! Local variables
@@ -94,7 +94,7 @@ DO k = 1, model_levels
     END DO
   END DO
 END DO
-WHERE (L_troposphere) sh2o = 0.0
+WHERE (.NOT. L_stratosphere) sh2o = 0.0
 
 DO k=2,model_levels
   IF (MAXVAL(shno3(:,:,k)) > 0.0) THEN

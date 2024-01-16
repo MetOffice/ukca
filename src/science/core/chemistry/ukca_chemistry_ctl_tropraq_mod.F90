@@ -102,7 +102,7 @@ USE ukca_cspecies,        ONLY: c_species, n_ch4, n_h2o2,                      &
                                 nn_o1d, nn_o3, nn_o3p, nn_oh,                  &
                                 n_h2o, nn_so2, c_na_species,                   &
                                 n_h2so4
-USE UKCA_tropopause,      ONLY: L_troposphere
+USE UKCA_tropopause,      ONLY: L_stratosphere
 USE ukca_conserve_mod,    ONLY: ukca_conserve
 USE ukca_constants,       ONLY: c_h2o, c_hono2
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
@@ -501,7 +501,7 @@ nlev_with_ddep2(:) = RESHAPE(nlev_with_ddep(:,:),[theta_field_size])
 !$OMP        delSO2_wet_O3, delSO2_wetdep, dry_dep_3d, dts, h2o2_offline,      &
 !$OMP        speci,                                                            &
 !$OMP        jpctr, jpdd, jpdw, jphk, jppj, jpspec, jpro2, kp_nh,              &
-!$OMP        jpcspf, spro2, nlnaro2, ctype, l_troposphere,                     &
+!$OMP        jpcspf, spro2, nlnaro2, ctype, l_stratosphere,                    &
 !$OMP        ukca_config,                                                      &
 !$OMP        ldepd, ldepw, model_levels,                                       &
 !$OMP        n_be_calls, n_ch4, n_h2o2, n_o3, n_pnts, nadvt, nlev_with_ddep2,  &
@@ -714,7 +714,7 @@ DO k=1,model_levels
     ! Fill in stratospheric flag indicator, which will be passed
     ! to UKCA_CHEMCO_RAQ in order to set tropospheric heterogeneous
     ! reactions (if present) to zero in the stratosphere
-    stratflag (:) = RESHAPE(.NOT. L_troposphere(:,:,k), [theta_field_size])
+    stratflag (:) = RESHAPE(L_stratosphere(:,:,k), [theta_field_size])
 
     CALL ukca_chemco_raq(nr_therm, n_pnts, zt(1:n_pnts),                       &
                     BE_tnd(1:n_pnts), BE_h2o(1:n_pnts),                        &
@@ -927,12 +927,12 @@ IF (ALLOCATED(ystore)) DEALLOCATE(ystore)
 !$OMP END PARALLEL
 
 ! Now mask off stratospheric and tropospheric diagnostics
-WHERE (L_troposphere(:,:,:))
-  strat_ch4_mol(:,:,:) = 0.0
-ELSE WHERE
+WHERE (L_stratosphere(:,:,:))
   trop_ch4_mol(:,:,:) = 0.0
   trop_o3_mol(:,:,:) = 0.0
   trop_oh_mol(:,:,:) = 0.0
+ELSE WHERE
+  strat_ch4_mol(:,:,:) = 0.0
 END WHERE
 
 ! Call raq diagnostic routine

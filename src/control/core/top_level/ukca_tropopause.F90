@@ -7,7 +7,7 @@
 ! Purpose: Module containing subroutine to calculate the pressure of
 !          the 2.0pvu surface and the pressure of the 380K surface.
 !          Routine combines them to calculate the pressure of the
-!          tropopause and set L_troposphere to .true. for those
+!          tropopause and set L_stratosphere to .false. for those
 !          gridboxes in the troposphere.
 !
 !  Part of the UKCA model, a community model supported by
@@ -53,7 +53,7 @@ REAL,ALLOCATABLE,PUBLIC  :: pv_trop(:,:)
 
 !     Logical set to true for gridpoints within the troposphere
 
-LOGICAL, ALLOCATABLE, PUBLIC :: L_troposphere(:,:,:)
+LOGICAL, ALLOCATABLE, PUBLIC :: L_stratosphere(:,:,:)
 
 CHARACTER(LEN=errormessagelength) :: cmessage           ! Error message
 INTEGER           :: ierr               !   "   code
@@ -149,7 +149,7 @@ jlu = 0
 p_tropopause(:,:)     = rmdi
 theta_trop(:,:)       = rmdi
 pv_trop(:,:)          = rmdi
-L_troposphere(:,:,:)  = .FALSE.
+L_stratosphere(:,:,:) = .TRUE.
 tropopause_level(:,:) = imdi
 
 ! If running with single level tropopause cannot be calculated
@@ -283,7 +283,7 @@ IF (model_levels > 1) THEN
 
   !     Calculate combined tropopause based on weighting function
 
-  L_troposphere = .FALSE.
+  L_stratosphere = .TRUE.
   DO j = 1,rows
     DO i = 1,row_length
       p_tropopause(i,j) = (wt(i,j)*pv_trop(i,j))                               &
@@ -294,7 +294,7 @@ IF (model_levels > 1) THEN
 
       LOOP_trop_2: DO l=1,model_levels
         IF (pr_boundaries(i,j,l) >= p_tropopause(i,j)) THEN
-          L_troposphere(i,j,l)  = .TRUE.
+          L_stratosphere(i,j,l)  = .FALSE.
         ELSE
           tropopause_level(i,j) = l
           EXIT LOOP_trop_2
@@ -306,7 +306,7 @@ IF (model_levels > 1) THEN
 
 ELSE
   ! Case where only one model level, default to being in troposphere
-  L_troposphere(:,:,:) = .TRUE.
+  L_stratosphere(:,:,:) = .FALSE.
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

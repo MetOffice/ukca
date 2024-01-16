@@ -110,7 +110,7 @@ USE ukca_cspecies,        ONLY: c_species, c_na_species, n_cf2cl2, n_cfcl3,    &
                                 nn_cl, nn_h2o2, nn_h2so4, nn_o1d,              &
                                 nn_o3, nn_o3p, nn_oh, nn_so2
 USE asad_findreaction_mod, ONLY: asad_findreaction
-USE UKCA_tropopause,      ONLY: L_troposphere
+USE UKCA_tropopause,      ONLY: L_stratosphere
 USE ukca_conserve_mod,    ONLY: ukca_conserve
 USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE chemistry_constants_mod, ONLY: avogadro
@@ -519,7 +519,7 @@ nlev_with_ddep2(:) = RESHAPE(nlev_with_ddep(:,:),[theta_field_size])
 !$OMP        jpcspf, spro2, nlnaro2, ctype, istore_h2so4,                      &
 !$OMP        l_asad_use_chem_diags, l_asad_use_drydep,                         &
 !$OMP        l_asad_use_flux_rxns, l_asad_use_psc_diagnostic,                  &
-!$OMP        l_asad_use_rxn_rates, l_asad_use_wetdep, l_troposphere,           &
+!$OMP        l_asad_use_rxn_rates, l_asad_use_wetdep, l_stratosphere,          &
 !$OMP        ukca_config,                                                      &
 !$OMP        ldepd, ldepw, model_levels,                                       &
 !$OMP        n_cf2cl2, n_cfcl3, n_ch4, n_co, n_h2, n_h2o2,                     &
@@ -688,8 +688,7 @@ DO k=1,model_levels
   END IF
 
   ! fill stratospheric flag indicator and SO4 surface area
-  stratflag(:) = (.NOT. RESHAPE(L_troposphere(:,:,k),                          &
-                            [theta_field_size]) )
+  stratflag(:) = RESHAPE(L_stratosphere(:,:,k),[theta_field_size])
   za(:) = RESHAPE(so4_sa(:,:,k),[theta_field_size])
 
   ! Reshape masked array for natpsc formation
@@ -921,7 +920,7 @@ IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.             &
 
     CALL ukca_sediment(rows, row_length, model_levels, shno3_3d,               &
              qcf, r_theta_levels, mass, secs_per_step,                         &
-             L_troposphere(:,:,:) )
+             L_stratosphere(:,:,:))
 
     ! add solid-phase HNO3 back to gasphase HNO3
     tracer(:,:,:,n_hono2) = tracer(:,:,:,n_hono2) + shno3_3d
