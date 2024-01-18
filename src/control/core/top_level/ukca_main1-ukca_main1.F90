@@ -165,7 +165,8 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
 
 USE ukca_humidity_mod,      ONLY: ukca_vmrsat_liq, ukca_vmr_clear_sky
 
-USE asad_mod,               ONLY: nnaf, interval, advt, jpctr, jpspec, jppj
+USE asad_mod,               ONLY: nnaf, interval, advt, jpctr, jpspec, jpdd,   &
+                                  jpdw, jppj
 
 USE ukca_tracer_vars,       ONLY: trmol_post_chem
 USE ukca_cspecies,          ONLY: c_species, c_na_species, n_bro, n_h2o,       &
@@ -206,6 +207,8 @@ USE asad_diags_output_ctl_mod, ONLY: asad_diags_output_ctl
 
 USE ukca_diurnal_oxidant,   ONLY: ukca_int_cosz, dealloc_diurnal_oxidant
 USE ukca_emiss_ctl_mod,     ONLY: ukca_emiss_ctl
+USE ukca_chemistry_setup_mod, ONLY: ukca_chemistry_setup
+USE ukca_chemistry_cleanup_mod, ONLY: ukca_chemistry_cleanup
 USE ukca_chemistry_ctl_be_mod, ONLY: ukca_chemistry_ctl_be
 USE ukca_chemistry_ctl_tropraq_mod, ONLY: ukca_chemistry_ctl_tropraq
 
@@ -299,6 +302,7 @@ INTEGER    :: row_length        ! Size of UKCA x dimension (columns)
 INTEGER    :: rows              ! Size of UKCA y dimension (rows)
 INTEGER    :: model_levels      ! Size of UKCA z dimension (levels)
 INTEGER    :: theta_field_size  ! No. of points in horizontal plane
+INTEGER    :: n_pnts            ! No. of points passed to ASAD
 INTEGER    :: section           ! stash section
 INTEGER    :: item              ! stash item
 INTEGER    :: i                 ! loop variables
@@ -516,6 +520,16 @@ REAL :: cdncwt(                                                                &
           ukca_config%rows,                                                    &
           ukca_config%model_levels)
 
+! Variables hoisted out of ukca_chemistry_ctl
+INTEGER, SAVE :: istore_h2so4  ! location of H2SO4 in f array
+REAL :: zdryrt(ukca_config%row_length,ukca_config%rows,jpdd)  ! dry dep rate
+REAL :: zwetrt(ukca_config%row_length,ukca_config%rows,                        &
+               ukca_config%model_levels,jpdw)                 ! wet dep rate
+REAL :: shno3_3d(ukca_config%row_length,ukca_config%rows,                      &
+                 ukca_config%model_levels)
+INTEGER :: nlev_with_ddep(ukca_config%row_length,                              &
+                          ukca_config%rows)  ! No. of levels in boundary layer
+
 REAL, SAVE :: lambda_aitken, lambda_accum ! parameters for computation
                                           ! of surface area density
 LOGICAL :: do_chemistry
@@ -597,6 +611,11 @@ rows = ukca_config%rows
 model_levels = ukca_config%model_levels
 
 theta_field_size = row_length * rows
+IF (ukca_config%l_ukca_asad_columns) THEN
+  n_pnts = ukca_config%ukca_chem_seg_size
+ELSE
+  n_pnts = theta_field_size
+END IF
 
 ! On first call, check for availability of UKCA configuration data
 IF (l_first_call) THEN
@@ -724,11 +743,7 @@ IF (l_first_call) THEN
 
   IF (ukca_config%l_ukca_chem) THEN
 
-    IF (ukca_config%l_ukca_asad_columns) THEN
-      CALL ukca_iniasad(ukca_config%ukca_chem_seg_size)
-    ELSE
-      CALL ukca_iniasad(theta_field_size)
-    END IF
+    CALL ukca_iniasad(n_pnts)
 
     ! Check that some CLASSIC aerosol types/processes are modelled if
     ! heterogeneous reactions on CLASSIC aerosols are used in UKCA.
@@ -857,11 +872,7 @@ END IF
 ! Reallocate the spatial variables in ASAD if persistence is off
 IF (ukca_config%l_ukca_chem .AND. ukca_config%l_ukca_persist_off .AND.         &
     (.NOT. l_first_call)) THEN
-  IF (ukca_config%l_ukca_asad_columns) THEN
-    CALL ukca_iniasad_spatial_vars(ukca_config%ukca_chem_seg_size)
-  ELSE
-    CALL ukca_iniasad_spatial_vars(theta_field_size)
-  END IF
+  CALL ukca_iniasad_spatial_vars(n_pnts)
 END IF
 
 ! set up nmr and mmr indices on first call, only if using
@@ -2223,54 +2234,71 @@ IF (ukca_config%l_ukca_chem) THEN
     END IF
     ! now pass H_plus array to routines that use it in chem ctl
 
+    ! Prepare to run ASAD
+    CALL ukca_chemistry_setup(                                                 &
+         row_length, rows, model_levels,                                       &
+         theta_field_size,                                                     &
+         ukca_config%bl_levels,                                                &
+         n_chem_tracers+n_aero_tracers,                                        &
+         ukca_config%ntype,                                                    &
+         ukca_config%npft,                                                     &
+         SIZE(stashwork50),                                                    &
+         i_month, i_day_number, i_hour,                                        &
+         land_points, land_index, tile_pts, tile_index,                        &
+         istore_h2so4,                                                         &
+         nlev_with_ddep,                                                       &
+         r_minute - ukca_config%timestep/60.0,                                 &
+         REAL(ukca_config%chem_timestep),                                      &
+         latitude, longitude,                                                  &
+         sin_latitude, tan_latitude,                                           &
+         t_chem,                                                               &
+         p_theta_levels,                                                       &
+         rel_humid_frac,                                                       &
+         p_layer_boundaries,                                                   &
+         Tstar,                                                                &
+         Thick_bl_levels,                                                      &
+         u_s,                                                                  &
+         rough_length,                                                         &
+         ls_ppn3d, conv_ppn3d,                                                 &
+         frac_types,                                                           &
+         seaice_frac, stcon, surf_hf,                                          &
+         soil_moisture_layer1, fland,                                          &
+         laift_lp, canhtft_lp,                                                 &
+         z0tile_lp, tstar_tile,                                                &
+         zbl,                                                                  &
+         H_plus_3d_arr,                                                        &
+         zdryrt, zwetrt,                                                       &
+         all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                   &
+         stashwork50,                                                          &
+         l_firstchem                                                           &
+         )
+
     IF (ukca_config%l_ukca_offline_be) THEN
 
       ! Offline chemistry with explicit backward-Euler solver
       CALL ukca_chemistry_ctl_be(                                              &
            row_length, rows, model_levels,                                     &
-           ukca_config%bl_levels,                                              &
            theta_field_size,                                                   &
            n_chem_tracers+n_aero_tracers,                                      &
-           ukca_config%ntype,                                                  &
-           ukca_config%npft,                                                   &
-           i_month, i_day_number, i_hour,                                      &
-           r_minute - ukca_config%timestep/60.0,                               &
            ukca_config%chem_timestep,                                          &
            k_be_top,                                                           &
-           latitude,                                                           &
-           longitude,                                                          &
-           sin_latitude,                                                       &
-           tan_latitude,                                                       &
            p_theta_levels,                                                     &
            t_chem,                                                             &
            q_chem,                                                             &
            qcl,                                                                &
-           rel_humid_frac,                                                     &
-           p_layer_boundaries,                                                 &
            all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
-           tstar,                                                              &
-           thick_bl_levels,                                                    &
-           rough_length,                                                       &
-           u_s,                                                                &
-           ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            grid_volume,                                                        &
            ! Extra variables for new dry dep scheme
-           land_points, land_index,                                            &
-           tile_pts, tile_index, frac_types,                                   &
-           zbl, surf_hf, seaice_frac, stcon,                                   &
-           soil_moisture_layer1, fland,                                        &
-           laift_lp, canhtft_lp,                                               &
-           z0tile_lp, tstar_tile,                                              &
            uph2so4inaer,                                                       &
            delso2_wet_h2o2,                                                    &
            delso2_wet_o3,                                                      &
            delh2so4_chem,                                                      &
            delso2_drydep,                                                      &
            delso2_wetdep,                                                      &
-           SIZE(stashwork50),                                                  &
-           stashwork50,                                                        &
-           H_plus_3d_arr                                                       &
+           H_plus_3d_arr,                                                      &
+           zdryrt, zwetrt, nlev_with_ddep,                                     &
+           l_firstchem                                                         &
            )
 
     ELSE IF (ukca_config%l_ukca_asad_columns .AND.                             &
@@ -2281,54 +2309,28 @@ IF (ukca_config%l_ukca_chem) THEN
 
       CALL ukca_chemistry_ctl_col(                                             &
            row_length, rows, model_levels,                                     &
-           ukca_config%bl_levels,                                              &
            theta_field_size,                                                   &
            n_chem_tracers+n_aero_tracers,                                      &
-           ukca_config%ntype,                                                  &
-           ukca_config%npft,                                                   &
-           i_month, i_day_number, i_hour,                                      &
-           r_minute - ukca_config%timestep/60.0,                               &
-           REAL(ukca_config%chem_timestep),                                    &
-           latitude,                                                           &
-           longitude,                                                          &
-           sin_latitude,                                                       &
-           tan_latitude,                                                       &
+           istore_h2so4,                                                       &
            p_theta_levels,                                                     &
            t_chem,                                                             &
            q_chem,                                                             &
            qcf,                                                                &
            qcl,                                                                &
-           rel_humid_frac,                                                     &
-           p_layer_boundaries,                                                 &
-           r_theta_levels(1:row_length, 1:rows, :),                            &
-           z_top_of_model,                                                     &
            all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
            all_ntp,                                                            &
-           Tstar,                                                              &
-           Thick_bl_levels,                                                    &
-           rough_length,                                                       &
-           u_s,                                                                &
-           ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            photol_rates,                                                       &
+           shno3_3d,                                                           &
            grid_volume,                                                        &
-           mass,                                                               &
            ! Extra variables for new dry dep scheme
-           land_points, land_index,                                            &
-           tile_pts, tile_index, frac_types,                                   &
-           zbl, surf_hf, seaice_frac, stcon,                                   &
-           soil_moisture_layer1, fland,                                        &
-           laift_lp, canhtft_lp,                                               &
-           z0tile_lp, tstar_tile,                                              &
            have_nat3d,                                                         &
-           env_ozone3d,                                                        &
            uph2so4inaer,                                                       &
            delso2_wet_h2o2,                                                    &
            delso2_wet_o3,                                                      &
            delh2so4_chem,                                                      &
            so4_sa,                                                             &
            ! Diagnostics
-           nat_psc,                                                            &
            atm_ch4_mol,                                                        &
            atm_co_mol,                                                         &
            atm_n2o_mol,                                                        &
@@ -2336,9 +2338,8 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_cfcl3_mol,                                                      &
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
-           SIZE(stashwork50),                                                  &
-           stashwork50,                                                        &
-           H_plus_3d_arr                                                       &
+           H_plus_3d_arr,                                                      &
+           zdryrt, zwetrt, nlev_with_ddep                                      &
            )
 
     ELSE IF (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_aerchem .OR.      &
@@ -2382,37 +2383,20 @@ IF (ukca_config%l_ukca_chem) THEN
 
       CALL ukca_chemistry_ctl_tropraq(                                         &
            row_length, rows, model_levels,                                     &
-           ukca_config%bl_levels,                                              &
            theta_field_size,                                                   &
            n_chem_tracers+n_aero_tracers,                                      &
-           ukca_config%ntype,                                                  &
-           ukca_config%npft,                                                   &
-           i_month, i_day_number, i_hour,                                      &
-           r_minute - ukca_config%timestep/60.0,                               &
            REAL(ukca_config%chem_timestep),                                    &
-           latitude,                                                           &
-           longitude,                                                          &
-           sin_latitude,                                                       &
-           tan_latitude,                                                       &
            p_theta_levels,                                                     &
            t_chem,                                                             &
            q_chem,                                                             &
            qcf,                                                                &
            qcl,                                                                &
            rel_humid_frac,                                                     &
-           p_layer_boundaries,                                                 &
-           r_theta_levels(1:row_length, 1:rows, :),                            &
            all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
            all_ntp,                                                            &
-           Tstar,                                                              &
-           Thick_bl_levels,                                                    &
-           rough_length,                                                       &
-           u_s,                                                                &
-           ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            photol_rates,                                                       &
            grid_volume,                                                        &
-           mass,                                                               &
            so4_aitken,                                                         &
            so4_accum,                                                          &
            soot_fresh,                                                         &
@@ -2422,14 +2406,6 @@ IF (ukca_config%l_ukca_chem) THEN
            biogenic,                                                           &
            sea_salt_film,                                                      &
            sea_salt_jet,                                                       &
-           ! Extra variables for new dry dep scheme
-           land_points, land_index,                                            &
-           tile_pts, tile_index, frac_types,                                   &
-           zbl, surf_hf, seaice_frac, stcon,                                   &
-           soil_moisture_layer1, fland,                                        &
-           laift_lp, canhtft_lp,                                               &
-           z0tile_lp, tstar_tile,                                              &
-           env_ozone3d,                                                        &
            uph2so4inaer,                                                       &
            delso2_wet_h2o2,                                                    &
            delso2_wet_o3,                                                      &
@@ -2444,61 +2420,36 @@ IF (ukca_config%l_ukca_chem) THEN
            strat_ch4loss,                                                      &
            SIZE(stashwork50),                                                  &
            stashwork50,                                                        &
-           H_plus_3d_arr                                                       &
+           H_plus_3d_arr,                                                      &
+           zdryrt, zwetrt, nlev_with_ddep,                                     &
+           l_firstchem                                                         &
            )
 
     ELSE
 
       CALL ukca_chemistry_ctl(                                                 &
            row_length, rows, model_levels,                                     &
-           ukca_config%bl_levels,                                              &
            theta_field_size,                                                   &
            n_chem_tracers+n_aero_tracers,                                      &
-           ukca_config%ntype,                                                  &
-           ukca_config%npft,                                                   &
-           i_month, i_day_number, i_hour,                                      &
-           r_minute - ukca_config%timestep/60.0,                               &
-           REAL(ukca_config%chem_timestep),                                    &
-           latitude,                                                           &
-           longitude,                                                          &
-           sin_latitude,                                                       &
-           tan_latitude,                                                       &
+           istore_h2so4,                                                       &
            p_theta_levels,                                                     &
            t_chem,                                                             &
            q_chem,                                                             &
            qcf,                                                                &
            qcl,                                                                &
-           rel_humid_frac,                                                     &
-           p_layer_boundaries,                                                 &
-           r_theta_levels(1:row_length, 1:rows, :),                            &
-           z_top_of_model,                                                     &
            all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
            all_ntp,                                                            &
-           Tstar,                                                              &
-           Thick_bl_levels,                                                    &
-           rough_length,                                                       &
-           u_s,                                                                &
-           ls_ppn3d, conv_ppn3d,                                               &
            cloud_frac,                                                         &
            photol_rates,                                                       &
+           shno3_3d,                                                           &
            grid_volume,                                                        &
-           mass,                                                               &
-           ! Extra variables for new dry dep scheme
-           land_points, land_index,                                            &
-           tile_pts, tile_index, frac_types,                                   &
-           zbl, surf_hf, seaice_frac, stcon,                                   &
-           soil_moisture_layer1, fland,                                        &
-           laift_lp, canhtft_lp,                                               &
-           z0tile_lp, tstar_tile,                                              &
            have_nat3d,                                                         &
-           env_ozone3d,                                                        &
            uph2so4inaer,                                                       &
            delso2_wet_h2o2,                                                    &
            delso2_wet_o3,                                                      &
            delh2so4_chem,                                                      &
            so4_sa,                                                             &
            ! Diagnostics
-           nat_psc,                                                            &
            atm_ch4_mol,                                                        &
            atm_co_mol,                                                         &
            atm_n2o_mol,                                                        &
@@ -2506,10 +2457,22 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_cfcl3_mol,                                                      &
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
-           SIZE(stashwork50),                                                  &
-           stashwork50,                                                        &
-           H_plus_3d_arr                                                       &
+           H_plus_3d_arr,                                                      &
+           zdryrt, zwetrt, nlev_with_ddep,                                     &
+           l_firstchem                                                         &
            )
+    END IF
+
+    ! ASAD post-processing
+    IF (.NOT. ukca_config%l_ukca_offline_be) THEN
+      CALL ukca_chemistry_cleanup(row_length, rows, model_levels,              &
+             n_chem_tracers+n_aero_tracers,                                    &
+             REAL(ukca_config%chem_timestep),                                  &
+             p_theta_levels, ls_ppn3d, conv_ppn3d,                             &
+             latitude, env_ozone3d, qcf,                                       &
+             r_theta_levels(1:row_length,1:rows,:),                            &
+             mass, z_top_of_model, shno3_3d, nat_psc,                          &
+             all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers))
     END IF
 
     IF (ALLOCATED(t_chem)) DEALLOCATE(t_chem)

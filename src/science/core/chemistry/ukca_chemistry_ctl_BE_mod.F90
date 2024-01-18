@@ -52,38 +52,25 @@ CONTAINS
 ! ##############################################################################
 
 SUBROUTINE ukca_chemistry_ctl_be(                                              &
-  row_length, rows, model_levels, bl_levels,                                   &
+  row_length, rows, model_levels,                                              &
   theta_field_size,                                                            &
-  ntracers, ntype, npft,                                                       &
-  i_month, i_day_number, i_hour,                                               &
-  r_minute, chem_timestep,                                                     &
+  ntracers,                                                                    &
+  chem_timestep,                                                               &
   k_be_top,                                                                    &
-  latitude,                                                                    &
-  longitude,                                                                   &
-  sinlat,                                                                      &
-  tanlat,                                                                      &
   p_theta_levels, temp, q,                                                     &
-  qcl, rh,                                                                     &
-  p_layer_boundaries,                                                          &
+  qcl,                                                                         &
   tracer,                                                                      &
-  t_surf, dzl, z0m, u_s,                                                       &
-  drain, crain,                                                                &
   cloud_frac,                                                                  &
   volume,                                                                      &
-  land_points, land_index,                                                     &
-  tile_pts, tile_index, frac_types,                                            &
-  zbl, surf_hf, seaice_frac, stcon,                                            &
-  soilmc_lp, fland, laift_lp, canhtft_lp,                                      &
-  z0tile_lp, t0tile_lp,                                                        &
   uph2so4inaer,                                                                &
   delso2_wet_h2o2,                                                             &
   delso2_wet_o3,                                                               &
   delh2so4_chem,                                                               &
   delso2_drydep,                                                               &
   delso2_wetdep,                                                               &
-  len_stashwork,                                                               &
-  stashwork,                                                                   &
-  H_plus_3d_arr                                                                &
+  H_plus_3d_arr,                                                               &
+  zdryrt, zwetrt, nlev_with_ddep,                                              &
+  firstcall                                                                    &
   )
 
 USE ukca_um_legacy_mod,   ONLY: deposition_from_ukca_chemistry
@@ -117,58 +104,21 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: row_length        ! size of UKCA x dimension
 INTEGER, INTENT(IN) :: rows              ! size of UKCA y dimension
 INTEGER, INTENT(IN) :: model_levels      ! size of UKCA z dimension
-INTEGER, INTENT(IN) :: bl_levels         ! no. of boundary layer levels
 INTEGER, INTENT(IN) :: theta_field_size  ! no. of points in horizontal
 INTEGER, INTENT(IN) :: ntracers          ! no. of tracers
-INTEGER, INTENT(IN) :: ntype             ! no. of surface types
-INTEGER, INTENT(IN) :: npft              ! no. of plant functional types
-INTEGER, INTENT(IN) :: i_month           ! month
-INTEGER, INTENT(IN) :: i_day_number      ! day
-INTEGER, INTENT(IN) :: i_hour            ! hour
 INTEGER, INTENT(IN) :: uph2so4inaer      ! flag for H2SO4 updating
 INTEGER, INTENT(IN) :: k_be_top          ! top level for integration
-
-!       Variables for interactive dry deposition scheme
-INTEGER, INTENT(IN) :: land_points
-INTEGER, INTENT(IN) :: land_index(land_points)
-INTEGER, INTENT(IN) :: tile_pts(ntype)
-INTEGER, INTENT(IN) :: tile_index(land_points,ntype)
+INTEGER, INTENT(IN) :: nlev_with_ddep(row_length,rows) ! No levs in bl
 
 INTEGER, INTENT(IN) :: chem_timestep   ! chemical timestep
 
-REAL, INTENT(IN) :: r_minute                           ! minute
-REAL, INTENT(IN) :: latitude(row_length,rows)          ! lautitude (degrees)
-REAL, INTENT(IN) :: longitude(row_length,rows)         ! longitude (degrees)
-REAL, INTENT(IN) :: sinlat(row_length, rows)           ! sin(latitude)
-REAL, INTENT(IN) :: tanlat(row_length, rows)           ! tan(latitude)
 REAL, INTENT(IN) :: p_theta_levels(row_length,rows,model_levels) ! pressure
-REAL, INTENT(IN) :: p_layer_boundaries(row_length,rows,0:model_levels)
-                                                       ! pressure
 REAL, INTENT(IN) :: temp(row_length,rows,model_levels) ! actual temp
-REAL, INTENT(IN) :: dzl(row_length, rows, bl_levels)   ! thickness
-REAL, INTENT(IN) :: u_s(row_length, rows)              ! ustar
-REAL, INTENT(IN) :: z0m(row_length, rows)              ! roughness
-REAL, INTENT(IN) :: t_surf(row_length, rows)           ! surface temp
-REAL, INTENT(IN) :: drain(row_length,rows,model_levels)   ! 3-D LS rain
-REAL, INTENT(IN) :: crain(row_length,rows,model_levels)   ! 3-D convec
 REAL, INTENT(IN) :: volume(row_length,rows,model_levels)  ! cell vol.
 REAL, INTENT(IN) :: qcl(row_length, rows, model_levels)   ! qcl
-REAL, INTENT(IN) :: rh(row_length, rows, model_levels)    ! RH frac
 REAL, INTENT(IN) :: cloud_frac(row_length, rows, model_levels)
-
-!  Variables for interactive dry deposition scheme
-
-REAL, INTENT(IN) :: frac_types(land_points,ntype)
-REAL, INTENT(IN) :: zbl(row_length,rows)
-REAL, INTENT(IN) :: surf_hf(row_length,rows)
-REAL, INTENT(IN) :: seaice_frac(row_length,rows)
-REAL, INTENT(IN) :: stcon(row_length,rows,npft)
-REAL, INTENT(IN) :: soilmc_lp(land_points)
-REAL, INTENT(IN) :: fland(land_points)
-REAL, INTENT(IN) :: laift_lp(land_points,npft)
-REAL, INTENT(IN) :: canhtft_lp(land_points,npft)
-REAL, INTENT(IN) :: z0tile_lp(land_points,ntype)
-REAL, INTENT(IN) :: t0tile_lp(land_points,ntype)
+REAL, INTENT(IN) :: zdryrt(row_length,rows,jpdd)          ! dry dep rate
+REAL, INTENT(IN) :: zwetrt(row_length,rows,model_levels,jpdw) ! wet dep rate
 
 REAL, INTENT(IN OUT) :: q(row_length,rows,model_levels)   ! water vapour
 REAL, INTENT(IN OUT) :: tracer(row_length,rows,model_levels,ntracers)
@@ -182,23 +132,19 @@ REAL, INTENT(IN OUT) :: delh2so4_chem(row_length,rows,model_levels)
 REAL, INTENT(IN OUT) :: delso2_drydep(row_length,rows,model_levels)
 REAL, INTENT(IN OUT) :: delso2_wetdep(row_length,rows,model_levels)
 
-! Diagnostics array
-INTEGER, INTENT(IN) :: len_stashwork
-
-REAL, INTENT(IN OUT) :: stashwork (len_stashwork)
-
 ! 3D pH array
 REAL, INTENT(IN) :: H_plus_3d_arr(row_length, rows, model_levels)
+
+! Flag for determining if this is the first chemistry call
+LOGICAL, INTENT(IN) :: firstcall
 
 ! Chemical fluxes
 LOGICAL             :: lflux             ! true when flux requests found
 REAL, ALLOCATABLE   :: dflux(:,:)        ! chemical fluxes on each level
                                          ! (molecules / (cm3.s) )
 
-
 ! Local variables
-INTEGER :: nlev_in_bl(row_length, rows)     ! No levs in bl
-INTEGER :: nlev_in_bl2(theta_field_size)    ! No levs in bl
+INTEGER :: nlev_with_ddep2(theta_field_size) ! No levs in bl
 
 INTEGER, SAVE :: nr            ! no of rxns for BE
 INTEGER, SAVE :: n_be_calls    ! no of call to BE solver
@@ -241,17 +187,13 @@ REAL :: zt(theta_field_size)          ! 1-D temperature
 REAL :: zq(theta_field_size)          ! 1-D water vapour
 REAL :: zclw(theta_field_size)        ! 1-D cloud liquid water
 REAL :: zfcloud(theta_field_size)     ! 1-D cloud fraction
-REAL :: zdryrt(row_length, rows, jpdd)                ! dry dep rate
 REAL :: zdryrt2(theta_field_size, jpdd)               ! dry dep rate
-REAL :: zwetrt(row_length, rows, model_levels, jpdw)  ! wet dep rate
 REAL :: zwetrt2(theta_field_size, jpdw)               ! wet dep rat
 REAL :: wetrt(theta_field_size,jpspec)         ! wet dep rates (s-1)
 REAL :: dryrt(theta_field_size,jpspec)         ! dry dep rates (s-1)
 REAL :: H_plus_2d_arr(theta_field_size,model_levels) ! 2-D pH array to use in
                                                      ! wet deposition
 REAL :: H_plus_1d_arr(theta_field_size)  ! 1-D pH array to use in BE solver
-
-LOGICAL, SAVE :: firstcall = .TRUE.
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -303,62 +245,8 @@ IF (firstcall) THEN
 
 END IF  ! of initialization of chemistry subroutine (firstcall)
 
-zdryrt  = 0.0
-zdryrt2 = 0.0
-IF (ndepd /= 0 .AND. (.NOT. ukca_config%l_ukca_drydep_off)) THEN
-
-  IF (ukca_config%l_ukca_intdd) THEN          ! Call interactive dry deposition
-
-    IF (ukca_config%l_deposition_jules) THEN   ! Use JULES-based routines
-
-      CALL deposition_from_ukca_chemistry(                                     &
-        secs_per_step, bl_levels, row_length, rows, ntype, npft,               &
-        jpspec, ndepd, nldepd, speci,                                          &
-        land_points, land_index, tile_pts, tile_index,                         &
-        seaice_frac, fland, sinlat,                                            &
-        p_layer_boundaries(:,:,0), rh(:,:,1), t_surf, surf_hf, surf_wetness,   &
-        z0tile_lp, stcon, laift_lp, canhtft_lp, t0tile_lp,                     &
-        soilmc_lp, zbl, dzl, frac_types, u_s,                                  &
-        zdryrt, nlev_in_bl, len_stashwork, stashwork)
-
-    ELSE                                      ! Use exising UKCA routines
-
-      CALL ukca_ddepctl(row_length, rows, bl_levels, ntype, npft,              &
-        land_points, land_index, tile_pts, tile_index,                         &
-        secs_per_step, sinlat, frac_types, t_surf,                             &
-        p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                     &
-        rh(:,:,1), stcon, soilmc_lp, fland, seaice_frac, laift_lp,             &
-        canhtft_lp, z0tile_lp, t0tile_lp,                                      &
-        nlev_in_bl, zdryrt, len_stashwork, stashwork)
-
-    END IF
-
-  ELSE                             ! Call prescribed dry deposition
-
-    CALL ukca_ddeprt(n_pnts, bl_levels, i_day_number, i_month, i_hour,         &
-                     r_minute, secs_per_step, longitude, latitude, tanlat,     &
-                     dzl, z0m, u_s, t_surf, zdryrt)
-
-  END IF
-END IF
-
-! Call routine to calculate wet deposition rates.
-
-zwetrt  = 0.0
-zwetrt2 = 0.0
-IF (ndepw /= 0 .AND. .NOT. ukca_config%l_ukca_wetdep_off) THEN
-
-  ! Reshape 3D H_plus array to 2D to use in calculating Wet Deposition rates
-  DO k=1,model_levels
-    H_plus_2d_arr(:,k) = RESHAPE(H_plus_3d_arr(:,:,k),[theta_field_size])
-  END DO
-
-  CALL ukca_wdeprt(n_pnts, model_levels, drain, crain, temp,                   &
-                   latitude, secs_per_step, zwetrt, H_plus_2d_arr)
-END IF
-
 ! Need this line here for interactive dry deposition.
-nlev_in_bl2(:) = RESHAPE(nlev_in_bl(:,:),[theta_field_size])
+nlev_with_ddep2(:) = RESHAPE(nlev_with_ddep(:,:),[theta_field_size])
 
 IF (.NOT. ALLOCATED(rc)) ALLOCATE(rc(theta_field_size,nr))
 
@@ -368,7 +256,7 @@ DO k=1,k_be_top
   zdryrt2(:,:) = 0.0e0
   IF (ukca_config%l_ukca_intdd) THEN
     ! Interactive scheme extracts from levels in boundary layer
-    blmask(:) = (k <= nlev_in_bl2(:))
+    blmask(:) = (k <= nlev_with_ddep2(:))
     DO l=1,jpdd
       WHERE (blmask(:))
         zdryrt2(:,l) =                                                         &
@@ -426,7 +314,7 @@ DO k=1,k_be_top
 
   CALL ukca_be_wetdep(n_pnts, zwetrt2, wetrt)
 
-  CALL ukca_be_drydep(k, n_pnts, nlev_in_bl2, zdryrt2, dryrt)
+  CALL ukca_be_drydep(k, n_pnts, nlev_with_ddep2, zdryrt2, dryrt)
 
   ! Fill the asad arrays for wet and dry deposition diagnostics
   IF ( ndepw /= 0 ) CALL ukca_wetdep(zwetrt2, n_pnts)
@@ -517,9 +405,6 @@ IF (ALLOCATED(ystore)) DEALLOCATE(ystore)
 ! Reduce over-prediction of H2O2 using ancillary value.
 WHERE (tracer(:,:,:,n_h2o2) > h2o2_offline(:,:,:))                             &
        tracer(:,:,:,n_h2o2) = h2o2_offline(:,:,:)
-
-IF (firstcall) firstcall = .FALSE.
-
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

@@ -9,7 +9,8 @@
 ! *****************************COPYRIGHT*******************************
 !
 ! Description:
-!  Main driver routine for chemistry
+!  Main driver routine for chemistry under tropospheric and regional air
+!  quality configurations.
 !
 !  Part of the UKCA model, a community model supported by
 !  The Met Office and NCAS, with components provided initially
@@ -37,35 +38,18 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName =                           &
 CONTAINS
 
 SUBROUTINE ukca_chemistry_ctl_tropraq(                                         &
-                row_length, rows, model_levels, bl_levels,                     &
-                theta_field_size,                                              &
-                ntracers, ntype, npft,                                         &
-                i_month, i_day_number, i_hour,                                 &
-                r_minute, secs_per_step,                                       &
-                latitude,                                                      &
-                longitude,                                                     &
-                sinlat,                                                        &
-                tanlat,                                                        &
+                row_length, rows, model_levels, theta_field_size, ntracers,    &
+                secs_per_step,                                                 &
                 pres, temp, q,                                                 &
                 qcf, qcl, rh,                                                  &
-                p_layer_boundaries,                                            &
-                r_theta_levels,                                                &
                 tracer,                                                        &
                 all_ntp,                                                       &
-                t_surf, dzl, z0m, u_s,                                         &
-                drain, crain,                                                  &
                 cloud_frac,                                                    &
                 photol_rates,                                                  &
-                volume, mass,                                                  &
+                volume,                                                        &
                 so4_aitken, so4_accum, soot_fresh, soot_aged,                  &
                 ocff_fresh, ocff_aged, biogenic,                               &
                 sea_salt_film, sea_salt_jet,                                   &
-                land_points, land_index,                                       &
-                tile_pts, tile_index, frac_types,                              &
-                zbl, surf_hf, seaice_frac, stcon,                              &
-                soilmc_lp, fland, laift_lp, canhtft_lp,                        &
-                z0tile_lp, t0tile_lp,                                          &
-                env_ozone3d,                                                   &
                 uph2so4inaer,                                                  &
                 delso2_wet_h2o2,                                               &
                 delso2_wet_o3,                                                 &
@@ -79,31 +63,23 @@ SUBROUTINE ukca_chemistry_ctl_tropraq(                                         &
                 strat_ch4loss,                                                 &
                 len_stashwork,                                                 &
                 stashwork,                                                     &
-                H_plus_3d_arr                                                  &
+                H_plus_3d_arr,                                                 &
+                zdryrt, zwetrt, nlev_with_ddep,                                &
+                firstcall                                                      &
                 )
 
-USE ukca_um_legacy_mod,   ONLY: rgas => r,                                     &
-                                deposition_from_ukca_chemistry
-USE asad_mod,             ONLY: advt, cdt,                                     &
-                                jpctr, jpcspf, jpro2,                          &
-                                jpdd, jpdw, jpeq,                              &
-                                jphk, jppj, jpspec, jpnr,                      &
-                                jpspj, jpspt, jptk,                            &
-                                ldepd, ldepw,                                  &
-                                nadvt, ndepd, ndepw, nnaf,                     &
-                                nprkx, ntrkx,                                  &
-                                speci, sph2o, spj, spt,                        &
-                                spro2, ctype,                                  &
-                                y, nlnaro2, nldepd
+USE ukca_um_legacy_mod,   ONLY: rgas => r
+USE asad_mod,             ONLY: advt, cdt, jpctr, jpcspf, jpro2, jpdd, jpdw,   &
+                                jpeq, jphk, jppj, jpspec, jpnr, jpspj, jpspt,  &
+                                jptk, ldepd, ldepw, nadvt, nnaf, nprkx, ntrkx, &
+                                speci, sph2o, spj, spt, spro2, ctype, y, nlnaro2
 USE ukca_config_defs_mod, ONLY: nr_therm, nr_phot
-USE ukca_cspecies,        ONLY: c_species, n_ch4, n_h2o2,                      &
-                                n_hono2, n_o3,                                 &
+USE ukca_cspecies,        ONLY: c_species, n_ch4, n_hono2, n_o3,               &
                                 nn_ch4, nn_cl, nn_h2o2, nn_h2so4,              &
                                 nn_o1d, nn_o3, nn_o3p, nn_oh,                  &
                                 n_h2o, nn_so2, c_na_species,                   &
                                 n_h2so4
 USE UKCA_tropopause,      ONLY: L_stratosphere
-USE ukca_conserve_mod,    ONLY: ukca_conserve
 USE ukca_constants,       ONLY: c_h2o, c_hono2
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 
@@ -111,11 +87,8 @@ USE ukca_config_specification_mod, ONLY: ukca_config
 
 USE ukca_raq_diags_mod, ONLY: ukca_raq_diags
 USE ukca_ntp_mod,       ONLY: ntp_type, dim_ntp, name2ntpindex
-! Modules for RAQ and RAQ-AERO
 USE ukca_chemco_raq_mod,    ONLY: ukca_chemco_raq
 USE ukca_deriv_raqaero_mod, ONLY: ukca_deriv_raqaero
-
-USE ukca_environment_fields_mod, ONLY: h2o2_offline, surf_wetness
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -130,59 +103,26 @@ USE ukca_be_drydep_mod, ONLY: ukca_be_drydep
 USE ukca_be_wetdep_mod, ONLY: ukca_be_wetdep
 USE ukca_ch4_stratloss_mod, ONLY: ukca_ch4_stratloss
 USE ukca_chemco_mod, ONLY: ukca_chemco
-USE ukca_ddepctl_mod, ONLY: ukca_ddepctl
-USE ukca_ddeprt_mod, ONLY: ukca_ddeprt
 USE ukca_deriv_mod, ONLY: ukca_deriv
 USE ukca_deriv_aero_mod, ONLY: ukca_deriv_aero
 USE ukca_deriv_raq_mod, ONLY: ukca_deriv_raq
 USE ukca_fracdiss_mod, ONLY: ukca_fracdiss
-USE ukca_sediment_mod, ONLY: ukca_sediment
-USE ukca_stratf_mod, ONLY: ukca_stratf
-USE ukca_wdeprt_mod, ONLY: ukca_wdeprt
 
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: row_length        ! size of UKCA x dimension
 INTEGER, INTENT(IN) :: rows              ! size of UKCA y dimension
 INTEGER, INTENT(IN) :: model_levels      ! size of UKCA z dimension
-INTEGER, INTENT(IN) :: bl_levels         ! no. of boundary layer levels
 INTEGER, INTENT(IN) :: theta_field_size  ! no. of points in horizontal
 INTEGER, INTENT(IN) :: ntracers          ! no. of tracers
-INTEGER, INTENT(IN) :: ntype             ! no. of surface types
-INTEGER, INTENT(IN) :: npft              ! no. of plant functional types
-INTEGER, INTENT(IN) :: i_month           ! month
-INTEGER, INTENT(IN) :: i_day_number      ! day
-INTEGER, INTENT(IN) :: i_hour            ! hour
 INTEGER, INTENT(IN) :: uph2so4inaer      ! flag for H2SO4 updating
+INTEGER, INTENT(IN) :: nlev_with_ddep(row_length,rows) ! No levs in bl
 
-!       Variables for interactive dry deposition scheme
-INTEGER, INTENT(IN) :: land_points
-INTEGER, INTENT(IN) :: land_index(land_points)
-INTEGER, INTENT(IN) :: tile_pts(ntype)
-INTEGER, INTENT(IN) :: tile_index(land_points,ntype)
-
-REAL, INTENT(IN) :: r_minute                           ! minute
 REAL, INTENT(IN) :: secs_per_step                      ! time step
-REAL, INTENT(IN) :: latitude(row_length,rows)          ! latitude (degrees)
-REAL, INTENT(IN) :: longitude(row_length,rows)         ! longitude (degrees)
-REAL, INTENT(IN) :: sinlat(row_length, rows)           ! sin(latitude)
-REAL, INTENT(IN) :: tanlat(row_length, rows)           ! tan(latitude)
 REAL, INTENT(IN) :: pres(row_length,rows,model_levels) ! pressure
-REAL, INTENT(IN) :: p_layer_boundaries(row_length,rows,                        &
-                                       0:model_levels) ! pressure
-REAL, INTENT(IN) :: r_theta_levels(row_length,rows,                            &
-                                   0:model_levels)
 REAL, INTENT(IN) :: temp(row_length,rows,model_levels) ! actual temp
-REAL, INTENT(IN) :: dzl(row_length, rows, bl_levels)   ! thickness
-REAL, INTENT(IN) :: u_s(row_length, rows)              ! ustar
-REAL, INTENT(IN) :: z0m(row_length, rows)              ! roughness
-REAL, INTENT(IN) :: t_surf(row_length, rows)           ! surface temp
-REAL, INTENT(IN) :: drain(row_length,rows,model_levels) ! 3-D LS rain
-REAL, INTENT(IN) :: crain(row_length,rows,model_levels) ! 3-D convec
 REAL, INTENT(IN) :: volume(row_length,rows,model_levels) ! cell vol.
-REAL, INTENT(IN) :: mass(row_length, rows, model_levels) ! cell mass
-! 3D pH array
-REAL, INTENT(IN) :: H_plus_3d_arr(row_length, rows, model_levels)
+REAL, INTENT(IN) :: H_plus_3d_arr(row_length, rows, model_levels) ! 3D pH array
 
 ! Aerosol MMR / numbers from CLASSIC, used for calculation
 ! of surface area if heterogeneous chemistry is ON.
@@ -198,33 +138,16 @@ REAL, INTENT(IN) :: biogenic      (row_length, rows, model_levels)
 REAL, INTENT(IN) :: sea_salt_film (row_length, rows, model_levels)
 REAL, INTENT(IN) :: sea_salt_jet  (row_length, rows, model_levels)
 
-REAL, INTENT(IN) :: env_ozone3d(row_length, rows, model_levels) ! O3
-REAL, INTENT(IN) :: qcf(row_length, rows, model_levels)  ! qcf
-REAL, INTENT(IN) :: qcl(row_length, rows, model_levels)  ! qcl
-REAL, INTENT(IN) :: rh(row_length, rows, model_levels)   ! RH frac
-REAL, INTENT(IN) :: cloud_frac(row_length, rows, model_levels)
-
-!       Variables for interactive dry deposition scheme
-
-REAL, INTENT(IN) :: frac_types(land_points,ntype)
-REAL, INTENT(IN) :: zbl(row_length,rows)
-REAL, INTENT(IN) :: surf_hf(row_length,rows)
-REAL, INTENT(IN) :: seaice_frac(row_length,rows)
-REAL, INTENT(IN) :: stcon(row_length,rows,npft)
-REAL, INTENT(IN) :: soilmc_lp(land_points)
-REAL, INTENT(IN) :: fland(land_points)
-REAL, INTENT(IN) :: laift_lp(land_points,npft)
-REAL, INTENT(IN) :: canhtft_lp(land_points,npft)
-REAL, INTENT(IN) :: z0tile_lp(land_points,ntype)
-REAL, INTENT(IN) :: t0tile_lp(land_points,ntype)
-
-REAL, INTENT(IN)     :: photol_rates(row_length, rows, model_levels, jppj)
+REAL, INTENT(IN) :: qcf(row_length,rows,model_levels)  ! qcf
+REAL, INTENT(IN) :: qcl(row_length,rows,model_levels)  ! qcl
+REAL, INTENT(IN) :: rh(row_length,rows,model_levels)   ! RH frac
+REAL, INTENT(IN) :: cloud_frac(row_length,rows,model_levels)
+REAL, INTENT(IN) :: zdryrt(row_length,rows,jpdd)              ! dry dep rate
+REAL, INTENT(IN) :: zwetrt(row_length,rows,model_levels,jpdw) ! wet dep rate
+REAL, INTENT(IN) :: photol_rates(row_length,rows,model_levels,jppj)
 REAL, INTENT(IN OUT) :: q(row_length,rows,model_levels)   ! water vapour
 REAL, INTENT(IN OUT) :: tracer(row_length,rows,                                &
-                              model_levels,ntracers)     ! tracer MMR
-
-! Non transported prognostics
-TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(dim_ntp)
+                               model_levels,ntracers)     ! tracer MMR
 
 ! SO2 increments
 REAL, INTENT(IN OUT) :: delSO2_wet_H2O2(row_length,rows,                       &
@@ -249,13 +172,17 @@ REAL, INTENT(IN OUT) :: strat_ch4_mol(row_length,rows,model_levels)
 ! Strat CH4 loss (Moles/s)
 REAL, INTENT(IN OUT) :: strat_ch4loss(row_length,rows,model_levels)
 
+! Non transported prognostics
+TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(dim_ntp)
+
 ! Diagnostics array
 INTEGER, INTENT(IN) :: len_stashwork
 
-REAL, INTENT(IN OUT) :: stashwork (len_stashwork)
+REAL, INTENT(IN OUT) :: stashwork(len_stashwork)
+
+LOGICAL, INTENT(IN) :: firstcall
 
 ! Local variables
-INTEGER :: nlev_with_ddep(row_length, rows)     ! No levs in bl
 INTEGER :: nlev_with_ddep2(theta_field_size)    ! No levs in bl
 INTEGER :: nlev_ch4_stratloss                   ! No top levs for CH4
                                                 ! stratospheric loss
@@ -297,9 +224,7 @@ REAL :: zt  (theta_field_size)        ! 1-D temperature
 REAL :: zclw(theta_field_size)        ! 1-D cloud liquid water
 REAL :: zfcloud(theta_field_size)     ! 1-D cloud fraction
 REAL :: zprt1d(theta_field_size,jppj) ! 1-D photolysis rates for ASAD
-REAL :: zdryrt(row_length, rows, jpdd)                ! dry dep rate
 REAL :: zdryrt2(theta_field_size, jpdd)               ! dry dep rate
-REAL :: zwetrt(row_length, rows, model_levels, jpdw)  ! wet dep rate
 REAL :: zwetrt2(theta_field_size, jpdw)               ! wet dep rat
 REAL :: zfrdiss2(theta_field_size,jpdw,jpeq+1)        ! dissolved fraction
 REAL :: zfrdiss(row_length, rows, model_levels, jpdw, jpeq+1)
@@ -341,23 +266,8 @@ REAL :: wdflux(theta_field_size, jpdw) ! wet deposition flux
 REAL :: dry_dep_3d(row_length, rows, model_levels, jpdd) ! 3d dry dep
 REAL :: wet_dep_3d(row_length, rows, model_levels, jpdw) ! 3d wet dep
 
-LOGICAL, SAVE :: firstcall = .TRUE.
-
-
-! The calls to ukca_conserve require a logical to be set.
-! ukca_conserve calculates and conserves total chlorine, bromine, and
-! hydrogen. For these elements closed chemistry should be prescribed.
-! Called before chemistry, before_chem, it calculates
-! total bromine, chlorine, and hydrogen as 3-D fields. Called afer
-! chemistry, after_chem, it rescales the chlorine, bromine
-! and hydrogen containing compounds so that total chlorine, bromine
-! and hydrogen are conserved under chemistry.
-LOGICAL, PARAMETER :: before_chem = .TRUE.
-LOGICAL, PARAMETER :: after_chem = .FALSE.
-
 ! 1-D masks for troposphere and NAT height limitation
 LOGICAL :: stratflag(theta_field_size)
-
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -392,71 +302,7 @@ IF (firstcall) THEN
     CALL umPrint(umMessage,src='ukca_chemistry_ctl_tropraq')
   END IF
 
-  !         Check whether water vapour is advective tracer. Then,
-  !         check whether UM and ASAD advective tracers correspond
-  !         to each other.
-
-  IF ((ukca_config%l_ukca_advh2o) .AND. (n_h2o == 0)) THEN
-    cmessage='No tracer for advected water vapour'
-    errcode = 4
-    CALL ereport(RoutineName,errcode,cmessage)
-  END IF
-
 END IF  ! of initialization of chemistry subroutine (firstcall)
-
-! Call routine to calculate dry deposition rates.
-zdryrt  = 0.0
-IF (ndepd /= 0 .AND. .NOT. ukca_config%l_ukca_drydep_off) THEN
-
-  IF (ukca_config%l_ukca_intdd) THEN           ! Call interactive dry dep
-
-    IF (ukca_config%l_deposition_jules) THEN   ! Use JULES-based routines
-
-      CALL deposition_from_ukca_chemistry(                                     &
-        secs_per_step, bl_levels, row_length, rows, ntype, npft,               &
-        jpspec, ndepd, nldepd, speci,                                          &
-        land_points, land_index, tile_pts, tile_index,                         &
-        seaice_frac, fland, sinlat,                                            &
-        p_layer_boundaries(:,:,0), rh(:,:,1), t_surf, surf_hf, surf_wetness,   &
-        z0tile_lp, stcon, laift_lp, canhtft_lp, t0tile_lp,                     &
-        soilmc_lp, zbl, dzl, frac_types, u_s,                                  &
-        zdryrt, nlev_with_ddep, len_stashwork, stashwork)
-
-    ELSE                                       ! Use exising UKCA routines
-
-      CALL ukca_ddepctl(row_length, rows, bl_levels, ntype, npft,              &
-        land_points, land_index, tile_pts, tile_index,                         &
-        secs_per_step, sinlat, frac_types, t_surf,                             &
-        p_layer_boundaries(:,:,0), dzl, zbl, surf_hf, u_s,                     &
-        rh, stcon, soilmc_lp, fland, seaice_frac, laift_lp,                    &
-        canhtft_lp, z0tile_lp, t0tile_lp,                                      &
-        nlev_with_ddep, zdryrt, len_stashwork, stashwork)
-
-    END IF
-
-  ELSE                             ! Call prescribed dry dep
-
-    CALL ukca_ddeprt(n_pnts, bl_levels, i_day_number, i_month, i_hour,         &
-                     r_minute, secs_per_step, longitude, latitude, tanlat,     &
-                     dzl, z0m, u_s, t_surf, zdryrt)
-
-  END IF
-END IF
-
-!       Call routine to calculate wet deposition rates.
-
-zwetrt  = 0.0
-zwetrt2 = 0.0
-IF (ndepw /= 0 .AND. .NOT. ukca_config%l_ukca_wetdep_off) THEN
-
-  ! Reshape 3D H_plus array to 2D to use in calculating Wet Deposition rates
-  DO k=1,model_levels
-    H_plus_2d_arr(:,k) = RESHAPE(H_plus_3d_arr(:,:,k),[n_pnts])
-  END DO
-
-  CALL ukca_wdeprt(n_pnts, model_levels, drain, crain, temp,                   &
-                   latitude, secs_per_step, zwetrt, H_plus_2d_arr)
-END IF
 
 ! Calculate dissolved fraction (only used in online chem with B-E Solver)
 IF (ukca_config%l_ukca_aerchem .OR. ukca_config%l_ukca_raqaero) THEN
@@ -498,13 +344,12 @@ nlev_with_ddep2(:) = RESHAPE(nlev_with_ddep(:,:),[theta_field_size])
 !$OMP         zp, zprt1d, zt, zwetrt2,  H_plus_1d_arr)                         &
 !$OMP SHARED(advt, all_ntp, biogenic, c_species, c_na_species, cloud_frac,     &
 !$OMP        delh2so4_chem, delSO2_drydep, delSO2_wet_H2O2,                    &
-!$OMP        delSO2_wet_O3, delSO2_wetdep, dry_dep_3d, dts, h2o2_offline,      &
-!$OMP        speci,                                                            &
-!$OMP        jpctr, jpdd, jpdw, jphk, jppj, jpspec, jpro2, kp_nh,              &
+!$OMP        delSO2_wet_O3, delSO2_wetdep, dry_dep_3d, dts, speci,             &
+!$OMP        jpctr, jpdd, jpdw, jphk, jppj, jpspec, jpro2,                     &
 !$OMP        jpcspf, spro2, nlnaro2, ctype, l_stratosphere,                    &
 !$OMP        ukca_config,                                                      &
 !$OMP        ldepd, ldepw, model_levels,                                       &
-!$OMP        n_be_calls, n_ch4, n_h2o2, n_o3, n_pnts, nadvt, nlev_with_ddep2,  &
+!$OMP        n_be_calls, n_ch4, n_o3, n_pnts, nadvt, nlev_with_ddep2,          &
 !$OMP        nlev_ch4_stratloss, nn_ch4, nn_h2o2, nn_h2so4, nn_o1d, nn_o3,     &
 !$OMP        nn_o3p, nn_oh, nn_so2, nnaf, nr, nr_therm,                        &
 !$OMP        ocff_aged, ocff_fresh, photol_rates, pres, q, qcf, qcl, rgas, rh, &
@@ -538,12 +383,6 @@ DO k=1,model_levels
   IF (ukca_config%l_ukca_aerchem .OR. ukca_config%l_ukca_raqaero) THEN
     zclw(:) = RESHAPE(qcl(:,:,k),[theta_field_size])
     zfcloud(:) = RESHAPE(cloud_frac(:,:,k),[theta_field_size])
-  END IF
-
-  ! Reduce over-prediction of H2O2 using ancillary value.
-  IF (ukca_config%l_ukca_offline) THEN
-    WHERE (tracer(:,:,k,n_h2o2) > h2o2_offline(:,:,k))                         &
-       tracer(:,:,k,n_h2o2) = h2o2_offline(:,:,k)
   END IF
 
   ! Convert mmr into vmr for tracers. Pass data from the tracer 3D array,
@@ -941,25 +780,6 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_raq) THEN
        dry_dep_3d, wet_dep_3d, tracer, pres, temp,                             &
        len_stashwork, stashwork)
 END IF
-
-! Rescale bromine and chlorine tracers to guarantee conservation of total
-! chlorine, bromine, and hydrogen over timestep. Only makes sense if at least
-! chlorine chemistry is present.
-
-IF (nn_cl > 0) THEN
-  CALL ukca_conserve(row_length, rows, model_levels, ntracers,                 &
-       tracer, pres, drain, crain, after_chem)
-END IF
-
-IF (.NOT. ukca_config%l_ukca_offline) THEN
-  ! Call routine to overwrite O3 and HNO3 species once per day
-  ! above tropopause. Only for tropospheric chemistry
-  CALL ukca_stratf(row_length,rows, model_levels,                              &
-                   jpctr, env_ozone3d,                                         &
-                   tracer(1:row_length,1:rows,1:model_levels,1:jpctr))
-END IF
-
-IF (firstcall) firstcall = .FALSE.
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
