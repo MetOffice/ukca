@@ -83,7 +83,7 @@ USE ukca_cspecies,        ONLY: c_species, c_na_species, n_cf2cl2, n_cfcl3,    &
                                 n_ch4, n_co, n_h2, n_h2so4, n_mebr, n_n2o,     &
                                 nn_h2o2, nn_h2so4, nn_o1d, nn_o3, nn_o3p,      &
                                 nn_oh, nn_so2
-USE UKCA_tropopause,      ONLY: L_stratosphere
+USE ukca_tropopause,      ONLY: L_stratosphere
 USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE chemistry_constants_mod, ONLY: avogadro
 
@@ -189,7 +189,6 @@ INTEGER :: jspf          ! loop variable - all active chemical species in f
 INTEGER :: k             ! loop variable
 INTEGER :: klevel        ! dummy variable
 INTEGER :: l             ! loop variable
-INTEGER :: n_pnts        ! no. of pts in 2D passed to CDRIVE
 
 INTEGER :: kcs           ! loop variable, start level of current segment/chunk
 INTEGER :: kce           ! loop variable, end level of current segment/chunk
@@ -260,8 +259,6 @@ IF (l_autotune_segments) THEN
 END IF
 #endif
 
-n_pnts = model_levels
-
 ! dummy variable for compatability with theta_field call
 klevel=0
 
@@ -302,7 +299,7 @@ END IF
 !$OMP        ukca_config,                                                      &
 !$OMP        l_autotune_local,                                                 &
 !$OMP        model_levels, n_cf2cl2, n_cfcl3, n_ch4, n_co, n_h2,               &
-!$OMP        n_mebr, n_n2o, n_pnts, nadvt, nlev_with_ddep,                     &
+!$OMP        n_mebr, n_n2o, nadvt, nlev_with_ddep,                             &
 !$OMP        nn_h2o2, nn_h2so4, nn_o1d, nn_o3, nn_o3p, nn_oh, nn_so2,          &
 !$OMP        o1d_in_ss, o3p_in_ss, photol_rates, pres, q, qcf, qcl,            &
 !$OMP        row_length, rows, so4_sa, shno3_3d,                               &
@@ -466,9 +463,9 @@ DO i=1,rows
       zwetrt2(:,:) = zwetrt(j,i,:,:)
 
       ! Strided loop to segment the column before passing to asad_cdrive
-      DO kcs = 1, n_pnts, ukca_config%ukca_chem_seg_size
+      DO kcs = 1, model_levels, ukca_config%ukca_chem_seg_size
 
-        kce = MIN(kcs+(ukca_config%ukca_chem_seg_size-1),n_pnts)
+        kce = MIN(kcs+(ukca_config%ukca_chem_seg_size-1),model_levels)
 
         ! Get current chunk_size (not necessarily equal to ukca_chem_seg_size)
         chunk_size  = (kce+1)-kcs

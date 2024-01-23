@@ -53,7 +53,7 @@ CONTAINS
 
 SUBROUTINE ukca_chemistry_ctl_be(                                              &
   row_length, rows, model_levels,                                              &
-  theta_field_size,                                                            &
+  theta_field_size, tot_n_pnts,                                                &
   ntracers,                                                                    &
   chem_timestep,                                                               &
   k_be_top,                                                                    &
@@ -68,8 +68,8 @@ SUBROUTINE ukca_chemistry_ctl_be(                                              &
   delh2so4_chem,                                                               &
   delso2_drydep,                                                               &
   delso2_wetdep,                                                               &
-  H_plus_3d_arr,                                                               &
-  zdryrt, zwetrt, nlev_with_ddep,                                              &
+  H_plus, h2o2_offline,                                                        &
+  dryrt, wetrt, nlev_with_ddep,                                                &
   firstcall                                                                    &
   )
 
@@ -83,21 +83,21 @@ USE asad_chem_flux_diags, ONLY: asad_chemical_diagnostics,                     &
 USE asad_ftoy_mod,        ONLY: asad_ftoy
 USE ukca_cspecies,        ONLY: c_species, nn_h2so4, nn_so2, n_h2o2
 USE ukca_constants,       ONLY: c_h2o
-USE ukca_environment_fields_mod,   ONLY: h2o2_offline, surf_wetness
+USE ukca_environment_fields_mod,   ONLY: surf_wetness
 USE ukca_config_specification_mod, ONLY: ukca_config
 
-USE yomhook, ONLY: lhook, dr_hook
-USE parkind1, ONLY: jprb, jpim
-USE ereport_mod, ONLY: ereport
-USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper
+USE yomhook,              ONLY: lhook, dr_hook
+USE parkind1,             ONLY: jprb, jpim
+USE ereport_mod,          ONLY: ereport
+USE umPrintMgr,           ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper
 
-USE ukca_be_drydep_mod, ONLY: ukca_be_drydep
-USE ukca_be_wetdep_mod, ONLY: ukca_be_wetdep
-USE ukca_ddepctl_mod, ONLY: ukca_ddepctl
-USE ukca_ddeprt_mod, ONLY: ukca_ddeprt
-USE ukca_wdeprt_mod, ONLY: ukca_wdeprt
-USE ukca_drydep_mod, ONLY: ukca_drydep
-USE ukca_wetdep_mod, ONLY: ukca_wetdep
+USE ukca_be_drydep_mod,   ONLY: ukca_be_drydep
+USE ukca_be_wetdep_mod,   ONLY: ukca_be_wetdep
+USE ukca_ddepctl_mod,     ONLY: ukca_ddepctl
+USE ukca_ddeprt_mod,      ONLY: ukca_ddeprt
+USE ukca_wdeprt_mod,      ONLY: ukca_wdeprt
+USE ukca_drydep_mod,      ONLY: ukca_drydep
+USE ukca_wetdep_mod,      ONLY: ukca_wetdep
 
 IMPLICIT NONE
 
@@ -105,6 +105,7 @@ INTEGER, INTENT(IN) :: row_length        ! size of UKCA x dimension
 INTEGER, INTENT(IN) :: rows              ! size of UKCA y dimension
 INTEGER, INTENT(IN) :: model_levels      ! size of UKCA z dimension
 INTEGER, INTENT(IN) :: theta_field_size  ! no. of points in horizontal
+INTEGER, INTENT(IN) :: tot_n_pnts        ! no. of points in full domain
 INTEGER, INTENT(IN) :: ntracers          ! no. of tracers
 INTEGER, INTENT(IN) :: uph2so4inaer      ! flag for H2SO4 updating
 INTEGER, INTENT(IN) :: k_be_top          ! top level for integration
@@ -112,28 +113,26 @@ INTEGER, INTENT(IN) :: nlev_with_ddep(row_length,rows) ! No levs in bl
 
 INTEGER, INTENT(IN) :: chem_timestep   ! chemical timestep
 
-REAL, INTENT(IN) :: p_theta_levels(row_length,rows,model_levels) ! pressure
-REAL, INTENT(IN) :: temp(row_length,rows,model_levels) ! actual temp
-REAL, INTENT(IN) :: volume(row_length,rows,model_levels)  ! cell vol.
-REAL, INTENT(IN) :: qcl(row_length, rows, model_levels)   ! qcl
-REAL, INTENT(IN) :: cloud_frac(row_length, rows, model_levels)
-REAL, INTENT(IN) :: zdryrt(row_length,rows,jpdd)          ! dry dep rate
-REAL, INTENT(IN) :: zwetrt(row_length,rows,model_levels,jpdw) ! wet dep rate
+REAL, INTENT(IN) :: p_theta_levels(tot_n_pnts)           ! pressure
+REAL, INTENT(IN) :: temp(tot_n_pnts)                     ! actual temperature
+REAL, INTENT(IN) :: volume(row_length,rows,model_levels) ! cell volume
+REAL, INTENT(IN) :: qcl(tot_n_pnts)
+REAL, INTENT(IN) :: cloud_frac(tot_n_pnts)
+REAL, INTENT(IN) :: dryrt(theta_field_size,jpdd)         ! dry dep rate
+REAL, INTENT(IN) :: wetrt(theta_field_size,model_levels,jpdw) ! wet dep rate
 
-REAL, INTENT(IN OUT) :: q(row_length,rows,model_levels)   ! water vapour
-REAL, INTENT(IN OUT) :: tracer(row_length,rows,model_levels,ntracers)
-                                                         ! tracer MMR
+REAL, INTENT(IN OUT) :: q(tot_n_pnts)               ! water vapour
+REAL, INTENT(IN OUT) :: tracer(tot_n_pnts,ntracers) ! tracer MMR
 
 ! SO2 increments
-REAL, INTENT(IN OUT) :: delso2_wet_h2o2(row_length,rows,                       &
-  model_levels)
-REAL, INTENT(IN OUT) :: delso2_wet_o3(row_length,rows,model_levels)
-REAL, INTENT(IN OUT) :: delh2so4_chem(row_length,rows,model_levels)
-REAL, INTENT(IN OUT) :: delso2_drydep(row_length,rows,model_levels)
-REAL, INTENT(IN OUT) :: delso2_wetdep(row_length,rows,model_levels)
+REAL, INTENT(IN OUT) :: delso2_wet_h2o2(tot_n_pnts)
+REAL, INTENT(IN OUT) :: delso2_wet_o3(tot_n_pnts)
+REAL, INTENT(IN OUT) :: delh2so4_chem(tot_n_pnts)
+REAL, INTENT(IN OUT) :: delso2_drydep(tot_n_pnts)
+REAL, INTENT(IN OUT) :: delso2_wetdep(tot_n_pnts)
 
-! 3D pH array
-REAL, INTENT(IN) :: H_plus_3d_arr(row_length, rows, model_levels)
+REAL, INTENT(IN) :: H_plus(tot_n_pnts)   ! pH array
+REAL, INTENT(IN) :: h2o2_offline(tot_n_pnts)
 
 ! Flag for determining if this is the first chemistry call
 LOGICAL, INTENT(IN) :: firstcall
@@ -146,18 +145,20 @@ REAL, ALLOCATABLE   :: dflux(:,:)        ! chemical fluxes on each level
 ! Local variables
 INTEGER :: nlev_with_ddep2(theta_field_size) ! No levs in bl
 
-INTEGER, SAVE :: nr            ! no of rxns for BE
-INTEGER, SAVE :: n_be_calls    ! no of call to BE solver
+INTEGER, SAVE :: nr         ! no of rxns for BE
+INTEGER, SAVE :: n_be_calls ! no of call to BE solver
 
-INTEGER :: ix                  ! dummy variable
-INTEGER :: jy                  ! dummy variable
-INTEGER :: i                   ! Loop variable
-INTEGER :: j                   ! loop variable
-INTEGER :: js                  ! loop variable
-INTEGER :: k                   ! loop variable for model levels
-INTEGER :: l                   ! loop variable
-INTEGER :: n_pnts              ! number of points (= theta_field_size)
-INTEGER :: jit                 ! dummy iteration count
+INTEGER :: ix               ! dummy variable
+INTEGER :: jy               ! dummy variable
+INTEGER :: i                ! loop variable
+INTEGER :: j                ! loop variable
+INTEGER :: js               ! loop variable
+INTEGER :: k                ! loop variable for model levels
+INTEGER :: l                ! loop variable
+INTEGER :: jit              ! dummy iteration count
+
+INTEGER :: kcs              ! start index of current model level
+INTEGER :: kce              ! end index of current model level
 
 INTEGER           :: ierr                     ! Error code: asad diags routines
 INTEGER           :: errcode                  ! Error code: ereport
@@ -187,13 +188,10 @@ REAL :: zt(theta_field_size)          ! 1-D temperature
 REAL :: zq(theta_field_size)          ! 1-D water vapour
 REAL :: zclw(theta_field_size)        ! 1-D cloud liquid water
 REAL :: zfcloud(theta_field_size)     ! 1-D cloud fraction
-REAL :: zdryrt2(theta_field_size, jpdd)               ! dry dep rate
-REAL :: zwetrt2(theta_field_size, jpdw)               ! wet dep rat
-REAL :: wetrt(theta_field_size,jpspec)         ! wet dep rates (s-1)
-REAL :: dryrt(theta_field_size,jpspec)         ! dry dep rates (s-1)
-REAL :: H_plus_2d_arr(theta_field_size,model_levels) ! 2-D pH array to use in
-                                                     ! wet deposition
-REAL :: H_plus_1d_arr(theta_field_size)  ! 1-D pH array to use in BE solver
+REAL :: zdryrt2(theta_field_size,jpdd)              ! dry dep rate
+REAL :: zwetrt2(theta_field_size,model_levels,jpdw) ! wet dep rate
+REAL :: zwetrt(theta_field_size,jpspec)             ! wet dep rates (s-1)
+REAL :: zdryrt(theta_field_size,jpspec)             ! dry dep rates (s-1)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -204,7 +202,6 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CHEMISTRY_CTL_BE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-n_pnts = theta_field_size
 nr = jpbk + jptk + jphk
 secs_per_step = REAL(chem_timestep)
 
@@ -253,41 +250,42 @@ IF (.NOT. ALLOCATED(rc)) ALLOCATE(rc(theta_field_size,nr))
 ! Model levels loop
 DO k=1,k_be_top
 
+  ! Determine the indices for extracting the slice of data which corresponds to
+  ! the k-th model level
+  kcs = (k - 1) * theta_field_size + 1
+  kce = k * theta_field_size
+
   zdryrt2(:,:) = 0.0e0
   IF (ukca_config%l_ukca_intdd) THEN
     ! Interactive scheme extracts from levels in boundary layer
     blmask(:) = (k <= nlev_with_ddep2(:))
     DO l=1,jpdd
       WHERE (blmask(:))
-        zdryrt2(:,l) =                                                         &
-          RESHAPE(zdryrt(:,:,l),[theta_field_size])
+        zdryrt2(:,l) = dryrt(:,l)
       END WHERE
     END DO
   ELSE    ! non-interactive
     IF (k == 1) THEN
-      DO l=1,jpdd
-        zdryrt2(:,l) =                                                         &
-          RESHAPE(zdryrt(:,:,l),[theta_field_size])
-      END DO
+      zdryrt2(:,:) = dryrt(:,:)
     END IF
   END IF
 
   ! Put pressure, temperature and tracer mmr into 1-D arrays
   ! for use in ASAD chemical solver
 
-  zp(:) = RESHAPE(p_theta_levels(:,:,k),[theta_field_size])
-  zt(:) = RESHAPE(temp(:,:,k),[theta_field_size])
+  zp(:) = p_theta_levels(kcs:kce)
+  zt(:) = temp(kcs:kce)
 
   IF (ukca_config%l_fix_ukca_offox_h2o_fac) THEN
     ! convert q from mmr to vmr as required by chemical solver
-    zq(:) = RESHAPE(q(:,:,k),[theta_field_size])/c_h2o
+    zq(:) = q(kcs:kce)/c_h2o
   ELSE
-    zq(:) = RESHAPE(q(:,:,k),[theta_field_size])
+    zq(:) = q(kcs:kce)
   END IF
 
   IF (k <= model_levels) THEN
-    zclw(:) = RESHAPE(qcl(:,:,k),[theta_field_size])
-    zfcloud(:) = RESHAPE(cloud_frac(:,:,k),[theta_field_size])
+    zclw(:) = qcl(kcs:kce)
+    zfcloud(:) = cloud_frac(kcs:kce)
   ELSE
     zclw(:) = 0.0
     zfcloud(:) = 0.0
@@ -295,37 +293,30 @@ DO k=1,k_be_top
 
   ! Convert mmr into vmr for tracers and set f array
   DO js=1,jpctr
-    zftr(:,js) = RESHAPE(tracer(:,:,k,js),[theta_field_size])/c_species(js)
+    zftr(:,js) = tracer(kcs:kce,js)/c_species(js)
   END DO
-
-  ! reshape 3D H_plus values to 1-D for use in BE solver
-  H_plus_1d_arr(:) = RESHAPE(H_plus_3d_arr(:,:,k),[theta_field_size])
 
   ! Backward Euler with non-families
 
   ! Calculate total number  density, o2, h2o, and tracer
   !  concentrations for Backward Euler solver
 
-  DO l=1,jpdw
-    zwetrt2(:,l) = RESHAPE(zwetrt(:,:,k,l),[theta_field_size])
-  END DO
-
   ! Assign wet and dry deposition rates to species
 
-  CALL ukca_be_wetdep(n_pnts, zwetrt2, wetrt)
+  CALL ukca_be_wetdep(theta_field_size, wetrt(:,k,:), zwetrt)
 
-  CALL ukca_be_drydep(k, n_pnts, nlev_with_ddep2, zdryrt2, dryrt)
+  CALL ukca_be_drydep(k, theta_field_size, nlev_with_ddep2, zdryrt2, zdryrt)
 
   ! Fill the asad arrays for wet and dry deposition diagnostics
-  IF ( ndepw /= 0 ) CALL ukca_wetdep(zwetrt2, n_pnts)
+  IF ( ndepw /= 0 ) CALL ukca_wetdep(wetrt(:,k,:), theta_field_size)
 
-  IF ( ndepd /= 0 ) CALL ukca_drydep(k, zdryrt2, n_pnts)
+  IF ( ndepd /= 0 ) CALL ukca_drydep(k, zdryrt2, theta_field_size)
 
 
   ! Calculate reaction rate coefficients (rc)
 
   CALL ukca_chemco_be_offline(theta_field_size, zt, zp, zq, zfcloud, zclw,     &
-                              H_plus_1d_arr)
+                              H_plus(kcs:kce))
 
   ! Convert tracers to concentration
   DO js=1,jpctr
@@ -334,7 +325,7 @@ DO k=1,k_be_top
 
   ! Initialise y array, including the offline oxidants
   jit = 0
-  CALL asad_ftoy(ofirst, nitfg, jit, n_pnts, ix, jy, k)
+  CALL asad_ftoy(ofirst, nitfg, jit, theta_field_size, ix, jy, k)
 
   !  Call Backward Euler solver
   !   N.B. Emissions already added, via call to TR_MIX from UKCA_EMISSION_CTL
@@ -346,9 +337,9 @@ DO k=1,k_be_top
   ! Store H2SO4 tracer if it will be updated in MODE using delh2so4_chem
   IF (uph2so4inaer == 1) ystore(:) = y(:,nn_h2so4)
 
-  CALL ukca_deriv_offline(nr, n_be_calls, n_pnts, dts, y, dryrt, wetrt,        &
-                          so2_wetox_h2o2, so2_wetox_o3, so2_dryox_oh, lflux,   &
-                          dflux)
+  CALL ukca_deriv_offline(nr, n_be_calls, theta_field_size, dts, y, zdryrt,    &
+                          zwetrt, so2_wetox_h2o2, so2_wetox_o3, so2_dryox_oh,  &
+                          lflux, dflux)
 
   ! Restore H2SO4 tracer as it will be updated in MODE using delh2so4_chem
   IF (uph2so4inaer == 1) y(:,nn_h2so4) = ystore(:)
@@ -357,21 +348,18 @@ DO k=1,k_be_top
   DO j = 1,jpctr
     i_loop: DO i = 1,jpspec
       IF (advt(j) == speci(i)) THEN
-        tracer(:,:,k,j) = RESHAPE(y(:,i)/tnd(:),[row_length,rows])*            &
-                               c_species(j)
+        tracer(kcs:kce,j) = y(:,i)/tnd(:)*c_species(j)
         EXIT i_loop
       END IF
     END DO i_loop
   END DO
 
   ! Update the 3-D SO2 flux arrays (molecules cm-3 per timestep)
-  delso2_wet_h2o2(:,:,k) = RESHAPE(so2_wetox_h2o2(:),[row_length,rows])
-  delso2_wet_o3(:,:,k)   = RESHAPE(so2_wetox_o3(:),[row_length,rows])
-  delh2so4_chem(:,:,k)   = RESHAPE(so2_dryox_oh(:),[row_length,rows])
-  delso2_drydep(:,:,k)   = RESHAPE(dryrt(:,nn_so2)*                            &
-                                 y(:,nn_so2),[row_length,rows]) * dts
-  delso2_wetdep(:,:,k)   = RESHAPE(wetrt(:,nn_so2)*                            &
-                                 y(:,nn_so2),[row_length,rows]) * dts
+  delso2_wet_h2o2(kcs:kce) = so2_wetox_h2o2(:)
+  delso2_wet_o3(kcs:kce)   = so2_wetox_o3(:)
+  delh2so4_chem(kcs:kce)   = so2_dryox_oh(:)
+  delso2_drydep(kcs:kce)   = zdryrt(:,nn_so2)*y(:,nn_so2)*dts
+  delso2_wetdep(kcs:kce)   = zwetrt(:,nn_so2)*y(:,nn_so2)*dts
 
   ! Fill the prk array from the flux array
   IF (lflux) THEN
@@ -403,8 +391,8 @@ IF (ALLOCATED(dflux)) DEALLOCATE(dflux)
 IF (ALLOCATED(ystore)) DEALLOCATE(ystore)
 
 ! Reduce over-prediction of H2O2 using ancillary value.
-WHERE (tracer(:,:,:,n_h2o2) > h2o2_offline(:,:,:))                             &
-       tracer(:,:,:,n_h2o2) = h2o2_offline(:,:,:)
+WHERE (tracer(:,n_h2o2) > h2o2_offline(:))                                     &
+       tracer(:,n_h2o2) = h2o2_offline(:)
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

@@ -133,14 +133,6 @@ LOGICAL, INTENT(IN)     :: firstcall ! is this the first chemistry call?
 
 INTEGER :: jspf
 
-! Reshaped versions of fields for input to ukca_wdeprt
-REAL :: zwetrt_theta(theta_field_size,model_levels,jpdw)
-REAL :: drain_theta(theta_field_size,model_levels)
-REAL :: crain_theta(theta_field_size,model_levels)
-REAL :: temp_theta(theta_field_size,model_levels)
-REAL :: latitude_theta(theta_field_size)
-REAL :: H_plus_theta(theta_field_size,model_levels)
-
 LOGICAL :: tropraq
 
 ! The call to ukca_conserve requires a logical to be set.
@@ -285,23 +277,10 @@ IF (ndepd /= 0 .AND. .NOT. ukca_config%l_ukca_drydep_off) THEN
 END IF
 
 ! Call routine to calculate wet deposition rates.
-zwetrt  = 0.0
-zwetrt_theta  = 0.0
+zwetrt = 0.0
 IF (ndepw /= 0 .AND. .NOT. ukca_config%l_ukca_wetdep_off) THEN
-
-  ! Reshape these input fields for input to ukca_wdeprt.
-  ! These are intent(in) so do not need additional copying out.
-  drain_theta = RESHAPE(drain,[theta_field_size,model_levels])
-  crain_theta = RESHAPE(crain,[theta_field_size,model_levels])
-  temp_theta = RESHAPE(temp,[theta_field_size,model_levels])
-  latitude_theta = RESHAPE(latitude,[theta_field_size])
-  H_plus_theta(:,:) = RESHAPE(H_plus,[theta_field_size,model_levels])
-
-  CALL ukca_wdeprt(theta_field_size, model_levels, drain_theta, crain_theta,   &
-                   temp_theta, latitude_theta, secs_per_step, zwetrt_theta,    &
-                   H_plus_theta)
-
-  zwetrt=RESHAPE(zwetrt_theta,[row_length,rows,model_levels,jpdw])
+  CALL ukca_wdeprt(theta_field_size, model_levels, drain, crain, temp,         &
+                   latitude, secs_per_step, zwetrt, H_plus)
 END IF
 
 IF (ukca_config%l_ukca_offline_be) RETURN

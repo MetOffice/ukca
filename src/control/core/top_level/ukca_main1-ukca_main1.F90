@@ -103,7 +103,7 @@ USE ukca_environment_fields_mod, ONLY:                                         &
     dust_div4,              dust_div5,            dust_div6,                   &
     interf_z,               grid_surf_area,       grid_area_fullht,            &
     grid_volume,            photol_rates,         ext_cg_flash,                &
-    ext_ic_flash
+    ext_ic_flash,           co2_interactive
 
 USE ukca_pr_inputs_mod, ONLY: ukca_pr_inputs
 
@@ -302,6 +302,7 @@ INTEGER    :: row_length        ! Size of UKCA x dimension (columns)
 INTEGER    :: rows              ! Size of UKCA y dimension (rows)
 INTEGER    :: model_levels      ! Size of UKCA z dimension (levels)
 INTEGER    :: theta_field_size  ! No. of points in horizontal plane
+INTEGER    :: tot_n_pnts        ! No. of points in full domain
 INTEGER    :: n_pnts            ! No. of points passed to ASAD
 INTEGER    :: section           ! stash section
 INTEGER    :: item              ! stash item
@@ -611,6 +612,7 @@ rows = ukca_config%rows
 model_levels = ukca_config%model_levels
 
 theta_field_size = row_length * rows
+tot_n_pnts = theta_field_size * model_levels
 IF (ukca_config%l_ukca_asad_columns) THEN
   n_pnts = ukca_config%ukca_chem_seg_size
 ELSE
@@ -2278,7 +2280,7 @@ IF (ukca_config%l_ukca_chem) THEN
       ! Offline chemistry with explicit backward-Euler solver
       CALL ukca_chemistry_ctl_be(                                              &
            row_length, rows, model_levels,                                     &
-           theta_field_size,                                                   &
+           theta_field_size, tot_n_pnts,                                       &
            n_chem_tracers+n_aero_tracers,                                      &
            ukca_config%chem_timestep,                                          &
            k_be_top,                                                           &
@@ -2297,6 +2299,7 @@ IF (ukca_config%l_ukca_chem) THEN
            delso2_drydep,                                                      &
            delso2_wetdep,                                                      &
            H_plus_3d_arr,                                                      &
+           h2o2_offline,                                                       &
            zdryrt, zwetrt, nlev_with_ddep,                                     &
            l_firstchem                                                         &
            )
@@ -2383,7 +2386,7 @@ IF (ukca_config%l_ukca_chem) THEN
 
       CALL ukca_chemistry_ctl_tropraq(                                         &
            row_length, rows, model_levels,                                     &
-           theta_field_size,                                                   &
+           theta_field_size, tot_n_pnts,                                       &
            n_chem_tracers+n_aero_tracers,                                      &
            REAL(ukca_config%chem_timestep),                                    &
            p_theta_levels,                                                     &
@@ -2421,7 +2424,7 @@ IF (ukca_config%l_ukca_chem) THEN
            SIZE(stashwork50),                                                  &
            stashwork50,                                                        &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep,                                     &
+           zdryrt, zwetrt, nlev_with_ddep, L_stratosphere,                     &
            l_firstchem                                                         &
            )
 
@@ -2429,7 +2432,7 @@ IF (ukca_config%l_ukca_chem) THEN
 
       CALL ukca_chemistry_ctl(                                                 &
            row_length, rows, model_levels,                                     &
-           theta_field_size,                                                   &
+           theta_field_size, tot_n_pnts,                                       &
            n_chem_tracers+n_aero_tracers,                                      &
            istore_h2so4,                                                       &
            p_theta_levels,                                                     &
@@ -2458,7 +2461,7 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep,                                     &
+           zdryrt, zwetrt, nlev_with_ddep, co2_interactive, L_stratosphere,    &
            l_firstchem                                                         &
            )
     END IF
