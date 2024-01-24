@@ -63,6 +63,9 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_ext_cg_flash,                                                        &
   fldname_ext_ic_flash,                                                        &
   fldname_land_sea_mask,                                                       &
+  fldname_u_rho_levels,                                                        &
+  fldname_v_rho_levels,                                                        &
+  fldname_geopH_on_theta_mlevs,                                                &
   fldname_theta,                                                               &
   fldname_q,                                                                   &
   fldname_qcf,                                                                 &
@@ -159,6 +162,9 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   ext_cg_flash,                                                                &
   ext_ic_flash,                                                                &
   land_sea_mask,                                                               &
+  u_rho_levels,                                                                &
+  v_rho_levels,                                                                &
+  geopH_on_theta_mlevs,                                                        &
   theta,                                                                       &
   q,                                                                           &
   qcf,                                                                         &
@@ -585,6 +591,15 @@ SELECT CASE (varname)
 CASE (fldname_stcon)
   CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
                                  stcon)
+CASE (fldname_u_rho_levels)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 u_rho_levels)
+CASE (fldname_v_rho_levels)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 v_rho_levels)
+CASE (fldname_geopH_on_theta_mlevs)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 geopH_on_theta_mlevs)
 CASE (fldname_theta)
   CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
                                  theta)

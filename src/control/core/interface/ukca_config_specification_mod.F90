@@ -266,6 +266,8 @@ TYPE :: ukca_config_spec_type
   LOGICAL :: l_ukca_inferno            ! True for INFERNO fire emissions
   LOGICAL :: l_ukca_inferno_ch4        ! True for INFERNO CH4 fire emissions
   INTEGER :: i_inferno_emi             ! maximum INFERNO emission level
+  LOGICAL :: l_ukca_so2ems_expvolc     ! True for interactive expvolc emissions
+  LOGICAL :: l_ukca_so2ems_plumeria    ! True for expvolc emissions with plumeria
   LOGICAL :: l_ukca_qch4inter          ! True for interactive wetland CH4
                                        ! emissions
   LOGICAL :: l_ukca_emsdrvn_ch4        ! True when running UKCA in
@@ -918,6 +920,8 @@ ukca_config%l_ukca_ibvoc = .FALSE.
 ukca_config%l_ukca_inferno = .FALSE.
 ukca_config%l_ukca_inferno_ch4 = .FALSE.
 ukca_config%i_inferno_emi = imdi
+ukca_config%l_ukca_so2ems_expvolc = .FALSE.
+ukca_config%l_ukca_so2ems_plumeria = .FALSE.
 ukca_config%l_ukca_qch4inter = .FALSE.
 ukca_config%mode_parfrac = rmdi
 ukca_config%l_ukca_enable_seadms_ems = .FALSE.
@@ -1162,6 +1166,8 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_classic_hetchem,                                                     &
    l_ukca_ibvoc,                                                               &
    l_ukca_inferno, l_ukca_inferno_ch4,                                         &
+   l_ukca_so2ems_expvolc,                                                      &
+   l_ukca_so2ems_plumeria,                                                     &
    l_ukca_qch4inter, l_ukca_emsdrvn_ch4,                                       &
    l_ukca_enable_seadms_ems, l_ukca_scale_seadms_ems,                          &
    l_ukca_linox_scaling,                                                       &
@@ -1358,6 +1364,8 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_classic_hetchem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ibvoc
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_inferno
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_inferno_ch4
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_so2ems_expvolc
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_so2ems_plumeria
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_qch4inter
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_emsdrvn_ch4
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_enable_seadms_ems
@@ -1592,6 +1600,10 @@ IF (PRESENT(l_ukca_inferno)) l_ukca_inferno = ukca_config%l_ukca_inferno
 IF (PRESENT(l_ukca_inferno_ch4))                                               &
   l_ukca_inferno_ch4 = ukca_config%l_ukca_inferno_ch4
 IF (PRESENT(i_inferno_emi)) i_inferno_emi = ukca_config%i_inferno_emi
+IF (PRESENT(l_ukca_so2ems_expvolc))                                            &
+  l_ukca_so2ems_expvolc = ukca_config%l_ukca_so2ems_expvolc
+IF (PRESENT(l_ukca_so2ems_plumeria))                                           &
+  l_ukca_so2ems_plumeria = ukca_config%l_ukca_so2ems_plumeria
 IF (PRESENT(l_ukca_qch4inter)) l_ukca_qch4inter = ukca_config%l_ukca_qch4inter
 IF (PRESENT(l_ukca_emsdrvn_ch4))                                               &
 l_ukca_emsdrvn_ch4 = ukca_config%l_ukca_emsdrvn_ch4

@@ -125,6 +125,9 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_ext_ic_flash,                                                        &
   fldname_land_sea_mask,                                                       &
   fldname_l_tile_active,                                                       &
+  fldname_u_rho_levels,                                                        &
+  fldname_v_rho_levels,                                                        &
+  fldname_geopH_on_theta_mlevs,                                                &
   fldname_theta,                                                               &
   fldname_q,                                                                   &
   fldname_qcf,                                                                 &
@@ -405,7 +408,7 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 
 ! Field counts
-INTEGER, PARAMETER :: n_max = 144  ! Maximum number of environment fields
+INTEGER, PARAMETER :: n_max = 147  ! Maximum number of environment fields
 INTEGER :: n                       ! Count of environment fields selected
 INTEGER :: i                       ! Counter for loops
 
@@ -1067,6 +1070,17 @@ IF (ukca_config%l_ukca_intdd) THEN
     fld_names(n) = fldname_stcon
     fld_info(n)%group = group_flatpft_real
     fld_info(n)%ubound_dim3 = ukca_config%npft
+  END IF
+END IF
+
+! U and V wind on rho levels and geopotential height on theta levels
+! are required if PLUMERIA is used in ukca_volcanic_so2
+IF (ukca_config%l_ukca_so2ems_plumeria) THEN
+  n = n + 3
+  IF (n <= n_max) THEN
+    fld_names(n-2) = fldname_u_rho_levels
+    fld_names(n-1) = fldname_v_rho_levels
+    fld_names(n) = fldname_geopH_on_theta_mlevs
   END IF
 END IF
 

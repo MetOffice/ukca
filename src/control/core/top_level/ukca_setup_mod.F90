@@ -154,6 +154,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_ibvoc,                                            &
                       l_ukca_inferno,                                          &
                       l_ukca_inferno_ch4,                                      &
+                      l_ukca_so2ems_expvolc,                                   &
+                      l_ukca_so2ems_plumeria,                                  &
                       l_ukca_qch4inter,                                        &
                       l_ukca_emsdrvn_ch4,                                      &
                       l_ukca_enable_seadms_ems,                                &
@@ -437,6 +439,8 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_classic_hetchem
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ibvoc
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_inferno
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_inferno_ch4
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_so2ems_expvolc
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_so2ems_plumeria
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_qch4inter
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_emsdrvn_ch4
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_enable_seadms_ems
@@ -873,6 +877,8 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
 
   IF (PRESENT(l_ukca_ibvoc)) ukca_config%l_ukca_ibvoc = l_ukca_ibvoc
   IF (PRESENT(l_ukca_inferno)) ukca_config%l_ukca_inferno = l_ukca_inferno
+  IF (PRESENT(l_ukca_so2ems_expvolc))                                          &
+    ukca_config%l_ukca_so2ems_expvolc = l_ukca_so2ems_expvolc
   IF (PRESENT(l_ukca_qch4inter)) ukca_config%l_ukca_qch4inter = l_ukca_qch4inter
   IF (PRESENT(l_ukca_emsdrvn_ch4))                                             &
     ukca_config%l_ukca_emsdrvn_ch4 = l_ukca_emsdrvn_ch4
@@ -882,6 +888,12 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
     ukca_config%l_support_ems_gridbox_units = l_support_ems_gridbox_units
   IF (PRESENT(l_suppress_ems))                                                 &
     ukca_config%l_suppress_ems = l_suppress_ems
+
+  ! Explosive volcanic emissions options
+  IF (ukca_config%l_ukca_so2ems_expvolc) THEN
+    IF (PRESENT(l_ukca_so2ems_plumeria))                                       &
+      ukca_config%l_ukca_so2ems_plumeria = l_ukca_so2ems_plumeria
+  END IF
 
   ! Lightning NOx emissions options
   ! Always off for Offline Oxidants chemistry; default to Price & Rind for full

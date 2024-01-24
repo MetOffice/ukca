@@ -49,7 +49,8 @@ SUBROUTINE ukca_emiss_ctl (                                                    &
   cos_zenith_angle, int_zenith_angle, land_fraction, tropopause_level,         &
   r_rho_levels, t_theta_levels,                                                &
   p_theta_levels, p_layer_boundaries, rel_humid_frac_clr, mass,                &
-  ls_mask,  theta, q, qcl, qcf,                                                &
+  ls_mask, rel_humid_frac, plumeria_height,                                    &
+  theta, q, qcl, qcf,                                                          &
   exner_rho_levels, rho_r2, kent, kent_dsc, rhokh_rdz, dtrdz,                  &
   we_lim, t_frac, zrzi, we_lim_dsc, t_frac_dsc, zrzi_dsc, ml_depth,            &
   zhsc, z_half, ch4_wetl_emiss, seaice_frac, area, dust_flux, u_scalar_10m,    &
@@ -177,6 +178,9 @@ REAL, INTENT(IN) :: rel_humid_frac_clr    (1:row_length, 1:rows, 1:model_levels)
 
 LOGICAL, INTENT(IN) :: ls_mask            (1:row_length, 1:rows)
 
+! Input arguments needed by UKCA_VOLCANIC_SO2
+REAL, INTENT(IN) :: rel_humid_frac       (1:row_length, 1:rows, 1:model_levels)
+
 ! Input arguments needed by UKCA_ADD_EMISS to call TRSRCE
 REAL, INTENT(IN) :: theta             (1:row_length, 1:rows, 1:model_levels)
 REAL, INTENT(IN) :: q                 (1:row_length, 1:rows, 1:model_levels)
@@ -248,6 +252,7 @@ REAL, INTENT(IN OUT) :: tracers (1:row_length, 1:rows, 1:model_levels,         &
 ! Diagnostics arrays
 REAL, INTENT(IN OUT) :: stashwork38(len_stashwork38)
 REAL, INTENT(IN OUT) :: stashwork50(len_stashwork50)
+REAL, INTENT(OUT) :: plumeria_height(1:row_length, 1:rows)
 
 ! Local variables
 
@@ -1073,6 +1078,10 @@ CALL ukca_add_emiss (                                                          &
   n_tracers, iyear, imonth, iday, ihour, timestep,                             &
   longitude,                                                                   &
   r_theta_levels, r_rho_levels,                                                &
+  rel_humid_frac,                                                              &
+  plumeria_height,                                                             &
+  p_theta_levels,                                                              &
+  t_theta_levels,                                                              &
   theta,                                                                       &
   q,                                                                           &
   qcl,                                                                         &

@@ -405,6 +405,12 @@ CHARACTER(LEN=*), PARAMETER :: fldname_l_tile_active =                         &
 ! to break backwards compatibility with parent models and require
 ! corresponding changes thereof).
 
+CHARACTER(LEN=*), PARAMETER :: fldname_u_rho_levels =                          &
+                                      'u_rho_levels'
+CHARACTER(LEN=*), PARAMETER :: fldname_v_rho_levels =                          &
+                                      'v_rho_levels'
+CHARACTER(LEN=*), PARAMETER :: fldname_geopH_on_theta_mlevs =                  &
+                                      'geopH_on_theta_mlevs'
 CHARACTER(LEN=*), PARAMETER :: fldname_theta =                                 &
                                       'theta'
 CHARACTER(LEN=*), PARAMETER :: fldname_q =                                     &
@@ -568,6 +574,10 @@ CHARACTER(LEN=*), PARAMETER :: diagname_p_tropopause =                         &
 ! [CF] Ozone column in Dobson units
 CHARACTER(LEN=*), PARAMETER :: diagname_o3_column_du =                         &
   'equivalent_thickness_at_stp_of_atmosphere_ozone_content'  ! [CF]
+
+! Plume height from exp eruptions (m)
+CHARACTER(LEN=*), PARAMETER :: diagname_plumeria_height =                      &
+  'plumeria_height_of_explosive_eruptions'
 
 CONTAINS
 

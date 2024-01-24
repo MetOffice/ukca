@@ -51,7 +51,9 @@ SUBROUTINE ukca_add_emiss (                                                    &
     row_length, rows, model_levels, bl_levels,                                 &
     n_tracers, iyear, imonth, iday, ihour, timestep,                           &
     longitude,                                                                 &
-    r_theta_levels,     r_rho_levels, theta,          q,  qcl,  qcf,           &
+    r_theta_levels,     r_rho_levels,          rel_humid_frac,                 &
+    plumeria_height,    p_theta_levels,        t_theta_levels,                 &
+    theta,              q,  qcl,  qcf,                                         &
     exner_rho_levels,   rho_r2,                                                &
     kent,               kent_dsc,                                              &
     rhokh_rdz,          dtrdz,                                                 &
@@ -62,7 +64,6 @@ SUBROUTINE ukca_add_emiss (                                                    &
     len_stashwork50,stashwork50)
 
 USE ukca_um_legacy_mod,      ONLY: trsrce,                                     &
-                                   l_ukca_so2ems_expvolc,                      &
                                    ukca_volcanic_so2, copydiag,                &
                                    sf, si, si_last
 USE asad_mod,                ONLY: advt, method, jpctr
@@ -73,7 +74,8 @@ USE asad_chem_flux_diags,    ONLY: asad_emissions_diagnostics,                 &
                                    L_asad_use_air_ems, aircraft_emissions,     &
                                    L_asad_use_volc_ems, volcanic_emissions
 USE ukca_constants,          ONLY: m_no, m_so2
-USE ukca_environment_fields_mod, ONLY: atmospheric_ch4
+USE ukca_environment_fields_mod, ONLY: atmospheric_ch4, u_rho_levels,          &
+                                       v_rho_levels, geopH_on_theta_mlevs
 
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
                                          int_method_nr, bl_tracer_mix,         &
@@ -123,7 +125,10 @@ REAL,    INTENT(IN) :: longitude(1:row_length,1:rows) ! degrees E
 
 ! Input argument needed to get SO2 emiss from explosive volcanic eruptions
 REAL, INTENT(IN) :: r_theta_levels        (1:row_length,1:rows,0:model_levels)
-REAL, INTENT(IN) :: r_rho_levels        (1:row_length,1:rows,model_levels)
+REAL, INTENT(IN) :: r_rho_levels          (1:row_length,1:rows,model_levels)
+REAL, INTENT(IN) :: rel_humid_frac        (1:row_length,1:rows,1:model_levels)
+REAL, INTENT(IN) :: p_theta_levels        (1:row_length,1:rows,1:model_levels)
+REAL, INTENT(IN) :: t_theta_levels        (1:row_length,1:rows,1:model_levels)
 
 ! Input arguments needed to call TSRCE
 REAL, INTENT(IN) :: theta             (1:row_length, 1:rows, 1:model_levels)
@@ -168,6 +173,12 @@ REAL, INTENT(IN OUT) :: stashwork50(len_stashwork50)
 ! Tracer mass mixing ratios
 REAL, INTENT(IN OUT) :: tracers (1:row_length, 1:rows, 1:model_levels,         &
                                 1:n_tracers)
+
+! Plume height of explosive eruptions from Plumera
+REAL, INTENT(OUT) :: plumeria_height(1:row_length, 1:rows)
+REAL :: u_rho_levels_plumeria (1:row_length,1:rows,1:model_levels)
+REAL :: v_rho_levels_plumeria (1:row_length,1:rows,1:model_levels)
+REAL :: geopH_on_theta_plumeria (1:row_length,1:rows,1:model_levels)
 
 ! Local variables
 
@@ -1075,7 +1086,7 @@ END IF
 ! into stratosphere
 IF ((ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.            &
      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) .AND.      &
-    iso2 > 0 .AND. l_ukca_so2ems_expvolc ) THEN
+    iso2 > 0 .AND. ukca_config%l_ukca_so2ems_expvolc ) THEN
 
   !   Diagnostics - volcanic SO2 emissions
   IF (L_asad_use_chem_diags .AND. L_asad_use_volc_ems) THEN
@@ -1083,11 +1094,27 @@ IF ((ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.            &
     tmp3dems (:,:,:) = tracers(1:row_length, 1:rows, 1:model_levels, iso2)
   END IF
 
+  IF (ukca_config%l_ukca_so2ems_plumeria) THEN
+    u_rho_levels_plumeria = u_rho_levels
+    v_rho_levels_plumeria = v_rho_levels
+    geopH_on_theta_plumeria = geopH_on_theta_mlevs
+  ELSE
+    u_rho_levels_plumeria = 0.0
+    v_rho_levels_plumeria = 0.0
+    geopH_on_theta_plumeria = 0.0
+  END IF ! ukca_config%l_ukca_so2ems_plumeria
+
   CALL ukca_volcanic_so2 (                                                     &
            tracers (1:row_length, 1:rows, :, iso2),                            &
            mass, row_length, rows, model_levels,                               &
            iyear, timestep,                                                    &
-           r_theta_levels (1:row_length, 1:rows, 1:model_levels))
+           r_theta_levels (1:row_length, 1:rows, 1:model_levels),              &
+           rel_humid_frac (1:row_length, 1:rows, 1:model_levels),              &
+           p_theta_levels (1:row_length, 1:rows, 1:model_levels),              &
+           t_theta_levels (1:row_length, 1:rows, 1:model_levels),              &
+           geopH_on_theta_plumeria, u_rho_levels_plumeria,                     &
+           v_rho_levels_plumeria,                                              &
+           plumeria_height (1:row_length, 1:rows))
 
   !   Diagnostics - SO2 emissions from explosive volcanic eruptions
   IF (L_asad_use_chem_diags .AND. L_asad_use_volc_ems) THEN
@@ -1103,8 +1130,12 @@ IF ((ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.            &
          m_so2, timestep, volcanic_emissions,                                  &
          ierr)
     DEALLOCATE (tmp3dems)
-  END IF
+  END IF   ! L_asad_yse_chem_diags, etc.
 
+ELSE
+  ! Initialise plumeria_height with a dump value if l_ukca_strat, etc.
+  ! and l_ukca_so2ems_expvolc are not TRUE.
+  plumeria_height = -999.0
 END IF    ! l_ukca_strat, etc.
 
 IF (ALLOCATED(hourly_scaling_all_2d)) DEALLOCATE(hourly_scaling_all_2d)

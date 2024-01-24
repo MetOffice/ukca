@@ -43,7 +43,8 @@ USE ukca_fieldname_mod, ONLY: maxlen_diagname,                                 &
                               diagname_jrate_o3b, diagname_jrate_o2b,          &
                               diagname_rxnflux_oh_ch4_trop,                    &
                               diagname_p_tropopause,                           &
-                              diagname_o3_column_du
+                              diagname_o3_column_du,                           &
+                              diagname_plumeria_height
 
 USE missing_data_mod, ONLY: imdi
 
@@ -62,7 +63,7 @@ PUBLIC create_master_diagnostics_list, set_diagnostic_availabilities
 
 ! --- Module variables ---
 
-INTEGER, PARAMETER :: n_diag_tot = 7           ! Total no. of UKCA diagnostics
+INTEGER, PARAMETER :: n_diag_tot = 8           ! Total no. of UKCA diagnostics
 
 ! Array bounds for each diagnostic group
 TYPE(bounds_type), PUBLIC :: bound_info(n_diag_group)
@@ -130,6 +131,7 @@ CALL create_diagnostic(diagname_rxnflux_oh_ch4_trop, dgroup_fullht_real,       &
                        .TRUE., n)
 CALL create_diagnostic(diagname_p_tropopause, dgroup_flat_real, .FALSE., n)
 CALL create_diagnostic(diagname_o3_column_du, dgroup_fullht_real, .FALSE., n)
+CALL create_diagnostic(diagname_plumeria_height, dgroup_flat_real, .FALSE., n)
 
 IF (n /= n_diag_tot) THEN
   WRITE(message_txt,'(A,I0,A,I0)')                                             &
@@ -283,6 +285,9 @@ DO i = 1, SIZE(master_diag_list)
     master_diag_list(i)%l_available = (ukca_config%model_levels > 1)
   CASE (diagname_o3_column_du)
     master_diag_list(i)%l_available = (ANY(advt(:) == 'O3        '))
+  CASE (diagname_plumeria_height)
+    master_diag_list(i)%l_available = ukca_config%l_ukca_so2ems_plumeria
+
 
   CASE DEFAULT
 

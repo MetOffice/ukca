@@ -114,6 +114,9 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_ext_ic_flash,                                                        &
   fldname_land_sea_mask,                                                       &
   fldname_l_tile_active,                                                       &
+  fldname_u_rho_levels,                                                        &
+  fldname_v_rho_levels,                                                        &
+  fldname_geopH_on_theta_mlevs,                                                &
   fldname_theta,                                                               &
   fldname_q,                                                                   &
   fldname_qcf,                                                                 &
@@ -261,6 +264,9 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   ext_ic_flash,                                                                &
   land_sea_mask,                                                               &
   l_tile_active,                                                               &
+  u_rho_levels,                                                                &
+  v_rho_levels,                                                                &
+  geopH_on_theta_mlevs,                                                        &
   theta,                                                                       &
   q,                                                                           &
   qcf,                                                                         &
@@ -1475,6 +1481,15 @@ END IF
 ! Copy 3D real field to the appropriate UKCA internal array if required.
 ! Any data outside the required bounds (e.g. halos) are discarded.
 SELECT CASE (varname)
+CASE (fldname_u_rho_levels)
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         u_rho_levels)
+CASE (fldname_v_rho_levels)
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         v_rho_levels)
+CASE (fldname_geopH_on_theta_mlevs)
+  CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,          &
+                         geopH_on_theta_mlevs)
 CASE (fldname_theta)
   CALL set_field_3d_real(i_field, i1, i2, j1, j2, k1, k2, field_data, theta)
 CASE (fldname_q)
@@ -2093,6 +2108,9 @@ IF (ALLOCATED(kent_dsc)) DEALLOCATE(kent_dsc)
 IF (ALLOCATED(conv_cloud_base)) DEALLOCATE(conv_cloud_base)
 IF (ALLOCATED(conv_cloud_top)) DEALLOCATE(conv_cloud_top)
 IF (ALLOCATED(land_sea_mask)) DEALLOCATE(land_sea_mask)
+IF (ALLOCATED(u_rho_levels)) DEALLOCATE(u_rho_levels)
+IF (ALLOCATED(v_rho_levels)) DEALLOCATE(v_rho_levels)
+IF (ALLOCATED(geopH_on_theta_mlevs)) DEALLOCATE(geopH_on_theta_mlevs)
 IF (ALLOCATED(theta)) DEALLOCATE(theta)
 IF (ALLOCATED(q)) DEALLOCATE(q)
 IF (ALLOCATED(qcf)) DEALLOCATE(qcf)

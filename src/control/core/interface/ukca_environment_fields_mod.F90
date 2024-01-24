@@ -240,6 +240,12 @@ LOGICAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: l_tile_active(:,:)
   ! active tile indicator (.TRUE. if tile is in use)
 
 ! --- 3D fields of type real ---
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: u_rho_levels(:,:,:)
+  ! uwind_rho_levels (m/s) {UM:00002}
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: v_rho_levels(:,:,:)
+  ! vwind_rho_levels (m/s) {UM:00003}
+REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: geopH_on_theta_mlevs(:,:,:)
+  ! geopotential_height_theta_levels (m) {UM:16201}
 REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: theta(:,:,:)
   ! air_potential_temperature [CF] (K) {UM:00004}
 REAL, ALLOCATABLE, TARGET, SAVE, PUBLIC :: q(:,:,:)

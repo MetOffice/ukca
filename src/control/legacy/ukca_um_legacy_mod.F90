@@ -344,6 +344,7 @@ INTEGER, PARAMETER :: stashcode_ukca_chem_diag = 0
 INTEGER, PARAMETER :: stashcode_ukca_h_plus = 0
 INTEGER, PARAMETER :: stashcode_ukca_nat = 0
 INTEGER, PARAMETER :: stashcode_ukca_so4_sad = 0
+INTEGER, PARAMETER :: stashcode_ukca_plumeria_height = 0
 INTEGER, PARAMETER :: stashcode_ukca_strat_ch4 = 0
 INTEGER, PARAMETER :: stashcode_ukca_strt_ch4_lss = 0
 INTEGER, PARAMETER :: stashcode_ukca_trop_ch4 = 0
@@ -719,7 +720,9 @@ END SUBROUTINE calc_surf_area
 ! SO2 volcanic emissions subroutine required by ukca_add_emiss_mod
 
 SUBROUTINE ukca_volcanic_so2 (so2_mmr, mass, row_length, rows, model_levels,   &
-           year, timestep, r_theta_levels)
+           year, timestep, r_theta_levels, rel_humid_frac,                     &
+           p_theta_levels, t_theta_levels, geopH_on_theta_mlevs,               &
+           u_rho_levels, v_rho_levels)
 IMPLICIT NONE
 REAL, INTENT(IN OUT) :: so2_mmr(:,:,:)
 REAL, INTENT(IN) :: mass(:,:,:)
@@ -727,6 +730,12 @@ INTEGER, INTENT(IN) :: row_length, rows, model_levels
 INTEGER, INTENT(IN) :: year
 REAL, INTENT(IN) :: timestep
 REAL, INTENT(IN) :: r_theta_levels(:,:,:)
+REAL, INTENT(IN) :: rel_humid_frac(:,:,:)
+REAL, INTENT(IN) :: p_theta_levels(:,:,:)
+REAL, INTENT(IN) :: t_theta_levels(:,:,:)
+REAL, INTENT(IN) :: geopH_on_theta_mlevs(:,:,:)
+REAL, INTENT(IN) :: u_rho_levels(:,:,:)
+REAL, INTENT(IN) :: v_rho_levels(:,:,:)
 so2_mmr = 0.0
 END SUBROUTINE ukca_volcanic_so2
 

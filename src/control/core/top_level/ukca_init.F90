@@ -869,7 +869,12 @@ IF ((.NOT. ukca_config%l_use_gridbox_volume) .AND.                             &
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
-
+IF (ukca_config%l_ukca_so2ems_plumeria .AND.                                   &
+    .NOT. ukca_config%l_ukca_so2ems_expvolc) THEN
+  cmessage='l_ukca_so2ems_plumeria is true but l_ukca_so2ems_expvolc is false'
+  errcode = 49
+  CALL ereport(routinename,errcode,cmessage)
+END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

@@ -40,8 +40,9 @@ SUBROUTINE ukca_diags_output_ctl(error_code_ptr, row_length, rows,             &
                                  model_levels, n_use_tracers,                  &
                                  z_top_of_model, do_chemistry,                 &
                                  p_tropopause, p_layer_boundaries,             &
-                                 p_theta_levels, all_tracers, photol_rates,    &
-                                 diagnostics, error_message, error_routine)
+                                 p_theta_levels, plumeria_height, all_tracers, &
+                                 photol_rates, diagnostics,                    &
+                                 error_message, error_routine)
 ! ----------------------------------------------------------------------
 ! Description:
 !   Output diagnostics supported by UKCA's diagnostic handling system
@@ -66,7 +67,8 @@ USE ukca_diagnostics_output_mod, ONLY: seek_active_requests,                   &
 USE ukca_fieldname_mod, ONLY: maxlen_diagname,                                 &
                               diagname_jrate_no2, diagname_jrate_o3a,          &
                               diagname_jrate_o3b, diagname_jrate_o2b,          &
-                              diagname_p_tropopause, diagname_o3_column_du
+                              diagname_p_tropopause, diagname_o3_column_du,    &
+                              diagname_plumeria_height
 
 USE ukca_environment_diags_mod, ONLY: photol_rate_diag
 USE ukca_calc_ozonecol_mod, ONLY: ukca_calc_ozonecol
@@ -104,6 +106,8 @@ REAL, INTENT(IN) :: p_tropopause(row_length, rows)
 REAL, INTENT(IN) :: p_layer_boundaries(row_length, rows, 0:model_levels)
 ! Pressure on theta levels
 REAL, INTENT(IN) :: p_theta_levels(row_length, rows, model_levels)
+! Plume height from exp eruptions (m)
+REAL, INTENT(IN) :: plumeria_height(row_length, rows)
 ! Tracers
 REAL, INTENT(IN) :: all_tracers(row_length, rows, model_levels, n_use_tracers)
 ! Photolysis rates (may only be allocated on chemistry time steps)
@@ -229,6 +233,13 @@ DO i = 1, SIZE(available_diag_varnames)
                                         error_routine=error_routine)
 
       END IF
+
+    CASE (diagname_plumeria_height)
+
+      CALL update_diagnostics_2d_real(error_code_ptr, diagname,                &
+                                      plumeria_height, diagnostics,            &
+                                      error_message=error_message,             &
+                                      error_routine=error_routine)
 
     END SELECT
 

@@ -405,6 +405,10 @@ REAL, SAVE, ALLOCATABLE :: z_half_alllevs(:,:,:)
 ! 3D array for calulated pH values to use in chem_ctl
 REAL, ALLOCATABLE :: H_plus_3d_arr(:,:,:)
 
+! Plume height from explosive eruptions (m)
+! Output from Plumeria model in ukca_volcanic_so2 subroutine
+REAL, ALLOCATABLE :: plumeria_height(:,:)
+
 ! diagnostics from chemistry_ctl
 
 ! Nitric acid trihydrate (kg(nat)/kg(air))
@@ -895,6 +899,7 @@ IF (ukca_config%l_ukca_chem) THEN
   ALLOCATE(conv_ppn3d(row_length,rows,model_levels))
   ALLOCATE(tile_index(land_points,ukca_config%ntype))
   ALLOCATE(tile_pts(ukca_config%ntype))
+  ALLOCATE(plumeria_height(1:row_length, 1:rows))
   ALLOCATE(so4_sa(row_length, rows, model_levels)) ! sulphate area density
   ! SO2 fluxes are required in chemistry_ctl
   ALLOCATE(delSO2_wet_h2o2(row_length,rows,model_levels))
@@ -1452,6 +1457,12 @@ IF (ukca_config%l_ukca_chem) THEN
   ! Set flags to indicate which fields are required depending on the
   ! science configuration and whether this is a chemistry time step.
   l_using_rh = do_chemistry
+  ! If ukca_volcanic_so2 with plumeria call is TRUE, rel_humid_frac is required
+  ! on UKCA timesteps
+  IF (ukca_config%l_ukca_so2ems_expvolc .AND.                                  &
+      ukca_config%l_ukca_so2ems_plumeria) THEN
+    l_using_rh = ukca_config%l_ukca_mode
+  END IF
   l_using_rh_clr = ukca_config%l_ukca_mode .AND. (do_chemistry .OR.            &
                    glomap_config%l_ukca_fine_no3_prod .OR.                     &
                    glomap_config%l_ukca_coarse_no3_prod)
@@ -1463,8 +1474,9 @@ IF (ukca_config%l_ukca_chem) THEN
   ! Allocate fields as necessary if not already available.
 
   ! rel_humid_frac must always be allocated on chemistry time steps for the
-  ! chemistry and aerosol calls
-  IF (.NOT. (ALLOCATED(rel_humid_frac)) .AND. do_chemistry) THEN
+  ! chemistry and aerosol calls, and for ukca_volcanic_so2 subroutine
+  ! with plumeria call
+  IF (.NOT. ALLOCATED(rel_humid_frac)) THEN
     ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
     rel_humid_frac = 0.0
   END IF
@@ -2077,7 +2089,8 @@ IF (ukca_config%l_ukca_chem) THEN
         cos_zenith_angle, int_zenith_angle, land_fraction, tropopause_level,   &
         r_rho_levels(1:row_length, 1:rows, 1:model_levels), t_theta_levels,    &
         p_theta_levels, p_layer_boundaries, rel_humid_frac_clr, mass,          &
-        land_sea_mask, theta, q, qcl, qcf, exner_rho_levels, rho_r2,           &
+        land_sea_mask, rel_humid_frac, plumeria_height,                        &
+        theta, q, qcl, qcf, exner_rho_levels, rho_r2,                          &
         kent, kent_dsc, rhokh_rdz, dtrdz,                                      &
         we_lim, t_frac, zrzi, we_lim_dsc, t_frac_dsc, zrzi_dsc,                &
         zbl, zhsc, z_half, ch4_wetl_emiss, seaice_frac, grid_area_fullht,      &
@@ -2916,7 +2929,7 @@ IF (ukca_config%l_ukca_chem) THEN
   CALL ukca_diags_output_ctl(error_code_ptr, row_length, rows, model_levels,   &
                              n_use_tracers, z_top_of_model,                    &
                              do_chemistry, p_tropopause, p_layer_boundaries,   &
-                             p_theta_levels, all_tracers,                      &
+                             p_theta_levels, plumeria_height, all_tracers,     &
                              photol_rates, diagnostics,                        &
                              error_message=error_message,                      &
                              error_routine=error_routine)
@@ -3044,6 +3057,7 @@ IF (ALLOCATED(ls_ppn3d)) DEALLOCATE(ls_ppn3d)
 IF (ALLOCATED(conv_ppn3d)) DEALLOCATE(conv_ppn3d)
 IF (ALLOCATED(Thick_bl_levels)) DEALLOCATE(Thick_bl_levels)
 IF (ALLOCATED(p_layer_boundaries)) DEALLOCATE(p_layer_boundaries)
+IF (ALLOCATED(plumeria_height)) DEALLOCATE(plumeria_height)
 IF (ALLOCATED(t_theta_levels)) DEALLOCATE(t_theta_levels)
 IF (ALLOCATED(delSO2_wet_h2o2)) DEALLOCATE(delSO2_wet_h2o2)
 IF (ALLOCATED(delSO2_wet_o3)) DEALLOCATE(delSO2_wet_o3)
