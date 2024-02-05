@@ -46,7 +46,7 @@
         inherit = None, METO_LINUX
 {% endif %}
          [[[job]]]
-             execution time limit = PT10M
+             execution time limit = PT20M
 
 
 
