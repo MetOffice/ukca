@@ -13,8 +13,8 @@
     UTC mode = True
     [[events]]
         timeout = {{ SUITE_TIMEOUT }}
-        shutdown handler = "suite_report.py -s"
-        stalled handler = "suite_report.py -s"
+        shutdown handler = "suite_report.py"
+        stalled handler = "suite_report.py"
 
 {#- Import any Cylc task parameters #}
 %include 'include/parameters.rc'
@@ -28,6 +28,8 @@
 
     [[dependencies]]
         graph = """
+{# Hardcode export of Simsys_Scripts to always run #}
+export_simsys_scripts
 {#- Recursively add dependencies from RUN_NAMES, replacing groups with subgroups/tasks #}
 {%- set name_graphs_out = [] %}
 {%- set graphs_out = [] %}
