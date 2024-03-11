@@ -162,6 +162,8 @@ TYPE :: ukca_config_spec_type
   INTEGER :: dts0                      ! Backward Euler timestep (seconds)
   LOGICAL :: l_ukca_asad_columns       ! True to pass columns to ASAD solver
                                        ! rather than horizontal slices
+  LOGICAL :: l_ukca_asad_full          ! True to pass the entire domain to ASAD
+                                       ! solver rather than slices or columns
   LOGICAL :: l_ukca_debug_asad         ! Include additional print output
                                        ! specific to ASAD
   LOGICAL :: l_ukca_intdd              ! True for interactive dry deposition
@@ -873,6 +875,7 @@ ukca_config%nrsteps = imdi
 ukca_config%chem_timestep = imdi
 ukca_config%dts0 = imdi
 ukca_config%l_ukca_asad_columns = .FALSE.
+ukca_config%l_ukca_asad_full = .FALSE.
 ukca_config%l_ukca_debug_asad = .FALSE.
 ukca_config%l_ukca_intdd = .FALSE.
 ukca_config%l_ukca_ddepo3_ocean = .FALSE.
@@ -1151,6 +1154,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_drydep_off,                                                          &
    l_ukca_wetdep_off,                                                          &
    l_ukca_asad_columns,                                                        &
+   l_ukca_asad_full,                                                           &
    l_ukca_debug_asad,                                                          &
    l_ukca_intdd, l_ukca_ddepo3_ocean, l_ukca_ddep_lev1, l_ukca_dry_dep_so2wet, &
    l_deposition_jules,                                                         &
@@ -1343,6 +1347,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_emissions_off
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_drydep_off
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_wetdep_off
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_asad_columns
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_asad_full
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_debug_asad
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_intdd
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_ddepo3_ocean
@@ -1532,6 +1537,8 @@ IF (PRESENT(chem_timestep)) chem_timestep = ukca_config%chem_timestep
 IF (PRESENT(dts0)) dts0 = ukca_config%dts0
 IF (PRESENT(l_ukca_asad_columns))                                              &
   l_ukca_asad_columns = ukca_config%l_ukca_asad_columns
+IF (PRESENT(l_ukca_asad_full))                                                 &
+  l_ukca_asad_full = ukca_config%l_ukca_asad_full
 IF (PRESENT(l_ukca_debug_asad))                                                &
   l_ukca_debug_asad = ukca_config%l_ukca_debug_asad
 IF (PRESENT(l_ukca_intdd)) l_ukca_intdd = ukca_config%l_ukca_intdd

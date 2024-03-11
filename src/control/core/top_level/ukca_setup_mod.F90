@@ -133,6 +133,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_drydep_off,                                       &
                       l_ukca_wetdep_off,                                       &
                       l_ukca_asad_columns,                                     &
+                      l_ukca_asad_full,                                        &
                       l_ukca_debug_asad,                                       &
                       l_ukca_intdd,                                            &
                       l_ukca_ddepo3_ocean,                                     &
@@ -420,6 +421,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_emissions_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_drydep_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_wetdep_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_asad_columns
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_asad_full
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_debug_asad
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_intdd
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ddepo3_ocean
@@ -650,6 +652,8 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
   IF (PRESENT(chem_timestep)) ukca_config%chem_timestep = chem_timestep
   IF (PRESENT(l_ukca_asad_columns))                                            &
     ukca_config%l_ukca_asad_columns = l_ukca_asad_columns
+  IF (PRESENT(l_ukca_asad_full))                                               &
+    ukca_config%l_ukca_asad_full = l_ukca_asad_full
   IF (PRESENT(l_ukca_debug_asad))                                              &
     ukca_config%l_ukca_debug_asad = l_ukca_debug_asad
 

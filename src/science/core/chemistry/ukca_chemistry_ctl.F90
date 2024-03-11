@@ -169,7 +169,6 @@ INTEGER :: j             ! loop variable
 INTEGER :: js            ! loop variable
 INTEGER :: jtr           ! loop variable - transported tracers
 INTEGER :: jro2          ! loop variable - NTP RO2 species
-INTEGER :: jro2_copy     ! copy of loop variable jro2 for error reporting
 INTEGER :: jna           ! loop variable, non-advected species
 INTEGER :: jspf          ! loop variable - all active chemical species in f
 INTEGER :: k             ! loop variable
@@ -185,7 +184,8 @@ CHARACTER(LEN=10) :: prods(2)                 ! Products
 CHARACTER(LEN=10) :: prods3(3)                ! Products
 LOGICAL :: ddmask(theta_field_size)           ! mask
 
-!Dummy variables for compatability with column-call approach
+! Dummy variables to satisfy expected numbers of arguments for ASAD_CDRIVE,
+! ASAD_CHEMICAL_DIAGNOSTICS and ASAD_PSC_DIAGNOSTIC
 REAL :: dpd_dummy(model_levels,jpspec)
 REAL :: dpw_dummy(model_levels,jpspec)
 REAL :: prk_dummy(model_levels,jpnr)
@@ -215,7 +215,8 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CHEMISTRY_CTL'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-! dummy variables for compatability with column call
+! Dummy variables to satisfy expected numbers of arguments for ASAD_CDRIVE,
+! ASAD_CHEMICAL_DIAGNOSTICS and ASAD_PSC_DIAGNOSTIC
 ix=0
 jy=0
 dpd_dummy=0.0
@@ -238,7 +239,7 @@ DO l = 1, dim_ntp
 END DO
 
 !$OMP PARALLEL DEFAULT(NONE)                                                   &
-!$OMP PRIVATE(cdot, ddmask, ierr, jna, jro2, jro2_copy, js, jspf, jtr, k, kcs, &
+!$OMP PRIVATE(cdot, ddmask, errcode, ierr, jna, jro2, js, jspf, jtr, k, kcs,   &
 !$OMP         kce, l, rc_het, ystore, zdryrt2, zftr, zprt1d, zq, co2_1d)       &
 !$OMP SHARED(advt, atm_cf2cl2_mol, atm_cfcl3_mol, atm_ch4_mol,                 &
 !$OMP        atm_co_mol, atm_h2_mol, atm_mebr_mol, atm_n2o_mol,                &
@@ -346,11 +347,11 @@ DO k=1,model_levels
             jspf = jspf+1
             zftr(:,jspf) = ntp_data(kcs:kce,l) / c_na_species(jna)
           ELSE
-            jro2_copy = jro2
+            errcode = jro2
             WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl'
             CALL umPrint(umMessage,src='ukca_chemistry_ctl')
             cmessage='ERROR: Indices for RO2 species do not match with nadvt'
-            CALL ereport('UKCA_CHEMISTRY_CTL', jro2_copy, cmessage)
+            CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
           END IF ! Close IF nadvt and spro2 match
 
         END IF   ! Close IF RO2 species
@@ -361,17 +362,19 @@ DO k=1,model_levels
   ! Check we have the correct number of active chemical species
   IF (ukca_config%l_ukca_ro2_ntp) THEN
     IF (jspf /= jpro2+jpctr) THEN
+      errcode = jspf
       WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl'
       CALL umPrint(umMessage,src='ukca_chemistry_ctl')
       cmessage = 'ERROR: Number of chemical active species /= jpro2+jpctr'
-      CALL ereport('UKCA_CHEMISTRY_CTL', jspf, cmessage)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
   ELSE
     IF (jspf /= jpctr) THEN
+      errcode = jspf
       WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl'
       CALL umPrint(umMessage,src='ukca_chemistry_ctl')
       cmessage = 'ERROR: Number of chemical active species /= jpctr'
-      CALL ereport('UKCA_CHEMISTRY_CTL', jspf, cmessage)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
   END IF
 
@@ -384,9 +387,6 @@ DO k=1,model_levels
   END IF
 
   !       Call ASAD routines to do chemistry integration
-  !       In lowest levels choose half the dynamical timestep for
-  !       chemistry. If dynamical timestep > 20 min, use half and
-  !       quarter of dynamical timestep for chemistry.
 
   ! retrieve tropospheric heterogeneous rates from previous time step
   ! for this model level (index k)
@@ -486,13 +486,13 @@ DO k=1,model_levels
   IF (L_asad_use_chem_diags .AND.                                              &
        ((L_asad_use_flux_rxns .OR. L_asad_use_rxn_rates) .OR.                  &
        (L_asad_use_wetdep .OR. L_asad_use_drydep)))                            &
-       CALL asad_chemical_diagnostics(row_length,rows,                         &
-       model_levels,dpd_dummy,dpw_dummy,prk_dummy,y_dummy,                     &
+       CALL asad_chemical_diagnostics(row_length,rows,model_levels,            &
+       theta_field_size,dpd_dummy,dpw_dummy,prk_dummy,y_dummy,                 &
        ix,jy,k,volume,ierr)
 
   ! PSC diagnostics
   IF (L_asad_use_chem_diags .AND. L_asad_use_psc_diagnostic)                   &
-       CALL asad_psc_diagnostic(row_length,rows,model_levels,                  &
+       CALL asad_psc_diagnostic(row_length,rows,model_levels,theta_field_size, &
        fpsc1_dummy,fpsc2_dummy,ix,jy,k,ierr)
 
   ! Bring results back from vmr to mmr.

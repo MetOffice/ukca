@@ -170,7 +170,8 @@ REAL, SAVE      :: dts                        ! Backward Euler timestep
 
 REAL :: secs_per_step                         ! chemical time step
 
-! Dummy variables for compatability with column call approach
+! Dummy variables to satisfy expected numbers of arguments for
+! ASAD_CHEMICAL_DIAGNOSTICS
 REAL :: dpd_dummy(model_levels,jpspec)
 REAL :: dpw_dummy(model_levels,jpspec)
 REAL :: prk_dummy(model_levels,jpnr)
@@ -211,7 +212,8 @@ IF (.NOT. ALLOCATED(dflux)) ALLOCATE(dflux(theta_field_size,nr))
 IF (.NOT. ALLOCATED(ystore) .AND. uph2so4inaer == 1)                           &
   ALLOCATE(ystore(theta_field_size))
 
-! dummy variables required for consistency with column call approach
+! Dummy variables to satisfy expected numbers of arguments for
+! ASAD_CHEMICAL_DIAGNOSTICS
 ix=0
 jy=0
 dpd_dummy=0.0
@@ -237,7 +239,7 @@ IF (firstcall) THEN
   IF (.NOT. lvmr) THEN
     errcode = 1
     cmessage = ' lvmr must be set to true for BE offline chemistry'
-    CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 
 END IF  ! of initialization of chemistry subroutine (firstcall)
@@ -379,7 +381,7 @@ DO k=1,k_be_top
 
     ! 3D flux diagnostics
     CALL asad_chemical_diagnostics(row_length, rows, model_levels,             &
-    dpd_dummy, dpw_dummy, prk_dummy, y_dummy, ix, jy, k,                       &
+    theta_field_size, dpd_dummy, dpw_dummy, prk_dummy, y_dummy, ix, jy, k,     &
                                    volume, ierr)
 
   END IF    ! lflux
@@ -524,7 +526,7 @@ IF (first) THEN
   IF (errcode /= 0) THEN
     cmessage = 'Unidentified reaction: '//ratb_defs(errcode)%react1//          &
                ratb_defs(errcode)%react2
-    CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 
   IF (ABS(frac_dms_so2 - rmdi) < EPSILON(0.0) .OR.                             &
@@ -533,7 +535,7 @@ IF (first) THEN
       ANY(ABS(frac_monoterp_sec_org - rmdi) < EPSILON(0.0))) THEN
     errcode = 1
     cmessage = ' One or more product yields are undefined'
-    CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 
   errcode = 0
@@ -551,7 +553,7 @@ IF (first) THEN
   IF (errcode /= 0) THEN
     cmessage = 'Unidentified reaction: '//ratt_defs(errcode)%react1//          &
                ratt_defs(errcode)%react2
-    CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 
   errcode = 0
@@ -569,7 +571,7 @@ IF (first) THEN
   IF (errcode /= 0) THEN
     cmessage = 'Unidentified reaction: '//rath_defs(errcode)%react1//          &
                rath_defs(errcode)%react2
-    CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 
 END IF     ! first
@@ -592,19 +594,19 @@ DO i = 1,jphk
 END DO
 
 IF (first .AND. ANY(ABS(rc - rmdi) < EPSILON(0.0))) THEN
+  errcode = 1
   cmessage = 'Missing rate coefficient data in array rc'
   WRITE(umMessage,'(A55,I2)') cmessage//' at location: ',MAXLOC(rc)
   CALL umPrint(umMessage,src='ukca_chemco_be_offline')
-  errcode = 1
-  CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+  CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
 END IF
 
 IF (first) THEN
   IF (frac_dms_so2 > 1.0 .OR. frac_dms_dmso > 1.0 .OR.                         &
       frac_dmso_so2 > 1.0 .OR. ANY(frac_monoterp_sec_org(:) > 1.0)) THEN
-    cmessage = 'A yield fraction > 1.0 was encountered'
     errcode = 1
-    CALL ereport('UKCA_CHEMCO_BE_OFFLINE',errcode,cmessage)
+    cmessage = 'A yield fraction > 1.0 was encountered'
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 END IF
 

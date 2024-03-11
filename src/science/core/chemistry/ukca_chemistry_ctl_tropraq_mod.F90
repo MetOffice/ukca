@@ -194,7 +194,6 @@ INTEGER :: j             ! loop variable
 INTEGER :: js            ! loop variable
 INTEGER :: jtr           ! loop variable - transported tracers
 INTEGER :: jro2          ! loop variable - NTP RO2 species
-INTEGER :: jro2_copy     ! copy of loop variable jro2 for error reporting
 INTEGER :: jna           ! loop variable, non-advected species
 INTEGER :: jspf          ! loop variable - all active chemical species in f
 INTEGER :: k             ! loop variable
@@ -316,7 +315,7 @@ END DO
 !$OMP         BE_so4_aitken, BE_so4_accum,                                     &
 !$OMP         BE_soot_aged, BE_soot_fresh,                                     &
 !$OMP         BE_tnd, BE_wetrt, BE_vol, BE_y,                                  &
-!$OMP         jna, jro2, jro2_copy, jspf, k, kcs, kce, k_dms, l,               &
+!$OMP         errcode, jna, jro2, jspf, k, kcs, kce, k_dms, l,                 &
 !$OMP         SO2_dryox_OH, SO2_wetox_H2O2, SO2_wetox_O3,                      &
 !$OMP         stratflag, ystore,                                               &
 !$OMP         zfnatr, zftr)                                                    &
@@ -391,11 +390,11 @@ DO k=1,model_levels
             jspf = jspf+1
             zftr(:,jspf) = ntp_data(kcs:kce,l) / c_na_species(jna)
           ELSE
-            jro2_copy = jro2
+            errcode = jro2
             WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl_tropraq'
             CALL umPrint(umMessage,src='ukca_chemistry_ctl_tropraq')
             cmessage='ERROR: Indices for RO2 species do not match with nadvt'
-            CALL ereport(RoutineName, jro2_copy, cmessage)
+            CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
           END IF ! Close IF nadvt and spro2 match
 
         END IF   ! Close IF RO2 species
@@ -406,24 +405,23 @@ DO k=1,model_levels
   ! Check we have the correct number of active chemical species
   IF (ukca_config%l_ukca_ro2_ntp) THEN
     IF (jspf /= jpro2+jpctr) THEN
+      errcode = jspf
       WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl_tropraq'
       CALL umPrint(umMessage,src='ukca_chemistry_ctl_tropraq')
       cmessage = 'ERROR: Number of chemical active species /= jpro2+jpctr'
-      CALL ereport(RoutineName, jspf, cmessage)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
   ELSE
     IF (jspf /= jpctr) THEN
+      errcode = jspf
       WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl_tropraq'
       CALL umPrint(umMessage,src='ukca_chemistry_ctl_tropraq')
       cmessage = 'ERROR: Number of chemical active species /= jpctr'
-      CALL ereport(RoutineName, jspf, cmessage)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
   END IF
 
   !       Call ASAD routines to do chemistry integration
-  !       In lowest levels choose half the dynamical timestep for
-  !       chemistry. If dynamical timestep > 20 min, use half and
-  !       quarter of dynamical timestep for chemistry.
 
   !         Calculate total number  density, o2, h2o, and tracer
   !         concentrations for Backward Euler solver

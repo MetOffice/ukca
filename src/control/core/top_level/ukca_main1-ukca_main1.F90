@@ -216,6 +216,7 @@ USE ukca_scenario_ctl_mod,  ONLY: ukca_scenario_ctl
 USE ukca_chem_diags_mod,    ONLY: ukca_chem_diags
 USE ukca_chemistry_ctl_mod, ONLY: ukca_chemistry_ctl
 USE ukca_chemistry_ctl_col_mod, ONLY: ukca_chemistry_ctl_col
+USE ukca_chemistry_ctl_full_mod, ONLY: ukca_chemistry_ctl_full
 USE ukca_activate_mod,      ONLY: ukca_activate
 USE ukca_aero_ctl_mod,      ONLY: ukca_aero_ctl
 USE ukca_mode_diags_mod,    ONLY: ukca_mode_diags_alloc, ukca_mode_diags,      &
@@ -617,7 +618,9 @@ model_levels = ukca_config%model_levels
 
 theta_field_size = row_length * rows
 tot_n_pnts = theta_field_size * model_levels
-IF (ukca_config%l_ukca_asad_columns) THEN
+IF (ukca_config%l_ukca_asad_full) THEN
+  n_pnts = tot_n_pnts
+ELSE IF (ukca_config%l_ukca_asad_columns) THEN
   n_pnts = ukca_config%ukca_chem_seg_size
 ELSE
   n_pnts = theta_field_size
@@ -2317,47 +2320,6 @@ IF (ukca_config%l_ukca_chem) THEN
            l_firstchem                                                         &
            )
 
-    ELSE IF (ukca_config%l_ukca_asad_columns .AND.                             &
-             (.NOT. (ukca_config%l_ukca_trop .OR.                              &
-                     ukca_config%l_ukca_aerchem .OR.                           &
-                     ukca_config%l_ukca_raq .OR.                               &
-                     ukca_config%l_ukca_raqaero))) THEN
-
-      CALL ukca_chemistry_ctl_col(                                             &
-           row_length, rows, model_levels,                                     &
-           theta_field_size,                                                   &
-           n_chem_tracers+n_aero_tracers,                                      &
-           istore_h2so4,                                                       &
-           p_theta_levels,                                                     &
-           t_chem,                                                             &
-           q_chem,                                                             &
-           qcf,                                                                &
-           qcl,                                                                &
-           all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
-           all_ntp,                                                            &
-           cloud_frac,                                                         &
-           photol_rates,                                                       &
-           shno3_3d,                                                           &
-           grid_volume,                                                        &
-           ! Extra variables for new dry dep scheme
-           have_nat3d,                                                         &
-           uph2so4inaer,                                                       &
-           delso2_wet_h2o2,                                                    &
-           delso2_wet_o3,                                                      &
-           delh2so4_chem,                                                      &
-           so4_sa,                                                             &
-           ! Diagnostics
-           atm_ch4_mol,                                                        &
-           atm_co_mol,                                                         &
-           atm_n2o_mol,                                                        &
-           atm_cf2cl2_mol,                                                     &
-           atm_cfcl3_mol,                                                      &
-           atm_mebr_mol,                                                       &
-           atm_h2_mol,                                                         &
-           H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep                                      &
-           )
-
     ELSE IF (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_aerchem .OR.      &
              ukca_config%l_ukca_raq .OR. ukca_config%l_ukca_raqaero) THEN
 
@@ -2439,6 +2401,80 @@ IF (ukca_config%l_ukca_chem) THEN
            H_plus_3d_arr,                                                      &
            zdryrt, zwetrt, nlev_with_ddep, L_stratosphere,                     &
            l_firstchem                                                         &
+           )
+
+    ELSE IF (ukca_config%l_ukca_asad_full) THEN
+
+      CALL ukca_chemistry_ctl_full(                                            &
+           row_length, rows, model_levels,                                     &
+           theta_field_size, tot_n_pnts,                                       &
+           n_chem_tracers+n_aero_tracers,                                      &
+           istore_h2so4,                                                       &
+           p_theta_levels,                                                     &
+           t_chem,                                                             &
+           q_chem,                                                             &
+           qcf,                                                                &
+           qcl,                                                                &
+           all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
+           all_ntp,                                                            &
+           cloud_frac,                                                         &
+           photol_rates,                                                       &
+           shno3_3d,                                                           &
+           grid_volume,                                                        &
+           have_nat3d,                                                         &
+           uph2so4inaer,                                                       &
+           delso2_wet_h2o2,                                                    &
+           delso2_wet_o3,                                                      &
+           delh2so4_chem,                                                      &
+           so4_sa,                                                             &
+           ! Diagnostics
+           atm_ch4_mol,                                                        &
+           atm_co_mol,                                                         &
+           atm_n2o_mol,                                                        &
+           atm_cf2cl2_mol,                                                     &
+           atm_cfcl3_mol,                                                      &
+           atm_mebr_mol,                                                       &
+           atm_h2_mol,                                                         &
+           H_plus_3d_arr,                                                      &
+           zdryrt, zwetrt, nlev_with_ddep, L_stratosphere, co2_interactive,    &
+           l_firstchem                                                         &
+           )
+
+    ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+
+      CALL ukca_chemistry_ctl_col(                                             &
+           row_length, rows, model_levels,                                     &
+           theta_field_size,                                                   &
+           n_chem_tracers+n_aero_tracers,                                      &
+           istore_h2so4,                                                       &
+           p_theta_levels,                                                     &
+           t_chem,                                                             &
+           q_chem,                                                             &
+           qcf,                                                                &
+           qcl,                                                                &
+           all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                 &
+           all_ntp,                                                            &
+           cloud_frac,                                                         &
+           photol_rates,                                                       &
+           shno3_3d,                                                           &
+           grid_volume,                                                        &
+           ! Extra variables for new dry dep scheme
+           have_nat3d,                                                         &
+           uph2so4inaer,                                                       &
+           delso2_wet_h2o2,                                                    &
+           delso2_wet_o3,                                                      &
+           delh2so4_chem,                                                      &
+           so4_sa,                                                             &
+           ! Diagnostics
+           atm_ch4_mol,                                                        &
+           atm_co_mol,                                                         &
+           atm_n2o_mol,                                                        &
+           atm_cf2cl2_mol,                                                     &
+           atm_cfcl3_mol,                                                      &
+           atm_mebr_mol,                                                       &
+           atm_h2_mol,                                                         &
+           H_plus_3d_arr,                                                      &
+           zdryrt, zwetrt, nlev_with_ddep                                      &
            )
 
     ELSE

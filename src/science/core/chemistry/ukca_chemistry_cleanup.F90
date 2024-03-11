@@ -163,16 +163,16 @@ IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.             &
     ! ACE-FTS climatologies (assumes constant latitude on each row)
     ! no tracer over-writing at top levels
     IF ((z_top_of_model > 85500.0) .OR. (z_top_of_model < 79000.0)) THEN
-      cmessage='Can only impose a top boundary condition at 85 km.'
       errcode=25
-      CALL ereport(RoutineName,errcode,cmessage)
+      cmessage='Can only impose a top boundary condition at 85 km.'
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
     IF (.NOT. ALL(ABS(latitude(row_length,:) - latitude(1,:))                  &
                                                           < EPSILON(0.0))) THEN
+      errcode=1
       cmessage=                                                                &
         'Can only impose top boundary condition if latitude is constant on rows'
-      errcode=1
-      CALL ereport(RoutineName,errcode,cmessage)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
     CALL ukca_top_boundary(row_length, rows, model_levels, ntracers,           &
                            latitude(1,:), tracer)

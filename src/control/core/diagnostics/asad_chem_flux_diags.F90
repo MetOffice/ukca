@@ -1461,8 +1461,8 @@ END FUNCTION cd_findreaction
 END SUBROUTINE asad_chemical_diagnostics_init
 
 ! #####################################################################
-SUBROUTINE asad_chemical_diagnostics(row_length, rows,                         &
-     model_levels, dpd_full, dpw_full, prk_full, y_full,                       &
+SUBROUTINE asad_chemical_diagnostics(row_length, rows, model_levels,           &
+     chunk_size, dpd_full, dpw_full, prk_full, y_full,                         &
      ix, jy, klevel, volume, ierr)
 
 USE chemistry_constants_mod,  ONLY: avogadro
@@ -1473,15 +1473,16 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: row_length       ! length of row
 INTEGER, INTENT(IN) :: rows             ! number of rows
 INTEGER, INTENT(IN) :: model_levels     ! the level that we are at
+INTEGER, INTENT(IN) :: chunk_size       ! size of input arrays
 INTEGER, INTENT(IN) :: ix               ! i counter
 INTEGER, INTENT(IN) :: jy               ! j counter
 INTEGER, INTENT(IN) :: klevel           ! the level that we are at
 REAL, INTENT(IN)    :: volume(row_length, rows, model_levels)   ! cell volume
 INTEGER, INTENT(IN OUT) :: ierr          ! error code
-REAL, INTENT(IN)    :: dpd_full(model_levels,jpspec)
-REAL, INTENT(IN)    :: dpw_full(model_levels,jpspec)
-REAL, INTENT(IN)    :: prk_full(model_levels,jpnr)
-REAL, INTENT(IN)    :: y_full(model_levels,jpspec)
+REAL, INTENT(IN)    :: dpd_full(chunk_size,jpspec)
+REAL, INTENT(IN)    :: dpw_full(chunk_size,jpspec)
+REAL, INTENT(IN)    :: prk_full(chunk_size,jpnr)
+REAL, INTENT(IN)    :: y_full(chunk_size,jpspec)
 
 REAL, PARAMETER :: convfac = 1.0e6/avogadro ! conversion factor to convert
                                             ! volume into cm^3 and result in mol
@@ -1489,15 +1490,33 @@ REAL, PARAMETER :: convfac = 1.0e6/avogadro ! conversion factor to convert
 LOGICAL, SAVE :: firstcall=.TRUE.
 LOGICAL, SAVE :: first_pass=.TRUE.
 
+INTEGER :: k                      ! index for vertical coordinate
 INTEGER :: l                      ! counter
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
+CHARACTER(LEN=errormessagelength) :: cmessage
+INTEGER                           :: errcode
+
 CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_CHEMICAL_DIAGNOSTICS'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+IF (ukca_config%l_ukca_asad_full) THEN
+  IF (chunk_size /= row_length * rows * model_levels) THEN
+    cmessage = 'Must pass full domain when l_ukca_asad_full is set to .true.'
+    errcode = chunk_size
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  END IF
+ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+  IF (chunk_size /= model_levels) THEN
+    cmessage = 'Must pass column when l_ukca_asad_columns is set to .true.'
+    errcode = chunk_size
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  END IF
+END IF
 
 ierr = -1
 ! OMP CRITICAL will only allow one thread through this code at a time,
@@ -1512,13 +1531,66 @@ IF (first_pass) THEN
 END IF     ! first_pass
 !$OMP END CRITICAL (chemical_diagnostics_init)
 
-! Go through and pick up fluxes from ASAD arrays
-! prk is in units of molecules.cm^-3.s^-1
-DO l=1,n_chemdiags
-
-  IF (ukca_config%l_ukca_asad_columns) THEN
-     ! in this case ASAD is being called column-by column so we need
-     ! to fill %throughput by iterating over X & Y
+IF (ukca_config%l_ukca_asad_full) THEN
+  ! Go through and pick up fluxes from ASAD arrays
+  ! prk is in units of molecules.cm^-3.s^-1
+  !$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                      &
+  !$OMP SHARED(asad_chemdiags, dpd_full, dpw_full, L_stratosphere,             &
+  !$OMP        model_levels, n_chemdiags, prk_full, row_length, rows, volume,  &
+  !$OMP        y_full)
+  !$OMP DO SCHEDULE(DYNAMIC)
+  DO l=1,n_chemdiags
+    ! in this case ASAD is being called over the full domain so we
+    ! need to fill %throughput by reshaping the array
+    SELECT CASE (asad_chemdiags(l)%diag_type)
+    CASE (cdrxn)
+      asad_chemdiags(l)%throughput(:,:,:) =                                    &
+           RESHAPE(prk_full(:,asad_chemdiags(l)%location),                     &
+           [row_length,rows,model_levels])*volume(:,:,:)*convfac
+      IF (asad_chemdiags(l)%tropospheric_mask) THEN
+        WHERE (L_stratosphere(:,:,:))
+          asad_chemdiags(l)%throughput(:,:,:) = 0.0
+        END WHERE
+      END IF
+    CASE (cddep)
+      SELECT CASE (asad_chemdiags(l)%rxn_type)
+      CASE (cddry) ! DRY DEP
+        asad_chemdiags(l)%throughput(:,:,:)=                                   &
+             RESHAPE(dpd_full(:,asad_chemdiags(l)%location),                   &
+                     [row_length,rows,model_levels])*                          &
+             RESHAPE(y_full(:,asad_chemdiags(l)%location),                     &
+                     [row_length,rows,model_levels])*                          &
+             volume(:,:,:)*convfac
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,:))
+            asad_chemdiags(l)%throughput(:,:,:) = 0.0
+          END WHERE
+        END IF
+        ! Not needed (?)
+      CASE (cdwet) ! WET DEP
+        asad_chemdiags(l)%throughput(:,:,:)=                                   &
+             RESHAPE(dpw_full(:,asad_chemdiags(l)%location),                   &
+                     [row_length,rows,model_levels])*                          &
+             RESHAPE(y_full(:,asad_chemdiags(l)%location),                     &
+                     [row_length,rows,model_levels])*                          &
+             volume(:,:,:)*convfac
+        ! Not needed (?)
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,:))
+            asad_chemdiags(l)%throughput(:,:,:) = 0.0
+          END WHERE
+        END IF
+      END SELECT
+    END SELECT
+  END DO ! l=1,n_chemdiags
+  !$OMP END DO
+  !$OMP END PARALLEL
+ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+  ! Go through and pick up fluxes from ASAD arrays
+  ! prk is in units of molecules.cm^-3.s^-1
+  DO l=1,n_chemdiags
+    ! in this case ASAD is being called column-by column so we need
+    ! to fill %throughput by iterating over X & Y
     SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdrxn)
       asad_chemdiags(l)%throughput(ix,jy,:) =                                  &
@@ -1559,9 +1631,13 @@ DO l=1,n_chemdiags
         END IF
       END SELECT
     END SELECT
-  ELSE
-     ! in this case ASAD is being called horizontally so we need
-     ! to fill %throughput by iterating over Z
+  END DO ! l=1,n_chemdiags
+ELSE
+  ! Go through and pick up fluxes from ASAD arrays
+  ! prk is in units of molecules.cm^-3.s^-1
+  DO l=1,n_chemdiags
+    ! in this case ASAD is being called horizontally so we need
+    ! to fill %throughput by iterating over Z
     SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdrxn)
       asad_chemdiags(l)%throughput(:,:,klevel) =                               &
@@ -1606,8 +1682,8 @@ DO l=1,n_chemdiags
         END IF
       END SELECT
     END SELECT
-  END IF             ! l_ukca_asad_columns
-END DO                ! l=1,n_chemdiags
+  END DO ! l=1,n_chemdiags
+END IF ! l_ukca_asad_columns / l_ukca_asad_full
 
 
 ierr = 0
@@ -2055,7 +2131,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE asad_mass_diagnostic
 ! #####################################################################
-SUBROUTINE asad_psc_diagnostic(row_length, rows, model_levels,                 &
+SUBROUTINE asad_psc_diagnostic(row_length, rows, model_levels, chunk_size,     &
                                fpsc1_full, fpsc2_full, ix, jy, klevel, ierr)
 
 USE ukca_config_specification_mod, ONLY: ukca_config
@@ -2065,12 +2141,13 @@ IMPLICIT NONE
 INTEGER, INTENT(IN)  :: row_length             ! array dimension
 INTEGER, INTENT(IN)  :: rows                   ! array dimension
 INTEGER, INTENT(IN)  :: model_levels           ! number of model levels
+INTEGER, INTENT(IN)  :: chunk_size             ! size of input arrays
 INTEGER, INTENT(IN)  :: ix                     ! i counter
 INTEGER, INTENT(IN)  :: jy                     ! j counter
 INTEGER, INTENT(IN)  :: klevel                 ! level number
 INTEGER, INTENT(OUT) :: ierr                   ! error code
-REAL, INTENT(IN) :: fpsc1_full(model_levels)
-REAL, INTENT(IN) :: fpsc2_full(model_levels)
+REAL, INTENT(IN) :: fpsc1_full(chunk_size)
+REAL, INTENT(IN) :: fpsc2_full(chunk_size)
 
 INTEGER :: l                                   ! counter
 
@@ -2078,16 +2155,64 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
+CHARACTER(LEN=errormessagelength) :: cmessage
+INTEGER                           :: errcode
+
 CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_PSC_DIAGNOSTIC'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ierr = -1
 
-DO l=1,n_chemdiags
+IF (ukca_config%l_ukca_asad_full) THEN
+  IF (chunk_size /= row_length * rows * model_levels) THEN
+    cmessage = 'Must pass full domain when l_ukca_asad_full is set to .true.'
+    errcode = chunk_size
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  END IF
+ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+  IF (chunk_size /= model_levels) THEN
+    cmessage = 'Must pass column when l_ukca_asad_columns is set to .true.'
+    errcode = chunk_size
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  END IF
+END IF
 
-  IF (ukca_config%l_ukca_asad_columns) THEN
-     ! in this case ASAD is being called column-by column so we need
-     ! to fill %throughput by iterating over X & Y
+IF (ukca_config%l_ukca_asad_full) THEN
+  !$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                      &
+  !$OMP SHARED(asad_chemdiags, fpsc1_full, fpsc2_full, L_stratosphere,         &
+  !$OMP        model_levels, n_chemdiags, row_length, rows)
+  !$OMP DO SCHEDULE(DYNAMIC)
+  DO l=1,n_chemdiags
+    ! in this case ASAD is being called over the full domain so we
+    ! need to fill %throughput by reshaping the array
+    SELECT CASE (asad_chemdiags(l)%diag_type)
+    CASE (cdpsc)
+      SELECT CASE(asad_chemdiags(l)%rxn_type)
+      CASE (cdpsc_typ1)
+        asad_chemdiags(l)%throughput(:,:,:) =                                  &
+             RESHAPE(fpsc1_full(:),[row_length,rows,model_levels])
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,:))
+            asad_chemdiags(l)%throughput(:,:,:) = 0.0
+          END WHERE
+        END IF
+      CASE (cdpsc_typ2)
+        asad_chemdiags(l)%throughput(:,:,:) =                                  &
+             RESHAPE(fpsc2_full(:),[row_length,rows,model_levels])
+        IF (asad_chemdiags(l)%tropospheric_mask) THEN
+          WHERE (L_stratosphere(:,:,:))
+            asad_chemdiags(l)%throughput(:,:,:) = 0.0
+          END WHERE
+        END IF
+      END SELECT
+    END SELECT
+  END DO
+  !$OMP END DO
+  !$OMP END PARALLEL
+ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+  DO l=1,n_chemdiags
+    ! in this case ASAD is being called column-by column so we need
+    ! to fill %throughput by iterating over X & Y
     SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdpsc)
       SELECT CASE (asad_chemdiags(l)%rxn_type)
@@ -2107,9 +2232,11 @@ DO l=1,n_chemdiags
         END IF
       END SELECT
     END SELECT
-  ELSE
-     ! in this case ASAD is being called horizontally so we need
-     ! to fill %throughput by iterating over Z
+  END DO
+ELSE
+  DO l=1,n_chemdiags
+    ! in this case ASAD is being called horizontally so we need
+    ! to fill %throughput by iterating over Z
     SELECT CASE (asad_chemdiags(l)%diag_type)
     CASE (cdpsc)
       SELECT CASE (asad_chemdiags(l)%rxn_type)
@@ -2131,8 +2258,8 @@ DO l=1,n_chemdiags
         END IF
       END SELECT
     END SELECT
-  END IF ! l_ukca_asad_columns
-END DO
+  END DO
+END IF ! l_ukca_asad_columns / l_ukca_asad_full
 
 ierr = 0
 

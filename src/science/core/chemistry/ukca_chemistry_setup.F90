@@ -164,9 +164,9 @@ IF (firstcall .AND. (.NOT. ukca_config%l_ukca_offline_be)) THEN
   !         to each other.
 
   IF ((ukca_config%l_ukca_advh2o) .AND. (n_h2o == 0)) THEN
-    cmessage='No tracer for advected water vapour'
     errcode = 4
-    CALL ereport('UKCA_CHEMISTRY_CTL_COL',errcode,cmessage)
+    cmessage='No tracer for advected water vapour'
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   END IF
 
   IF (.NOT. tropraq) THEN
@@ -212,14 +212,14 @@ IF (firstcall .AND. (.NOT. ukca_config%l_ukca_offline_be)) THEN
       END IF
 
       IF (iso2_oh == 0 .AND. ih2so4_hv == 0) THEN
+        errcode = 1
         cmessage=' Sulphur chemistry reactions not found'
         WRITE(umMessage,'(A)') cmessage
         CALL umPrint(umMessage,src='ukca_chemistry_ctl')
         WRITE(umMessage,'(A,I0,A,I0)') 'iso2_oh: ',iso2_oh,' ih2so4_hv: ',     &
                                        ih2so4_hv
         CALL umPrint(umMessage,src='ukca_chemistry_ctl')
-        errcode = 1
-        CALL ereport('UKCA_CHEMISTRY_CTL',errcode,cmessage)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
       END IF
     END IF   ! l_ukca_nr_aqchem
 

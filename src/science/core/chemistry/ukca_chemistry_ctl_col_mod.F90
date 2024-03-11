@@ -259,7 +259,8 @@ IF (l_autotune_segments) THEN
 END IF
 #endif
 
-! dummy variable for compatability with theta_field call
+! Dummy variables to satisfy expected numbers of arguments for ASAD_CDRIVE,
+! ASAD_CHEMICAL_DIAGNOSTICS and ASAD_PSC_DIAGNOSTIC
 klevel=0
 
 ! if heterogeneous chemistry is selected, allocate solid HNO3 array
@@ -391,11 +392,11 @@ DO i=1,rows
               jspf = jspf+1
               zftr(:,jspf) = all_ntp(l)%data_3d(j,i,:) / c_na_species(jna)
             ELSE
+              errcode = jro2
               WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl'
               CALL umPrint(umMessage,src=RoutineName)
               cmessage='ERROR: Indices for RO2 species do not match w/ nadvt'
-              errcode = jro2
-              CALL ereport('UKCA_CHEMISTRY_CTL', errcode, cmessage)
+              CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
             END IF ! Close IF nadvt and spro2 match
 
           END IF   ! Close IF RO2 species
@@ -406,19 +407,19 @@ DO i=1,rows
     ! Check we have the correct number of active chemical species
     IF (ukca_config%l_ukca_ro2_ntp) THEN
       IF (jspf /= jpro2+jpctr) THEN
+        errcode = jspf
         WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl'
         CALL umPrint(umMessage,src=RoutineName)
         cmessage = 'ERROR: Number of chemical active species /= jpro2+jpctr'
-        errcode = jspf
-        CALL ereport('UKCA_CHEMISTRY_CTL', errcode, cmessage)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
       END IF
     ELSE
       IF (jspf /= jpctr) THEN
+        errcode = jspf
         WRITE(umMessage,'(A)') '** ERROR in ukca_chemistry_ctl'
         CALL umPrint(umMessage,src=RoutineName)
         cmessage = 'ERROR: Number of chemical active species /= jpctr'
-        errcode = jspf
-        CALL ereport('UKCA_CHEMISTRY_CTL', errcode, cmessage)
+        CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
       END IF
     END IF
 
@@ -433,9 +434,6 @@ DO i=1,rows
     END IF
 
     !       Call ASAD routines to do chemistry integration
-    !       In lowest levels choose half the dynamical timestep for
-    !       chemistry. If dynamical timestep > 20 min, use half and
-    !       quarter of dynamical timestep for chemistry.
 
     IF (.NOT. (ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_aerchem .OR.    &
                ukca_config%l_ukca_raq .OR. ukca_config%l_ukca_raqaero)) THEN
@@ -699,19 +697,19 @@ DO i=1,rows
       IF (L_asad_use_chem_diags .AND.                                          &
          ((L_asad_use_flux_rxns .OR. L_asad_use_rxn_rates) .OR.                &
          (L_asad_use_wetdep .OR. L_asad_use_drydep)))                          &
-         CALL asad_chemical_diagnostics(row_length,rows,                       &
+         CALL asad_chemical_diagnostics(row_length,rows,model_levels,          &
             model_levels,dpd_full,dpw_full,prk_full,y_full,                    &
             j,i,klevel,volume,ierr)
 
       ! PSC diagnostics
       IF (L_asad_use_chem_diags .AND. L_asad_use_psc_diagnostic)               &
-         CALL asad_psc_diagnostic(row_length,rows,model_levels,                &
+         CALL asad_psc_diagnostic(row_length,rows,model_levels,model_levels,   &
                              fpsc1_full,fpsc2_full,                            &
                              j,i,klevel,ierr)
     ELSE
       cmessage='Column call is not available for Backward Euler schemes'
       errcode = 5
-      CALL ereport('UKCA_CHEMISTRY_CTL_COL',errcode,cmessage)
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
     END IF
   END DO
 END DO ! loop (j,i)
