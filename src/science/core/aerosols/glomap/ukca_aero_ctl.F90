@@ -1795,13 +1795,13 @@ DO ik = 1, nseg
         END DO
 
         ! Count occurrences (NBADMDT) and store percent occurrence and mass-sink
-       	DO jl = 1, nbs
+        DO jl = 1, nbs
           seg_fac(jl) = seg_sm(jl) / seg_aird(jl)
         END DO
         ! FAC converts aerosol mass fluxes from kg(dryair)/box/tstep to
         ! moles/gridbox/s
 
-       	DO jl = 1, nbs
+        DO jl = 1, nbs
           jl2 = nbs_index(imode - 1) + jl
           IF (seg_mdt(jl2) < mdtmin(imode, ik)) THEN
             seg_nbadmdt(jl2) = 1

@@ -1534,11 +1534,11 @@ END IF     ! first_pass
 IF (ukca_config%l_ukca_asad_full) THEN
   ! Go through and pick up fluxes from ASAD arrays
   ! prk is in units of molecules.cm^-3.s^-1
-  !$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                      &
-  !$OMP SHARED(asad_chemdiags, dpd_full, dpw_full, L_stratosphere,             &
-  !$OMP        model_levels, n_chemdiags, prk_full, row_length, rows, volume,  &
-  !$OMP        y_full)
-  !$OMP DO SCHEDULE(DYNAMIC)
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                        &
+!$OMP SHARED(asad_chemdiags, dpd_full, dpw_full, L_stratosphere,               &
+!$OMP        model_levels, n_chemdiags, prk_full, row_length, rows, volume,    &
+!$OMP        y_full)
+!$OMP DO SCHEDULE(DYNAMIC)
   DO l=1,n_chemdiags
     ! in this case ASAD is being called over the full domain so we
     ! need to fill %throughput by reshaping the array
@@ -1583,8 +1583,8 @@ IF (ukca_config%l_ukca_asad_full) THEN
       END SELECT
     END SELECT
   END DO ! l=1,n_chemdiags
-  !$OMP END DO
-  !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
 ELSE IF (ukca_config%l_ukca_asad_columns) THEN
   ! Go through and pick up fluxes from ASAD arrays
   ! prk is in units of molecules.cm^-3.s^-1
@@ -2178,10 +2178,10 @@ ELSE IF (ukca_config%l_ukca_asad_columns) THEN
 END IF
 
 IF (ukca_config%l_ukca_asad_full) THEN
-  !$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                      &
-  !$OMP SHARED(asad_chemdiags, fpsc1_full, fpsc2_full, L_stratosphere,         &
-  !$OMP        model_levels, n_chemdiags, row_length, rows)
-  !$OMP DO SCHEDULE(DYNAMIC)
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                        &
+!$OMP SHARED(asad_chemdiags, fpsc1_full, fpsc2_full, L_stratosphere,           &
+!$OMP        model_levels, n_chemdiags, row_length, rows)
+!$OMP DO SCHEDULE(DYNAMIC)
   DO l=1,n_chemdiags
     ! in this case ASAD is being called over the full domain so we
     ! need to fill %throughput by reshaping the array
@@ -2207,8 +2207,8 @@ IF (ukca_config%l_ukca_asad_full) THEN
       END SELECT
     END SELECT
   END DO
-  !$OMP END DO
-  !$OMP END PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
 ELSE IF (ukca_config%l_ukca_asad_columns) THEN
   DO l=1,n_chemdiags
     ! in this case ASAD is being called column-by column so we need
