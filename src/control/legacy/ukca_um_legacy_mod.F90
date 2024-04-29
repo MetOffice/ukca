@@ -719,10 +719,13 @@ END SUBROUTINE calc_surf_area
 
 ! SO2 volcanic emissions subroutine required by ukca_add_emiss_mod
 
-SUBROUTINE ukca_volcanic_so2 (so2_mmr, mass, row_length, rows, model_levels,   &
+SUBROUTINE ukca_volcanic_so2                                                   &
+          (so2_mmr, mass, row_length, rows, model_levels,                      &
            year, timestep, r_theta_levels, rel_humid_frac,                     &
-           p_theta_levels, t_theta_levels, geopH_on_theta_mlevs,               &
-           u_rho_levels, v_rho_levels)
+           p_theta_levels, t_theta_levels,                                     &
+           geopH_on_theta_mlevs, u_rho_levels, v_rho_levels,                   &
+           plumeria_height)
+
 IMPLICIT NONE
 REAL, INTENT(IN OUT) :: so2_mmr(:,:,:)
 REAL, INTENT(IN) :: mass(:,:,:)
@@ -736,7 +739,9 @@ REAL, INTENT(IN) :: t_theta_levels(:,:,:)
 REAL, INTENT(IN) :: geopH_on_theta_mlevs(:,:,:)
 REAL, INTENT(IN) :: u_rho_levels(:,:,:)
 REAL, INTENT(IN) :: v_rho_levels(:,:,:)
+REAL, INTENT(OUT) :: plumeria_height(:,:)
 so2_mmr = 0.0
+plumeria_height = 0.0
 END SUBROUTINE ukca_volcanic_so2
 
 ! Diagnostics utility function required by ukca_emiss_diags_mod and
