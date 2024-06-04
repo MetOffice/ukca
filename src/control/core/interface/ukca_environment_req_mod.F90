@@ -198,7 +198,8 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_inferno_so2,                                                         &
   fldname_lscat_zhang,                                                         &
   fldname_grid_area_fullht,                                                    &
-  fldname_grid_volume
+  fldname_grid_volume,                                                         &
+  fldname_grid_airmass
 
 USE ukca_environment_fields_mod, ONLY: environ_field_info, environ_field_ptrs, &
                                        l_environ_field_available,              &
@@ -378,7 +379,8 @@ USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
                                          i_ukca_activation_arg,                &
                                          i_light_param_ext,                    &
                                          i_light_param_off,                    &
-                                         i_top_bc
+                                         i_top_bc,                             &
+                                         i_ukca_chem_off
 
 USE ukca_chem_defs_mod, ONLY: ratj_defs
 ! Need ratj_defs to calculate the dimensions of photol_rates array
@@ -408,7 +410,7 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 
 ! Field counts
-INTEGER, PARAMETER :: n_max = 147  ! Maximum number of environment fields
+INTEGER, PARAMETER :: n_max = 148  ! Maximum number of environment fields
 INTEGER :: n                       ! Count of environment fields selected
 INTEGER :: i                       ! Counter for loops
 
@@ -1319,6 +1321,17 @@ IF (ukca_config%l_asad_chem_diags_support .OR.                                 &
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_grid_volume
+  END IF
+END IF
+
+! Grid box air mass is required if explicitly requested by l_use_gridbox_mass.
+! Whether this request is mandatory, optional or redundant is
+! configuration-dependent. See description of l_use_gridbox_mass in
+! ukca_config_specification_mod for details.
+IF ( ukca_config%l_use_gridbox_mass ) THEN
+  n = n + 1
+  IF (n <= n_max) THEN
+    fld_names(n) = fldname_grid_airmass
   END IF
 END IF
 

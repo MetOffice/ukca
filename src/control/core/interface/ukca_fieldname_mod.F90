@@ -517,6 +517,8 @@ CHARACTER(LEN=*), PARAMETER :: fldname_grid_area_fullht =                      &
                                       'grid_area_fullht'
 CHARACTER(LEN=*), PARAMETER :: fldname_grid_volume =                           &
                                       'grid_volume'
+CHARACTER(LEN=*), PARAMETER :: fldname_grid_airmass =                          &
+                                      'grid_airmass'
 
 ! Oxidants for Offline Oxidants chemistry - 3-D of type Real
 ! (can be used for other chemistry schemes if needed)

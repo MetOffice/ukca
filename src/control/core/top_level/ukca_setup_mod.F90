@@ -523,6 +523,8 @@ INTEGER :: i                       ! loop counter
 
 LOGICAL :: l_be_scheme_selected    ! True if B-E solver required for chemistry
 LOGICAL :: l_nr_scheme_selected    ! True if N-R solver required for chemistry
+LOGICAL :: l_strat_scheme_selected ! True if a Stratospheric scheme is
+                                   ! selected for chemistry
 
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0  ! DrHook tracing entry
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1  ! DrHook tracing exit
@@ -644,6 +646,10 @@ END IF
 
 ! -- Chemistry configuration options -----------------------------------
 
+l_strat_scheme_selected = (ukca_config%i_ukca_chem == i_ukca_chem_strat        &
+                      .OR. ukca_config%i_ukca_chem == i_ukca_chem_strattrop    &
+                      .OR. ukca_config%i_ukca_chem == i_ukca_chem_cristrat )
+
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   ukca_config%ntype = 0
@@ -736,9 +742,7 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   ! Configuration specific to stratospheric schemes
 
-  IF (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                        &
-      ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                    &
-      ukca_config%i_ukca_chem == i_ukca_chem_cristrat ) THEN
+  IF ( l_strat_scheme_selected ) THEN
 
     ukca_config%l_tracer_lumping = .TRUE.
     ukca_config%i_ukca_topboundary = i_top_none
@@ -987,10 +991,7 @@ ukca_config%env_log_step = 1
 
 IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
-  IF (.NOT. ukca_config%l_ukca_wetdep_off .OR.                                 &
-      ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                        &
-      ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                    &
-      ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
+  IF (.NOT. ukca_config%l_ukca_wetdep_off .OR. l_strat_scheme_selected ) THEN
     IF (PRESENT(l_param_conv)) ukca_config%l_param_conv = l_param_conv
   END IF
 
@@ -1029,8 +1030,14 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
       ukca_config%l_use_gridbox_volume = l_use_gridbox_volume
   END IF
 
-  IF (PRESENT(l_use_gridbox_mass))                                             &
-    ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
+  ! Gridbox airmass is required for some diagnostics, the GLOMAP aerosol scheme
+  ! and for applying lower boundary conditions during processing of emissions
+  ! for Stratospheric chemistry schemes
+  IF ( ukca_config%l_enable_diag_um .OR. ukca_config%l_ukca_mode .OR.          &
+   (l_strat_scheme_selected .AND. .NOT. ukca_config%l_ukca_emissions_off)) THEN
+    IF (PRESENT(l_use_gridbox_mass))                                           &
+       ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
+  END IF
 
 END IF
 
@@ -1048,10 +1055,7 @@ END IF
 
 ! Configuration specific to stratospheric schemes
 
-IF ((ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                         &
-     ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                     &
-     ukca_config%i_ukca_chem == i_ukca_chem_cristrat) .AND.                    &
-    .NOT. ukca_config%l_ukca_emissions_off) THEN
+IF (l_strat_scheme_selected .AND. .NOT. ukca_config%l_ukca_emissions_off) THEN
 
   ukca_config%i_strat_lbc_source = i_strat_lbc_off
 

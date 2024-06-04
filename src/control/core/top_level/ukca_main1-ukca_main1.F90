@@ -103,7 +103,7 @@ USE ukca_environment_fields_mod, ONLY:                                         &
     dust_div4,              dust_div5,            dust_div6,                   &
     interf_z,               grid_surf_area,       grid_area_fullht,            &
     grid_volume,            photol_rates,         ext_cg_flash,                &
-    ext_ic_flash,           co2_interactive
+    ext_ic_flash,           co2_interactive,      grid_airmass
 
 USE ukca_pr_inputs_mod, ONLY: ukca_pr_inputs
 
@@ -129,7 +129,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     autotune_start_region,                                                     &
     autotune_stop_region,                                                      &
     rh_z_top_theta, a_realhd,                                                  &
-    delta_lambda, delta_phi, base_phi,                                         &
+    delta_lambda, delta_phi,                                                   &
     l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
     rad_ait, rad_acc, chi, sigma, pi,                                          &
     stashwork34, stashwork38, stashwork50,                                     &
@@ -142,11 +142,11 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     UKCA_diag_sect,                                                            &
     item1_nitrate_diags, itemN_nitrate_diags,                                  &
     item1_dust3mode_diags, itemN_dust3mode_diags,                              &
-    datastart, mype,                                                           &
+    mype,                                                                      &
     gg => g, planet_radius
 #else
 USE ukca_um_legacy_mod, ONLY:                                                  &
-    delta_lambda, delta_phi, base_phi,                                         &
+    delta_lambda, delta_phi,                                                   &
     l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
     rad_ait, rad_acc, chi, sigma, pi,                                          &
     stashwork34, stashwork38, stashwork50,                                     &
@@ -159,7 +159,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     UKCA_diag_sect,                                                            &
     item1_nitrate_diags, itemN_nitrate_diags,                                  &
     item1_dust3mode_diags, itemN_dust3mode_diags,                              &
-    datastart, mype,                                                           &
+    mype,                                                                      &
     gg => g, planet_radius
 #endif
 
@@ -379,7 +379,6 @@ REAL, ALLOCATABLE :: delso2_drydep(:,:,:)
 REAL, ALLOCATABLE :: delso2_wetdep(:,:,:)
 REAL, ALLOCATABLE :: env_ozone3d(:,:,:)
 REAL, ALLOCATABLE   :: v_latitude(:,:)     ! boundary lat
-REAL, ALLOCATABLE   :: sinv_latitude(:,:)  ! sin(boundary lat)
 REAL, ALLOCATABLE   :: cos_zenith_angle(:,:)
 REAL, ALLOCATABLE, SAVE   :: int_zenith_angle(:,:) ! integral over sza
 REAL, ALLOCATABLE :: trmol_post_atmstep(:,:,:,:)
@@ -397,9 +396,6 @@ REAL, ALLOCATABLE :: water_vapour_mr_clr(:,:,:)
 ! sat vap pressure with respect to liquid water irrespective of temperature
 REAL, ALLOCATABLE :: qsvp(:,:,:)
 
-! solid angle of grid cell saved for mass calculation
-REAL, SAVE, ALLOCATABLE :: mass (:,:,:)
-REAL, SAVE, ALLOCATABLE :: solid_angle(:,:)   ! solid angle
 REAL, SAVE, ALLOCATABLE :: z_half(:,:,:)
 REAL, SAVE, ALLOCATABLE :: z_half_alllevs(:,:,:)
 
@@ -1174,6 +1170,13 @@ IF (ukca_config%l_ukca_chem) THEN
       ALLOCATE(grid_volume(row_length,rows,model_levels))
       grid_volume(:,:,:) = 0.0
     END IF
+
+  END IF
+  ! Air mass passed as argument for emissions, chemistry and aerosols
+  IF ( ((.NOT. ukca_config%l_ukca_emissions_off) .OR. do_chemistry .OR.        &
+       l_asad_use_mass_diagnostic) .AND. .NOT. ALLOCATED(grid_airmass) ) THEN
+    ALLOCATE(grid_airmass(row_length,rows,model_levels))
+    grid_airmass(:,:,:) = 0.0
   END IF
 
   ! Required in call to UKCA_AERO_CTL, but may be unallocated
@@ -1245,10 +1248,6 @@ IF (ukca_config%l_ukca_chem) THEN
 
   IF ( l_first_call .OR. ukca_config%l_ukca_persist_off ) THEN
 
-    IF ( .NOT. ALLOCATED(mass) )                                               &
-      ALLOCATE(mass(row_length, rows, model_levels))
-    IF (ukca_config%l_use_gridbox_mass .AND. (.NOT. ALLOCATED(solid_angle)))   &
-      ALLOCATE(solid_angle(row_length, rows))
     IF ( .NOT. ALLOCATED(p_tropopause) )                                       &
       ALLOCATE(p_tropopause(row_length,rows))
     IF ( .NOT. ALLOCATED(tropopause_level) )                                   &
@@ -1259,30 +1258,6 @@ IF (ukca_config%l_ukca_chem) THEN
       ALLOCATE(pv_trop(row_length,rows))
     IF ( .NOT. ALLOCATED(L_stratosphere) )                                     &
       ALLOCATE(L_stratosphere(row_length,rows,model_levels))
-
-    IF (ukca_config%l_use_gridbox_mass) THEN
-
-      ! Calculate solid angle
-
-      ! For V-At-Poles, V latitude already bounds the grid-cells on both sides
-
-      IF (.NOT. ALLOCATED(v_latitude))                                         &
-        ALLOCATE(v_latitude(row_length, rows+1))
-      IF (.NOT. ALLOCATED(sinv_latitude))                                      &
-        ALLOCATE(sinv_latitude(row_length, rows+1))
-
-      DO j=1,rows+1
-        v_latitude(:,j) = base_phi + (datastart(2)+j-2) * delta_phi
-      END DO
-      sinv_latitude = SIN(v_latitude)
-
-      solid_angle(:,1:rows) = delta_lambda * (sinv_latitude(:,2:rows+1) -      &
-                                              sinv_latitude(:,1:rows))
-
-      IF (ALLOCATED(sinv_latitude)) DEALLOCATE(sinv_latitude)
-      IF (ALLOCATED(v_latitude)) DEALLOCATE(v_latitude)
-
-    END IF
 
     IF ( .NOT. ALLOCATED(z_half) )                                             &
       ALLOCATE(z_half(row_length,rows,ukca_config%bl_levels))
@@ -1383,47 +1358,68 @@ IF (ukca_config%l_ukca_chem) THEN
 
   END IF         ! do_chemistry and l_ukca_het_psc
 
-  t_theta_levels = exner_theta_levels * theta
-  Thick_bl_levels(1:row_length,1:rows,1) = 2.0*                                &
-        (r_theta_levels(1:row_length,1:rows,1) -                               &
-         r_theta_levels(1:row_length,1:rows,0))
-  DO k=2,ukca_config%bl_levels
-    Thick_bl_levels(1:row_length,1:rows,k) =                                   &
-          r_rho_levels(1:row_length,1:rows,k+1) -                              &
-          r_rho_levels(1:row_length,1:rows,k)
+  DO k = 1, model_levels
+    DO j = 1, rows
+      DO i = 1, row_length
+        t_theta_levels(i,j,k) = exner_theta_levels(i,j,k) * theta(i,j,k)
+      END DO
+    END DO
   END DO
-  p_layer_boundaries(1:row_length,1:rows,0)                =                   &
-          pstar(1:row_length,1:rows)
-  p_layer_boundaries(1:row_length,1:rows,model_levels)     =                   &
-          p_theta_levels(1:row_length,1:rows,model_levels)
-  p_layer_boundaries(1:row_length,1:rows,1:model_levels-1) =                   &
-          p_rho_levels(1:row_length,1:rows,2:model_levels)
 
+  DO j = 1, rows
+    DO i = 1, row_length
+      Thick_bl_levels(i,j,1) = 2.0 * (r_theta_levels(i,j,1) -                  &
+                                      r_theta_levels(i,j,0))
+    END DO
+  END DO
+  DO k = 2, ukca_config%bl_levels
+    DO j = 1, rows
+      DO i = 1, row_length
+        Thick_bl_levels(i,j,k) = r_rho_levels(i,j,k+1) - r_rho_levels(i,j,k)
+      END DO
+    END DO
+  END DO
+  DO j = 1, rows
+    DO i = 1, row_length
+      p_layer_boundaries(i,j,0)            = pstar(i,j)
+      p_layer_boundaries(i,j,model_levels) = p_theta_levels(i,j,model_levels)
+    END DO
+  END DO
+  DO k = 1, model_levels - 1
+    DO j = 1, rows
+      DO i = 1, row_length
+        p_layer_boundaries(i,j,k) = p_rho_levels(i,j,k+1)
+      END DO
+    END DO
+  END DO
 
   ! Mass:
-  ! We make the hydrostatic assumption in the diagnostic mass calculation
-  ! here so that mass = -b*(solid_angle/(3*g))*(r_top^3 - r_bottom^3)
+  ! Where gridbox airmass is not provided but is required for GLOMAP a
+  ! 'relative mass' is calculated here based on the hydrostatic assumption
+  ! such that
+  !     mass = -b*(solid_angle/(3*g))*(r_top^3 - r_bottom^3)
   ! where   b =                                                           &
   !    &    (p_layer_boundaries(:,:,k) - p_layer_boundaries(:,:,k-1))/    &
   !    &    (r_theta_levels(:,:,k)     - r_theta_levels(:,:,k-1))         &
 
-  ! If the actual grid box mass is not required then the factor solid_angle
-  ! is omitted. Mass of air will then be in arbitrary units for each
-  ! column. The relative mass at each level within a column is preserved as
+  ! However, here the factor solid_angle is omitted and the mass of air will
+  ! then be in arbitrary units for each column.
+  ! The relative mass at each level within a column is preserved as
   ! required by GLOMAP sedimentation and dry deposition processing.
 
-  factor = 1.0
-  DO k=1,model_levels
-    DO j=1,rows
-      DO i=1,row_length
-        IF (ukca_config%l_use_gridbox_mass) factor = solid_angle(i,j)
-        mass(i,j,k) = (-factor / (3.0*gg)) *                                   &
-      ((p_layer_boundaries(i,j,k) - p_layer_boundaries(i,j,k-1))/              &
-       (r_theta_levels(i,j,k) - r_theta_levels(i,j,k-1)) ) *                   &
-       (r_theta_levels(i,j,k)**3.0 - r_theta_levels(i,j,k-1)**3.0)
+  IF (ukca_config%l_ukca_mode .AND. .NOT. ukca_config%l_use_gridbox_mass) THEN
+    factor = 1.0
+    DO k=1,model_levels
+      DO j=1,rows
+        DO i=1,row_length
+          grid_airmass(i,j,k) = (-factor / (3.0*gg)) *                         &
+             	 	  ((p_layer_boundaries(i,j,k) - p_layer_boundaries(i,j,k-1))/  &
+                   (r_theta_levels(i,j,k) - r_theta_levels(i,j,k-1)) ) *       &
+                  (r_theta_levels(i,j,k)**3.0 - r_theta_levels(i,j,k-1)**3.0)
+        END DO
       END DO
     END DO
-  END DO
+  END IF
 
   DO k=1,model_levels
     DO j=1,rows
@@ -2091,7 +2087,7 @@ IF (ukca_config%l_ukca_chem) THEN
         r_theta_levels(1:row_length, 1:rows, 0:model_levels), grid_surf_area,  &
         cos_zenith_angle, int_zenith_angle, land_fraction, tropopause_level,   &
         r_rho_levels(1:row_length, 1:rows, 1:model_levels), t_theta_levels,    &
-        p_theta_levels, p_layer_boundaries, rel_humid_frac_clr, mass,          &
+        p_theta_levels, p_layer_boundaries, rel_humid_frac_clr, grid_airmass,  &
         land_sea_mask, rel_humid_frac, plumeria_height,                        &
         theta, q, qcl, qcf, exner_rho_levels, rho_r2,                          &
         kent, kent_dsc, rhokh_rdz, dtrdz,                                      &
@@ -2120,7 +2116,7 @@ IF (ukca_config%l_ukca_chem) THEN
        row_length,                                                             &
        rows,                                                                   &
        model_levels,                                                           &
-       mass,                                                                   &
+       grid_airmass,                                                           &
        ierr)
 
     ! ----------------------------------------------------------------------
@@ -2523,7 +2519,7 @@ IF (ukca_config%l_ukca_chem) THEN
              p_theta_levels, ls_ppn3d, conv_ppn3d,                             &
              latitude, env_ozone3d, qcf,                                       &
              r_theta_levels(1:row_length,1:rows,:),                            &
-             mass, z_top_of_model, shno3_3d, nat_psc,                          &
+             grid_airmass, z_top_of_model, shno3_3d, nat_psc,                  &
              all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers))
     END IF
 
@@ -2734,7 +2730,7 @@ IF (ukca_config%l_ukca_mode .AND. do_chemistry) THEN
        cloud_liq_frac,                                                         &
        qcl,                                                                    &
        z_half_alllevs,                                                         &
-       mass,zbl,                                                               &
+       grid_airmass,zbl,                                                       &
        uph2so4inaer,                                                           &
        wetox_in_aer,                                                           &
        all_ntp,                                                                &
@@ -3071,8 +3067,6 @@ IF (ukca_config%l_ukca_persist_off) THEN
   IF (ALLOCATED(theta_trop))       DEALLOCATE(theta_trop)
   IF (ALLOCATED(tropopause_level)) DEALLOCATE(tropopause_level)
   IF (ALLOCATED(p_tropopause))     DEALLOCATE(p_tropopause)
-  IF (ALLOCATED(solid_angle))      DEALLOCATE(solid_angle)
-  IF (ALLOCATED(mass))             DEALLOCATE(mass)
 END IF
 
 ! Deallocate variables local to ukca_main

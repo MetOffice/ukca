@@ -816,11 +816,6 @@ IF (.NOT. l_um_infrastructure) THEN
     errcode  = 42
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
-  IF (ukca_config%l_use_gridbox_mass) THEN
-    cmessage = 'Calculation of gridbox mass is only supported for UM grids'
-    errcode  = 43
-    CALL ereport(RoutineName,errcode,cmessage)
-  END IF
   IF (ukca_config%l_environ_z_top) THEN
     cmessage = 'Override of top-of-model height is not allowed outside the UM'
     errcode  = 44

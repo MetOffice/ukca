@@ -344,8 +344,7 @@ TYPE :: ukca_config_spec_type
                                        ! diagnostics in non-UM applications.)
   LOGICAL :: l_use_gridbox_mass        ! True to use mass of air in grid box in
                                        ! prognostic and/or diagnostic
-                                       ! calculations. This requires a parent-
-                                       ! specific solid angle to be available.
+                                       ! calculations.
                                        ! (Note that GLOMAP-mode prognostics
                                        ! will run with or without this option
                                        ! giving equivalent but not
