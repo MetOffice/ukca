@@ -1413,7 +1413,7 @@ IF (ukca_config%l_ukca_chem) THEN
       DO j=1,rows
         DO i=1,row_length
           grid_airmass(i,j,k) = (-factor / (3.0*gg)) *                         &
-             	 	  ((p_layer_boundaries(i,j,k) - p_layer_boundaries(i,j,k-1))/  &
+                  ((p_layer_boundaries(i,j,k) - p_layer_boundaries(i,j,k-1))/  &
                    (r_theta_levels(i,j,k) - r_theta_levels(i,j,k-1)) ) *       &
                   (r_theta_levels(i,j,k)**3.0 - r_theta_levels(i,j,k-1)**3.0)
         END DO
