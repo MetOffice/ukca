@@ -12,7 +12,11 @@
 !    Calculates water content of each mode given component
 !    concentrations (in air) using ZSR and binary molalities
 !    evaluated using water activity data from Jacobson,
-!    "Fundamentals of Atmospheric Modelling", page 610 Table B.
+!    "Fundamentals of Atmospheric Modelling", page 610 Table B
+!    ("Water Activity Data" Table). Equations are from Chapter
+!    18 ("Chemical Equilibrium and Dissolution Processes"
+!    Chapter. Be aware that in some editions the chapter numbers
+!    may be different.
 !
 !  UKCA is a community model supported by The Met Office and
 !  NCAS, with components initially provided by The University of
@@ -45,7 +49,8 @@ SUBROUTINE ukca_water_content_v(nv,mask,cl,rh,ions,wc)
 ! Calculates water content of each mode given component
 ! concentrations (in air) using ZSR and binary molalities
 ! evaluated using water activity data from Jacobson,
-! "Fundamentals of Atmospheric Modelling", page 610 Table B.
+! "Fundamentals of Atmospheric Modelling", page 610 Table B
+! ("Water Activity Data" Table).
 !
 ! Inputs
 ! ------
@@ -71,6 +76,7 @@ SUBROUTINE ukca_water_content_v(nv,mask,cl,rh,ions,wc)
 ! Z      : Charge for each ion
 ! Y      : Coefficients in expressions for binary molalities from
 !        : Jacobson page 610 (Table B.10) for each electrolyte
+!        : ("Water Activity Data" Table)
 ! RH_MIN : Lowest rh for which expression is valid
 ! MOLAL_MAX : Highest molality for which expression is valid.
 !
@@ -79,6 +85,7 @@ USE ukca_mode_setup,   ONLY: ncation, nanion
 USE parkind1,          ONLY: jprb, jpim
 USE yomhook,           ONLY: lhook, dr_hook
 USE ukca_types_mod,    ONLY: log_small
+USE ukca_config_specification_mod, ONLY: glomap_config
 
 IMPLICIT NONE
 
@@ -125,6 +132,11 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_WATER_CONTENT_V'
 
 DATA (z(i),i=-nanion,ncation)/1.0,1.0,2.0,1.0,0.0,1.0,1.0,1.0/
 !                                    Cl NO3 SO4 HSO4 H2O  H NH4  Na
+
+! Set y coefficients for the calculations of solute molalities from
+! Jacobson page 610 (Table B.10) for each electrolyte.
+! ("Water Activity Data" Table)
+! Also set the min rh and max molality for which the expressions are valid.
 !     H+ HSO4- (1,-1)
 DATA (y(1,-1,j),j=0,7)/                                                        &
       3.0391387536e1,-1.8995058929e2, 9.7428231047e2,                          &
@@ -140,6 +152,8 @@ DATA (y(1,-2,j),j=0,7)/                                                        &
 DATA rh_min(1,-2),molal_max(1,-2)/0.0e0,30.4e0/
 
 !     H+ NO3- (1,-3)
+! One of the y co-efficients is incorrect here (j=6)
+! Fixed with glomap_config%l_fix_ukca_water_content below.
 DATA (y(1,-3,j),j=0,7)/                                                        &
       2.306844303e1,-3.563608869e1,-6.210577919e1,                             &
       5.510176187e2,-1.460055286e3, 1.894467542e3,                             &
@@ -211,6 +225,9 @@ DATA rh_min(3,-4),molal_max(3,-4)/47.0e0,23.2e0/
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+!Put the correct value into the y array (N.B., can't do with DATA statment).
+IF (glomap_config%l_fix_ukca_water_content) y(1,-3,6) = -1.220611402e3
+
 m = 0
 DO i=1,nv
   IF (mask(i)) THEN
@@ -218,9 +235,6 @@ DO i=1,nv
     idx(m) = i
   END IF
 END DO
-
-! Copy fractional relative humidity to water activity (local)
-aw(:m)=rh(idx(:m))
 
 ! Write cl to internal variable to be adjusted in this subroutine only
 DO i=-nanion,ncation
@@ -239,35 +253,68 @@ DO ic=1,ncation
     END IF
     WHERE (ions(idx(:m),ia) .AND. ions(idx(:m),ic))
       ! .. Calculate minimum ion pair concentration and subtract from
-      ! .. Ion concentration
+      ! .. Ion concentration. Eqn. 18.72 of Jacobson.
       clp(:m,ic,ia)=MIN(cli(:m,ic)/n(ic),cli(:m,ia)/n(ia))
       cli(:m,ic)=cli(:m,ic)-n(ic)*clp(:m,ic,ia)
       cli(:m,ia)=cli(:m,ia)-n(ia)*clp(:m,ic,ia)
     END WHERE
   END DO
 END DO
-! Calculate binary electrolyte molalities at given aw
-DO ic=1,ncation
-  DO ia=-nanion,-1
-    WHERE (aw(:m) < rh_min(ic,ia)/1.0e2)
-      aw(:m)=rh_min(ic,ia)/1.0e2
-    END WHERE
-    mb(:m,ic,ia)=0.0
-    WHERE (ions(idx(:m),ia) .AND. ions(idx(:m),ic))
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,0)*aw(:m)**0
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,1)*aw(:m)**1
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,2)*aw(:m)**2
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,3)*aw(:m)**3
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,4)*aw(:m)**4
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,5)*aw(:m)**5
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,6)*aw(:m)**6
-      mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,7)*aw(:m)**7
-      mb(:m,ic,ia)=MIN(mb(:m,ic,ia),molal_max(ic,ia))
-    END WHERE
+! Calculate binary electrolyte molalities at given aw Eqn. 18.66 of
+! Jacobson.
+IF (glomap_config%l_fix_ukca_water_content) THEN
+  DO ic=1,ncation
+    DO ia=-nanion,-1
+      !If the water content bug is being fixed then copy the
+      !original rh values into aw each loop since they may get erroneously
+      !overwritten each time around the loop. We want to apply a different min aw
+      !for each anion/cation pair:-
+      aw(:m)=rh(idx(:m))
+      !Prevent aw from going below rh_min (from Table B10 of Jacobson)
+      !for the anion/cation pair
+      WHERE (aw(:m) < rh_min(ic,ia)/1.0e2)
+        aw(:m)=rh_min(ic,ia)/1.0e2
+      END WHERE
+      mb(:m,ic,ia)=0.0
+      WHERE (ions(idx(:m),ia) .AND. ions(idx(:m),ic))
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,0)*aw(:m)**0
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,1)*aw(:m)**1
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,2)*aw(:m)**2
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,3)*aw(:m)**3
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,4)*aw(:m)**4
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,5)*aw(:m)**5
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,6)*aw(:m)**6
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,7)*aw(:m)**7
+        mb(:m,ic,ia)=MIN(mb(:m,ic,ia),molal_max(ic,ia))
+      END WHERE
+    END DO
   END DO
-END DO
-
-! Calculate water content (mol/cm3 air)
+ELSE
+  ! Copy fractional relative humidity to water activity (local)
+  aw(:m)=rh(idx(:m))
+  DO ic=1,ncation
+    DO ia=-nanion,-1
+      !Prevent aw from going below rh_min (from Table B10 of Jacobson)
+      !for the anion/cation pair
+      WHERE (aw(:m) < rh_min(ic,ia)/1.0e2)
+        aw(:m)=rh_min(ic,ia)/1.0e2
+      END WHERE
+      mb(:m,ic,ia)=0.0
+      WHERE (ions(idx(:m),ia) .AND. ions(idx(:m),ic))
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,0)*aw(:m)**0
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,1)*aw(:m)**1
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,2)*aw(:m)**2
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,3)*aw(:m)**3
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,4)*aw(:m)**4
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,5)*aw(:m)**5
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,6)*aw(:m)**6
+        mb(:m,ic,ia)=mb(:m,ic,ia)+y(ic,ia,7)*aw(:m)**7
+        mb(:m,ic,ia)=MIN(mb(:m,ic,ia),molal_max(ic,ia))
+      END WHERE
+    END DO
+  END DO
+END IF
+! Calculate water content (mol/cm3 air); Eqn. 18.71 of Jacobson.
 dum(:m)=0.0
 DO ic=1,ncation
   DO ia=-nanion,-1

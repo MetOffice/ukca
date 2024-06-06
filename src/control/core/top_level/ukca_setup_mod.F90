@@ -222,6 +222,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       proc_diag2d_copy_out,                                    &
                       proc_diag3d_copy_out,                                    &
                       l_fix_ukca_hygroscopicities,                             &
+                      l_fix_ukca_water_content,                                &
                       error_message, error_routine)
 
 ! ----------------------------------------------------------------------
@@ -507,6 +508,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
+LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_water_content
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
 PROCEDURE(template_proc_diag2d_copy_out), OPTIONAL :: proc_diag2d_copy_out
@@ -1310,6 +1312,9 @@ IF (ukca_config%l_ukca_mode) THEN
     IF (PRESENT(l_improve_aero_drydep))                                        &
       glomap_config%l_improve_aero_drydep = l_improve_aero_drydep
   END IF
+
+  IF (PRESENT(l_fix_ukca_water_content))                                       &
+      glomap_config%l_fix_ukca_water_content = l_fix_ukca_water_content
 
   ! Temporary logicals for UKCA Activate scheme
 
