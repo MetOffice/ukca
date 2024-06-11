@@ -219,6 +219,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
                       proc_bl_tracer_mix,                                      &
+                      proc_calc_ozonecol,                                      &
                       proc_diag2d_copy_out,                                    &
                       proc_diag3d_copy_out,                                    &
                       l_fix_ukca_hygroscopicities,                             &
@@ -286,6 +287,7 @@ USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     i_dms_flux_off,                                                            &
     l_ukca_config_available,                                                   &
     template_proc_bl_tracer_mix, bl_tracer_mix,                                &
+    template_proc_calc_ozonecol, calc_ozonecol,                                &
     template_proc_diag2d_copy_out, diag2d_copy_out,                            &
     template_proc_diag3d_copy_out, diag3d_copy_out
 
@@ -511,6 +513,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_water_content
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
+PROCEDURE(template_proc_calc_ozonecol), OPTIONAL :: proc_calc_ozonecol
 PROCEDURE(template_proc_diag2d_copy_out), OPTIONAL :: proc_diag2d_copy_out
 PROCEDURE(template_proc_diag3d_copy_out), OPTIONAL :: proc_diag3d_copy_out
 
@@ -1352,6 +1355,7 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
   IF (PRESENT(proc_bl_tracer_mix)) bl_tracer_mix => proc_bl_tracer_mix
 END IF
 
+IF (PRESENT(proc_calc_ozonecol)) calc_ozonecol => proc_calc_ozonecol
 IF (PRESENT(proc_diag2d_copy_out)) diag2d_copy_out => proc_diag2d_copy_out
 IF (PRESENT(proc_diag3d_copy_out)) diag3d_copy_out => proc_diag3d_copy_out
 

@@ -208,7 +208,7 @@ SUBROUTINE set_diagnostic_availabilities(error_code_ptr, ukca_config,          &
 ! ----------------------------------------------------------------------
 
 USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
-                                         i_ukca_nophot
+                                         i_ukca_nophot, calc_ozonecol
 
 USE ukca_chem_defs_mod, ONLY: ratj_defs
 USE asad_flux_dat,      ONLY: asad_chemical_fluxes, stashcode_ukca_chem_diag
@@ -284,7 +284,8 @@ DO i = 1, SIZE(master_diag_list)
   CASE (diagname_p_tropopause)
     master_diag_list(i)%l_available = (ukca_config%model_levels > 1)
   CASE (diagname_o3_column_du)
-    master_diag_list(i)%l_available = (ANY(advt(:) == 'O3        '))
+    master_diag_list(i)%l_available = ASSOCIATED(calc_ozonecol) .AND.          &
+                                      (ANY(advt(:) == 'O3        '))
   CASE (diagname_plumeria_height)
     master_diag_list(i)%l_available = ukca_config%l_ukca_so2ems_plumeria
 

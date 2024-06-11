@@ -9,7 +9,7 @@
 ! *****************************COPYRIGHT*******************************
 
 !  Description:
-!   Module containing subroutine ukca_calc_ozonecol.
+!   Module containing subroutine photol_calc_ozonecol.
 
 !  UKCA is a community model supported by The Met Office and
 !  NCAS, with components initially provided by The University of
@@ -24,7 +24,7 @@
 !
 ! ######################################################################
 
-MODULE ukca_calc_ozonecol_mod
+MODULE photol_calc_ozonecol_mod
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -33,7 +33,7 @@ USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus,                         &
                       PrStatus_Normal, PrStatus_Oper
 IMPLICIT NONE
 
-CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_CALC_OZONECOL_MOD'
+CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='PHOTOL_CALC_OZONECOL_MOD'
 
 CONTAINS
 
@@ -43,11 +43,9 @@ CONTAINS
 !------------------------------------------------------------------
 
 ! This routine calculates overhead ozone columns in molecules/cm^2 needed
-! for photolysis calculations using the Lary scheme of SLIMCAT. The
-! contribution from the area above the model top is correct for a model top
-! of 65 km but is not changed here for simplicity.
+! for photolysis calculations.
 
-SUBROUTINE ukca_calc_ozonecol(row_length, rows, model_levels,                  &
+SUBROUTINE photol_calc_ozonecol(row_length, rows, model_levels,                &
   z_top_of_model, p_layer_boundaries,                                          &
   p_layer_centres, ozone_vmr, ozonecol)
 
@@ -95,7 +93,7 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_CALC_OZONECOL'
+CHARACTER(LEN=*), PARAMETER :: RoutineName='PHOTOL_CALC_OZONECOL'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
@@ -119,34 +117,28 @@ DO l=1,model_levels-1
 END DO
 
 
-! add contribution above model top. For 38 levels assume model top at
-! 39 km with a climatological ozone column there of 5E17 molecules/cm^2.
-! For L60 & L85, the top is assumed to be at 85 km with an ozone column of
-! 6.7E13 molecules/cm^2.
-! LAMs often have model top at 38.5 or 40km, approximate this as the same
-! as 39km
+! Add contribution above model top.
+! If z_top_of_model lies in the given ranges, an approximate contribution
+! of ozone column for above the model top (selected at 39, 41 or 85 km)
+! is added to the total.
 
 IF (z_top_of_model > 38000.0 .AND. z_top_of_model < 40500.0) THEN
   ozonecol = ozonecol + ozcol_39km
 ELSE IF (z_top_of_model > 40500.0 .AND. z_top_of_model < 42000.0) THEN
   ozonecol = ozonecol + ozcol_41km
-ELSE IF (z_top_of_model > 77000.0 .AND. z_top_of_model < 85500.0)              &
-  THEN
-   ! L70 (80.0 km), L60 (84.132 km), and L85 (85.0 km) versions
-  ! also L118 (78km) which is available in nesting suite
+ELSE IF (z_top_of_model > 77000.0 .AND. z_top_of_model < 85500.0) THEN
   ozonecol = ozonecol + ozcol_85km
 ELSE
   cmessage = ' Ozone column undefined for model top'
   errcode = 1
-  CALL umPrint( cmessage,src='ukca_calc_ozonecol_mod')
+  CALL umPrint( cmessage,src='photol_calc_ozonecol_mod')
   WRITE(umMessage,'(A,E12.5)') 'z_top_of_model: ',z_top_of_model
-  CALL umPrint(umMessage,src='ukca_calc_ozonecol_mod')
-  CALL ereport('UKCA_CALC_OZONECOL_MOD:UKCA_CALC_OZONECOL',errcode,            &
-    cmessage)
+  CALL umPrint(umMessage,src='photol_calc_ozonecol_mod')
+  CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
-END SUBROUTINE ukca_calc_ozonecol
+END SUBROUTINE photol_calc_ozonecol
 
-END MODULE ukca_calc_ozonecol_mod
+END MODULE photol_calc_ozonecol_mod

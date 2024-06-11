@@ -766,6 +766,25 @@ ABSTRACT INTERFACE
     ! Tracer mixing ratio (kg/kg)
   END SUBROUTINE template_proc_bl_tracer_mix
 
+  ! Subroutine to calculate ozone column. This does not have a UKCA default
+  ! so a parent routine must be provided.
+  SUBROUTINE template_proc_calc_ozonecol(row_length, rows, model_levels,       &
+    z_top_of_model, p_layer_boundaries, p_layer_centres, ozone_vmr, ozonecol)
+  IMPLICIT NONE
+  ! Model dimensions
+  INTEGER, INTENT(IN) :: row_length
+  INTEGER, INTENT(IN) :: rows
+  INTEGER, INTENT(IN) :: model_levels
+
+  REAL, INTENT(IN) :: z_top_of_model       ! model top (m)
+  REAL, INTENT(IN) :: p_layer_boundaries(row_length, rows,                     &
+    0:model_levels)
+  REAL, INTENT(IN) :: p_layer_centres(row_length, rows, model_levels)
+  REAL, INTENT(IN) :: ozone_vmr(row_length, rows, model_levels)
+
+  REAL, INTENT(OUT) :: ozonecol(row_length, rows, model_levels)
+  END SUBROUTINE template_proc_calc_ozonecol
+
   ! Subroutine to do parent-specific copy of 2D output for a named diagnostic
   ! (for direct copy to parent workspace other than array argument in API call)
   SUBROUTINE template_proc_diag2d_copy_out(diagname, field)
@@ -785,6 +804,7 @@ ABSTRACT INTERFACE
 END INTERFACE
 
 PROCEDURE(template_proc_bl_tracer_mix), POINTER :: bl_tracer_mix
+PROCEDURE(template_proc_calc_ozonecol), POINTER :: calc_ozonecol
 PROCEDURE(template_proc_diag2d_copy_out), POINTER :: diag2d_copy_out
 PROCEDURE(template_proc_diag3d_copy_out), POINTER :: diag3d_copy_out
 

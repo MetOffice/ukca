@@ -71,7 +71,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_diagname,                                 &
                               diagname_plumeria_height
 
 USE ukca_environment_diags_mod, ONLY: photol_rate_diag
-USE ukca_calc_ozonecol_mod, ONLY: ukca_calc_ozonecol
+USE ukca_config_specification_mod, ONLY:  calc_ozonecol
 USE ukca_cspecies, ONLY: n_o3
 USE ukca_constants, ONLY: c_o3, dobson
 USE missing_data_mod, ONLY: imdi
@@ -217,11 +217,10 @@ DO i = 1, SIZE(available_diag_varnames)
         ! Calculate ozone column from actual post-chemistry
         ! ozone, for diagnostic purposes. As ozone is tracer,
         ! this makes the ozone column available on all timesteps
-        CALL ukca_calc_ozonecol(row_length, rows, model_levels,                &
-                                z_top_of_model, p_layer_boundaries,            &
-                                p_theta_levels,                                &
-                                all_tracers(:,:,:,n_o3) /                      &
-                                  c_o3, o3col_du(:,:,:))
+        CALL calc_ozonecol(row_length, rows, model_levels, z_top_of_model,     &
+                           p_layer_boundaries, p_theta_levels,                 &
+                           all_tracers(:,:,:,n_o3) / c_o3,                     &
+                           o3col_du(:,:,:))
 
         ! Convert to Dobson Units from molecules/cm2
         o3col_du(:,:,:) = o3col_du(:,:,:)/(dobson * 1.0e-4)
