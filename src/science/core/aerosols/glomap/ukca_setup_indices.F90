@@ -17,6 +17,7 @@
 !      UKCA_INDICES_ORGV1_SOto3_ISOP
 !      UKCA_INDICES_ORGV1_SOto3_SOLINSOL
 !      UKCA_INDICES_ORGV1_SOto3_COUPL
+!      UKCA_INDICES_ORGV1_SOto3_NO3
 !      UKCA_INDICES_ORGV1_SOto6
 !      UKCA_INDICES_ORGV1_SOto6_COUPL
 !      UKCA_INDICES_SV1
@@ -124,6 +125,7 @@ INTEGER :: mhcooh
 INTEGER :: mmeco3h
 INTEGER :: MMeCO2H
 INTEGER :: mmeoh
+INTEGER :: mnh3
 !
 ! .. (indices for advected gas phase tracers in array S0)
 ! .. (8 sulphur species, H2O2, MONOTER, Sec_Org, SEC_ORG_I, Q3D, PT)
@@ -203,6 +205,7 @@ INTEGER :: nhcooh
 INTEGER :: nmeco3h
 INTEGER :: nmeco2h
 INTEGER :: nmeoh
+INTEGER :: nnh3
 !
 ! .. (indices for all gas phase tracers in array ST)
 INTEGER :: nsotwo     ! for SO2
@@ -648,6 +651,7 @@ mhcooh  = 0 ! not included
 mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -755,6 +759,7 @@ nhcooh  = 0 ! not included
 nmeco3h = 0 ! not included
 nmeco2h = 0 ! not included
 nmeoh   = 0 ! not included
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -899,6 +904,7 @@ mhcooh  = 0 ! not included
 mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -1008,6 +1014,7 @@ nhcooh  = 0 ! not included
 nmeco3h = 0 ! not included
 nmeco2h = 0 ! not included
 nmeoh   = 0 ! not included
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -1075,6 +1082,263 @@ icosoh  =  7
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE UKCA_INDICES_ORGV1_SOto3
+
+! ######################################################################
+SUBROUTINE UKCA_INDICES_ORGV1_SOto3_NO3
+
+IMPLICIT NONE
+
+!-----------------------------------------------------------
+!
+! MAIN ARRAY LENGTHS AND SWITCHES
+!
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_ORGV1_SOTO3_NO3'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+nchemg=13          ! # of gas phase chemistry tracers
+ichem=1            ! 1/0 = gas phase chemistry tracers on/off
+noffox=3           ! # of offline oxidant species
+nbudchem=26        ! # of gas chem budget fields
+!      GASBUDGET=1        ! 1/0 = gas phase chemistry fluxes on/off
+!      NGASBUDGET=8       ! # of gas phase chemistry fluxes
+gasbudget=0        ! 1/0 = gas phase chemistry fluxes on/off
+ngasbudget=8       ! # of gas phase chemistry fluxes
+!
+nadvg=2+nchemg     ! # of gas phase advected tracers
+ntrag=nadvg+noffox ! total # of gas phase species
+
+! For orgv1, NTRAG=16, NADVG=13
+!
+!-----------------------------------------------------------
+!
+! GAS PHASE TRACER INDICES FOR S0 ARRAY
+!
+!
+! .. below are the 40 tropospheric chemistry species
+mox     = 0 ! not included
+mnox    = 0 ! not included
+mn2o5   = 0 ! not included
+mhno4   = 0 ! not included
+mh2o2   = 0 ! not included
+mch4    = 0 ! not included
+mco     = 0 ! not included
+mch2o   = 0 ! not included
+mmhp    = 0 ! not included
+mhono   = 0 ! not included
+mc2h6   = 0 ! not included
+metooh  = 0 ! not included
+mmecho  = 0 ! not included
+mpan    = 0 ! not included
+mc3h8   = 0 ! not included
+mpnooh  = 0 ! not included
+mpiooh  = 0 ! not included
+metcho  = 0 ! not included
+mme2co  = 0 ! not included
+mmecoh  = 0 ! not included
+mppan   = 0 ! not included
+mmeno3  = 0 ! not included
+moxs    = 0 ! not included
+mnoys   = 0 ! not included
+misop   = 0 ! not included
+mc2h4   = 0 ! not included
+mc2h2   = 0 ! not included
+misooh  = 0 ! not included
+mison   = 0 ! not included
+mmacr   = 0 ! not included
+mmacrooh= 0 ! not included
+mmpan   = 0 ! not included
+mhacet  = 0 ! not included
+mmgly   = 0 ! not included
+mnald   = 0 ! not included
+mhcooh  = 0 ! not included
+mmeco3h = 0 ! not included
+mmeco2h = 0 ! not included
+mmeoh   = 0 ! not included
+!
+! .. below are the 8 sulphur species, 3 organics
+! .. H2O2F, and Q3D,PT indices for ST
+msotwo  = 1
+MMeSMe  = 2
+mh2so4  = 3
+mdmso   = 4
+mmsa    = 5
+mcs2    = 6
+mh2s    = 7
+mcos    = 8
+mmonoter= 9
+msec_org=10
+msec_orgi =0
+mh2o2f  =11
+mhno3   =12
+mnh3    =13
+mq3d    =14
+mpt     =15
+!
+! .. molar masses (kg/mol) for gases for orgv1
+! .. (8 S species, terp, Sec_Org, H2O2F, HNO3, NH3 then 37 dummy values)
+mm_gas=[0.064,0.062,0.098,0.078,0.096,0.076,0.034,0.060,                       &
+         0.136,0.150,0.034,0.063,0.017,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,                      &
+         0.000,0.000]
+!
+condensable_choice=[0,0,1,0,0,0,0,0,0,3,0,0,                                   &
+                     0,0,0,0,0,0,0,0,0,0,0,0,                                  &
+                     0,0,0,0,0,0,0,0,0,0,0,0,                                  &
+                     0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+! .. H2SO4   to condense into 1st aerosol component (CP_SU)
+! .. Sec_Org to condense into 3rd aerosol component (CP_OC)
+
+condensable=(condensable_choice > 0)
+!
+dimen=[0.0,0.0,4.5e-10,0.0,0.0,0.0,0.0,0.0,0.0,4.5e-10,0.0,0.0,                &
+        0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                       &
+        0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                       &
+        0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,                       &
+        0.0,0.0]
+! Molecular diameters of condensable gas phase species (m)
+!
+!------------------------------------------------------------
+!
+! GAS PHASE TRACER INDICES FOR ST ARRAY
+!
+! .. below are the 60 indices for tropospheric chemistry species (ST)
+no      = 0 ! not included
+no1d    = 0 ! not included
+no3     = 0 ! not included
+nno     = 0 ! not included
+nno3    = 0 ! not included
+nno2    = 0 ! not included
+nn2o5   = 0 ! not included
+nhno4   = 0 ! not included
+noh     = 0 ! not included
+nho2    = 0 ! not included
+nh2o2   = 0 ! not included
+nch4    = 0 ! not included
+nco     = 0 ! not included
+nch2o   = 0 ! not included
+nmeoo   = 0 ! not included
+nh2o    = 0 ! not included
+nmhp    = 0 ! not included
+nhono   = 0 ! not included
+nc2h6   = 0 ! not included
+netoo   = 0 ! not included
+netooh  = 0 ! not included
+nmecho  = 0 ! not included
+nmeco3  = 0 ! not included
+npan    = 0 ! not included
+nc3h8   = 0 ! not included
+npnoo   = 0 ! not included
+npioo   = 0 ! not included
+npnooh  = 0 ! not included
+npiooh  = 0 ! not included
+netcho  = 0 ! not included
+netco3  = 0 ! not included
+nme2co  = 0 ! not included
+nmecoo  = 0 ! not included
+nmecoh  = 0 ! not included
+nppan   = 0 ! not included
+nmeno3  = 0 ! not included
+nos     = 0 ! not included
+no1ds   = 0 ! not included
+no3s    = 0 ! not included
+nnoxs   = 0 ! not included
+nhno3s  = 0 ! not included
+nnoys   = 0 ! not included
+nisop   = 0 ! not included
+nc2h4   = 0 ! not included
+nc2h2   = 0 ! not included
+niso2   = 0 ! not included
+nisooh  = 0 ! not included
+nison   = 0 ! not included
+nmacr   = 0 ! not included
+nmacro2 = 0 ! not included
+nmacrooh= 0 ! not included
+nmpan   = 0 ! not included
+nhacet  = 0 ! not included
+nmgly   = 0 ! not included
+nnald   = 0 ! not included
+nhcooh  = 0 ! not included
+nmeco3h = 0 ! not included
+nmeco2h = 0 ! not included
+nmeoh   = 0 ! not included
+!
+! .. below are the 8 sulphur species, 2 organics
+! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
+nsotwo  = 1
+NMeSMe  = 2
+nh2so4  = 3
+ndmso   = 4
+nmsa    = 5
+ncs2    = 6
+nh2s    = 7
+ncos    = 8
+nmonoter= 9
+nsec_org=10
+nh2o2f  =11
+nhno3   =12
+nnh3    =13
+no3f    =14
+nohf    =15
+nno3f   =16
+nq3d    =17
+npt     =18
+!
+!---------------------------------------------------------------
+!
+! GAS PHASE BUDGET INDICES
+!
+! .. below are 26 gas phase budget quantity indices for orgv1
+ndmsemoc  = 1
+ndmstend  = 2
+nso2eman  = 3
+nso2embm  = 4
+nso2emvl  = 5
+nso2tend  = 6
+nso2ddep  = 7
+nso2wdep  = 8
+nh2so4tend= 9
+nh2so4ddep=10
+ncoseman  =11
+ncosemoc  =12
+ncostend  =13
+ncs2eman  =14
+ncs2emoc  =15
+ncs2tend  =16
+ndmsotend =17
+ndmsoddep =18
+nmsatend  =19
+nmsaddep  =20
+nterp_em  =21
+nterp_tend=22
+nterp_ddep=23
+nsorg_tend=24
+nsorg_ddep=25
+nsorg_wdep=26
+!
+! REACTION INDICES for gas phase chemistry fluxes
+iohdms1 =  1
+iohdms2 =  2
+ino3dms =  4
+idmsooh1=  0
+idmsooh2=  3
+ics2oh  =  5
+ih2soh  =  6
+icosoh  =  7
+!
+!----------------------------------------------------------------
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE UKCA_INDICES_ORGV1_SOto3_NO3
 
 ! ######################################################################
 
@@ -1159,6 +1423,7 @@ mhcooh  = 0 ! not included
 mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -1268,6 +1533,7 @@ nhcooh  = 0 ! not included
 nmeco3h = 0 ! not included
 nmeco2h = 0 ! not included
 nmeoh   = 0 ! not included
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -1350,7 +1616,7 @@ INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
-CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_ORGV1_SOTO3'
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_ORGV1_SOto3_SOLINSOL'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
@@ -1414,6 +1680,7 @@ mhcooh  = 0 ! not included
 mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -1523,6 +1790,7 @@ nhcooh  = 0 ! not included
 nmeco3h = 0 ! not included
 nmeco2h = 0 ! not included
 nmeoh   = 0 ! not included
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -1666,6 +1934,7 @@ mhcooh  =37
 mmeco3h =38
 mmeco2h =39
 mmeoh   =40
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -1779,6 +2048,7 @@ nhcooh  =57
 nmeco3h =58
 nmeco2h =59
 nmeoh   =60
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -1921,6 +2191,7 @@ mhcooh  = 0 ! not included
 mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -2030,6 +2301,7 @@ nhcooh  = 0 ! not included
 nmeco3h = 0 ! not included
 nmeco2h = 0 ! not included
 nmeoh   = 0 ! not included
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -2173,6 +2445,7 @@ mhcooh  =37
 mmeco3h =38
 mmeco2h =39
 mmeoh   =40
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -2286,6 +2559,7 @@ nhcooh  =57
 nmeco3h =58
 nmeco2h =59
 nmeoh   =60
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -2428,6 +2702,7 @@ mhcooh  = 0 ! not included
 mmeco3h = 0 ! not included
 mmeco2h = 0 ! not included
 mmeoh   = 0 ! not included
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -2536,6 +2811,7 @@ nhcooh  = 0 ! not included
 nmeco3h = 0 ! not included
 nmeco2h = 0 ! not included
 nmeoh   = 0 ! not included
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST
@@ -2678,6 +2954,7 @@ mhcooh  =37
 mmeco3h =38
 mmeco2h =39
 mmeoh   =40
+mnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 3 organics
 ! .. H2O2F, and Q3D,PT indices for ST
@@ -2790,6 +3067,7 @@ nhcooh  =57
 nmeco3h =58
 nmeco2h =59
 nmeoh   =60
+nnh3    = 0 ! not included
 !
 ! .. below are the 8 sulphur species, 2 organics
 ! .. H2O2F, 3 offline oxidants and Q3D,PT indices for ST

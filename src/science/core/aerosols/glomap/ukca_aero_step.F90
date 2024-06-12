@@ -44,7 +44,8 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
  rainout_on,iextra_checks,                                                     &
  imscav_on,wetox_on,ddepaer_on,sedi_on,iso2wetoxbyo3,                          &
  dryox_in_aer,wetox_in_aer,delso2,delso2_2,                                    &
- cond_on,nucl_on,coag_on,bln_on,icoag,imerge,ifuchs,                           &
+ cond_on,nucl_on,coag_on,bln_on,icoag,                                         &
+ imerge,fine_no3_prod_on,coarse_no3_prod_on,ifuchs,                            &
  idcmfp,icondiam,ibln,i_nuc_method,iagecoagnucl67,                             &
  iactmethod,iddepaer,inucscav,lcvrainout,l_dust_slinn_impc_scav,               &
  verbose,checkmd_nd,intraoff,                                                  &
@@ -116,6 +117,8 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !  BLN_ON      : Switch : Boundary layer nucleation is on/off (1/0)
 !  ICOAG       : KIJ method (1:GLOMAP, 2: M7, 3: UMorig, 4:UMorig MFPP)
 !  IMERGE      : Switch to use mid-pts (=1), edges (2) or dynamic (=3)
+!  FINE_NO3_PROD_ON   : Switch: controls if fine NO3 production is on
+!  COARSE_NO3_PROD_ON : Switch: controls if coarse NO3 production is on
 !  IFUCHS      : Switch : Fuchs (1964) or Fuchs-Sutugin (1971) for CC
 !  IACTMETHOD  : Switch : activation method (0=off,1=fixed ract,2=NSO3)
 !  IDDEPAER    : Switch : dry dep method (1=as in Spr05, 2=incl. sedi)
@@ -281,6 +284,9 @@ USE ukca_cloudproc_mod,                      ONLY:                             &
 USE ukca_coagwithnucl_mod,                   ONLY:                             &
     ukca_coagwithnucl
 
+USE ukca_coarse_no3_mod,                     ONLY:                             &
+    ukca_coarse_no3
+
 USE ukca_conden_mod,                         ONLY:                             &
     ukca_conden
 
@@ -292,6 +298,9 @@ USE ukca_ddepaer_mod,                        ONLY:                             &
 
 USE ukca_ddepaer_incl_sedi_mod,              ONLY:                             &
     ukca_ddepaer_incl_sedi
+
+USE ukca_fine_no3_mod,                     ONLY:                               &
+    ukca_fine_no3
 
 USE ukca_impc_scav_mod,                      ONLY:                             &
     ukca_impc_scav
@@ -384,6 +393,8 @@ INTEGER, INTENT(IN) :: verbose
 INTEGER, INTENT(IN) :: checkmd_nd
 INTEGER, INTENT(IN) :: intraoff
 INTEGER, INTENT(IN) :: interoff
+INTEGER, INTENT(IN) :: fine_no3_prod_on
+INTEGER, INTENT(IN) :: coarse_no3_prod_on
 INTEGER, INTENT(IN) :: jlabove(nbox)
 INTEGER, INTENT(IN) :: ilscat(nbox)
 INTEGER (KIND=integer_32), INTENT(IN OUT) :: n_merge_1d(nbox,nmodes)
@@ -859,6 +870,8 @@ DO imts=1,nmts
   !      Split microphysics substep into NZTS subsubsteps to allow for
   !      competition between nucleation and condensation (and gas phase
   !      production if DRYOX_IN_AER=1) to compete on short timesteps.
+  !      Given that nitrate formation is via condensation, include new
+  !      routines for coarse and fine mode nitrate production here
   !
   CALL ukca_calc_coag_kernel(nbox,kii_arr,kij_arr,                             &
    drydp,dvol,wetdp,wvol,rhopar,mfpa,dvisc,t,                                  &
@@ -938,6 +951,41 @@ DO imts=1,nmts
       ELSE
         ageterm1(:,:,:)=0.0
       END IF ! if COND_ON=1
+      !
+      !        Do nitrate chemistry - split into fine and coarse production
+      IF (fine_no3_prod_on == 1) THEN
+        CALL ukca_fine_no3(nbox,nadvg,nbudaer,dtz,rhoa,aird,wetdp,RH_clr,t,sm, &
+                           mfpa,nd,md,mdt,s0g,bud_aer_mas)
+        !
+        IF (checkmd_nd == 1) THEN
+          process='Done fine nitrate production'
+          CALL ukca_check_md_nd(nbox,process,nd,md,mdt)
+        END IF
+        !
+        IF (verbose >= 2) THEN
+          WRITE(umMessage,'(A40)') 'After UKCA_FINE_NO3 has updated MD,MDT'
+          CALL umPrint(umMessage,src='ukca_aero_step')
+          CALL ukca_calcminmaxndmdt(nbox,nd,mdt,verbose)
+        END IF
+        !
+      END IF ! if FINE_NO3_PROD_ON=1
+      !
+      IF (coarse_no3_prod_on == 1) THEN
+        CALL ukca_coarse_no3(nbox,nadvg,nbudaer,dtz,rhoa,aird,wetdp,RH_clr,t,  &
+                             sm,mfpa,nd,md,mdt,s0g,bud_aer_mas)
+        !
+        IF (checkmd_nd == 1) THEN
+          process='Done coarse nitrate production'
+          CALL ukca_check_md_nd(nbox,process,nd,md,mdt)
+        END IF
+        !
+        IF (verbose >= 2) THEN
+          WRITE(umMessage,'(A40)') 'After UKCA_COARSE_NO3 has updated MD,MDT'
+          CALL umPrint(umMessage,src='ukca_aero_step')
+          CALL ukca_calcminmaxndmdt(nbox,nd,mdt,verbose)
+        END IF
+        !
+      END IF ! if COARSE_NO3_PROD_ON=1
       !
       !        Calculate rate of binary H2SO4-H2O nucleation
       IF (nucl_on == 1) THEN

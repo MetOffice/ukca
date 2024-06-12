@@ -64,6 +64,7 @@ USE ukca_mode_setup,       ONLY: nmodes
 USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_suss_4mode,                      &
                                  ukca_indices_orgv1_soto3,                     &
+                                 ukca_indices_orgv1_soto3_no3,                 &
                                  ukca_indices_orgv1_soto3_isop,                &
                                  ukca_indices_sussbcoc_5mode,                  &
                                  ukca_indices_sussbcoc_5mode_isop,             &
@@ -240,13 +241,21 @@ IF (ukca_config%l_ukca_mode) THEN
         !!    CALL ukca_indices_orgv1_soto3
         !!    CALL ukca_indices_sussbcocdu_4mode
     ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN ! 10
-      CALL ukca_indices_orgv1_soto3
+      IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
+        CALL ukca_indices_orgv1_soto3_no3
+      ELSE
+        CALL ukca_indices_orgv1_soto3
+      END IF
       CALL ukca_indices_sussbcocntnh_5mode
     ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
       CALL ukca_indices_orgv1_soto3_solinsol
       CALL ukca_indices_solinsol_6mode
     ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN ! 12
-      CALL ukca_indices_orgv1_soto3
+      IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
+        CALL ukca_indices_orgv1_soto3_no3
+      ELSE
+        CALL ukca_indices_orgv1_soto3
+      END IF
       CALL ukca_indices_sussbcocduntnh_8mode_8cpt
     ELSE
       cmessage=' i_mode_setup has unrecognised value'

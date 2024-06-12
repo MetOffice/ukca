@@ -416,7 +416,8 @@ ELSE
 END IF
 
 ! Add indices for online nitrate/ammonium emissions
-IF (glomap_config%l_ukca_fine_no3_prod) THEN
+IF (glomap_config%l_ukca_fine_no3_prod .AND.                                   &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   num_no3_modes = COUNT(component(:,cp_no3))
   ino3_first = num_cdf_em_flds + num_onln_em_flds + 1
   num_onln_em_flds = num_onln_em_flds + 2*num_no3_modes
@@ -428,7 +429,8 @@ ELSE
   inh4_first = -99
 END IF
 ! Add indices for online coarse nitrate emissions
-IF (glomap_config%l_ukca_coarse_no3_prod) THEN
+IF (glomap_config%l_ukca_coarse_no3_prod .AND.                                 &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   num_seasalt_modes = COUNT(component(:,this_cp_cl))
   iseasalt_hno3 = num_cdf_em_flds + num_onln_em_flds + 1
   num_onln_em_flds = num_onln_em_flds + 2*num_seasalt_modes
@@ -441,7 +443,8 @@ ELSE
 END IF
 
 IF ((glomap_config%l_ukca_coarse_no3_prod) .AND.                               &
-    (glomap_config%l_ukca_primdu)) THEN
+    (glomap_config%l_ukca_primdu) .AND.                                        &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   num_dust_modes = COUNT(component(:,cp_du))
   idust_hno3 = num_cdf_em_flds + num_onln_em_flds + 1
   num_onln_em_flds = num_onln_em_flds + 2*num_dust_modes
@@ -1017,7 +1020,8 @@ END IF  ! l_ukca_primdu
 ! Number flux is multiplied by MM_DA/AVC to give units of kg(air) m-2 s-1
 ! Set from_emiss=ino3_first and inh4_first to identify as
 ! no3 or nh4 for ukca_emiss_mode_map
-IF (glomap_config%l_ukca_fine_no3_prod) THEN
+IF (glomap_config%l_ukca_fine_no3_prod .AND.                                   &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ecount = ino3_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
@@ -1102,7 +1106,8 @@ IF (glomap_config%l_ukca_fine_no3_prod) THEN
   END DO  ! imode
 END IF
 
-IF (glomap_config%l_ukca_coarse_no3_prod) THEN
+IF (glomap_config%l_ukca_coarse_no3_prod .AND.                                 &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ecount = iseasalt_hno3 - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
@@ -1188,7 +1193,8 @@ IF (glomap_config%l_ukca_coarse_no3_prod) THEN
 END IF
 
 IF ((glomap_config%l_ukca_coarse_no3_prod) .AND.                               &
-    (glomap_config%l_ukca_primdu)) THEN
+    (glomap_config%l_ukca_primdu) .AND.                                        &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ecount = idust_hno3 - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
@@ -1500,7 +1506,8 @@ END IF  ! l_ukca_primdu
 ! Number flux is multiplied by MM_DA/AVC to give units of kg(air) m-2 s-1
 ! Set from_emiss=ino3_first and inh4_first to identify as
 ! no3 or nh4 for ukca_emiss_mode_map
-IF (glomap_config%l_ukca_fine_no3_prod) THEN
+IF (glomap_config%l_ukca_fine_no3_prod .AND.                                   &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ecount = ino3_first - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
@@ -1527,7 +1534,8 @@ IF (glomap_config%l_ukca_fine_no3_prod) THEN
   END DO  ! imode
 END IF
 
-IF (glomap_config%l_ukca_coarse_no3_prod) THEN
+IF (glomap_config%l_ukca_coarse_no3_prod .AND.                                 &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ecount = iseasalt_hno3 - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step
@@ -1555,7 +1563,8 @@ IF (glomap_config%l_ukca_coarse_no3_prod) THEN
 END IF
 
 IF ((glomap_config%l_ukca_coarse_no3_prod) .AND.                               &
-    (glomap_config%l_ukca_primdu)) THEN
+    (glomap_config%l_ukca_primdu) .AND.                                        &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ecount = idust_hno3 - 1
   DO imode = 1, nmodes
     DO imoment = moment_number, moment_mass, moment_step

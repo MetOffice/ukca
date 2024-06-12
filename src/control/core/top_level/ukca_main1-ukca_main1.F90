@@ -140,7 +140,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     UkcaD1Codes, istrat_first,                                                 &
     imode_first, item1_mode_diags,                                             &
     UKCA_diag_sect,                                                            &
-    item1_nitrate_diags, itemN_nitrate_diags,                                  &
+    item1_nitrate_diags, item1_nitrate_noems, itemN_nitrate_diags,             &
     item1_dust3mode_diags, itemN_dust3mode_diags,                              &
     mype,                                                                      &
     gg => g, planet_radius
@@ -157,7 +157,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     UkcaD1Codes, istrat_first,                                                 &
     imode_first, item1_mode_diags,                                             &
     UKCA_diag_sect,                                                            &
-    item1_nitrate_diags, itemN_nitrate_diags,                                  &
+    item1_nitrate_diags, item1_nitrate_noems, itemN_nitrate_diags,             &
     item1_dust3mode_diags, itemN_dust3mode_diags,                              &
     mype,                                                                      &
     gg => g, planet_radius
@@ -324,6 +324,7 @@ INTEGER, SAVE :: k_be_top       ! top level for offline oxidants (BE)
 INTEGER    :: nmax_diags_inc_nitr ! number of nitrate diagnostics
 INTEGER    :: n_nitrate_diags   ! number of nitrate diagnostics
 INTEGER    :: n_sup_dust_diags  ! Number of diagnostics for dust 3rd mode
+INTEGER    :: item1_nitrate     ! Actual first nitrate diagnostic
 
 REAL       :: r_minute                  ! real equiv of i_minute
 REAL       :: secondssincemidnight      ! day time
@@ -2843,6 +2844,12 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
     END IF
   END DO       ! 1,nmax_mode_diags
 
+  IF (glomap_config%l_no3_prod_in_aero_step) THEN
+    item1_nitrate = item1_nitrate_diags
+  ELSE
+    item1_nitrate = item1_nitrate_noems
+  END IF
+
   n_nitrate_diags = itemN_nitrate_diags -  item1_nitrate_diags + 1
 
   DO l=1,n_nitrate_diags
@@ -2850,8 +2857,8 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
       icnt = icnt + 1
       item = UkcaD1codes(imode_first+nmax_mode_diags+l-1)%item
       section = stashcode_glomap_sec
-      IF (sf(item,section) .AND. item >= item1_nitrate_diags  .AND.            &
-          item <= item1_nitrate_diags+61) THEN
+      IF (sf(item,section) .AND. item >= item1_nitrate  .AND.                  &
+          item <= item1_nitrate_diags+67) THEN
         CALL copydiag_3d (stashwork38(si(item,section,im_index):               &
              si_last(item,section,im_index)),                                  &
           mode_diags(:,:,:,icnt),                                              &

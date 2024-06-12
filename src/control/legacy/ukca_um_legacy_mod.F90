@@ -200,6 +200,7 @@ INTEGER, PARAMETER :: imode_first = 0           ! Dummy value
 INTEGER, PARAMETER :: ukca_diag_sect = 0        ! Dummy value
 INTEGER, PARAMETER :: item1_mode_diags = 0      ! Dummy value
 INTEGER, PARAMETER :: item1_nitrate_diags = 0   ! Dummy value
+INTEGER, PARAMETER :: item1_nitrate_noems = 0   ! Dummy value
 INTEGER, PARAMETER :: itemN_nitrate_diags = 0   ! Dummy value
 INTEGER, PARAMETER :: item1_dust3mode_diags = 0 ! Dummy value
 INTEGER, PARAMETER :: itemN_dust3mode_diags = 0 ! Dummy value

@@ -473,6 +473,7 @@ TYPE :: glomap_config_spec_type
   REAL :: biom_aer_ems_scaling         ! Biomass-burning emissions scaling
   LOGICAL :: l_ukca_fine_no3_prod      ! True for fine mode NO3/NH4 emissions
   LOGICAL :: l_ukca_coarse_no3_prod    ! True for coarse mode NO3 emissions
+  LOGICAL :: l_no3_prod_in_aero_step   ! True for nitrate emissions in MODE
   REAL :: sea_salt_ems_scaling         ! Sea salt emission scaling factor
   REAL :: marine_pom_ems_scaling       ! Marine POM emission scaling factor
 
@@ -1050,6 +1051,7 @@ glomap_config%l_ukca_scale_biom_aer_ems = .FALSE.
 glomap_config%biom_aer_ems_scaling = rmdi
 glomap_config%l_ukca_fine_no3_prod = .FALSE.
 glomap_config%l_ukca_coarse_no3_prod = .FALSE.
+glomap_config%l_no3_prod_in_aero_step = .FALSE.
 glomap_config%l_ukca_scale_sea_salt_ems = .FALSE.
 glomap_config%sea_salt_ems_scaling = rmdi
 glomap_config%l_ukca_scale_marine_pom_ems = .FALSE.
@@ -1240,6 +1242,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_ukca_scale_biom_aer_ems,                                                  &
    l_ukca_fine_no3_prod,                                                       &
    l_ukca_coarse_no3_prod,                                                     &
+   l_no3_prod_in_aero_step,                                                    &
    l_ukca_scale_sea_salt_ems,                                                  &
    l_ukca_scale_marine_pom_ems,                                                &
    l_ukca_radaer,                                                              &
@@ -1466,6 +1469,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_bcoc_ff
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_biom_aer_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_fine_no3_prod
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_coarse_no3_prod
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_no3_prod_in_aero_step
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_sea_salt_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_scale_marine_pom_ems
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_radaer
@@ -1788,6 +1792,8 @@ IF (PRESENT(l_ukca_fine_no3_prod))                                             &
    l_ukca_fine_no3_prod = glomap_config%l_ukca_fine_no3_prod
 IF (PRESENT(l_ukca_coarse_no3_prod))                                           &
    l_ukca_coarse_no3_prod = glomap_config%l_ukca_coarse_no3_prod
+IF (PRESENT(l_no3_prod_in_aero_step))                                          &
+   l_no3_prod_in_aero_step = glomap_config%l_no3_prod_in_aero_step
 IF (PRESENT(l_ukca_scale_sea_salt_ems))                                        &
   l_ukca_scale_sea_salt_ems = glomap_config%l_ukca_scale_sea_salt_ems
 IF (PRESENT(sea_salt_ems_scaling))                                             &

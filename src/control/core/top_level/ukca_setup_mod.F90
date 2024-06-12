@@ -205,6 +205,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_scale_biom_aer_ems,                               &
                       l_ukca_fine_no3_prod,                                    &
                       l_ukca_coarse_no3_prod,                                  &
+                      l_no3_prod_in_aero_step,                                 &
                       l_ukca_scale_sea_salt_ems,                               &
                       l_ukca_scale_marine_pom_ems,                             &
                       l_ukca_radaer,                                           &
@@ -496,6 +497,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_bcoc_ff
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_biom_aer_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_fine_no3_prod
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_coarse_no3_prod
+LOGICAL, OPTIONAL, INTENT(IN) :: l_no3_prod_in_aero_step
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_sea_salt_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_marine_pom_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_radaer
@@ -1249,13 +1251,15 @@ IF (ukca_config%l_ukca_mode) THEN
         glomap_config%marine_pom_ems_scaling = marine_pom_ems_scaling
     END IF
 
-    ! Nitrate emissions configuration
-    IF (PRESENT(l_ukca_fine_no3_prod))                                         &
-      glomap_config%l_ukca_fine_no3_prod = l_ukca_fine_no3_prod
-    IF (PRESENT(l_ukca_coarse_no3_prod))                                       &
-      glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
-
   END IF
+
+  ! Nitrate emissions configuration
+  IF (PRESENT(l_ukca_fine_no3_prod))                                           &
+    glomap_config%l_ukca_fine_no3_prod = l_ukca_fine_no3_prod
+  IF (PRESENT(l_ukca_coarse_no3_prod))                                         &
+    glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
+  IF (PRESENT(l_no3_prod_in_aero_step))                                        &
+    glomap_config%l_no3_prod_in_aero_step = l_no3_prod_in_aero_step
 
   ! -- GLOMAP feedback configuration options ---------------------------
 
@@ -1373,12 +1377,15 @@ IF (ukca_config%l_ukca_mode .AND. .NOT. ukca_config%l_ukca_emissions_off) THEN
     ( ( glomap_config%l_ukca_coarse_no3_prod .OR.                              &
         glomap_config%l_ukca_fine_no3_prod ) .AND.                             &
       l_dust .AND. ( .NOT. l_twobin_dust ) .AND.                               &
-      ( .NOT. glomap_config%l_ukca_primdu ) )
+      ( .NOT. glomap_config%l_ukca_primdu ) .AND.                              &
+      ( .NOT. glomap_config%l_no3_prod_in_aero_step) )
 
   glomap_config%l_2bin_dust_no3 =                                              &
     ( ( glomap_config%l_ukca_coarse_no3_prod .OR.                              &
         glomap_config%l_ukca_fine_no3_prod ) .AND.                             &
-      l_dust .AND. l_twobin_dust .AND. ( .NOT. glomap_config%l_ukca_primdu ) )
+      l_dust .AND. l_twobin_dust .AND.                                         &
+      ( .NOT. glomap_config%l_ukca_primdu ) .AND.                              &
+      ( .NOT. glomap_config%l_no3_prod_in_aero_step) )
 
   IF ( glomap_config%l_6bin_dust_no3 ) THEN
     glomap_config%i_dust_scheme=1                      ! CLASSIC 6 bin dust

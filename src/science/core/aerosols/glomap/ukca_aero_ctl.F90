@@ -100,7 +100,8 @@ USE ukca_mode_verbose_mod, ONLY: verbose => glob_verbose
 USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_mode_check_artefacts_mod, ONLY:                                       &
                             ukca_mode_check_artefacts
-USE ukca_cspecies,    ONLY: n_h2so4,n_h2o2,n_so2,n_o3,n_sec_org, n_sec_org_i
+USE ukca_cspecies,    ONLY: n_h2so4,n_h2o2,n_so2,n_o3,n_sec_org, n_sec_org_i,  &
+                            n_hono2,n_nh3
 USE ukca_mode_diags_mod,  ONLY: l_ukca_cmip6_diags,                            &
                             l_ukca_pm_diags, mdwat_diag,                       &
                             wetdp_diag
@@ -119,7 +120,7 @@ USE ukca_ntp_mod,     ONLY: ntp_type, dim_ntp, name2ntpindex
 
 USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
                               mm_gas, mox, msec_org, msec_orgi, msotwo,        &
-                              nadvg, nchemg,                                   &
+                              mhno3, mnh3, nadvg, nchemg,                      &
                               nmasagedsuintr52, nmasagedbcintr52,              &
                               nmasagedocintr52, nmasagedsointr52,              &
                               nmasagedduintr63, nmasagedduintr74,              &
@@ -208,6 +209,10 @@ USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
                               nmasprocsuintr23, nmasprocbcintr23,              &
                               nmasprococintr23, nmasprocsointr23,              &
                               ! Nitrate indices
+                              nmasprimntaitsol, nmasprimntaccsol,              &
+                              nmasprimntcorsol, nmasprimnhaitsol,              &
+                              nmasprimnhaccsol, nmasprimnhcorsol,              &
+                              nmascondnnaccsol, nmascondnncorsol,              &
                               nmasddepntaitsol, nmasddepntaccsol,              &
                               nmasddepntcorsol, nmasddepnhaitsol,              &
                               nmasddepnhaccsol, nmasddepnhcorsol,              &
@@ -409,6 +414,10 @@ INTEGER :: nucl_on
 ! Switch for whether binary nucleation is on/off
 INTEGER :: bln_on
 ! Switch for whether binary BL nucleation is on/off
+INTEGER :: fine_no3_prod_on
+! Switch to determine whether fine NO3 production is on/off
+INTEGER :: coarse_no3_prod_on
+! Switch to determine whether coarse NO3 production is on/off
 INTEGER, PARAMETER :: coag_on = 1
 ! Switch for whether coagulation is on/off
 INTEGER, PARAMETER :: icoag = 1
@@ -937,6 +946,27 @@ IF (firstcall .AND. verbose > 0) THEN
   WRITE(umMessage, '(A10,I6)') 'IBLN=', ibln
   CALL umPrint(umMessage, src='ukca_aero_ctl')
 END IF
+
+! Set whether nitrate emissions are handled here
+IF (glomap_config%l_no3_prod_in_aero_step .AND.                                &
+    glomap_config%l_ukca_fine_no3_prod) THEN
+  fine_no3_prod_on = 1
+ELSE
+  fine_no3_prod_on = 0
+ENDIF
+IF (glomap_config%l_no3_prod_in_aero_step .AND.                                &
+    glomap_config%l_ukca_coarse_no3_prod) THEN
+  coarse_no3_prod_on = 1
+ELSE
+  coarse_no3_prod_on = 0
+ENDIF
+IF (firstcall .AND. verbose > 0) THEN
+  WRITE(umMessage, '(A22,I6)') 'FINE_NO3_PROD_ON   = ', fine_no3_prod_on
+  CALL umPrint(umMessage, src='ukca_aero_ctl')
+  WRITE(umMessage, '(A22,I6)') 'COARSE_NO3_PROD_ON = ', coarse_no3_prod_on
+  CALL umPrint(umMessage, src='ukca_aero_ctl')
+END IF
+
 !
 dtm = dtc/REAL(nmts)
 dtz = dtm/REAL(nzts)
@@ -1205,6 +1235,7 @@ END IF
 !$OMP mode, mode_diags, mode_tracers, model_levels, modesol, mox,              &
 !$OMP msec_org, msec_orgi, msotwo,                                             &
 !$OMP n_h2o2, n_h2so4, n_merge_3d, n_o3, n_sec_org, n_sec_org_i, n_so2,        &
+!$OMP n_hono2, n_nh3, mhno3, mnh3,                                             &
 !$OMP nadvg, nbadmdt_3d, nbox, nbox_s, nbudaer, nchemg, ncol_s, ncp,           &
 !$OMP nmasddepsunucsol, nmasddepsuaitsol, nmasddepsuaccsol, nmasddepsucorsol,  &
 !$OMP nmasddepssaccsol, nmasddepsscorsol, nmasddepbcaitsol, nmasddepbcaccsol,  &
@@ -1262,7 +1293,10 @@ END IF
 !$OMP nmasddepnnaccsol, nmasddepnncorsol,                                      &
 !$OMP nmasnuscnnaccsol, nmasnuscnncorsol,nmasimscnnaccsol, nmasimscnncorsol,   &
 !$OMP nmascoagnnintr34, nmasmergnnintr34,                                      &
+!$OMP nmasprimntaitsol, nmasprimntaccsol,nmasprimntcorsol, nmasprimnhaitsol,   &
+!$OMP nmasprimnhaccsol, nmasprimnhcorsol,nmascondnnaccsol, nmascondnncorsol,   &
 !$OMP nmax_mode_diags,nmr_index,nucl_on, nseg,nukca_d1items,                   &
+!$OMP fine_no3_prod_on, coarse_no3_prod_on,                                    &
 !$OMP num_eps, nzts, p_bdrs, pres, q,                                          &
 !$OMP rainout_on, rgas, rh3d, rh3d_clr, root2, row_length, rows,               &
 !$OMP sea_ice_frac, scale_delso2, sigmag, stride_s, temp, u_s,                 &
@@ -1708,6 +1742,28 @@ DO ik = 1, nseg
     END DO
   END IF
 
+  ! .. HNO3 tracer - initialise even if fine NO3 off via fine_no3_prod_on and
+  !                  coarse NO3 off via coarse_no3_prod_on
+  IF (mhno3 > 0) THEN
+    CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
+                     chemistry_tracers(1, 1, 1, n_hono2), seg_v1d_tmp(1))
+    i_start = nbs * (mhno3 - 1)
+    DO jl = 1, nbs
+      seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mhno3)) *            &
+                             seg_v1d_tmp(jl)
+    END DO
+  END IF
+  IF (mnh3 > 0) THEN
+    CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
+                     chemistry_tracers(1, 1, 1, n_nh3), seg_v1d_tmp(1))
+    i_start = nbs * (mnh3 - 1)
+    DO jl = 1, nbs
+      seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mnh3)) *             &
+                             seg_v1d_tmp(jl)
+    END DO
+  END IF
+
+
   ! Aerosol Tracers
   ! ===============
   !  Find index of 1st mode tracer, as nmr_index and
@@ -1929,6 +1985,10 @@ DO ik = 1, nseg
     CALL umPrint(umMessage, src='ukca_aero_ctl')
     WRITE(umMessage, '(A15,I4)') 'BLN_ON=', bln_on
     CALL umPrint(umMessage, src='ukca_aero_ctl')
+    WRITE(umMessage, '(A15,I4)') 'FINE_NO3_ON=', fine_no3_prod_on
+    CALL umPrint(umMessage, src='ukca_aero_ctl')
+    WRITE(umMessage, '(A15,I4)') 'COARSE_NO3_ON=', coarse_no3_prod_on
+    CALL umPrint(umMessage, src='ukca_aero_ctl')
     WRITE(umMessage, '(A15,I4)') 'COAG_ON=', coag_on
     CALL umPrint(umMessage, src='ukca_aero_ctl')
     WRITE(umMessage, '(A15,I4)') 'ICOAG=', icoag
@@ -1984,6 +2044,7 @@ DO ik = 1, nseg
                       ddepaer_on, sedi_on, iso2wetoxbyo3, dryox_in_aer,        &
                       wetox_in_aer, seg_delso2, seg_delso2_2,                  &
                       cond_on, nucl_on, coag_on, bln_on, icoag, imerge,        &
+                      fine_no3_prod_on, coarse_no3_prod_on,                    &
                       ifuchs, idcmfp, icondiam, ibln, i_nuc_method,            &
                       iagecoagnucl67, iactmethod, iddepaer, inucscav,          &
                       lcvrainout, l_dust_slinn_impc_scav, verbose_local,       &
@@ -2051,6 +2112,28 @@ DO ik = 1, nseg
     CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
                     seg_v1d_tmp(1:nbs),                                        &
                     chemistry_tracers(1, 1, 1, n_sec_org_i))
+  END IF
+
+  IF (mhno3   > 0) THEN
+    ! .. update gas phase HNO3 mmr following nitrate production
+    i_start = nbs * (mhno3 - 1)
+    DO jl = 1, nbs
+      seg_v1d_tmp(jl) = (seg_s0(i_start + jl) / seg_sm(jl)) *                  &
+                        (mm_gas(mhno3) / mm_da)
+    END DO
+    CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
+                    seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_hono2))
+  END IF
+
+  IF (mnh3   > 0) THEN
+    ! .. update gas phase NH3 mmr following ammonium nitrate production
+    i_start = nbs * (mnh3 - 1)
+    DO jl = 1, nbs
+      seg_v1d_tmp(jl) = (seg_s0(i_start + jl) / seg_sm(jl)) *                  &
+                        (mm_gas(mnh3) / mm_da)
+    END DO
+    CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
+                    seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_nh3))
   END IF
 
   ! Set H2O2, O3 and SO2 for aqueous oxidation
@@ -3641,10 +3724,50 @@ DO ik = 1, nseg
           !!
           !!  Nitrate diags
           !!
-        CASE (item1_mode_diags+373:item1_mode_diags+380)
-          !           Do nothing, NO3/NH4 emissions not handled here now
-        CASE (item1_mode_diags+381:item1_mode_diags+382)
-          !           Do nothing, NaNO3 emissions not handled here now
+        CASE (item1_mode_diags+373)
+          !           Do nothing, nucleation-mode NH4 emissions not included
+        CASE (item1_mode_diags+374)
+          CALL select_array_segment(nbs, 0, nmasprimnhaitsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+375)
+          CALL select_array_segment(nbs, 0, nmasprimnhaccsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+376)
+          CALL select_array_segment(nbs, 0, nmasprimnhcorsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+377)
+          !           Do nothing, nucleation-mode NO3 emissions not included
+        CASE (item1_mode_diags+378)
+          CALL select_array_segment(nbs, 0, nmasprimntaitsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+379)
+          CALL select_array_segment(nbs, 0, nmasprimntaccsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+380)
+          CALL select_array_segment(nbs, 0, nmasprimntcorsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+381)
+          CALL select_array_segment(nbs, 0, nmascondnnaccsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+382)
+          CALL select_array_segment(nbs, 0, nmascondnncorsol, i_start, i_end)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_bud_aer_mas(i_start:i_end),                      &
+                          mode_diags(1, 1, 1, k))
         CASE (item1_mode_diags+383)
           !           Do nothing, nucleation mode not on for NH4/NO3
           !           Functionality added as placeholder

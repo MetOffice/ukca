@@ -943,7 +943,8 @@ END IF ! l_ukca_primdu
 
 ! Online emissions for nitrate and ammonium
 IF ((glomap_config%l_ukca_fine_no3_prod) .OR.                                  &
-    (glomap_config%l_ukca_coarse_no3_prod)) THEN
+    (glomap_config%l_ukca_coarse_no3_prod) .AND.                               &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
 
   ! Allocate arrays needed for nitrate scheme and initialise to zero
   ! This should probably be moved to a subroutine
@@ -959,7 +960,8 @@ IF ((glomap_config%l_ukca_fine_no3_prod) .OR.                                  &
                       r_theta_levels, r_rho_levels, air_density, air_burden )
 END IF
 
-IF (glomap_config%l_ukca_fine_no3_prod) THEN
+IF (glomap_config%l_ukca_fine_no3_prod .AND.                                   &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ALLOCATE (aer_emmas_nh4(1:row_length,1:rows,1:model_levels,1:nmodes))
   ALLOCATE (aer_emnum_nh4(1:row_length,1:rows,1:model_levels,1:nmodes))
   aer_emmas(:,:,:,:) = 0.0
@@ -994,7 +996,8 @@ IF (glomap_config%l_ukca_fine_no3_prod) THEN
 
 END IF  ! l_ukca_fine_no3_prod
 
-IF (glomap_config%l_ukca_coarse_no3_prod) THEN
+IF (glomap_config%l_ukca_coarse_no3_prod .AND.                                 &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   ALLOCATE (aer_emmas_nacl(1:row_length,1:rows,1:model_levels,1:nmodes))
   ALLOCATE (aer_emmas_dust(1:row_length,1:rows,1:model_levels,1:nmodes))
   aer_emmas(:,:,:,:) = 0.0
@@ -1109,7 +1112,8 @@ CALL ukca_add_emiss (                                                          &
 ! ----------------------------------------------------------------------
 ! If nitrate is on then check aerosols are > 0.
 IF ((glomap_config%l_ukca_fine_no3_prod) .OR.                                  &
-    (glomap_config%l_ukca_coarse_no3_prod)) THEN
+    (glomap_config%l_ukca_coarse_no3_prod) .AND.                               &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step) ) THEN
   CALL ukca_no3_check_values(row_length, rows, model_levels,                   &
                              tracers(:,:,:,                                    &
                                  n_chem_tracers+n_aero_tracers+1:              &
