@@ -272,12 +272,12 @@ IF (do_dust) THEN
       ! concentration assuming sea-salt is externally mixed
       DO i = 1,nbox
         IF (nd(i,imode) > num_eps(imode)) THEN
-          dust_mconc(i,idx) = md(i,imode,cp_du)*nd(i,imode)*                     &
+          dust_mconc(i,idx) = md(i,imode,cp_du)*nd(i,imode)*                   &
                               (zmwcaco3/zmwair)/aird(i)
           tmpdiam = MAX(ddplim0(imode),wetdp(i,imode))
           tmpdiam = MIN(tmpdiam,ddplim1(imode))
           dust_diam(i,idx) = tmpdiam*meanfac
-          dust_nconc(i,idx) = (dust_mconc(i,idx) / rhocomp(cp_du)) *             &
+          dust_nconc(i,idx) = (dust_mconc(i,idx) / rhocomp(cp_du)) *           &
                               sixovrpix(imode) * rhoa(i) / (tmpdiam**3.0)
         ELSE
           dust_mconc(i,idx) = 0.0

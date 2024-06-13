@@ -493,8 +493,8 @@ DO imode = mode_ait_sol, mode_cor_sol
       mdtmin=mlo(imode)*0.001
       IF (test_tot_mdt < mdtmin) THEN
         DO icp = 1,ncp
-            IF (component(imode,icp)) THEN
-              md(i,imode,icp)=mmid(imode)*mfrac_0(imode,icp)
+          IF (component(imode,icp)) THEN
+            md(i,imode,icp)=mmid(imode)*mfrac_0(imode,icp)
           END IF
         END DO
         mdt(i,imode) = mmid(imode)

@@ -953,13 +953,13 @@ IF (glomap_config%l_no3_prod_in_aero_step .AND.                                &
   fine_no3_prod_on = 1
 ELSE
   fine_no3_prod_on = 0
-ENDIF
+END IF
 IF (glomap_config%l_no3_prod_in_aero_step .AND.                                &
     glomap_config%l_ukca_coarse_no3_prod) THEN
   coarse_no3_prod_on = 1
 ELSE
   coarse_no3_prod_on = 0
-ENDIF
+END IF
 IF (firstcall .AND. verbose > 0) THEN
   WRITE(umMessage, '(A22,I6)') 'FINE_NO3_PROD_ON   = ', fine_no3_prod_on
   CALL umPrint(umMessage, src='ukca_aero_ctl')
