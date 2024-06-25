@@ -58,10 +58,6 @@ USE ukca_config_specification_mod, ONLY:                                       &
   ukca_chem_cristrat => i_ukca_chem_cristrat,                                  &
   ukca_age_reset_by_level => i_age_reset_by_level,                             &
   ukca_age_reset_by_height => i_age_reset_by_height,                           &
-  ukca_photolysis_off => i_ukca_nophot,                                        &
-  ukca_photolysis_strat_only => i_ukca_photol_strat,                           &
-  ukca_photolysis_2d => i_ukca_phot2d,                                         &
-  ukca_photolysis_fastjx => i_ukca_fastjx,                                     &
   ukca_strat_lbc_off => i_strat_lbc_off,                                       &
   ukca_strat_lbc_wmoa1 => i_strat_lbc_wmoa1,                                   &
   ukca_strat_lbc_env => i_strat_lbc_env,                                       &

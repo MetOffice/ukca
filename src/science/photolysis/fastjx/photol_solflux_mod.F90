@@ -36,7 +36,10 @@
 ! ---------------------------------------------------------------------
 
 MODULE photol_solflux_mod
-USE ukca_config_specification_mod, ONLY: ukca_config
+
+USE photol_config_specification_mod,  ONLY: photol_config,                     &
+                                            i_obs_solcylc
+
 IMPLICIT NONE
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='PHOTOL_SOLFLUX_MOD'
 
@@ -100,18 +103,18 @@ i_month = current_time(2)
 i_day = current_time(3)
 
 ! January of the start year of the observations
-init_time = REAL(ukca_config%i_ukca_solcyc_start_year) + (0.5/12.0)
+init_time = REAL(photol_config%solcylc_start_year) + (0.5/12.0)
 
 ! reftime for the periodic cycle is given as December 2004 (t=0)
 reftime  = 2004.0 + (11.5/12.0)
 
 ! end year for the observations, n_solcyc_ts is in months
-obs_end_year = REAL(ukca_config%i_ukca_solcyc_start_year) +                    &
+obs_end_year = REAL(photol_config%solcylc_start_year) +                        &
      (REAL(n_solcyc_ts)/12.0)
 
 
 ! get the correct number of days in the months
-IF (ukca_config%l_cal360) THEN
+IF (photol_config%l_cal360) THEN
   days_in_month = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]
 ELSE
   IF (days_in_year(i_year) < 366) THEN
@@ -164,9 +167,9 @@ sol_ph = MODULO(((realtime-reftime)*12.0)-1.0,REAL(n_solcyc_av))
 cyc_idx = FLOOR(sol_ph) + 1
 
 ! modify solar flux with solar cycle
-IF ((ukca_config%i_ukca_solcyc==1) .AND.                                       &
-    realtime>=REAL(ukca_config%i_ukca_solcyc_start_year)                       &
-    .AND. realtime<=obs_end_year) THEN
+IF ( (photol_config%i_solcylc_type == i_obs_solcylc)  .AND.                    &
+     realtime>=REAL(photol_config%solcylc_start_year) .AND.                    &
+     realtime<=obs_end_year ) THEN
   obs_idx = FLOOR((realtime - init_time)*12.0) + 1
   frac = (realtime - init_time)*12.0 - (obs_idx-1)
   IF (obs_idx < 1) THEN
@@ -205,7 +208,7 @@ IMPLICIT NONE
 ! Function argument
 INTEGER, INTENT(IN) :: year
 
-IF (ukca_config%l_cal360) THEN
+IF (photol_config%l_cal360) THEN
   ! 360-day calendar
   days_in_year = 360
 ELSE

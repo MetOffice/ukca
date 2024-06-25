@@ -69,7 +69,9 @@ SUBROUTINE fastjx_solar2(timej,sinlat,longitude,lcal360)
 
 USE   fastjx_data,    ONLY: daynumber,tau,szamax,                              &
                             sza_2d,SZAFAC_2d
-USE conversions_mod, ONLY: pi, pi_over_180
+USE photol_constants_mod, ONLY: pi => const_pi,                                &
+                                pi_over_180 => const_pi_over_180
+
 USE yomhook,          ONLY: lhook, dr_hook
 USE parkind1,         ONLY: jprb, jpim
 IMPLICIT  NONE

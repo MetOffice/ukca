@@ -72,29 +72,26 @@ USE fastjx_data,    ONLY: fastjx_set_limits,                                   &
                           ods_3d, odw_3d, odi_3d,                              &
                           solcyc_spec
 
-USE ukca_config_specification_mod, ONLY: ukca_config
+USE photol_config_specification_mod, ONLY: photol_config
+USE photol_constants_mod,   ONLY: c_o3 => const_o3_mmr_vmr,                    &
+                                  m_s => const_molemass_sulp,                  &
+                                  m_nh42so4 => const_molemass_nh42so4,         &
+                                  gg => const_g, tm => const_tm,               &
+                                  pi_over_180 => const_pi_over_180,            &
+                                  avogadro => const_avogadro,                  &
+                                  m_air => const_molemass_air
+
 USE level_heights_mod,       ONLY: r_theta_levels,   r_rho_levels
 USE spec_sw_lw,              ONLY: sw_spectrum
-USE rad_pcf,                 ONLY: ip_aerosol_param_moist,                     &
-                                   ip_accum_sulphate,                          &
-                                   ip_aitken_sulphate
 
-USE ukca_constants,          ONLY: c_o3, m_s, m_nh42so4
-USE planet_constants_mod,    ONLY: gg => g
-USE water_constants_mod,     ONLY: tm
-USE conversions_mod,         ONLY: pi_over_180
 USE umPrintMgr,              ONLY: umMessage, umPrint, PrintStatus,            &
                                    PrStatus_Diag, umPrintFlush
 USE ereport_mod,             ONLY: ereport
 USE yomhook,                 ONLY: lhook, dr_hook
 USE parkind1,                ONLY: jprb, jpim
-USE cloud_inputs_mod,        ONLY: i_cld_vn
-USE pc2_constants_mod,       ONLY: i_cld_pc2
-USE cv_run_mod,              ONLY: l_3d_cca
 USE fastjx_inphot_mod,       ONLY: fastjx_inphot
 USE fastjx_solar2_mod,       ONLY: fastjx_solar2
 USE fastjx_photoj_mod,       ONLY: fastjx_photoj
-USE nlsizes_namelist_mod,    ONLY: n_cca_lev
 USE photol_solflux_mod,      ONLY: photol_solflux
 
 IMPLICIT NONE
@@ -293,7 +290,7 @@ CALL fastjx_set_arrays
 
 ! Set variables concerning model time
 ! Convert timestep into hours
-timej              = ukca_config%timestep/3600.0
+timej              = photol_config%timestep/3600.0
 
   ! Day of the year
 daynumber          = i_day_number
@@ -305,10 +302,10 @@ tau                = i_hour*1.0+i_minute/60.0+i_second/3600.0                  &
 ! Calculate solar zenith angles
 
 CALL fastjx_solar2 (timej, sin_latitude, pi_over_180*longitude,                &
-                    ukca_config%l_cal360)
+                    photol_config%l_cal360)
 
 ! Modify solar flux if using solar cycle
-IF (ukca_config%i_ukca_solcyc > 0) THEN
+IF (photol_config%i_solcylc_type > 0) THEN
   CALL photol_solflux(current_time, tau, l_lookup, solcyc_spec, fl_cyc)
 ELSE
   fl_cyc = 0.0
@@ -444,8 +441,6 @@ CONTAINS
 ! ######################################################################
 SUBROUTINE fastjx_set_arrays
 
-USE chemistry_constants_mod,  ONLY: avogadro
-USE ukca_constants,    ONLY: m_air
 IMPLICIT NONE
 
   ! Loop variables
@@ -522,11 +517,11 @@ odi(:,:,1:model_levels)   = qcf(:,:,1:model_levels)
 
 !-----------------------------------------------------------------
 ! Only add the convective cloud if we are not using the PC2 cloud scheme
-IF (i_cld_vn /= i_cld_pc2) THEN
+IF (.NOT. photol_config%l_cloud_pc2) THEN
 
   ! I L-3d_cca (cloud levels?)
-  IF (l_3d_cca) THEN
-    DO k = 1,n_cca_lev
+  IF (photol_config%l_3d_cca) THEN
+    DO k = 1, photol_config%n_cca_lev
 
       WHERE (conv_cloud_top > 0 .AND. t_theta_levels(:,:,k) > tm)
         ! If above freezing point evaluate liquid water
@@ -559,7 +554,7 @@ IF (i_cld_vn /= i_cld_pc2) THEN
     END DO ! k levels
   END IF ! l_3d_cca
 
-END IF ! i_cld_vn
+END IF ! NOT l_cld_pc2
 
 ! Convert mass mixing ratios to column densities.
 odw = odw*d_mass
@@ -623,12 +618,12 @@ DO ia=1,sw_spectrum(1)%aerosol%n_aerosol
 
     ! Select sulfate in aitken and accumulation modes
   IF (sw_spectrum(1)%aerosol%type_aerosol(ia)                                  &
-        == ip_accum_sulphate .OR.                                              &
+        == photol_config%ip_accum_sulphate .OR.                                &
       sw_spectrum(1)%aerosol%type_aerosol(ia)                                  &
-        == ip_aitken_sulphate) THEN
+        == photol_config%ip_aitken_sulphate) THEN
 
     IF (sw_spectrum(1)%aerosol%i_aerosol_parm(ia) ==                           &
-           ip_aerosol_param_moist) THEN ! moist aerosol
+           photol_config%ip_aerosol_param_moist) THEN ! moist aerosol
 
         ! evaluate size of humidity bins
       delta_humidity = sw_spectrum(1)%aerosol%humidities(2,ia)-                &
@@ -674,9 +669,9 @@ DO ia=1,sw_spectrum(1)%aerosol%n_aerosol
     END IF
 
     IF (sw_spectrum(1)%aerosol%type_aerosol(ia)                                &
-      == ip_accum_sulphate) sulph_accu = sulph_accu*ods
+      == photol_config%ip_accum_sulphate) sulph_accu = sulph_accu*ods
     IF (sw_spectrum(1)%aerosol%type_aerosol(ia)                                &
-      == ip_aitken_sulphate) sulph_aitk = sulph_aitk*ods
+      == photol_config%ip_aitken_sulphate) sulph_aitk = sulph_aitk*ods
   END IF   ! type_aerosol_sw
 END DO  ! ia
 

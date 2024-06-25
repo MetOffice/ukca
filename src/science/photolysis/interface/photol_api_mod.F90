@@ -43,6 +43,14 @@ MODULE photol_api_mod
 ! namespace.
 
 USE photol_calc_ozonecol_mod, ONLY: photol_calc_ozonecol
+USE photol_setup_mod, ONLY: photol_setup
+
+USE photol_config_specification_mod, ONLY:                                     &
+  photol_get_config,                                                           &
+  photolysis_off => i_scheme_nophot,                                           &
+  photolysis_strat_only => i_scheme_photol_strat,                              &
+  photolysis_2d => i_scheme_phot2d,                                            &
+  photolysis_fastjx => i_scheme_fastjx
 
 IMPLICIT NONE
 

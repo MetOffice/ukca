@@ -63,8 +63,8 @@ SUBROUTINE strat_photol(                                                       &
 USE calcjs_mod, ONLY: calcjs
 USE inijtab_mod, ONLY: inijtab
 
-USE ukca_api_mod, ONLY: ukca_get_config, ukca_photolysis_fastjx
-USE ukca_option_mod, ONLY: fastjx_mode
+USE photol_config_specification_mod, ONLY: photol_config, i_scheme_fastjx,     &
+                               fjx_mode_2Donly
 
 ! Holds photolysis rates
 USE ukca_um_dissoc_mod,   ONLY: aj2a, aj2b, aj3, aj3a, ajbrcl, ajbrno3, ajbro, &
@@ -165,9 +165,6 @@ INTEGER, SAVE :: iso3=0
 
 ! Local time variable
 INTEGER :: i_month
-
-! local variable from ukca_config
-INTEGER :: i_ukca_photol
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -427,9 +424,6 @@ IF (firstcall) THEN
   firstcall = .FALSE.
 END IF ! firstcall
 
-! Fetch required variable from ukca_config
-CALL ukca_get_config(i_ukca_photol=i_ukca_photol)
-
 ! Work out logic of whether to fill the tables. If at the beginning of the
 ! month and the tables haven't been filled, then fill the tables.
 IF (tables_filled .AND. (current_month /= i_month)) THEN
@@ -439,8 +433,9 @@ IF (tables_filled .AND. (current_month /= i_month)) THEN
 END IF
 
 IF (.NOT. tables_filled) THEN
-  CALL inijtab(mype, current_time,                                             &
-    ((i_ukca_photol == ukca_photolysis_fastjx) .AND. (fastjx_mode /= 1) ))
+  CALL inijtab( mype, current_time,                                            &
+    ((photol_config%i_photol_scheme == i_scheme_fastjx) .AND.                  &
+     (photol_config%fastjx_mode /= fjx_mode_2Donly) ) )
   tables_filled = .TRUE.
 END IF
 

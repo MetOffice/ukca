@@ -144,10 +144,11 @@ USE acssr_mod, ONLY: acssr
 
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
-USE ukca_api_mod, ONLY: ukca_get_config
+
 USE fastjx_data, ONLY: solcyc_quanta
 USE photol_solflux_mod, ONLY: photol_solflux
-USE planet_constants_mod, ONLY: gg => g, rgas => r
+USE photol_config_specification_mod, ONLY: photol_config
+USE photol_constants_mod,  ONLY:  gg => const_g, rgas => const_r
 
 USE missing_data_mod,      ONLY: rmdi
 
@@ -232,9 +233,6 @@ INTEGER :: last_wn
 REAL :: tau                ! dummy variable for solar cycle routine
 REAL :: quanta_cyc (jpwav) ! solar cyclical component of quanta
 REAL :: quanta_in (jpwav)
-
-! local variable from ukca_config
-INTEGER :: i_ukca_solcyc
 
 #if !defined(LFRIC)
 INTEGER :: my_comm, icode
@@ -379,11 +377,8 @@ CALL scatcs(jpwav,scs,wavenm)
 !     Set zenith angle, max za, temperature and O3 grid.
 CALL setzen(tabang,zenmax,altc,tabt,tabo3)
 
-! Fetch required variable from ukca_config
-CALL ukca_get_config(i_ukca_solcyc=i_ukca_solcyc)
-
 ! If using solar cycle calculate cyclical compontent of quanta
-IF (i_ukca_solcyc > 0) THEN
+IF (photol_config%i_solcylc_type > 0) THEN
   ! tau should not be used so set to missing data
   tau = rmdi
   CALL photol_solflux(current_time, tau, l_lookup, solcyc_quanta, quanta_cyc)

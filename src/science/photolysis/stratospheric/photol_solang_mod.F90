@@ -37,8 +37,8 @@ CONTAINS
 SUBROUTINE photol_solang(sindec, t, dt, eqt, sinlat, coslat, longit,           &
                         k, cosz)
 
-USE planet_constants_mod, ONLY: s2r
-USE conversions_mod, ONLY: pi, pi_over_180
+USE photol_constants_mod, ONLY: s2r => const_s2r, pi => const_pi,              &
+                                pi_over_180 => const_pi_over_180
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 IMPLICIT NONE
@@ -60,8 +60,6 @@ REAL, INTENT(OUT)   :: cosz(k)    ! Mean Cos(sza)
 !     Local variables
 
 INTEGER          :: j         ! Loop counter over points
-
-!!!      REAL, PARAMETER  :: s2r = pi/43200.0  ! sec-to-rads converter
 
 REAL             :: sinsin    ! Products of the sines and of the cosines
 REAL             :: coscos    ! of solar declination and of latitude.

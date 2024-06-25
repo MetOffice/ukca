@@ -84,10 +84,6 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       nlev_ch4_stratloss,                                      &
                       i_ukca_topboundary,                                      &
                       i_ukca_hetconfig,                                        &
-                      i_ukca_photol,                                           &
-                      fastjx_mode,                                             &
-                      i_ukca_solcyc,                                           &
-                      i_ukca_solcyc_start_year,                                &
                       i_inferno_emi,                                           &
                       i_ukca_dms_flux,                                         &
                       i_ukca_light_param,                                      &
@@ -152,6 +148,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_sa_clim,                                          &
                       l_ukca_trophet,                                          &
                       l_ukca_classic_hetchem,                                  &
+                      l_use_photolysis,                                        &
                       l_ukca_ibvoc,                                            &
                       l_ukca_inferno,                                          &
                       l_ukca_inferno_ch4,                                      &
@@ -283,7 +280,7 @@ USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     i_ukca_chem_offline_be, i_ukca_chem_tropisop, i_ukca_chem_strattrop,       &
     i_ukca_chem_strat, i_ukca_chem_offline, i_ukca_chem_cristrat,              &
     i_age_reset_by_level, i_age_reset_by_height, i_strat_lbc_off,              &
-    i_ukca_nophot, i_light_param_off, i_light_param_pr, i_ukca_fastjx,         &
+    i_light_param_off, i_light_param_pr,                                       &
     i_top_none, i_top_bc, i_ukca_activation_off, i_ukca_activation_arg,        &
     i_dms_flux_off,                                                            &
     l_ukca_config_available,                                                   &
@@ -374,10 +371,6 @@ INTEGER, OPTIONAL, INTENT(IN) :: nlev_above_trop_o3_env
 INTEGER, OPTIONAL, INTENT(IN) :: nlev_ch4_stratloss
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_topboundary
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_hetconfig
-INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_photol
-INTEGER, OPTIONAL, INTENT(IN) :: fastjx_mode
-INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_solcyc
-INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_solcyc_start_year
 INTEGER, OPTIONAL, INTENT(IN) :: i_inferno_emi
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_dms_flux
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_light_param
@@ -442,6 +435,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_limit_nat
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_sa_clim
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_trophet
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_classic_hetchem
+LOGICAL, OPTIONAL, INTENT(IN) :: l_use_photolysis
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_ibvoc
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_inferno
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_inferno_ch4
@@ -850,26 +844,8 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   END IF
 
-  ! -- Chemistry - Photolysis --
-
-  ukca_config%i_ukca_photol = i_ukca_nophot
-
-  IF (PRESENT(i_ukca_photol)) ukca_config%i_ukca_photol = i_ukca_photol
-
-  ! Photolysis configuration
-  !!!! This is now redundant in UKCA but values are copied temporarily for
-  !!!! compatibility with the UM and external photolysis code which still
-  !!!! uses UKCA configuration values pending completion of its separation
-  !!!! from UKCA.
-
-  IF (ukca_config%i_ukca_photol == i_ukca_fastjx) THEN
-    IF (PRESENT(fastjx_mode)) ukca_config%fastjx_mode = fastjx_mode
-    IF (PRESENT(fastjx_prescutoff))                                            &
-      ukca_config%fastjx_prescutoff = fastjx_prescutoff
-    IF (PRESENT(i_ukca_solcyc)) ukca_config%i_ukca_solcyc = i_ukca_solcyc
-    IF (PRESENT(i_ukca_solcyc_start_year))                                     &
-      ukca_config%i_ukca_solcyc_start_year = i_ukca_solcyc_start_year
-  END IF
+  ! -- Photolysis options --
+  IF (PRESENT(l_use_photolysis)) ukca_config%l_use_photolysis = l_use_photolysis
 
 END IF  ! i_ukca_chem /= i_ukca_chem_off
 
@@ -878,7 +854,7 @@ END IF  ! i_ukca_chem /= i_ukca_chem_off
 IF ((ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                          &
      .NOT. ukca_config%l_ukca_emissions_off) .OR.                              &
     ukca_config%i_ukca_topboundary >= i_top_bc .OR.                            &
-    ukca_config%i_ukca_photol /= i_ukca_nophot) THEN
+    ukca_config%l_use_photolysis) THEN
   IF (PRESENT(l_cal360)) ukca_config%l_cal360 = l_cal360
 END IF
 

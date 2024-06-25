@@ -208,7 +208,7 @@ SUBROUTINE set_diagnostic_availabilities(error_code_ptr, ukca_config,          &
 ! ----------------------------------------------------------------------
 
 USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
-                                         i_ukca_nophot, calc_ozonecol
+                                         calc_ozonecol
 
 USE ukca_chem_defs_mod, ONLY: ratj_defs
 USE asad_flux_dat,      ONLY: asad_chemical_fluxes, stashcode_ukca_chem_diag
@@ -266,20 +266,16 @@ DO i = 1, SIZE(master_diag_list)
   SELECT CASE (master_diag_list(i)%varname)
 
   CASE (diagname_jrate_no2)
-    master_diag_list(i)%l_available =                                          &
-      (ukca_config%i_ukca_photol /= i_ukca_nophot) .AND.                       &
+    master_diag_list(i)%l_available = ukca_config%l_use_photolysis .AND.       &
       ANY(ratj_defs(:)%fname == 'jno2')
   CASE (diagname_jrate_o3a)
-    master_diag_list(i)%l_available =                                          &
-      (ukca_config%i_ukca_photol /= i_ukca_nophot) .AND.                       &
+    master_diag_list(i)%l_available = ukca_config%l_use_photolysis .AND.       &
       ANY(ratj_defs(:)%fname == 'jo3a')
   CASE (diagname_jrate_o3b)
-    master_diag_list(i)%l_available =                                          &
-      (ukca_config%i_ukca_photol /= i_ukca_nophot) .AND.                       &
+    master_diag_list(i)%l_available = ukca_config%l_use_photolysis .AND.       &
        ANY(ratj_defs(:)%fname == 'jo3b')
   CASE (diagname_jrate_o2b)
-    master_diag_list(i)%l_available =                                          &
-      (ukca_config%i_ukca_photol /= i_ukca_nophot) .AND.                       &
+    master_diag_list(i)%l_available = ukca_config%l_use_photolysis .AND.       &
        ANY(ratj_defs(:)%fname == 'jo2b')
   CASE (diagname_p_tropopause)
     master_diag_list(i)%l_available = (ukca_config%model_levels > 1)

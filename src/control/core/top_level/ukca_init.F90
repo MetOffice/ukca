@@ -323,10 +323,6 @@ USE ukca_config_specification_mod, ONLY:                                       &
                                  i_ukca_chem_cristrat,                         &
                                  i_age_reset_by_level,                         &
                                  i_age_reset_by_height,                        &
-                                 i_ukca_nophot,                                &
-                                 i_ukca_phot2d,                                &
-                                 i_ukca_photol_strat,                          &
-                                 i_ukca_fastjx,                                &
                                  i_light_param_off,                            &
                                  i_light_param_pr,                             &
                                  i_light_param_luhar,                          &
@@ -363,17 +359,6 @@ REAL(KIND=jprb)               :: zhook_handle
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 errcode = 0                   ! Initialise
-
-! Check photolysis switches
-IF ( ukca_config%i_ukca_photol /= i_ukca_nophot .AND.                          &
-     ukca_config%i_ukca_photol /= i_ukca_photol_strat .AND.                    &
-     ukca_config%i_ukca_photol /= i_ukca_phot2d .AND.                          &
-     ukca_config%i_ukca_photol /= i_ukca_fastjx .AND.                          &
-     ukca_config%i_ukca_chem /= i_ukca_chem_off ) THEN
-  cmessage='Unknown photolysis scheme.'
-  errcode=ABS(ukca_config%i_ukca_photol)
-  CALL ereport(RoutineName,errcode,cmessage)
-END IF
 
 ! biom_aer_ems_scaling - valid range 0. - 30.
 IF ( (glomap_config%biom_aer_ems_scaling < 0.0 .OR.                            &

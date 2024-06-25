@@ -35,8 +35,10 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='SETZEN_MOD'
 
 CONTAINS
 SUBROUTINE setzen(tabang,zenmax,altc,tabt,tabo3)
-USE planet_constants_mod, ONLY: planet_radius
-USE conversions_mod, ONLY: pi
+
+USE photol_constants_mod, ONLY: pi => const_pi,                                &
+                                planet_radius => const_planet_radius
+
 USE ukca_parpho_mod, ONLY: jplev, jpchi, jps90, jpchin,                        &
                            jptem, jpo3p, jps90,                                &
                            szamax, tmin, tmax, o3min, o3max

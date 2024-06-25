@@ -44,7 +44,8 @@ USE ukca_um_dissoc_mod, ONLY: ajhno3, ajpna,  ajh2o2, aj2a,  aj2b, aj3,        &
        ajmcfm,ajch4,  ajf12b1,ajf13b1, ajcof2, ajcofcl, ajco2,                 &
        ajcos,  ajhono, ajmena, ajchbr3, ajdbrm, ajcs2, ajh2so4,                &
        ajso3
-USE conversions_mod, ONLY: pi
+USE photol_constants_mod, ONLY: pi => const_pi
+
 USE ukca_tbjs_mod,  ONLY:    tabj2a   , tabj2b   , tabj3    ,                  &
        tabj3a   , tabjno   , tabjno31 , tabjno32 , tabjno2  ,                  &
        tabjn2o5 , tabjhno3 , tabjh2o  , tabjh2o2 , tabjf11  ,                  &
