@@ -544,15 +544,6 @@ CALL ukca_calc_drydiam( nbox, glomap_variables,                                &
 !     Initial remode call (check if advection taken DRYDP out of bounds)
 CALL ukca_remode(nbox,nbudaer,nd,md,mdt,drydp,                                 &
                  imerge,bud_aer_mas,n_merge_1d,pmid)
-!
-!     Recalculate dry and wet diameter and volume after re-moding
-CALL ukca_calc_drydiam( nbox, glomap_variables,                                &
-                        nd, md, mdt, drydp, dvol )
-!
-CALL ukca_volume_mode(glomap_variables,nbox, nd,md,mdt,                        &
-                      RH_clr,dvol,drydp,t,pmid,s,                              &
-                      mdwat,wvol,wetdp,rhopar,pvol,pvol_wat)
-
 
 !
 IF (checkmd_nd == 1) THEN
