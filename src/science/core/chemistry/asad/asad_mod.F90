@@ -693,6 +693,7 @@ IF (.NOT. ALLOCATED(za)) ALLOCATE(za(n_points))
 
 IF (method == int_method_NR) THEN
   IF (.NOT. ALLOCATED(spfj))  ALLOCATE(spfj(n_points,spfjsize_max))
+  spfj(:,:) = 0.0
 END IF
 
 prod => pd(:,1:jpspec)
@@ -703,18 +704,40 @@ slos => pd(:,jpspec+1:2*jpspec)
 deriv(:,:,:) = 1.0
 
 !     Clear the species arrays
-f(:,:)      = 0.0
-fdot(:,:)   = 0.0
-ej(:,:)     = 0.0
 linfam(:,:) = .FALSE.
 
-y(:,:)    = 0.0
-ydot(:,:) = 0.0
-prod(:,:) = 0.0
-slos(:,:) = 0.0
+co2(:)    = 0.0
+co3(:)    = 0.0
 dpd(:,:)  = 0.0
 dpw(:,:)  = 0.0
+ej(:,:)   = 0.0
 emr(:,:)  = 0.0
+f(:,:)    = 0.0
+fdot(:,:) = 0.0
+fj(:,:,:) = 0.0
+fpsc1(:)  = 0.0
+fpsc2(:)  = 0.0
+ftilde(:,:)= 0.0
+ipa(:,:)  = 0
+lati(:)   = 0.0
+p(:)      = 0.0
+pd(:,:)   = 0.0
+pmintnd(:)= 0.0
+prod(:,:) = 0.0
+qa(:,:)   = 0.0
+ratio(:,:)= 0.0
+sh2o(:)   = 0.0
+shno3(:)  = 0.0
+slos(:,:) = 0.0
+sph2o(:)  = 0.0
+sphno3(:) = 0.0
+t(:)      = 0.0
+t300(:)   = 0.0
+tnd(:)    = 0.0
+wp(:)     = 0.0
+y(:,:)    = 0.0
+ydot(:,:) = 0.0
+za(:)     = 0.0
 
 !     Clear the rates and index arrays
 rk(:,:)   = 0.0
