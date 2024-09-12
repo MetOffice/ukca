@@ -1122,10 +1122,12 @@ END IF
 ! It is required anyway if nitrate emissions are produced (irrespective of
 ! whether emissions updates are suppressed) or if PSC heterogeneous chemistry
 ! is used with climatological surface area and CLASSIC SO4.
+! It is not required if nitrate production is done in the core aerosol routines
 IF ((.NOT. (ukca_config%l_ukca_emissions_off .OR.                              &
            ukca_config%l_suppress_ems)) .OR.                                   &
-    glomap_config%l_ukca_fine_no3_prod .OR.                                    &
-    glomap_config%l_ukca_coarse_no3_prod .OR.                                  &
+    (.NOT. glomap_config%l_no3_prod_in_aero_step .AND.                         &
+    (glomap_config%l_ukca_fine_no3_prod .OR.                                   &
+    glomap_config%l_ukca_coarse_no3_prod)) .OR.                                &
     (ukca_config%l_ukca_het_psc .AND. ukca_config%l_ukca_sa_clim .AND.         &
      ukca_config%l_use_classic_so4)) THEN
   n = n + 1
@@ -1359,11 +1361,13 @@ END IF
 
 ! Exner pressure on rho levels is always required unless emssions are off or
 ! tracer updates from emissions and boundary layer mixing are suppressed.
-! It is required anyway if nitrate emissions are produced.
+! It is required anyway if nitrate emissions are produced, though not required
+! if nitrate is handled in core aerosol routines
 IF ((.NOT. (ukca_config%l_ukca_emissions_off .OR.                              &
            ukca_config%l_suppress_ems)) .OR.                                   &
-    glomap_config%l_ukca_fine_no3_prod .OR.                                    &
-    glomap_config%l_ukca_coarse_no3_prod) THEN
+    (.NOT. glomap_config%l_no3_prod_in_aero_step .AND.                         &
+           (glomap_config%l_ukca_fine_no3_prod .OR.                            &
+           glomap_config%l_ukca_coarse_no3_prod))) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_exner_rho_levels
