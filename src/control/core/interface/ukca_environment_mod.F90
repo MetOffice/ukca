@@ -1970,11 +1970,11 @@ IMPLICIT NONE
 ! Subroutine arguments
 INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
 INTEGER, INTENT(IN) :: i1       ! Lower bound of field of dimension 1
-INTEGER, INTENT(IN) :: i2       ! Upper bound of field of diemnsion 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field of dimension 1
 INTEGER, INTENT(IN) :: j1       ! Lower bound of field of dimension 2
-INTEGER, INTENT(IN) :: j2       ! Upper bound of field of diemnsion 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field of dimension 2
 INTEGER, INTENT(IN) :: k1       ! Lower bound of field of dimension 3
-INTEGER, INTENT(IN) :: k2       ! Upper bound of field of diemnsion 3
+INTEGER, INTENT(IN) :: k2       ! Upper bound of field of dimension 3
 REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:,:)  ! Field data supplied
 REAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:,:)
                                                     ! Environment field
@@ -2003,13 +2003,13 @@ IMPLICIT NONE
 ! Subroutine arguments
 INTEGER, INTENT(IN) :: i_field  ! Index of field in required fields array
 INTEGER, INTENT(IN) :: i1       ! Lower bound of field of dimension 1
-INTEGER, INTENT(IN) :: i2       ! Upper bound of field of diemnsion 1
+INTEGER, INTENT(IN) :: i2       ! Upper bound of field of dimension 1
 INTEGER, INTENT(IN) :: j1       ! Lower bound of field of dimension 2
-INTEGER, INTENT(IN) :: j2       ! Upper bound of field of diemnsion 2
+INTEGER, INTENT(IN) :: j2       ! Upper bound of field of dimension 2
 INTEGER, INTENT(IN) :: k1       ! Lower bound of field of dimension 3
-INTEGER, INTENT(IN) :: k2       ! Upper bound of field of diemnsion 3
+INTEGER, INTENT(IN) :: k2       ! Upper bound of field of dimension 3
 INTEGER, INTENT(IN) :: n1       ! Lower bound of field of dimension 4
-INTEGER, INTENT(IN) :: n2       ! Upper bound of field of diemnsion 4
+INTEGER, INTENT(IN) :: n2       ! Upper bound of field of dimension 4
 REAL, ALLOCATABLE, INTENT(IN) :: field_data(:,:,:,:) ! Field data supplied
 REAL, ALLOCATABLE, TARGET, INTENT(IN OUT) :: env_field(:,:,:,:)
                                                      ! Environment field
