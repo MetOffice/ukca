@@ -1118,7 +1118,7 @@ IF (error_code <= 0 .AND. PRESENT(envgroup_flat_integer)) THEN
       ALLOCATE( tmp_2d_integer( LBOUND( envgroup_flat_integer, DIM=1):         &
                                 UBOUND( envgroup_flat_integer, DIM=1),         &
                                 LBOUND( envgroup_flat_integer, DIM=2):         &
-                                UBOUND( envgroup_flat_integer, DIM=2) ) ) 
+                                UBOUND( envgroup_flat_integer, DIM=2) ) )
 
       DO i = 1, n
 
