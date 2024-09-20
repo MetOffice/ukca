@@ -433,7 +433,7 @@ IF (tables_filled .AND. (current_month /= i_month)) THEN
 END IF
 
 IF (.NOT. tables_filled) THEN
-  CALL inijtab( mype, current_time,                                            &
+  CALL inijtab(current_time,                                                   &
     ((photol_config%i_photol_scheme == i_scheme_fastjx) .AND.                  &
      (photol_config%fastjx_mode /= fjx_mode_2Donly) ) )
   tables_filled = .TRUE.

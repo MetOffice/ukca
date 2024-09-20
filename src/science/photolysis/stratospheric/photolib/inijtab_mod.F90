@@ -88,7 +88,7 @@ IMPLICIT NONE
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='INIJTAB_MOD'
 
 CONTAINS
-SUBROUTINE inijtab(mype, current_time, l_ukca_fastjx)
+SUBROUTINE inijtab(current_time, l_ukca_fastjx)
 USE ukca_stdto3_mod, ONLY: stdto3, nin
 USE ukca_tbjs_mod, ONLY:     tabj2a   , tabj2b   , tabj3    ,                  &
        tabj3a   , tabjno   , tabjno31 , tabjno32 , tabjno2  ,                  &
@@ -152,27 +152,11 @@ USE photol_constants_mod,  ONLY:  gg => const_g, rgas => const_r
 
 USE missing_data_mod,      ONLY: rmdi
 
-#if !defined(LFRIC)
-USE mpl, ONLY: mpl_real
-USE ukca_option_mod, ONLY: ukcasto3_file => ukcasto3
-USE file_manager, ONLY: assign_file_unit, release_file_unit
-USE errormessagelength_mod, ONLY: errormessagelength
-USE ereport_mod, ONLY: ereport
-#endif
-
 IMPLICIT NONE
 
 ! Subroutine interface
-INTEGER, INTENT(IN) :: mype  ! processor number
 INTEGER, INTENT(IN) :: current_time(7) ! model time for photol_solflux
 LOGICAL, INTENT(IN) :: l_ukca_fastjx
-
-! Local variables
-! do not read STDTO3 input file. Instead, use values from the module.
-! READ_STDO3 controls whether to read temp & o3 data from file. However,
-! this mode is not currently supported (filename no longer in RUN_UKCA
-! namelist) and should be removed in the near future.
-LOGICAL, PARAMETER :: read_stdto3 = .FALSE.
 
 ! used for solar cycle to inform calulation method
 LOGICAL, PARAMETER :: l_lookup = .TRUE.
@@ -234,12 +218,6 @@ REAL :: tau                ! dummy variable for solar cycle routine
 REAL :: quanta_cyc (jpwav) ! solar cyclical component of quanta
 REAL :: quanta_in (jpwav)
 
-#if !defined(LFRIC)
-INTEGER :: my_comm, icode
-INTEGER :: ukcasto3_unit
-CHARACTER(LEN=errormessagelength) :: cmessage
-#endif
-
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
@@ -248,43 +226,10 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='INIJTAB'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-#if !defined(LFRIC)
-
-CALL gc_get_communicator(my_comm, icode)
-
-IF (read_stdto3) THEN
-
-  ! This mode is not currently supported and the code below needs
-  ! to be checked and removed.
-  icode = 1
-  cmessage='Std temp+O3 file read not supported. Needs a namelist change'
-  CALL ereport(RoutineName, icode, cmessage)
-
-  IF ( mype == 0 ) THEN
-    ! Read in standard atmosphere temperature and O3
-    CALL assign_file_unit(ukcasto3_file, ukcasto3_unit, handler="fortran")
-    OPEN(ukcasto3_unit,FILE=ukcasto3_file,ACTION='READ')
-    REWIND(ukcasto3_unit)
-    DO l=1,nin
-      READ(UNIT=ukcasto3_unit,FMT=*) rdpres(l),rdtemp(l),rdo3v(l)
-    END DO
-    CLOSE(ukcasto3_unit)
-    CALL release_file_unit(ukcasto3_unit, handler="fortran")
-  END IF !mype==0
-  CALL mpl_bcast(rdpres, nin, mpl_real, 0, my_comm, icode)
-  CALL mpl_bcast(rdtemp, nin, mpl_real, 0, my_comm, icode)
-  CALL mpl_bcast(rdo3v , nin, mpl_real, 0, my_comm, icode)
-
-END IF
-
-#endif
-
-IF (.NOT. read_stdto3) THEN
-  ! Read standard atmosphere data from string variable
-  DO l=1,nin
-    READ(UNIT=stdto3(l),FMT=*) rdpres(l),rdtemp(l),rdo3v(l)
-  END DO
-END IF
+! Read standard atmosphere data from string variable
+DO l=1,nin
+  READ(UNIT=stdto3(l),FMT=*) rdpres(l),rdtemp(l),rdo3v(l)
+END DO
 
 !     Set up j table inter levels equally spaced in log(p)
 pres(      1)=rdpres(  1)
