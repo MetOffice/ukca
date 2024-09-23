@@ -1,0 +1,4 @@
+    [[queues]]
+        [[[scripts]]]
+            limit = 1
+            members = SCRIPTS

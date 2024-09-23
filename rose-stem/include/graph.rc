@@ -6,4 +6,6 @@
 
 {% if SITE == 'meto' %}
 %include 'include/meto/graph.rc'
+{% elif SITE == 'vm' %}
+%include 'include/vm/graph.rc'
 {% endif %}

@@ -2,4 +2,6 @@
 
 {% if SITE == 'meto' %}
 %include 'include/meto/queues.rc'
+{% elif SITE == 'vm' %}
+%include 'include/vm/queues.rc'
 {% endif %}
