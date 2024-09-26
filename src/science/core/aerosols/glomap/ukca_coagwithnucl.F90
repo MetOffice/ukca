@@ -36,7 +36,7 @@ CONTAINS
 
 SUBROUTINE ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
   ageterm2,intraoff,interoff,bud_aer_mas,kii_arr,kij_arr,                      &
-  iagecoagnucl67,iextra_checks)
+  iextra_checks)
 
 !---------------------------------------------------------------
 !
@@ -76,7 +76,6 @@ SUBROUTINE ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
 ! INTEROFF: Switch to turn off intra-modal coagulation
 ! KII_ARR : Coag coeff for intra-modal coag (IMODE-IMODE) (cm^3/s)
 ! KIJ_ARR : Coag coeff for inter-modal coag (IMODE-JMODE) (cm^3/s)
-! IAGECOAGNUCL67: Switch ageing,coag & nucle involving modes6&7 on (1)/off(0)
 !
 ! Outputs
 ! -------
@@ -114,7 +113,6 @@ SUBROUTINE ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
 ! XXX       : Term in exponential (1.0-EXP(-XXX(:)))
 ! XXX_EPS   : Tolerance for XXX below which don't evaluate exponential
 ! MASK1,MASK2,.. : Logicals to define domain regions for where loops
-! TOPMODE   : Highest number mode for which coag & nucl is done
 !
 ! Inputted by module UKCA_CONSTANTS
 ! ---------------------------------
@@ -134,6 +132,7 @@ SUBROUTINE ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
 ! MMID      : Mid-point masses for initial radius grid
 ! MFRAC_0   : Initial mass fraction to set when no particles.
 ! NUM_EPS   : Value of NEWN below which do not carry out process
+! TOPMODE   : Highest number mode for which coag & nucl is done
 ! CP_SU     : Index of component in which sulfate is stored
 ! CP_BC     : Index of component in which BC is stored
 ! CP_OC     : Index of component in which OC is stored
@@ -190,7 +189,6 @@ INTEGER, INTENT(IN) :: nchemg
 INTEGER, INTENT(IN) :: nbudaer
 INTEGER, INTENT(IN) :: intraoff
 INTEGER, INTENT(IN) :: interoff
-INTEGER, INTENT(IN) :: iagecoagnucl67
 INTEGER, INTENT(IN) :: iextra_checks
 
 REAL, INTENT(IN)    :: delgc_nucl(nbox,nchemg)
@@ -215,13 +213,12 @@ REAL,    POINTER :: mmid(:)
 LOGICAL, POINTER :: mode(:)
 INTEGER, POINTER :: ncp
 REAL,    POINTER :: num_eps(:)
-
+INTEGER, POINTER :: topmode
 
 INTEGER :: imode
 INTEGER :: jmode
 INTEGER :: icp
 INTEGER :: jcp
-INTEGER :: topmode
 LOGICAL (KIND=logical_32) :: mask1(nbox)
 LOGICAL (KIND=logical_32) :: mask1a(nbox)
 LOGICAL (KIND=logical_32) :: mask2(nbox)
@@ -265,15 +262,9 @@ mmid        => glomap_variables%mmid
 mode        => glomap_variables%mode
 ncp         => glomap_variables%ncp
 num_eps     => glomap_variables%num_eps
+topmode     => glomap_variables%topmode
 
 ageterm2 = 0.0
-
-!set limit of modes for which coagulation & nucleation occur
-IF (iagecoagnucl67 == 1) THEN
-  topmode = mode_sup_insol
-ELSE
-  topmode = mode_ait_insol
-END IF
 
 ! Copy H2SO4 values from delgc_nucl to local variable
 IF (mh2so4 > 0) THEN

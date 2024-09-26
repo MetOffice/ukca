@@ -36,8 +36,8 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_AGEING_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
- ageterm1,ageterm2,wetdp,bud_aer_mas,iagecoagnucl67)
+SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,ageterm1,ageterm2,        &
+                       wetdp,bud_aer_mas)
 !----------------------------------------------------------
 !
 ! Purpose
@@ -65,7 +65,6 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
 !             as a result of coagulation with smaller soluble modes
 !             (in molecules cpt /cm3/DTZ)
 ! WETDP     : Wet diameter corresponding to mean sized particle
-! IAGECOAGNUCL67: Switch ageing,coag & nucl involving modes6&7 on(1)/off(0)
 !
 ! Outputs
 ! -------
@@ -89,7 +88,6 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
 ! CP_COAG_ADDED : Switch for whether added on ageing flux by
 !                 coagulation to that cpt already
 !                 (loop over jv --- need to make sure only count once)
-! TOPMODE   : Highest number mode for which ageing occurs.
 !
 ! Inputted by module UKCA_CONSTANTS
 ! ---------------------------------
@@ -106,6 +104,7 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,                          &
 ! MM        : Molar masses of components (kg per mole)
 ! NUM_EPS   : Value of NEWN below which do not recalculate MD (per cc)
 !             or carry out process
+! TOPMODE   : Highest number mode for which ageing occurs.
 ! CP_SU     : Component where sulfate is stored
 ! CP_BC     : Component in which black carbon is stored
 ! CP_OC     : Component in which primary organic carbon is stored
@@ -163,7 +162,6 @@ REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: md(nbox,nmodes,glomap_variables%ncp)
 REAL, INTENT(IN OUT) :: mdt(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
-INTEGER, INTENT(IN) :: iagecoagnucl67
 !
 ! .. Local variables
 
@@ -175,6 +173,7 @@ REAL,    POINTER :: mm(:)
 LOGICAL, POINTER :: mode(:)
 INTEGER, POINTER :: ncp
 REAL,    POINTER :: num_eps(:)
+INTEGER, POINTER :: topmode
 
 INTEGER :: jl
 INTEGER :: jv
@@ -183,7 +182,6 @@ INTEGER :: jmode
 INTEGER :: tmode ! target mode
 INTEGER :: icp
 INTEGER :: cp_coag_added(glomap_variables%ncp)
-INTEGER :: topmode
 REAL    :: totage(glomap_variables%ncp)
 REAL    :: totage_jv
 REAL    :: totage1(glomap_variables%ncp)
@@ -212,13 +210,7 @@ mm          => glomap_variables%mm
 mode        => glomap_variables%mode
 ncp         => glomap_variables%ncp
 num_eps     => glomap_variables%num_eps
-
-!set limit of modes to be aged
-IF (iagecoagnucl67 == 1 ) THEN
-  topmode = mode_sup_insol
-ELSE
-  topmode = mode_ait_insol
-END IF
+topmode     => glomap_variables%topmode
 
 DO imode=mode_ait_insol,topmode ! loop over insoluble modes
   IF (mode(imode)) THEN

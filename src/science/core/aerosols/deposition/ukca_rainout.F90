@@ -35,7 +35,7 @@ CONTAINS
 
 SUBROUTINE ukca_rainout(nbox,nbudaer,nd,md,mdt,fconv_conv,                     &
                         crain,crain_up,clwc,clf, autoconv1d,t,dtc,             &
-                        bud_aer_mas,inucscav, lcvrainout,wetdp)
+                        bud_aer_mas,inucscav,lcvrainout,wetdp)
 !---------------------------------------------------------------------------
 !
 !     Calculates in-cloud aerosl wet deposition (nucleation-scavenging)
@@ -99,6 +99,7 @@ SUBROUTINE ukca_rainout(nbox,nbudaer,nd,md,mdt,fconv_conv,                     &
 !     MODESOL      : Defines whether mode is soluble of not (integer)
 !     NUM_EPS      : Value of NEWN below which don't recalculate MD or
 !                                                    carry out process
+!     TOPMODE      : Highest number mode for which ageing occurs.
 !     CP_SU        : Index of component in which H2SO4  cpt is stored
 !     CP_BC        : Index of component in which BC     cpt is stored
 !     CP_OC        : Index of component in which 1st OC cpt is stored
@@ -188,6 +189,7 @@ INTEGER, POINTER :: modesol(:)
 INTEGER, POINTER :: ncp
 REAL,    POINTER :: num_eps(:)
 REAL,    POINTER :: sigmag(:)
+INTEGER, POINTER :: topmode
 
 INTEGER, PARAMETER :: i_none = 0     ! defines precipitation type
 INTEGER, PARAMETER :: i_conv = 1
@@ -247,6 +249,7 @@ modesol     => glomap_variables%modesol
 ncp         => glomap_variables%ncp
 num_eps     => glomap_variables%num_eps
 sigmag      => glomap_variables%sigmag
+topmode     => glomap_variables%topmode
 
 maxfracn=0.90
 !
@@ -361,7 +364,7 @@ DO jl=1,nbox
   ! .. Switch > 0 only if rain is FORMED in that level
   IF (switch > i_none) THEN
 
-    DO imode=1,nmodes
+    DO imode=1,topmode
       IF (mode(imode)) THEN
         IF (nd(jl,imode) > num_eps(imode)) THEN
 

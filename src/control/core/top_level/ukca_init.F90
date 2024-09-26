@@ -270,7 +270,8 @@ IF (ukca_config%l_ukca_mode) THEN
                                    glomap_config%l_ukca_radaer,                &
                                    glomap_config%i_ukca_tune_bc,               &
                                    glomap_config%l_fix_nacl_density,           &
-                                   glomap_config%l_fix_ukca_hygroscopicities )
+                                   glomap_config%l_fix_ukca_hygroscopicities,  &
+                                   glomap_config%l_dust_ageing_on )
 
   ! Calculate number of aerosol tracers required for components and number
   n_reqd_tracers = 0

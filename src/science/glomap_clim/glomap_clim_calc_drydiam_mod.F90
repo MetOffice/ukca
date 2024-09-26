@@ -190,7 +190,6 @@ IF (.NOT. ALLOCATED(dvol))          ALLOCATE(dvol(n_points,nmodes))
 CALL ukca_calc_drydiam( n_points, glomap_variables_climatology,                &
                         nd, md, mdt, drydp, dvol )
 
-
 drydiam(:,:,:,:) = 0.0
 DO m = 1, nmodes_list_sussbcoc_5mode
   imode = mode_list_sussbcoc_5mode(m)

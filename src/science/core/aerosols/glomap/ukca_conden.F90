@@ -126,6 +126,7 @@ SUBROUTINE ukca_conden(nbox,nchemg,nbudaer,ifuchs,idcmfp,icondiam,             &
 ! CP_OC    : Index of component in which 1st OC cpt is stored
 ! CP_SO    : Index of component in which 2nd OC cpt is stored
 ! SIGMAG   : Geometric standard deviation of mode
+! TOPMODE   : Highest number mode for which coag & nucl is done
 !
 ! Inputted by module UKCA_SETUP_INDICES
 ! -------------------------------------
@@ -208,6 +209,7 @@ LOGICAL, POINTER :: mode(:)
 INTEGER, POINTER :: modesol(:)
 REAL,    POINTER :: num_eps(:)
 REAL,    POINTER :: sigmag(:)
+INTEGER, POINTER :: topmode
 
 INTEGER :: icp
 INTEGER :: imode
@@ -254,6 +256,7 @@ mode        => glomap_variables%mode
 modesol     => glomap_variables%modesol
 num_eps     => glomap_variables%num_eps
 sigmag      => glomap_variables%sigmag
+topmode     => glomap_variables%topmode
 
 ageterm1(:,:,:)=0.0
 s_cond_s(:)=0.0
@@ -293,7 +296,7 @@ DO jv=1,nchemg
     mask1(:) = gc(:,jv) > conc_eps
 
     sumnc(:)=0.0
-    DO imode=1,nmodes
+    DO imode=1,topmode
       IF (mode(imode)) THEN
 
         aa = aa_modes(imode)
@@ -369,15 +372,18 @@ DO jv=1,nchemg
           mask3i(:) = mask2(:) .AND. ( nd(:,mode_ait_insol) > num_eps(imode) )
         END IF
 
-        IF ( mode(mode_acc_insol) .AND. ( imode == mode_acc_sol ) ) THEN
+        IF ( mode(mode_acc_insol) .AND. ( imode == mode_acc_sol ) .AND.        &
+             (topmode > mode_ait_insol) ) THEN
           mask3i(:) = mask2(:) .AND. ( nd(:,mode_acc_insol) > num_eps(imode) )
         END IF
 
-        IF ( mode(mode_cor_insol) .AND. ( imode == mode_cor_sol ) ) THEN
+        IF ( mode(mode_cor_insol) .AND. ( imode == mode_cor_sol ) .AND.        &
+             (topmode > mode_ait_insol) ) THEN
           mask3i(:) = mask2(:) .AND. ( nd(:,mode_cor_insol) > num_eps(imode) )
         END IF
 
-        IF ( mode(mode_sup_insol) .AND. ( imode == mode_cor_sol ) ) THEN
+        IF ( mode(mode_sup_insol) .AND. ( imode == mode_cor_sol ) .AND.        &
+             (topmode > mode_ait_insol) ) THEN
           mask4i(:) = mask2(:) .AND. ( nd(:,mode_sup_insol) > num_eps(imode) )
         END IF
 
@@ -534,7 +540,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_su) .AND. (nmascondsuaccins > 0)) THEN
+          IF ((icp == cp_su) .AND. (nmascondsuaccins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_acc_insol)/sumnc(:)
@@ -567,7 +574,8 @@ DO jv=1,nchemg
             END IF
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondocaccins > 0)) THEN
+          IF ((icp == cp_oc) .AND. (nmascondocaccins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_acc_insol)/sumnc(:)
@@ -581,7 +589,8 @@ DO jv=1,nchemg
           END IF
 
 
-          IF ((icp == cp_oc) .AND. (nmascondocaccins > 0)) THEN
+          IF ((icp == cp_oc) .AND. (nmascondocaccins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_acc_insol)/sumnc(:)
@@ -605,7 +614,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_so) .AND. (nmascondsoaccins > 0)) THEN
+          IF ((icp == cp_so) .AND. (nmascondsoaccins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_acc_insol)/sumnc(:)
@@ -633,7 +643,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_su) .AND. (nmascondsucorins > 0)) THEN
+          IF ((icp == cp_su) .AND. (nmascondsucorins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_cor_insol)/sumnc(:)
@@ -646,7 +657,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_su) .AND. (nmascondsusupins > 0)) THEN
+          IF ((icp == cp_su) .AND. (nmascondsusupins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask4i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_sup_insol)/sumnc(:)
@@ -679,7 +691,8 @@ DO jv=1,nchemg
             END IF
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondoccorins > 0)) THEN
+          IF ((icp == cp_oc) .AND. (nmascondoccorins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_cor_insol)/sumnc(:)
@@ -692,7 +705,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_oc) .AND. (nmascondocsupins > 0)) THEN
+          IF ((icp == cp_oc) .AND. (nmascondocsupins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask4i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_sup_insol)/sumnc(:)
@@ -716,7 +730,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_so) .AND. (nmascondsocorins > 0)) THEN
+          IF ((icp == cp_so) .AND. (nmascondsocorins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask3i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_cor_insol)/sumnc(:)
@@ -729,7 +744,8 @@ DO jv=1,nchemg
             END WHERE
           END IF
 
-          IF ((icp == cp_so) .AND. (nmascondsosupins > 0)) THEN
+          IF ((icp == cp_so) .AND. (nmascondsosupins > 0) .AND.                &
+              (topmode > mode_ait_insol)) THEN
             WHERE (mask4i(:))
 
               deltami(:)=delgc_cond(:,jv)*nc(:,mode_sup_insol)/sumnc(:)

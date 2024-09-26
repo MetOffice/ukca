@@ -284,6 +284,9 @@ TYPE :: glomap_variables_type
   ! EXP((9/2)*LOG^2(SIGMA_G))
   REAL :: x(nmodes)
 
+  ! Specify the top mode for ageing processes
+  INTEGER :: topmode
+
 END TYPE glomap_variables_type
 
 
@@ -301,6 +304,7 @@ SUBROUTINE ukca_mode_allcp_4mode ( glomap_variables_local,                     &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
+                                   l_dust_ageing_on,                           &
                                    pi )
 
 ! ---------------------------------------------------------------------|
@@ -316,6 +320,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -407,6 +412,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -500,6 +512,7 @@ SUBROUTINE ukca_mode_suss_4mode( glomap_variables_local,                       &
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
                                  l_fix_ukca_hygroscopicities_in,               &
+                                 l_dust_ageing_on,                             &
                                  pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -515,6 +528,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -605,6 +619,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -698,6 +719,7 @@ SUBROUTINE ukca_mode_sussbcocdu_4mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
+                                       l_dust_ageing_on,                       &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -713,6 +735,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -802,6 +825,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -896,6 +926,7 @@ SUBROUTINE ukca_mode_sussbcocdu_7mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
+                                       l_dust_ageing_on,                       &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -911,6 +942,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1000,6 +1032,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -1093,6 +1132,7 @@ SUBROUTINE ukca_mode_sussbcoc_4mode( glomap_variables_local,                   &
                                      i_tune_bc_in,                             &
                                      l_fix_nacl_density_in,                    &
                                      l_fix_ukca_hygroscopicities_in,           &
+                                     l_dust_ageing_on,                         &
                                      pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1108,6 +1148,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1198,6 +1239,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -1292,6 +1340,7 @@ SUBROUTINE ukca_mode_sussbcoc_5mode( glomap_variables_local,                   &
                                      i_tune_bc_in,                             &
                                      l_fix_nacl_density_in,                    &
                                      l_fix_ukca_hygroscopicities_in,           &
+                                     l_dust_ageing_on,                         &
                                      pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1307,6 +1356,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1397,6 +1447,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -1490,6 +1547,7 @@ SUBROUTINE ukca_mode_sussbcocso_4mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
+                                       l_dust_ageing_on,                       &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1505,6 +1563,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1594,6 +1653,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -1687,6 +1753,7 @@ SUBROUTINE ukca_mode_sussbcocso_5mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
+                                       l_dust_ageing_on,                       &
                                        pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1702,6 +1769,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1792,6 +1860,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -1886,6 +1961,7 @@ SUBROUTINE ukca_mode_duonly_2mode( glomap_variables_local,                     &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
+                                   l_dust_ageing_on,                           &
                                    pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -1901,6 +1977,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -1989,6 +2066,13 @@ glomap_variables_local%mm(1:ncp)=[0.098,0.012,0.0168,0.05844,0.100,0.0168]
 ! Mass density of components (kg m^-3)
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
@@ -2082,6 +2166,7 @@ SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt( glomap_variables_local,          &
                                               i_tune_bc_in,                    &
                                               l_fix_nacl_density_in,           &
                                               l_fix_ukca_hygroscopicities_in,  &
+                                              l_dust_ageing_on,                &
                                               pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -2100,6 +2185,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -2211,6 +2297,13 @@ glomap_variables_local%rhocomp(1:ncp) =                                        &
        [1769.0, 1500.0, 1500.0, 1600.0, 2650.0, 1500.0, 1500.0, 1600.0, 1769.0]
 !       h2so4   bc      oc      nacl    dust    so      no3     nano3   nh4
 
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
+
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
   CASE (i_ukca_bc_tuned)
@@ -2306,6 +2399,7 @@ SUBROUTINE  ukca_mode_solinsol_6mode( glomap_variables_local,                  &
                                       i_tune_bc_in,                            &
                                       l_fix_nacl_density_in,                   &
                                       l_fix_ukca_hygroscopicities_in,          &
+                                      l_dust_ageing_on,                        &
                                       pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -2322,6 +2416,7 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -2425,6 +2520,13 @@ glomap_variables_local%mm(1:ncp)=                                              &
 glomap_variables_local%rhocomp(1:ncp) =                                        &
                                     [1769.0,1500.0,1500.0,1600.0,2650.0,1500.0]
 
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
+
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)
   CASE (i_ukca_bc_tuned)
@@ -2519,6 +2621,7 @@ SUBROUTINE ukca_mode_sussbcocduntnh_8mode_8cpt( glomap_variables_local,        &
                                                 l_radaer_in,                   &
                                                 i_tune_bc_in,                  &
                                                 l_fix_nacl_density_in,         &
+                                                l_dust_ageing_on,              &
                                                 pi )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -2536,6 +2639,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
@@ -2646,6 +2750,13 @@ glomap_variables_local%mm(1:ncp)=                                              &
 glomap_variables_local%rhocomp(1:ncp) =                                        &
        [1769.0, 1500.0, 1500.0, 1600.0, 2650.0, 1500.0, 1500.0, 1600.0, 1769.0]
 !       h2so4   bc      oc      nacl    dust    so      no3     nano3   nh4
+
+! Top mode for microphysics
+IF (l_dust_ageing_on) THEN
+  glomap_variables_local%topmode = nmodes
+ELSE
+  glomap_variables_local%topmode = mode_ait_insol
+END IF
 
 IF ( l_radaer_in ) THEN
   SELECT CASE (i_tune_bc_in)

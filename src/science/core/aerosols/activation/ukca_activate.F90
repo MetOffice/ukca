@@ -225,6 +225,7 @@ TYPE(glomap_variables_type), TARGET, INTENT(IN) :: glomap_variables_local
 LOGICAL, POINTER :: component(:,:)
 LOGICAL, POINTER :: mode(:)
 INTEGER, POINTER :: ncp
+INTEGER, POINTER :: topmode
 
 ! Create an array of fixed supersaturations to run the code at:
 INTEGER, PARAMETER :: nsfix=19           ! number of elements in fixed-S array
@@ -334,6 +335,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 component   => glomap_variables_local%component
 mode        => glomap_variables_local%mode
 ncp         => glomap_variables_local%ncp
+topmode     => glomap_variables_local%topmode
 
 icode = 0 ! Initialise error status
 
@@ -370,6 +372,7 @@ IF ( glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg ) THEN
                                      zaird,                                    &
                                      ncp,                                      &
                                      mode,                                     &
+                                     topmode,                                  &
                                      component,                                &
                                      zn,                                       &
                                      zxtm1 )
@@ -380,6 +383,7 @@ IF ( glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg ) THEN
                                   model_levels,                                &
                                   kbdim,                                       &
                                   mode,                                        &
+                                  topmode,                                     &
                                   zrdry )
 
   ! Calculate updraft velocity sigw
@@ -400,6 +404,7 @@ ELSE IF ( i_glomap_clim_activation_scheme == i_gc_activation_arg ) THEN
                                    zaird,                                      &
                                    ncp,                                        &
                                    mode,                                       &
+                                   topmode,                                    &
                                    component,                                  &
                                    zn,                                         &
                                    zxtm1 )
@@ -410,6 +415,7 @@ ELSE IF ( i_glomap_clim_activation_scheme == i_gc_activation_arg ) THEN
                                   model_levels,                                &
                                   kbdim,                                       &
                                   mode,                                        &
+                                  topmode,                                     &
                                   zrdry )
 
   ! Calculate updraft velocity sigw
@@ -591,7 +597,7 @@ IF ( PrintStatus == PrStatus_Diag ) THEN
 END IF
 
 ! reshape zcdncactm to n_activated
-DO imode=1, nmodes
+DO imode=1, topmode
   IF (mode(imode)) THEN
     DO k=1,model_levels
       n_activated(:,:,k,imode)=RESHAPE(zcdncactm(:,k,imode),                   &
@@ -799,6 +805,7 @@ SUBROUTINE ukca_activate_calc_zn_zxtm1 ( row_length,                           &
                                          zaird,                                &
                                          ncp,                                  &
                                          mode,                                 &
+                                         topmode,                              &
                                          component,                            &
                                          zn,                                   &
                                          zxtm1 )
@@ -852,6 +859,9 @@ INTEGER, INTENT(IN) :: ncp
 ! Mode (T/F)
 LOGICAL, INTENT(IN) :: mode ( nmodes )
 
+! Top mode for evaluation
+INTEGER, INTENT(IN) :: topmode
+
 ! Component (T/F)
 LOGICAL, INTENT(IN) :: component( nmodes, ncp )
 
@@ -888,7 +898,7 @@ zxtm1  = 0.0
 ! Aerosol Tracers
 ! ===============
 ! Loop through the modes
-DO imode=1,nmodes
+DO imode=1,topmode
   IF (mode(imode)) THEN
     itra = nmr_index(imode) - ifirst + 1
     ! Set No Density (particles per m3) from aerosol tracer array
@@ -941,6 +951,7 @@ SUBROUTINE gc_activate_calc_zn_zxtm1 ( row_length,                             &
                                        zaird,                                  &
                                        ncp,                                    &
                                        mode,                                   &
+                                       topmode,                                &
                                        component,                              &
                                        zn,                                     &
                                        zxtm1 )
@@ -1013,6 +1024,9 @@ INTEGER, INTENT(IN) :: ncp
 
 ! Mode (T/F)
 LOGICAL, INTENT(IN) :: mode ( nmodes )
+
+! topmode of aerosol activation
+INTEGER, INTENT(IN) :: topmode
 
 ! Component (T/F)
 LOGICAL, INTENT(IN) :: component( nmodes, ncp )
@@ -1095,7 +1109,7 @@ zn    = 0.0
 zxtm1 = 0.0
 
 ! Loop through the modes
-DO imode=1,nmodes
+DO imode=1,topmode
   IF (mode(imode)) THEN
 
     DO k=1,model_levels
@@ -1146,7 +1160,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 END SUBROUTINE gc_activate_calc_zn_zxtm1
 
 SUBROUTINE ukca_activate_calc_zrdry (row_length,rows,model_levels,kbdim,mode,  &
-                                     zrdry)
+                                     topmode,zrdry)
 
 USE ereport_mod,            ONLY:                                              &
     ereport
@@ -1188,6 +1202,9 @@ INTEGER, INTENT(IN) :: kbdim
 ! Mode (T/F)
 LOGICAL, INTENT(IN) :: mode ( nmodes )
 
+! topmode for evaluation
+INTEGER, INTENT(IN) :: topmode
+
 ! dry count median radius [m]
 REAL, INTENT(OUT)   :: zrdry ( kbdim, model_levels, nmodes )
 
@@ -1213,7 +1230,7 @@ zrdry(:,:,:) = rmdi
 ! Fill zrdry from drydiam
 IF (ALLOCATED(drydiam)) THEN
 
-  DO imode=1,nmodes
+  DO imode=1,topmode
     IF (mode(imode)) THEN
 
       DO k=1,model_levels
@@ -1389,4 +1406,3 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 END SUBROUTINE gc_activate_calc_updraft_velocity
 
 END MODULE ukca_activate_mod
-

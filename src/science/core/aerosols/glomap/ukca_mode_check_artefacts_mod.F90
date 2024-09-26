@@ -39,6 +39,7 @@ MODULE ukca_mode_check_artefacts_mod
 ! Contains subroutines:
 !       1) ukca_mode_check_artefacts   .. called from ukca_aero_ctl
 !       2) ukca_mode_check_mdt         .. called from ukca_coagwithnucl
+!                                         and ukca_impc_scav_dust
 
 
 ! ---------------------------------------------------------------------|
@@ -345,7 +346,7 @@ SUBROUTINE ukca_mode_check_mdt(nbox, imode, mdt, md, nd, mask1)
 
 ! Check to see if mdt is outside limits and reset nd and md to defaults if
 ! it is.
-! Called from UKCA_COAGWITHNUCL.
+! Called from UKCA_COAGWITHNUCL and UKCA_IMPC_SCAV_DUST
 
 USE ukca_config_specification_mod, ONLY:                                       &
     glomap_variables

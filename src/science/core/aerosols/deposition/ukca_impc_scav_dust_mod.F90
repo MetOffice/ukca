@@ -70,7 +70,7 @@ CONTAINS
 
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_impc_scav_dust(nbox,nbudaer,nd,md,mdt,crain,drain,             &
-                               wetdp,dtc,bud_aer_mas)
+                               wetdp,dtc,bud_aer_mas,iextra_checks)
 ! ----------------------------------------------------------------------
 !
 ! Purpose:
@@ -126,11 +126,15 @@ USE ukca_mode_setup,    ONLY: cp_du, nmodes, mode_acc_insol, mode_cor_insol,   &
 USE ukca_setup_indices, ONLY: nmasimscduaccins, nmasimscducorins,              &
                               nmasimscdusupins
 
+USE ukca_mode_check_artefacts_mod, ONLY: ukca_mode_check_mdt
+USE ukca_types_mod,   ONLY: logical_32
+
 IMPLICIT NONE
 
 ! .. Subroutine interface
 INTEGER, INTENT(IN)  :: nbox
 INTEGER, INTENT(IN)  :: nbudaer
+INTEGER, INTENT(IN)  :: iextra_checks
 REAL, INTENT(IN)     :: wetdp(nbox,nmodes)
 REAL, INTENT(IN)     :: dtc
 REAL, INTENT(IN)     :: crain(nbox)
@@ -171,6 +175,7 @@ REAL    :: logdp, logdplow, logdpupp, fac1, fac2
 REAL    :: sc_num_dp_rf1, sc_num_dp_rf2
 REAL    :: sc_mass_dp_rf1, sc_mass_dp_rf2
 LOGICAL :: l_interp_dp, l_interp_RF
+LOGICAL (KIND=logical_32) :: mask(nbox)
 INTEGER :: ilow,iupp,jlow,jupp,k
 INTEGER :: imode, icp, jl, iprecip
 
@@ -406,6 +411,16 @@ DO jl=1,nbox
     END DO ! .. imode
   END IF !.. IF (totrain(jl) > 0.0)
 END DO ! .. jl
+
+! Apply extra checks on MDT being out of range after impaction scavenging
+IF (iextra_checks > 1 ) THEN !do this only when ie_c = 2
+  DO imode=mode_acc_insol, mode_sup_insol
+    IF (mode(imode)) THEN
+      mask(:) = .TRUE. ! dummy mask
+      CALL ukca_mode_check_mdt(nbox, imode, mdt, md, nd, mask)
+    END IF
+  END DO
+END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

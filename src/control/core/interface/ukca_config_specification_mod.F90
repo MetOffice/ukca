@@ -419,6 +419,9 @@ TYPE :: glomap_config_spec_type
                                        ! Metzer et al, PNAS, 2010) - required
                                        ! when 'l_mode_bhn_on' is true.
   REAL :: mode_activation_dryr         ! Activation dry radius (nm)
+  LOGICAL :: l_dust_ageing_on          ! True for dust being subjected
+                                       ! to nuc scav, conden, coag,
+                                       ! ageing, and activation
 
   ! -- GLOMAP deposition configuration options --
   LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
@@ -1000,6 +1003,7 @@ glomap_config%l_mode_bhn_on = .FALSE.
 glomap_config%l_mode_bln_on = .FALSE.
 glomap_config%i_mode_bln_param_method = imdi
 glomap_config%mode_activation_dryr = rmdi
+glomap_config%l_dust_ageing_on = .FALSE.
 
 ! -- GLOMAP deposition configuration options --
 glomap_config%l_ddepaer = .FALSE.
@@ -1134,6 +1138,7 @@ SUBROUTINE ukca_get_config(                                                    &
    sea_salt_ems_scaling, marine_pom_ems_scaling,                               &
    lightnox_scale_fac,                                                         &
    mode_activation_dryr,                                                       &
+   l_dust_ageing_on,                                                           &
    mode_incld_so2_rfrac,                                                       &
    biom_aer_ems_scaling,                                                       &
    sigwmin,                                                                    &
@@ -1457,6 +1462,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_water_content
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_6bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_2bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_config_available
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_ageing_on
 
 ! -- Availability of a valid configuration --
 IF (PRESENT(l_config_available)) l_config_available = l_ukca_config_available
@@ -1724,6 +1730,8 @@ IF (PRESENT(i_mode_bln_param_method))                                          &
   i_mode_bln_param_method = glomap_config%i_mode_bln_param_method
 IF (PRESENT(mode_activation_dryr))                                             &
   mode_activation_dryr = glomap_config%mode_activation_dryr
+IF (PRESENT(l_dust_ageing_on))                                                 &
+  l_dust_ageing_on = glomap_config%l_dust_ageing_on
 
 ! -- GLOMAP deposition configuration optons --
 IF (PRESENT(l_ddepaer))                                                        &

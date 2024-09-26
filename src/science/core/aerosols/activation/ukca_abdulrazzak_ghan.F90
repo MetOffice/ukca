@@ -150,6 +150,7 @@ REAL,    POINTER :: no_ions(:)
 REAL,    POINTER :: rhocomp(:)
 REAL,    POINTER :: sigmag(:)
 INTEGER, POINTER :: modesol(:)
+INTEGER, POINTER :: topmode
 
 REAL :: zsigmaln(nmodes)   ! ln(geometric std dev)
 
@@ -248,7 +249,8 @@ ncp         => glomap_variables_local%ncp
 no_ions     => glomap_variables_local%no_ions
 rhocomp     => glomap_variables_local%rhocomp
 sigmag      => glomap_variables_local%sigmag
-modesol      => glomap_variables_local%modesol
+modesol     => glomap_variables_local%modesol
+topmode     => glomap_variables_local%topmode
 
 cthomi  = tm-35.0
 lc_sq=lc**2
@@ -266,7 +268,7 @@ zcdncm          = 0.0
 zeps=EPSILON(1.0)
 
 !--- calculate ln(sigmag)
-DO jmod=1, nmodes
+DO jmod=1, topmode
   zsigmaln(jmod) = LOG(sigmag(jmod))
 END DO
 
@@ -274,7 +276,7 @@ END DO
 
      !--- 1.1) Calculate the auxiliary parameters A & B of the Koehler equation:
 
-DO jmod=1, nmodes
+DO jmod=1, topmode
   IF (mode(jmod)) THEN
 
     !--- 1.1.0 Initializations:
@@ -376,7 +378,7 @@ DO jmod=1, nmodes
       END DO            !jl
     END DO               !jk
   END IF                  !mode
-END DO                    !jmod=1, nmodes
+END DO                    !jmod=1, topmode
 
 !2) Calculate maximum supersaturation at each increment of vertical velocity pdf
 
@@ -385,7 +387,7 @@ END DO                    !jmod=1, nmodes
 !$OMP         zalpha, zcdncm, zdif, zerf_ratio, zeta,                          &
 !$OMP         zf, zg, zgamma, zgrowth, zk, zka, zpwdw,                         &
 !$OMP         zrc, zsm, zsmax, zsum, zw, zwpwdw, zxi)                          &
-!$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc_sq, mode, nwbins,                 &
+!$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc_sq, mode, nwbins, topmode,        &
 !$OMP        modesol, papm1, pesw, pn, pqm1, prdry, Printstatus,               &
 !$OMP        psmax, ptm1, pwarr, pwbin, pwpdf,                                 &
 !$OMP        za, zb, zcdnc, zeps,                                              &
@@ -445,7 +447,7 @@ DO jw=1, nwbins
 
         zsum=0.0
 
-        DO jmod=1, nmodes
+        DO jmod=1, topmode
           IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                  &
              l_fix_ukca_hygroscopicities_local)) THEN
             IF (pn(jl,jk,jmod)   >zeps     .AND.                               &
@@ -523,7 +525,7 @@ DO jw=1, nwbins
                           'RW: pwarr(',jl,',',jk,',',jw,')=  ', pwarr(jl,jk,jw)
         CALL umPrint(umMessage,src='ukca_abdulrazzak_ghan')
       END IF
-      DO jmod=1, nmodes
+      DO jmod=1, topmode
         IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                    &
             l_fix_ukca_hygroscopicities_local)) THEN
           IF (psmax2(jl,jk)          >zeps  .AND.                              &
@@ -583,11 +585,11 @@ END DO !jw
 ! above.
 !$OMP PARALLEL DEFAULT(NONE)                                                   &
 !$OMP PRIVATE(jmod, jk, jl, jw)                                                &
-!$OMP SHARED(kbdim, klev, nwbins, mode, modesol,                               &
+!$OMP SHARED(kbdim, klev, nwbins, mode, modesol, topmode,                      &
 !$OMP        l_fix_ukca_hygroscopicities_local,                                &
 !$OMP        zndbot, zndbotm, zndtop, zndtopm)
 DO jw=2,nwbins
-  DO jmod=1, nmodes
+  DO jmod=1, topmode
     IF ((mode(jmod) .AND. modesol(jmod) == 1) .OR. .NOT.                       &
         l_fix_ukca_hygroscopicities_local) THEN
 !$OMP DO SCHEDULE(STATIC)
@@ -615,7 +617,7 @@ END DO
 ! weighted by w
 DO jk=1, klev
   DO jl=1, kbdim
-    DO jmod=1, nmodes
+    DO jmod=1, topmode
       IF (mode(jmod) .AND. (modesol(jmod) == 1 .OR. .NOT.                      &
           l_fix_ukca_hygroscopicities_local)) THEN
         IF (zndbotm(jl,jk,jmod,1) < zeps) THEN

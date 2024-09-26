@@ -46,7 +46,7 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
  dryox_in_aer,wetox_in_aer,delso2,delso2_2,                                    &
  cond_on,nucl_on,coag_on,bln_on,icoag,                                         &
  imerge,fine_no3_prod_on,coarse_no3_prod_on,ifuchs,                            &
- idcmfp,icondiam,ibln,i_nuc_method,iagecoagnucl67,                             &
+ idcmfp,icondiam,ibln,i_nuc_method,                                            &
  iactmethod,iddepaer,inucscav,lcvrainout,l_dust_slinn_impc_scav,               &
  verbose,checkmd_nd,intraoff,                                                  &
  interoff,s0g_dot_condensable,lwc,clwc,pvol,pvol_wat,                          &
@@ -131,7 +131,6 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !   note there is an additional switch i_bhn_method (local to CALCNUCRATE)
 !   to switch between using Kulmala98 or Vehkamaki02 for BHN rate
 ! (3=use same rate at all levels either activation(IBLN=1), kinetic(IBLN=2),
-!  IAGECOAGNUCL67: Switch ageing,coag & nucle involving modes6&7 on (1)/off(0)
 !  PNAS(IBLN=3)
 !  note that if I_NUC_METHOD=3 and IBLN=3 then also add on BHN rate as in PNAS.
 !  I_NUC_METHOD: Switch : 1=use Pandis94 (no BLN), 2=use BHN with BLN if on
@@ -387,7 +386,6 @@ INTEGER, INTENT(IN) :: idcmfp
 INTEGER, INTENT(IN) :: icondiam
 INTEGER, INTENT(IN) :: ibln
 INTEGER, INTENT(IN) :: i_nuc_method
-INTEGER, INTENT(IN) :: iagecoagnucl67
 INTEGER, INTENT(IN) :: inucscav
 INTEGER, INTENT(IN) :: verbose
 INTEGER, INTENT(IN) :: checkmd_nd
@@ -574,7 +572,7 @@ IF (imscav_on == 1) THEN
   ! Run new impaction scavenging scheme for UKCA dust
   IF (l_dust_slinn_impc_scav) THEN
     CALL ukca_impc_scav_dust(nbox,nbudaer,nd,md,mdt,crain,drain,               &
-                             wetdp,dtc,bud_aer_mas)
+                             wetdp,dtc,bud_aer_mas,iextra_checks)
   END IF
   !
   IF (checkmd_nd == 1) THEN
@@ -864,9 +862,14 @@ DO imts=1,nmts
   !      Given that nitrate formation is via condensation, include new
   !      routines for coarse and fine mode nitrate production here
   !
-  CALL ukca_calc_coag_kernel(nbox,kii_arr,kij_arr,                             &
-   drydp,dvol,wetdp,wvol,rhopar,mfpa,dvisc,t,                                  &
-   coag_on,icoag)
+  IF (coag_on == 1) THEN
+    CALL ukca_calc_coag_kernel(nbox,kii_arr,kij_arr,                           &
+     drydp,dvol,wetdp,wvol,rhopar,mfpa,dvisc,t,                                &
+     coag_on,icoag)
+  ELSE
+    kii_arr(:,:) = 0.0
+    kij_arr(:,:,:) = 0.0
+  END IF
   !
   DO izts=1,nzts
     !
@@ -1094,7 +1097,7 @@ DO imts=1,nmts
       CALL ukca_coagwithnucl(nbox,nchemg,nbudaer,nd,md,mdt,delgc_nucl,dtz,     &
                              ageterm2,intraoff,interoff,                       &
                              bud_aer_mas,kii_arr,kij_arr,                      &
-                             iagecoagnucl67,iextra_checks)
+                             iextra_checks)
 
       IF (checkmd_nd == 1) THEN
         process='Done combined coag./nucleation'
@@ -1122,7 +1125,7 @@ DO imts=1,nmts
     !
     !       Apply ageing -- transfer ND,MD from insol. to sol. modes
     CALL ukca_ageing(nbox, nchemg, nbudaer, nd, md, mdt, ageterm1, ageterm2,   &
-                     wetdp, bud_aer_mas, iagecoagnucl67)
+                     wetdp, bud_aer_mas)
     !
     IF (checkmd_nd == 1) THEN
       process='Done ageing of insoluble modes'

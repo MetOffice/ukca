@@ -216,6 +216,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_activate_pdf,                                 &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
+                      l_dust_ageing_on,                                        &
                       proc_bl_tracer_mix,                                      &
                       proc_calc_ozonecol,                                      &
                       proc_diag2d_copy_out,                                    &
@@ -507,6 +508,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_water_content
+LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_ageing_on
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
 PROCEDURE(template_proc_calc_ozonecol), OPTIONAL :: proc_calc_ozonecol
@@ -1110,6 +1112,8 @@ IF (ukca_config%l_ukca_mode) THEN
   IF (PRESENT(l_mode_bhn_on)) glomap_config%l_mode_bhn_on = l_mode_bhn_on
   IF (PRESENT(mode_activation_dryr))                                           &
     glomap_config%mode_activation_dryr = mode_activation_dryr
+  IF (PRESENT(l_dust_ageing_on))                                               &
+    glomap_config%l_dust_ageing_on = l_dust_ageing_on
 
   ! -- GLOMAP deposition configuration options --
 

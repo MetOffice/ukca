@@ -397,7 +397,7 @@ INTEGER :: rainout_on
 ! Switch for whether rainout (nucl. scav.) is on/off
 INTEGER :: imscav_on
 ! Switch for whether impaction scavenging is on/off
-INTEGER, PARAMETER :: wetox_on = 1
+INTEGER :: wetox_on
 ! Switch for whether wet oxidation (cloud processing) is on/off
 INTEGER :: ddepaer_on
 ! Switch for whether aerosol dry deposition is on/off
@@ -408,7 +408,7 @@ INTEGER, PARAMETER :: iso2wetoxbyo3 = 1
 ! Note that this switch is only used if WETOX_IN_AER=1
 ! When code used in UM    , WETOX_IN_AER is always set to 0
 ! When code used in TOMCAT, WETOX_IN_AER is always set to 1
-INTEGER, PARAMETER :: cond_on = 1
+INTEGER :: cond_on
 ! Switch for whether vapour condensation is  on/off
 INTEGER :: nucl_on
 ! Switch for whether binary nucleation is on/off
@@ -418,7 +418,7 @@ INTEGER :: fine_no3_prod_on
 ! Switch to determine whether fine NO3 production is on/off
 INTEGER :: coarse_no3_prod_on
 ! Switch to determine whether coarse NO3 production is on/off
-INTEGER, PARAMETER :: coag_on = 1
+INTEGER :: coag_on
 ! Switch for whether coagulation is on/off
 INTEGER, PARAMETER :: icoag = 1
 ! Switch for KIJ method (1:GLOMAP, 2: M7, 3: UMorig, 4:UMorig MFPP)
@@ -466,9 +466,6 @@ INTEGER, PARAMETER :: interoff = 0
 ! Switch to turn off inter-modal coagulation
 INTEGER, PARAMETER :: idustems = 0
 ! Switch for using Pringle scheme (=1) or AEROCOMdaily (=2)
-INTEGER, PARAMETER :: iagecoagnucl67 = 0
-! Switch to enable(1)/disable(0) ageing of modes 6&7 (insol dust only) and
-! coagulation & nucleation involving those modes
 
 REAL :: dp0                               ! Diam (nm)
 !
@@ -939,6 +936,20 @@ IF (glomap_config%l_mode_bln_on) THEN
 ELSE
   bln_on = 0 ! BLN
 END IF
+
+! Turn off wet oxidation, condensation and coagulation
+! if chemistry is off reflecting that the only aerosol
+! scheme that uses this configuration is 2-mode passive
+! dust
+IF (glomap_config%i_mode_setup == 6) THEN
+  wetox_on = 0
+  cond_on = 0
+  coag_on = 0
+ELSE
+  wetox_on = 1
+  cond_on = 1
+  coag_on = 1
+END IF
 !
 IF (firstcall .AND. verbose > 0) THEN
   WRITE(umMessage, '(A16,2I6)') 'NUCL_ON,BLN_ON=', nucl_on,bln_on
@@ -1296,6 +1307,7 @@ END IF
 !$OMP nmasprimntaitsol, nmasprimntaccsol,nmasprimntcorsol, nmasprimnhaitsol,   &
 !$OMP nmasprimnhaccsol, nmasprimnhcorsol,nmascondnnaccsol, nmascondnncorsol,   &
 !$OMP nmax_mode_diags,nmr_index,nucl_on, nseg,nukca_d1items,                   &
+!$OMP wetox_on, cond_on, coag_on,                                              &
 !$OMP fine_no3_prod_on, coarse_no3_prod_on,                                    &
 !$OMP num_eps, nzts, p_bdrs, pres, q,                                          &
 !$OMP rainout_on, rgas, rh3d, rh3d_clr, root2, row_length, rows,               &
@@ -2046,7 +2058,7 @@ DO ik = 1, nseg
                       cond_on, nucl_on, coag_on, bln_on, icoag, imerge,        &
                       fine_no3_prod_on, coarse_no3_prod_on,                    &
                       ifuchs, idcmfp, icondiam, ibln, i_nuc_method,            &
-                      iagecoagnucl67, iactmethod, iddepaer, inucscav,          &
+                      iactmethod, iddepaer, inucscav,                          &
                       lcvrainout, l_dust_slinn_impc_scav, verbose_local,       &
                       checkmd_nd, intraoff, interoff,                          &
                       seg_s0_dot_condensable, seg_lwc,seg_clwc, seg_pvol,      &
