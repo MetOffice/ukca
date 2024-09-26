@@ -376,7 +376,8 @@ USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
                                          i_ukca_activation_arg,                &
                                          i_light_param_ext,                    &
                                          i_light_param_off,                    &
-                                         i_top_bc
+                                         i_top_bc,                             &
+                                         i_primss_method_jaegle
 
 USE photol_api_mod, ONLY:                photol_get_config,                    &
                                          photolysis_off, photolysis_strat_only,&
@@ -873,7 +874,9 @@ IF (ukca_config%l_ukca_intdd .OR. glomap_config%l_mode_bln_on .OR.             &
 END IF
 
 ! Surface temperature is required for dry deposition or marine DMS emissions
-IF ((.NOT. ukca_config%l_ukca_drydep_off) .OR. ukca_config%l_seawater_dms) THEN
+! or sea-salt emissions with the Jaegle scheme
+IF ((.NOT. ukca_config%l_ukca_drydep_off) .OR. ukca_config%l_seawater_dms .OR. &
+    (glomap_config%i_primss_method == i_primss_method_jaegle)) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_tstar

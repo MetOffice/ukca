@@ -461,6 +461,7 @@ TYPE :: glomap_config_spec_type
   LOGICAL :: l_no3_prod_in_aero_step   ! True for nitrate emissions in MODE
   REAL :: sea_salt_ems_scaling         ! Sea salt emission scaling factor
   REAL :: marine_pom_ems_scaling       ! Marine POM emission scaling factor
+  INTEGER :: i_primss_method           ! Sea-salt emission options
 
   ! -- GLOMAP feedback configuration options --
   LOGICAL :: l_ukca_radaer             ! Provide output for calculating direct
@@ -609,6 +610,13 @@ INTEGER, PARAMETER :: i_liss_merlivat = 1   ! Liss & Merlivat (1986)
 INTEGER, PARAMETER :: i_wanninkhof = 2      ! Wanninkhof (1992)
 INTEGER, PARAMETER :: i_nightingale = 3     ! Nightingale et al. (2000)
 INTEGER, PARAMETER :: i_blomquist = 4       ! Blomquist et al. (2017)
+
+! Option codes for 'i_primss_method'
+INTEGER, PARAMETER :: i_primss_method_smith = 1    ! Smith 1998
+INTEGER, PARAMETER :: i_primss_method_monahan = 2  ! Gong (2003) and
+                                                   ! Monahan (1986)
+INTEGER, PARAMETER :: i_primss_method_combined = 3 ! Combination of above
+INTEGER, PARAMETER :: i_primss_method_jaegle = 4   ! Jaegle (2011)
 
 ! -- Data structures specifying details of the active UKCA configuration --
 ! ---------------------------------------------------------------------------
@@ -1032,6 +1040,7 @@ glomap_config%l_ukca_scale_sea_salt_ems = .FALSE.
 glomap_config%sea_salt_ems_scaling = rmdi
 glomap_config%l_ukca_scale_marine_pom_ems = .FALSE.
 glomap_config%marine_pom_ems_scaling = rmdi
+glomap_config%i_primss_method = imdi
 
 ! -- GLOMAP feedback configuration options --
 glomap_config%l_ukca_radaer = .FALSE.
@@ -1118,6 +1127,7 @@ SUBROUTINE ukca_get_config(                                                    &
    i_ukca_dms_flux,                                                            &
    i_ukca_light_param,                                                         &
    i_strat_lbc_source,                                                         &
+   i_primss_method,                                                            &
    env_log_step,                                                               &
    ukca_int_method,                                                            &
    timesteps_per_day, timesteps_per_hour,                                      &
@@ -1313,6 +1323,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_activation_scheme
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_nwbins
 INTEGER, OPTIONAL, INTENT(OUT) :: n_dust_emissions
 INTEGER, OPTIONAL, INTENT(OUT) :: i_dust_scheme
+INTEGER, OPTIONAL, INTENT(OUT) :: i_primss_method
 
 REAL, OPTIONAL, INTENT(OUT) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(OUT) :: timestep
@@ -1772,6 +1783,8 @@ IF (PRESENT(l_ukca_scale_marine_pom_ems))                                      &
   l_ukca_scale_marine_pom_ems = glomap_config%l_ukca_scale_marine_pom_ems
 IF (PRESENT(marine_pom_ems_scaling))                                           &
   marine_pom_ems_scaling = glomap_config%marine_pom_ems_scaling
+IF (PRESENT(i_primss_method))                                                  &
+  i_primss_method = glomap_config%i_primss_method
 
 ! -- GLOMAP feedback configuration options --
 IF (PRESENT(l_ukca_radaer)) l_ukca_radaer = glomap_config%l_ukca_radaer

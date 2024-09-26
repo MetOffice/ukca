@@ -10,8 +10,9 @@
 !
 !  Description:
 !    Calculate emissions of sea salt aerosol as sectional representation
-!    of Gong-Monahan and add to soluble accum and coarse modes,
-!    changing ND, MDT and MD accordingly (only sea surface boxes).
+!    of 1) Gong-Monahan or 2) Jaegle et al.(2011) and add to soluble
+!    accum and coarse modes, changing ND, MDT and MD accordingly
+!    (only sea surface boxes).
 !
 !  UKCA is a community model supported by The Met Office and
 !  NCAS, with components initially provided by The University of
@@ -35,21 +36,23 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_PRIM_SS_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_prim_ss(row_length, rows, model_levels,                        &
-       verbose, land_fraction, seaice_frac, u_scalar_10m,                      &
+SUBROUTINE ukca_prim_ss(row_length, rows, model_levels, verbose,               &
+       i_primss_method, land_fraction, seaice_frac, u_scalar_10m, tstar,       &
        aer_mas_primss, aer_num_primss)
 
 !----------------------------------------------------------------------
 !
 ! Calculate emissions of sea salt aerosol as sectional representation
-! of Gong-Monahan and add to soluble accum and coarse modes.
-! changing ND, MDT and MD accordingly (only sea surface boxes)
+! of 1) Gong-Monahan or 2) Jaegle et al.(2011) and add to soluble accum
+! and coarse modes, changing ND, MDT and MD accordingly
+! (only sea surface boxes)
 !
 ! Purpose
 ! -------
 ! Use flux parametrisation (Smith,93; Smith,98; Monahan, 86;
-! Gong-Monahan, 03) combined with
-! wind stress to calculate flux of sea salt aerosol.
+! Gong-Monahan, 03, Jaegle al.(2011)) combined with
+! wind stress and potentially sea surface temperature to calculate
+! flux of sea salt aerosol.
 !
 ! Inputs
 ! ------
@@ -60,6 +63,8 @@ SUBROUTINE ukca_prim_ss(row_length, rows, model_levels,                        &
 ! SEAICE_FRAC   : Fraction of horizontal gridbox area containing seaice
 ! U_SCALAR_10M  : Scalar wind at 10m (ms-1)
 ! VERBOSE       : Switch for level of verbosity
+! I_PRIMSS_METHOD : Option code to select the parameterization scheme
+! T_STAR        : Sea-surface temperature (K)
 !
 ! Outputs
 ! -------
@@ -118,7 +123,11 @@ USE chemistry_constants_mod,        ONLY: avogadro, boltzmann
 
 USE ukca_mode_setup,                ONLY: cp_cl, nmodes
 
-USE ukca_config_specification_mod,  ONLY: glomap_config, glomap_variables
+USE ukca_config_specification_mod,  ONLY: glomap_config, glomap_variables,     &
+                                          i_primss_method_smith,               &
+                                          i_primss_method_monahan,             &
+                                          i_primss_method_combined,            &
+                                          i_primss_method_jaegle
 
 USE ereport_mod,                    ONLY: ereport
 USE yomhook,                        ONLY: lhook, dr_hook
@@ -139,6 +148,8 @@ INTEGER, INTENT(IN) :: model_levels
 ! No of model levels
 INTEGER, INTENT(IN) :: verbose
 ! Verbosity switch
+INTEGER, INTENT(IN) :: i_primss_method
+! Emission parameterisation
 
 REAL, INTENT(IN)    :: seaice_frac(row_length,rows)
 ! Sea ice fraction
@@ -146,6 +157,8 @@ REAL, INTENT(IN)    :: land_fraction(row_length,rows)
 ! Land fraction
 REAL, INTENT(IN)    :: u_scalar_10m(row_length,rows)
 ! Scalar 10m wind
+REAL, INTENT(IN)    :: tstar(row_length,rows)
+! Surface temperature
 REAL, INTENT(IN OUT) :: aer_mas_primss(row_length,rows,                        &
                                           model_levels,nmodes)
 ! mass ems flux
@@ -177,8 +190,11 @@ REAL    :: boxflux(row_length,rows)
 REAL    :: deln_mflux(row_length,rows)
 REAL    :: bet
 REAL    :: agong
+REAL    :: sst(row_length,rows)
 REAL    :: s98flux(row_length,rows)
 REAL    :: m86flux(row_length,rows)
+REAL    :: j11flux(row_length,rows)
+REAL    :: j11mod(row_length,rows)
 REAL    :: combflux(row_length,rows)
 REAL    :: dfdr(row_length,rows)
 REAL    :: dum
@@ -203,10 +219,6 @@ REAL :: mm_da  ! =avogadro*boltzmann/rgas
 ! Scaling factor for emssion of sea salt
 REAL :: scale_emiss
 
-INTEGER, PARAMETER :: i_method_smith = 1
-INTEGER, PARAMETER :: i_method_monahan = 2
-INTEGER, PARAMETER :: i_method_combined = 3
-INTEGER :: i_ems_method             ! Defines emission method
 CHARACTER(LEN=errormessagelength) :: cmessage       ! Error message
 INTEGER           :: errcode        ! Error code
 
@@ -229,9 +241,6 @@ rhocomp     => glomap_variables%rhocomp
 
 ! Molar mass of dry air (kg/mol)
 mm_da = avogadro*boltzmann/rgas
-
-! .. Set emission method
-i_ems_method = i_method_monahan
 
 IF (glomap_config%l_fix_nacl_density) THEN
   mbsmall = mbsmall_corr_rho
@@ -274,8 +283,8 @@ DO jv = 1,nbins
 
     IF (modemt > 0) THEN
 
-      IF (i_ems_method == i_method_smith .OR.                                  &
-          i_ems_method == i_method_combined) THEN
+      IF (i_primss_method == i_primss_method_smith .OR.                        &
+          i_primss_method == i_primss_method_combined) THEN
         s98flux(:,:) = 0.0
         WHERE (land_fraction < 0.999 .AND. seaice_frac < 0.999)
           ! .. Smith et al. (1998)
@@ -286,8 +295,8 @@ DO jv = 1,nbins
         END WHERE
       END IF
 
-      IF (i_ems_method == i_method_monahan .OR.                                &
-          i_ems_method == i_method_combined) THEN
+      IF (i_primss_method == i_primss_method_monahan .OR.                      &
+          i_primss_method == i_primss_method_combined) THEN
         m86flux(:,:) = 0.0
         bet = (0.433 - LOG10(drmid(jv)*2.0e6))/0.433
         agong = 4.7*(1.0 + 30.0*(drmid(jv)*2.0e6))**(-0.017*                   &
@@ -298,23 +307,48 @@ DO jv = 1,nbins
           m86flux(:,:) = 2.0*1.373*(u_scalar_10m(:,:)**3.41)*                  &
                          (drmid(jv)*2.0e6)**(-agong)*                          &
                          (1.0+0.057*((2.0e6*drmid(jv))**(3.45)))*              &
-                         10.0**(1.607*EXP(-bet*bet))
+                         10.0**(1.607*EXP(-bet**2))
         END WHERE
       END IF
 
+      IF (i_primss_method == i_primss_method_jaegle) THEN
+        j11mod(:,:) = 0.0
+        j11flux(:,:) = 0.0
+        sst(:,:)=tstar(:,:)-273.15 ! Convert sst in kelvin to celsius
+        bet = (0.433 - LOG10(drmid(jv)*2.0e6))/0.433
+        agong = 4.7*(1.0 + 30.0*(drmid(jv)*2.0e6))**(-0.017*                   &
+               (drmid(jv)*2.0e6)**(-1.44))
+        WHERE (land_fraction < 0.999 .AND. seaice_frac < 0.999)
+          ! .. Jaegle (2011) based on Gong (2003) and Monahan (1986)
+          !          (factor of 2.0 to convert dF/dr(80) to dF/dr(dry) )
+          j11mod(:,:)  = 0.3 + (0.1*sst(:,:)) - (0.0076*sst(:,:)**2.0) +       &
+                         (0.00021*sst(:,:)**3.0)
+          j11flux(:,:) = j11mod(:,:) *                                         &
+                         2.0*1.373*(u_scalar_10m(:,:)**3.41)*                  &
+                         (drmid(jv)*2.0e6)**(-agong)*                          &
+                         (1.0+0.057*((2.0e6*drmid(jv))**(3.45)))*              &
+                         10.0**(1.607*EXP(-bet**2))
+        END WHERE
+        WHERE (j11flux < 0.0) j11flux = 0.0 ! Just in case negative SSTs
+      END IF
 
       ! .. Choose Smith, Monahan, or combined flux
-      IF (i_ems_method == i_method_smith) THEN
+      IF (i_primss_method == i_primss_method_smith) THEN
         dfdr(:,:) = s98flux(:,:)
         IF (verbose >= 2) CALL umPrint(                                        &
             'Smith sea-salt flux scheme selected',                             &
             src='ukca_prim_ss')
-      ELSE IF (i_ems_method == i_method_monahan) THEN
+      ELSE IF (i_primss_method == i_primss_method_monahan) THEN
         dfdr(:,:) = m86flux(:,:)
         IF (verbose >= 2) CALL umPrint(                                        &
             'Monahan sea-salt flux scheme selected',                           &
             src='ukca_prim_ss')
-      ELSE IF (i_ems_method == i_method_combined) THEN
+      ELSE IF (i_primss_method == i_primss_method_jaegle) THEN
+        dfdr(:,:) = j11flux(:,:)
+        IF (verbose >= 2) CALL umPrint(                                        &
+            'Jaegle sea-salt flux scheme selected',                            &
+            src='ukca_prim_ss')
+      ELSE IF (i_primss_method == i_primss_method_combined) THEN
         ! .. If using a combination of Smith and Monahan, then the
         !     recommendation is to use the larger of the two fluxes
         !     at any radius

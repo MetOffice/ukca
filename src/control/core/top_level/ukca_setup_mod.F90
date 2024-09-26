@@ -88,6 +88,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       i_ukca_dms_flux,                                         &
                       i_ukca_light_param,                                      &
                       i_strat_lbc_source,                                      &
+                      i_primss_method,                                         &
                       env_log_step,                                            &
                       i_mode_nzts,                                             &
                       ukca_mode_seg_size,                                      &
@@ -385,6 +386,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: i_mode_nucscav
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_activation_scheme
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_nwbins
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_tune_bc
+INTEGER, OPTIONAL, INTENT(IN) :: i_primss_method
 
 REAL, OPTIONAL, INTENT(IN) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(IN) :: timestep
@@ -1202,10 +1204,12 @@ IF (ukca_config%l_ukca_mode) THEN
         glomap_config%l_ukca_scale_biom_aer_ems = l_ukca_scale_biom_aer_ems
     END IF
 
-    ! Sea salt scaling
+    ! Sea salt scaling and parameterisation method
     IF (glomap_config%l_ukca_primss) THEN
       IF (PRESENT(l_ukca_scale_sea_salt_ems))                                  &
         glomap_config%l_ukca_scale_sea_salt_ems = l_ukca_scale_sea_salt_ems
+      IF (PRESENT(i_primss_method))                                            &
+        glomap_config%i_primss_method = i_primss_method
     END IF
     ! Marine POM scaling
     IF (glomap_config%l_ukca_prim_moc .AND.                                    &

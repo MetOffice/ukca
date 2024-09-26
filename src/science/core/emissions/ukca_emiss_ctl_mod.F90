@@ -864,9 +864,9 @@ IF (glomap_config%l_ukca_primss) THEN
   END IF
   aer_emmas(:,:,:,:) = 0.0
   aer_emnum(:,:,:,:) = 0.0
-  CALL ukca_prim_ss(row_length, rows, model_levels,                            &
-                    verbose, land_fraction, seaice_frac, u_scalar_10m,         &
-                    aer_emmas, aer_emnum)
+  CALL ukca_prim_ss(row_length, rows, model_levels, verbose,                   &
+                    glomap_config%i_primss_method, land_fraction, seaice_frac, &
+                    u_scalar_10m, tstar, aer_emmas, aer_emnum)
 
   ! Convert mass emission to kg(component)/m2/s
   mm_da = avogadro*boltzmann/rgas  ! Molar mass of dry air (kg/mol)
