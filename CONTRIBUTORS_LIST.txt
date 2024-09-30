@@ -22,7 +22,7 @@ Charlotte Norris                Met Office
 Roddy Sharp                     Met Office
 Marc Stringer                   National Centre for Atmospheric Science and
                                 University of Reading
-Joseph Wallwork                 Met Office
+Joseph Wallwork                 University of Cambridge
 James Weber                     University of Sheffield
 May Chim                        University of Cambridge
 Benjamin Drummond               Met Office

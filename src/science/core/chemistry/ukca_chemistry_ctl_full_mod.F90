@@ -61,7 +61,7 @@ SUBROUTINE ukca_chemistry_ctl_full(                                            &
                 atm_mebr_mol,                                                  &
                 atm_h2_mol,                                                    &
                 H_plus,                                                        &
-                zdryrt, zwetrt, nlev_with_ddep, L_troposphere,                 &
+                zdryrt, zwetrt, nlev_with_ddep, L_stratosphere,                &
                 co2_interactive, firstcall                                     &
                 )
 
@@ -160,8 +160,8 @@ TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(dim_ntp)
 
 ! Mask to limit formation of Nat below specified height
 LOGICAL, INTENT(IN) :: have_nat(tot_n_pnts)
-! Tropospheric mask
-LOGICAL, INTENT(IN) :: L_troposphere(tot_n_pnts)
+! Stratospheric mask
+LOGICAL, INTENT(IN) :: L_stratosphere(tot_n_pnts)
 
 ! Flag for determining if this is the first chemistry call
 LOGICAL, INTENT(IN) :: firstcall
@@ -225,7 +225,7 @@ IF (ukca_config%l_ukca_het_psc) THEN
 END IF
 
 ! Fill stratospheric flag indicator and ntp_data array
-stratflag(:) = (.NOT. L_troposphere(:))
+stratflag(:) = (L_stratosphere(:))
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                        &
 !$OMP SHARED(all_ntp, ntp_data, tot_n_pnts)
 !$OMP DO SCHEDULE(DYNAMIC)
