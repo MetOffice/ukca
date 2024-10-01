@@ -113,6 +113,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       mode_activation_dryr,                                    &
                       mode_incld_so2_rfrac,                                    &
                       biom_aer_ems_scaling,                                    &
+                      hno3_uptake_coeff,                                       &
                       ph_fit_coeff_a,                                          &
                       ph_fit_coeff_b,                                          &
                       ph_fit_intercept,                                        &
@@ -407,6 +408,7 @@ REAL, OPTIONAL, INTENT(IN) :: ph_fit_coeff_a
 REAL, OPTIONAL, INTENT(IN) :: ph_fit_coeff_b
 REAL, OPTIONAL, INTENT(IN) :: ph_fit_intercept
 REAL, OPTIONAL, INTENT(IN) :: sigwmin
+REAL, OPTIONAL, INTENT(IN) :: hno3_uptake_coeff
 
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cal360
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_chem_aero
@@ -1244,6 +1246,8 @@ IF (ukca_config%l_ukca_mode) THEN
     glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
   IF (PRESENT(l_no3_prod_in_aero_step))                                        &
     glomap_config%l_no3_prod_in_aero_step = l_no3_prod_in_aero_step
+  IF (PRESENT(hno3_uptake_coeff))                                              &
+    glomap_config%hno3_uptake_coeff = hno3_uptake_coeff
 
   ! -- GLOMAP feedback configuration options ---------------------------
 

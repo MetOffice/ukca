@@ -459,6 +459,7 @@ TYPE :: glomap_config_spec_type
   LOGICAL :: l_ukca_fine_no3_prod      ! True for fine mode NO3/NH4 emissions
   LOGICAL :: l_ukca_coarse_no3_prod    ! True for coarse mode NO3 emissions
   LOGICAL :: l_no3_prod_in_aero_step   ! True for nitrate emissions in MODE
+  REAL :: hno3_uptake_coeff            ! HNO3 uptake coefficient for nitrate
   REAL :: sea_salt_ems_scaling         ! Sea salt emission scaling factor
   REAL :: marine_pom_ems_scaling       ! Marine POM emission scaling factor
   INTEGER :: i_primss_method           ! Sea-salt emission options
@@ -1036,6 +1037,7 @@ glomap_config%biom_aer_ems_scaling = rmdi
 glomap_config%l_ukca_fine_no3_prod = .FALSE.
 glomap_config%l_ukca_coarse_no3_prod = .FALSE.
 glomap_config%l_no3_prod_in_aero_step = .FALSE.
+glomap_config%hno3_uptake_coeff = rmdi
 glomap_config%l_ukca_scale_sea_salt_ems = .FALSE.
 glomap_config%sea_salt_ems_scaling = rmdi
 glomap_config%l_ukca_scale_marine_pom_ems = .FALSE.
@@ -1151,6 +1153,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_dust_ageing_on,                                                           &
    mode_incld_so2_rfrac,                                                       &
    biom_aer_ems_scaling,                                                       &
+   hno3_uptake_coeff,                                                          &
    sigwmin,                                                                    &
    l_cal360,                                                                   &
    l_ukca_chem_aero,                                                           &
@@ -1344,6 +1347,7 @@ REAL, OPTIONAL, INTENT(OUT) :: sigwmin
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_coeff_a
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_coeff_b
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_intercept
+REAL, OPTIONAL, INTENT(OUT) :: hno3_uptake_coeff
 
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_cal360
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem_aero
@@ -1775,6 +1779,8 @@ IF (PRESENT(l_ukca_coarse_no3_prod))                                           &
    l_ukca_coarse_no3_prod = glomap_config%l_ukca_coarse_no3_prod
 IF (PRESENT(l_no3_prod_in_aero_step))                                          &
    l_no3_prod_in_aero_step = glomap_config%l_no3_prod_in_aero_step
+IF (PRESENT(hno3_uptake_coeff))                                                &
+   hno3_uptake_coeff = glomap_config%hno3_uptake_coeff
 IF (PRESENT(l_ukca_scale_sea_salt_ems))                                        &
   l_ukca_scale_sea_salt_ems = glomap_config%l_ukca_scale_sea_salt_ems
 IF (PRESENT(sea_salt_ems_scaling))                                             &

@@ -974,6 +974,7 @@ IF (glomap_config%l_ukca_fine_no3_prod .AND.                                   &
   ! Call UKCA_PROD_NO3_FINE
   CALL ukca_prod_no3_fine(                                                     &
                     row_length,rows,model_levels,timestep,                     &
+                    glomap_config%hno3_uptake_coeff,                           &
                     t_theta_levels, rel_humid_frac_clr, air_density,           &
                     air_burden, tracers(:,:,:,                                 &
                                  n_chem_tracers+n_aero_tracers+1:              &

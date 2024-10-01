@@ -45,8 +45,8 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
  imscav_on,wetox_on,ddepaer_on,sedi_on,iso2wetoxbyo3,                          &
  dryox_in_aer,wetox_in_aer,delso2,delso2_2,                                    &
  cond_on,nucl_on,coag_on,bln_on,icoag,                                         &
- imerge,fine_no3_prod_on,coarse_no3_prod_on,ifuchs,                            &
- idcmfp,icondiam,ibln,i_nuc_method,                                            &
+ imerge,fine_no3_prod_on,coarse_no3_prod_on,hno3_uptake_coeff,                 &
+ ifuchs,idcmfp,icondiam,ibln,i_nuc_method,                                     &
  iactmethod,iddepaer,inucscav,lcvrainout,l_dust_slinn_impc_scav,               &
  verbose,checkmd_nd,intraoff,                                                  &
  interoff,s0g_dot_condensable,lwc,clwc,pvol,pvol_wat,                          &
@@ -119,6 +119,7 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !  IMERGE      : Switch to use mid-pts (=1), edges (2) or dynamic (=3)
 !  FINE_NO3_PROD_ON   : Switch: controls if fine NO3 production is on
 !  COARSE_NO3_PROD_ON : Switch: controls if coarse NO3 production is on
+!  HNO3_UPTAKE_COEFF  : Uptake coefficient for HNO3 in fine NO3 production
 !  IFUCHS      : Switch : Fuchs (1964) or Fuchs-Sutugin (1971) for CC
 !  IACTMETHOD  : Switch : activation method (0=off,1=fixed ract,2=NSO3)
 !  IDDEPAER    : Switch : dry dep method (1=as in Spr05, 2=incl. sedi)
@@ -440,6 +441,7 @@ REAL, INTENT(IN) :: lwc(nbox)
 REAL, INTENT(IN) :: clwc(nbox)
 REAL, INTENT(IN) :: htpblg(nbox)
 REAL, INTENT(IN) :: height(nbox)
+REAL, INTENT(IN) :: hno3_uptake_coeff
 !
 ! .. Outputs
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
@@ -948,8 +950,8 @@ DO imts=1,nmts
       !
       !        Do nitrate chemistry - split into fine and coarse production
       IF (fine_no3_prod_on == 1) THEN
-        CALL ukca_fine_no3(nbox,nadvg,nbudaer,dtz,rhoa,aird,wetdp,RH_clr,t,sm, &
-                           mfpa,nd,md,mdt,s0g,bud_aer_mas)
+        CALL ukca_fine_no3(nbox,nadvg,nbudaer,hno3_uptake_coeff,dtz,rhoa,aird, &
+                           wetdp,RH_clr,t,sm,mfpa,nd,md,mdt,s0g,bud_aer_mas)
         !
         IF (checkmd_nd == 1) THEN
           process='Done fine nitrate production'

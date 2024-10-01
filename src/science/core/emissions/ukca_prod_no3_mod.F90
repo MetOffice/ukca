@@ -36,9 +36,9 @@ CONTAINS
 
 SUBROUTINE ukca_prod_no3_fine(                                                 &
                         row_length, rows, model_levels, timestep,              &
-                        t_theta_levels, rel_humid_frac_clr, air_density,       &
-                        air_burden, mode_tracers, nh3_mmr, hono2_mmr,          &
-                        dust_div1, dust_div2, dust_div3,                       &
+                        zghno3, t_theta_levels, rel_humid_frac_clr,            &
+                        air_density, air_burden, mode_tracers, nh3_mmr,        &
+                        hono2_mmr, dust_div1, dust_div2, dust_div3,            &
                         dmas_no3, dnum_no3, dmas_nh4, dnum_nh4)
 
 USE ukca_mode_setup,         ONLY: nmodes, cp_no3, cp_nh4, cp_su,              &
@@ -66,6 +66,7 @@ INTEGER, INTENT(IN) :: row_length
 INTEGER, INTENT(IN) :: rows
 INTEGER, INTENT(IN) :: model_levels
 REAL,    INTENT(IN) :: timestep
+REAL,    INTENT(IN) :: zghno3 ! HNO3 uptake coefficient (default=0.193)
 
 !     Atmosphere state variables
 REAL, INTENT(IN)    :: t_theta_levels(1:row_length,1:rows,1:model_levels)
@@ -163,7 +164,6 @@ REAL :: zdg0, zkn, totrate, tau_tot, tau_fac, nk1, nk2 , nk3
 REAL, PARAMETER :: zrgas = 8.314         ! Gas constant [J/mol/K]
 REAL, PARAMETER :: zmgas = 29.0e-3        ! Molecular weight dry air [Kg mol-1]
 REAL, PARAMETER :: zdmolec = 4.5e-10     ! Molec diameter air [m]
-REAL, PARAMETER :: zghno3 = 0.193        ! HNO3 uptake coefficient
 REAL, PARAMETER :: zratiohno3 = (63.0e-3+29e-3) / 63.0e-3
 REAL, PARAMETER :: minconc = 1.0e-40      ! Min mass concentration
 REAL, PARAMETER :: c1 = 0.6628           ! Parameters for hygroscopic growth

@@ -36,7 +36,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_FINE_NO3_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_fine_no3(nbox,nadvg,nbudaer,dtz,rhoa,aird,wetdp,RH_clr,t,sm,   &
+SUBROUTINE ukca_fine_no3(nbox,nadvg,nbudaer,zghno3,dtz,rhoa,aird,wetdp,RH_clr,t,sm,   &
                          mfpa,nd,md,mdt,s0g,bud_aer_mas)
 
 !----------------------------------------------------------------------
@@ -50,6 +50,7 @@ SUBROUTINE ukca_fine_no3(nbox,nadvg,nbudaer,dtz,rhoa,aird,wetdp,RH_clr,t,sm,   &
 !  NBOX        : Number of grid boxes
 !  nadvg       : Number of gas phase advected tracers
 !  nbudaer     : Number of aerosol budget fields
+!  ZGHNO3      : HNO3 uptake coefficient
 !  RHOA        : Air density (kg/m3)
 !  AIRD        : Number density of air (per cm3)
 !  WETDP       : Geometric mean wet diameter for each mode (m)
@@ -85,6 +86,7 @@ IMPLICIT NONE
 INTEGER, INTENT(IN)  :: nbox
 INTEGER, INTENT(IN)  :: nadvg
 INTEGER, INTENT(IN)  :: nbudaer
+REAL,    INTENT(IN)  :: zghno3
 REAL,    INTENT(IN)  :: dtz
 REAL,    INTENT(IN)  :: wetdp(nbox,nmodes)
 REAL,    INTENT(IN)  :: t(nbox)
@@ -167,7 +169,6 @@ INTEGER :: i, icp, imode, updmode, idx
 REAL, PARAMETER :: zrgas = 8.314         ! Gas constant [J/mol/K]
 REAL, PARAMETER :: zmgas = 29.0e-3        ! Molecular weight dry air [Kg mol-1]
 REAL, PARAMETER :: zdmolec = 4.5e-10     ! Molec diameter air [m]
-REAL, PARAMETER :: zghno3 = 0.193        ! HNO3 uptake coefficient
 REAL, PARAMETER :: zratiohno3 = (63.0e-3+29e-3) / 63.0e-3
 REAL, PARAMETER :: zghno315_dd = 1.0e-5
 REAL, PARAMETER :: zghno330_dd = 1.0e-4

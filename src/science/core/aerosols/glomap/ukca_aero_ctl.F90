@@ -480,6 +480,9 @@ REAL :: y(nmodes)
 ! Molar mass of dry air (kg/mol)
 REAL :: mm_da  ! =avogadro*boltzmann/rgas
 
+! HNO3 uptake coefficient
+REAL :: hno3_uptake_coeff
+
 ! Items for MDT too low/hi check
 REAL :: mdtmin(nmodes, nseg)
 
@@ -959,6 +962,7 @@ IF (firstcall .AND. verbose > 0) THEN
 END IF
 
 ! Set whether nitrate emissions are handled here
+hno3_uptake_coeff = glomap_config%hno3_uptake_coeff
 IF (glomap_config%l_no3_prod_in_aero_step .AND.                                &
     glomap_config%l_ukca_fine_no3_prod) THEN
   fine_no3_prod_on = 1
@@ -975,6 +979,8 @@ IF (firstcall .AND. verbose > 0) THEN
   WRITE(umMessage, '(A22,I6)') 'FINE_NO3_PROD_ON   = ', fine_no3_prod_on
   CALL umPrint(umMessage, src='ukca_aero_ctl')
   WRITE(umMessage, '(A22,I6)') 'COARSE_NO3_PROD_ON = ', coarse_no3_prod_on
+  CALL umPrint(umMessage, src='ukca_aero_ctl')
+  WRITE(umMessage, '(A22,E15.4)') 'HNO3_UPTAKE_COEFF = ', hno3_uptake_coeff
   CALL umPrint(umMessage, src='ukca_aero_ctl')
 END IF
 
@@ -1308,7 +1314,7 @@ END IF
 !$OMP nmasprimnhaccsol, nmasprimnhcorsol,nmascondnnaccsol, nmascondnncorsol,   &
 !$OMP nmax_mode_diags,nmr_index,nucl_on, nseg,nukca_d1items,                   &
 !$OMP wetox_on, cond_on, coag_on,                                              &
-!$OMP fine_no3_prod_on, coarse_no3_prod_on,                                    &
+!$OMP fine_no3_prod_on, coarse_no3_prod_on, hno3_uptake_coeff,                 &
 !$OMP num_eps, nzts, p_bdrs, pres, q,                                          &
 !$OMP rainout_on, rgas, rh3d, rh3d_clr, root2, row_length, rows,               &
 !$OMP sea_ice_frac, scale_delso2, sigmag, stride_s, temp, u_s,                 &
@@ -2001,6 +2007,8 @@ DO ik = 1, nseg
     CALL umPrint(umMessage, src='ukca_aero_ctl')
     WRITE(umMessage, '(A15,I4)') 'COARSE_NO3_ON=', coarse_no3_prod_on
     CALL umPrint(umMessage, src='ukca_aero_ctl')
+    WRITE(umMessage, '(A19,E15.4)') 'HNO3_UPTAKE_COEFF=', hno3_uptake_coeff
+    CALL umPrint(umMessage, src='ukca_aero_ctl')
     WRITE(umMessage, '(A15,I4)') 'COAG_ON=', coag_on
     CALL umPrint(umMessage, src='ukca_aero_ctl')
     WRITE(umMessage, '(A15,I4)') 'ICOAG=', icoag
@@ -2056,7 +2064,7 @@ DO ik = 1, nseg
                       ddepaer_on, sedi_on, iso2wetoxbyo3, dryox_in_aer,        &
                       wetox_in_aer, seg_delso2, seg_delso2_2,                  &
                       cond_on, nucl_on, coag_on, bln_on, icoag, imerge,        &
-                      fine_no3_prod_on, coarse_no3_prod_on,                    &
+                      fine_no3_prod_on, coarse_no3_prod_on, hno3_uptake_coeff, &
                       ifuchs, idcmfp, icondiam, ibln, i_nuc_method,            &
                       iactmethod, iddepaer, inucscav,                          &
                       lcvrainout, l_dust_slinn_impc_scav, verbose_local,       &
