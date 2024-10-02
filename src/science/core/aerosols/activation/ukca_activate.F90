@@ -1271,7 +1271,7 @@ SUBROUTINE ukca_activate_calc_updraft_velocity ( row_length,                   &
                                                  bl_tke,                       &
                                                  sigw )
 
-USE ukca_config_specification_mod, ONLY: glomap_config
+USE ukca_config_specification_mod, ONLY: glomap_config, ukca_config
 
 USE parkind1,             ONLY:                                                &
     jprb,                                                                      &
@@ -1319,6 +1319,10 @@ IF (glomap_config%l_bug_repro_tke_index) THEN
   sigw(:,:,1)=glomap_config%sigwmin
   DO k=2, bl_levels
     sigw(:,:,k)=MAX(glomap_config%sigwmin,(two_thirds*bl_tke(:,:,k-1))**0.5)
+    ! Apply scaling to updraught velocity
+    IF (ukca_config%l_ukca_scale_ppe) THEN
+      sigw(:,:,k) = sigw(:,:,k) * glomap_config%sigma_updraught_scaling
+    END IF
   END DO
   DO k = bl_levels + 1, model_levels
     sigw(:,:,k)=glomap_config%sigwmin
@@ -1326,6 +1330,10 @@ IF (glomap_config%l_bug_repro_tke_index) THEN
 ELSE
   DO k=1, bl_levels - 1
     sigw(:,:,k)=MAX(glomap_config%sigwmin,(two_thirds*bl_tke(:,:,k))**0.5)
+    ! Apply scaling to updraught velocity
+    IF (ukca_config%l_ukca_scale_ppe) THEN
+      sigw(:,:,k) = sigw(:,:,k) * glomap_config%sigma_updraught_scaling
+    END IF
   END DO
   DO k = bl_levels, model_levels
     sigw(:,:,k)=glomap_config%sigwmin

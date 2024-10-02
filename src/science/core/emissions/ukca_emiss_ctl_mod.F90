@@ -1075,6 +1075,25 @@ END DO
 ! End of aerosol emission into modes
 ! ----------------------------------------------------------------------
 
+! Parameter Scaling
+! Antropogenic SO2 emissions
+IF (ukca_config%l_ukca_scale_ppe) THEN
+  ! SO2
+  DO l=1,num_em_flds
+    IF (emissions(l)%tracer_name == 'SO2_low   ' .AND.                         &
+        emissions(l)%l_update) THEN
+      emissions(l)%values(:,:,1) = emissions(l)%values(:,:,1) *                &
+                                   ukca_config%anth_so2_ems_scaling
+    END IF
+    IF (emissions(l)%tracer_name == 'SO2_high  ' .AND.                         &
+        emissions(l)%l_update) THEN
+      emissions(l)%values(:,:,1) = emissions(l)%values(:,:,1) *                &
+                                   ukca_config%anth_so2_ems_scaling
+    END IF
+  END DO
+END IF
+
+
 ! ----------------------------------------------------------------------
 ! Inject emissions and do tracer mixing
 CALL ukca_add_emiss (                                                          &

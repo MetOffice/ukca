@@ -104,13 +104,17 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       max_z_for_offline_chem,                                  &
                       soa_yield_scaling_mt,                                    &
                       soa_yield_scaling_isop,                                  &
+                      dry_depvel_so2_scaling,                                  &
                       fastjx_prescutoff,                                       &
                       mode_parfrac,                                            &
                       seadms_ems_scaling,                                      &
                       sea_salt_ems_scaling,                                    &
                       marine_pom_ems_scaling,                                  &
                       lightnox_scale_fac,                                      &
+                      anth_so2_ems_scaling,                                    &
                       mode_activation_dryr,                                    &
+                      dry_depvel_acc_scaling,                                  &
+                      acc_cor_scav_scaling,                                    &
                       mode_incld_so2_rfrac,                                    &
                       biom_aer_ems_scaling,                                    &
                       hno3_uptake_coeff,                                       &
@@ -118,6 +122,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       ph_fit_coeff_b,                                          &
                       ph_fit_intercept,                                        &
                       sigwmin,                                                 &
+                      sigma_updraught_scaling,                                 &
                       l_cal360,                                                &
                       l_ukca_chem_aero,                                        &
                       l_ukca_mode,                                             &
@@ -130,6 +135,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_ukca_emissions_off,                                    &
                       l_ukca_drydep_off,                                       &
                       l_ukca_wetdep_off,                                       &
+                      l_ukca_scale_ppe,                                        &
                       l_ukca_asad_columns,                                     &
                       l_ukca_asad_full,                                        &
                       l_ukca_debug_asad,                                       &
@@ -399,9 +405,13 @@ REAL, OPTIONAL, INTENT(IN) :: seadms_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: sea_salt_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: marine_pom_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: lightnox_scale_fac
+REAL, OPTIONAL, INTENT(IN) :: anth_so2_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling_mt
 REAL, OPTIONAL, INTENT(IN) :: soa_yield_scaling_isop
+REAL, OPTIONAL, INTENT(IN) :: dry_depvel_so2_scaling
 REAL, OPTIONAL, INTENT(IN) :: mode_activation_dryr
+REAL, OPTIONAL, INTENT(IN) :: dry_depvel_acc_scaling
+REAL, OPTIONAL, INTENT(IN) :: acc_cor_scav_scaling
 REAL, OPTIONAL, INTENT(IN) :: mode_incld_so2_rfrac
 REAL, OPTIONAL, INTENT(IN) :: biom_aer_ems_scaling
 REAL, OPTIONAL, INTENT(IN) :: ph_fit_coeff_a
@@ -409,6 +419,7 @@ REAL, OPTIONAL, INTENT(IN) :: ph_fit_coeff_b
 REAL, OPTIONAL, INTENT(IN) :: ph_fit_intercept
 REAL, OPTIONAL, INTENT(IN) :: sigwmin
 REAL, OPTIONAL, INTENT(IN) :: hno3_uptake_coeff
+REAL, OPTIONAL, INTENT(IN) :: sigma_updraught_scaling
 
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cal360
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_chem_aero
@@ -422,6 +433,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_timer
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_emissions_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_drydep_off
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_wetdep_off
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_ppe
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_asad_columns
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_asad_full
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_debug_asad
@@ -618,6 +630,9 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
     ukca_config%l_ukca_wetdep_off = l_ukca_wetdep_off
 
 END IF
+
+! PPE scalings
+IF (PRESENT(l_ukca_scale_ppe)) ukca_config%l_ukca_scale_ppe = l_ukca_scale_ppe
 
 ! Age-of-air configuration
 
@@ -829,6 +844,11 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   END IF
 
+  IF (ukca_config%l_ukca_scale_ppe) THEN
+    IF (PRESENT(dry_depvel_so2_scaling))                                       &
+      ukca_config%dry_depvel_so2_scaling = dry_depvel_so2_scaling
+  END IF
+
   ! -- Chemistry - Heterogeneous chemistry --
 
   IF (PRESENT(l_ukca_het_psc)) ukca_config%l_ukca_het_psc = l_ukca_het_psc
@@ -956,6 +976,11 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
   ! are not suppressed
   IF (.NOT. ukca_config%l_suppress_ems .AND. PRESENT(nlev_ent_tr_mix))         &
     ukca_config%nlev_ent_tr_mix = nlev_ent_tr_mix
+
+  IF (ukca_config%l_ukca_scale_ppe) THEN
+    IF (PRESENT(anth_so2_ems_scaling))                                         &
+      ukca_config%anth_so2_ems_scaling = anth_so2_ems_scaling
+  END IF
 
 END IF
 
@@ -1119,6 +1144,17 @@ IF (ukca_config%l_ukca_mode) THEN
   IF (PRESENT(l_dust_ageing_on))                                               &
     glomap_config%l_dust_ageing_on = l_dust_ageing_on
 
+
+  IF (ukca_config%l_ukca_scale_ppe) THEN
+    IF (PRESENT(dry_depvel_acc_scaling))                                       &
+      glomap_config%dry_depvel_acc_scaling = dry_depvel_acc_scaling
+  END IF
+
+  IF (ukca_config%l_ukca_scale_ppe) THEN
+    IF (PRESENT(acc_cor_scav_scaling))                                         &
+      glomap_config%acc_cor_scav_scaling = acc_cor_scav_scaling
+  END IF
+
   ! -- GLOMAP deposition configuration options --
 
   ! Dry deposition
@@ -1281,6 +1317,11 @@ IF (ukca_config%l_ukca_mode) THEN
 
     END IF
 
+  END IF
+
+  IF (ukca_config%l_ukca_scale_ppe) THEN
+    IF (PRESENT(sigma_updraught_scaling))                                      &
+      glomap_config%sigma_updraught_scaling = sigma_updraught_scaling
   END IF
 
   ! -- GLOMAP temporary logicals ---------------------------------------

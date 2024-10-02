@@ -191,6 +191,15 @@ DO loop = 1, ndepd
   END DO
 END DO
 
+! Parameter scaling: scale the dry deposition velocity for SO2
+IF (ukca_config%l_ukca_scale_ppe) THEN
+  DO j = 1, ndepd
+    IF (speci(nldepd(j)) == 'SO2       ') THEN
+      vd(:,:,:,j) = vd(:,:,:,j) * ukca_config%dry_depvel_so2_scaling
+    END IF
+  END DO
+END IF
+
 ! Now write dry deposition velocities for each tile to respective STASH items
 IF ( ukca_config%l_enable_diag_um ) THEN
   DO loop = 1, ndepd

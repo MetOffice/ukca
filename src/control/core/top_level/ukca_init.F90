@@ -866,6 +866,51 @@ IF (ukca_config%l_ukca_so2ems_plumeria .AND.                                   &
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
+! dry_depvel_so2_scaling - valid range 0. - 10.
+IF ( (ukca_config%dry_depvel_so2_scaling < 0.0 .OR.                            &
+      ukca_config%dry_depvel_so2_scaling > 10.0) .AND.                         &
+     ukca_config%l_ukca_scale_ppe ) THEN
+  cmessage='dry_depvel_so2_scaling should be between 0.0 - 10.0'
+  errcode = 51
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! anth_so2_ems_scaling - valid range 0. - 10.
+IF ( (ukca_config%anth_so2_ems_scaling < 0.0 .OR.                              &
+      ukca_config%anth_so2_ems_scaling > 10.0) .AND.                           &
+     ukca_config%l_ukca_scale_ppe ) THEN
+  cmessage='anth_so2_ems_scaling should be between 0.0 - 10.0'
+  errcode = 50
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! dry_depvel_acc_scaling - valid range 0. - 10.
+IF ( (glomap_config%dry_depvel_acc_scaling < 0.0 .OR.                          &
+      glomap_config%dry_depvel_acc_scaling > 10.0) .AND.                       &
+     ukca_config%l_ukca_scale_ppe ) THEN
+  cmessage='dry_depvel_acc_scaling should be between 0.0 - 10.0'
+  errcode = 53
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! acc_cor_scav_scaling - valid range 0. - 10.
+IF ( (glomap_config%acc_cor_scav_scaling < 0.0 .OR.                            &
+      glomap_config%acc_cor_scav_scaling > 10.0) .AND.                         &
+     ukca_config%l_ukca_scale_ppe ) THEN
+  cmessage='acc_cor_scav_scaling should be between 0.0 - 10.0'
+  errcode = 54
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! sigma_updraught_scaling - valid range 0. - 10.
+IF ( (glomap_config%sigma_updraught_scaling < 0.0 .OR.                         &
+      glomap_config%sigma_updraught_scaling > 10.0) .AND.                      &
+     ukca_config%l_ukca_scale_ppe ) THEN
+  cmessage='sigma_updraught_scaling should be between 0.0 - 10.0'
+  errcode = 52
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE check_settings
