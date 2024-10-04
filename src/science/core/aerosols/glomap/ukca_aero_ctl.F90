@@ -572,6 +572,10 @@ REAL :: seg_ccn_1(nbox)
 REAL :: seg_ccn_2(nbox)
 ! CCN concentration (acc-sol + cor-sol + Aitsol>35nm drydp)
 REAL :: seg_ccn_3(nbox)
+! CCN concentration (acc-sol + cor-sol + Aitsol/ins>15nm drydp)
+REAL :: seg_ccn_4(nbox)
+! CCN concentration (acc-sol + cor-sol + Aitsol/ins>25nm drydp)
+REAL :: seg_ccn_5(nbox)
 ! CDN concentration
 REAL :: seg_cdn(nbox)
 ! Liquid Cloud fraction
@@ -1325,12 +1329,12 @@ END IF
 !$OMP             ic, icp, ik, itra, imode, j, jl, jl2, jv, k,                 &
 !$OMP             l, lb, logic, logic1, logic2, n, ncs, nbs, nbs_index,        &
 !$OMP             seg_aird, seg_airdm3, seg_autoconv1d, seg_bud_aer_mas,       &
-!$OMP             seg_ccn_1, seg_ccn_2, seg_ccn_3, seg_cdn, seg_clf,           &
-!$OMP             seg_clwc, seg_cn_3nm, seg_craing, seg_craing_up,             &
-!$OMP             seg_csnowg, seg_delso2, seg_delso2_2, seg_draing,            &
-!$OMP             seg_drydp, seg_dsnowg, seg_dvisc, seg_dvol, seg_erf_arg,     &
-!$OMP             seg_erfterm, seg_fac, seg_fconv_conv, seg_height,            &
-!$OMP             seg_het_rates, seg_htpblg, seg_iarr, seg_ilscat,             &
+!$OMP             seg_ccn_1, seg_ccn_2, seg_ccn_3, seg_ccn_4, seg_ccn_5,       &
+!$OMP             seg_cdn,seg_clf, seg_clwc, seg_cn_3nm, seg_craing,           &
+!$OMP             seg_craing_up,seg_csnowg, seg_delso2, seg_delso2_2,          &
+!$OMP             seg_draing,seg_drydp, seg_dsnowg, seg_dvisc, seg_dvol,       &
+!$OMP             seg_erf_arg,seg_erfterm, seg_fac, seg_fconv_conv,            &
+!$OMP             seg_height,seg_het_rates, seg_htpblg, seg_iarr, seg_ilscat,  &
 !$OMP             seg_jlabove, seg_karr, seg_land_frac, seg_larr, seg_lday,    &
 !$OMP             seg_lowcloud, seg_lwc, seg_md, seg_mdt, seg_mdtfixflag,      &
 !$OMP             seg_mdtfixsink, seg_mdwat, seg_mfpa, seg_n_merge_1d,         &
@@ -2271,6 +2275,8 @@ DO ik = 1, nseg
     seg_cn_3nm(jl) = 0.0
     seg_ccn_2(jl)  = 0.0
     seg_ccn_3(jl)  = 0.0
+    seg_ccn_4(jl)  = 0.0
+    seg_ccn_5(jl)  = 0.0
   END DO
 
   DO imode = 1, nmodes
@@ -2305,6 +2311,23 @@ DO ik = 1, nseg
           !
         END DO
       END IF
+      DO jl = 1, nbs
+        jl2 = nbs_index(imode - 1) + jl
+        ! For CCN_4 take CCN for particles > 15nm dry radius, including insoluble
+        dp0 = 30.0e-9
+        seg_erf_arg(jl) = LOG(dp0 / seg_drydp(jl2)) /                          &
+                          (root2 * log_sigmag(imode))
+        seg_erfterm(jl) = 0.5 * seg_nd(jl2) * (1.0 - umErf(seg_erf_arg(jl)))
+        seg_ccn_4(jl) = seg_ccn_4(jl) + seg_erfterm(jl)
+        !
+        ! For CCN_5 take CCN for particles > 25nm dry radius, including insoluble
+        dp0 = 50.0e-9
+        seg_erf_arg(jl) = LOG(dp0 / seg_drydp(jl2)) /                          &
+                          (root2 * log_sigmag(imode))
+        seg_erfterm(jl) = 0.5 * seg_nd(jl2) * (1.0 - umErf(seg_erf_arg(jl)))
+        seg_ccn_5(jl) = seg_ccn_5(jl) + seg_erfterm(jl)
+        !
+      END DO
     END IF
   END DO
 
@@ -2467,7 +2490,7 @@ DO ik = 1, nseg
         ! sarea1-7 - 416-422
         ! vconc1-7 - 423-429
         ! rhop 1-7 - 430-436
-        ! cnccncdn - 437-441
+        ! cnccncdn - 437-441, 700-701
         ! pvol,wat - 442-468
         ! ACTIVATE - 469-485
         ! plumescav - 486-496
@@ -4148,6 +4171,12 @@ DO ik = 1, nseg
           CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
                           seg_mdtfixflag(nbs_index(7)+1:nbs_index(8)),         &
                           mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+499)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_ccn_4(1:nbs), mode_diags(1, 1, 1, k))
+        CASE (item1_mode_diags+500)
+          CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
+                          seg_ccn_5(1:nbs), mode_diags(1, 1, 1, k))
         CASE DEFAULT
           cmessage = ' Item not found in CASE statement'
           CALL ereport('UKCA_AERO_CTL',UkcaD1codes(n)%item,cmessage)
