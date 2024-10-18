@@ -40,10 +40,11 @@ CONTAINS
 SUBROUTINE ukca_setup_chem
 
 USE ukca_config_specification_mod, ONLY:                                       &
-   ukca_config, int_method_be_explicit, int_method_nr,                         &
+   ukca_config, glomap_config, int_method_be_explicit, int_method_nr,          &
    i_ukca_chem_off, i_ukca_chem_trop, i_ukca_chem_raq,                         &
    i_ukca_chem_tropisop, i_ukca_chem_strattrop, i_ukca_chem_strat,             &
-   i_ukca_chem_offline, i_ukca_chem_offline_be, i_ukca_chem_cristrat
+   i_ukca_chem_offline, i_ukca_chem_offline_be, i_ukca_chem_cristrat,          &
+   int_method_none, i_du_2mode
 
 USE asad_mod, ONLY: jpctr, jpspec, jpbk, jptk, jppj, jphk, jpdd, jpdw,         &
                     jpcspf, jpnr
@@ -83,7 +84,7 @@ SELECT CASE (ukca_config%i_ukca_chem)
 CASE (i_ukca_chem_off)
   ! Chemistry off completely
   ukca_config%l_ukca_chem     = .FALSE.
-  ukca_config%ukca_int_method = 0
+  ukca_config%ukca_int_method = int_method_none
   jpctr           = 0
   jpspec          = 0
   jpbk            = 0
@@ -346,6 +347,15 @@ IF (ukca_config%l_ukca_mode) THEN
       CALL ereport('ukca_setup_chem',errcode,cmessage)
     END IF
 
+  ELSE IF (ukca_config%ukca_int_method == int_method_none) THEN
+    IF (.NOT. (glomap_config%i_mode_setup == i_du_2mode)) THEN
+      CALL umPrint( 'Need chemistry scheme for all aerosol '                   &
+     // 'setups except 2-mode dust',src='ukca_setup_chem_mod')
+      cmessage='Unsupported option combination'
+      errcode=3
+      CALL ereport('ukca_setup_chem',errcode,cmessage)
+    END IF
+
     ! Backward Euler - only Trop + Aerosols, offline and RAQ-Aero support
     ! GLOMAP-mode
   ELSE
@@ -355,7 +365,7 @@ IF (ukca_config%l_ukca_mode) THEN
       CALL umPrint( 'Need aerosol chemistry on for '                           &
      // 'Glomap MODE',src='ukca_setup_chem_mod')
       cmessage='Unsupported option combination'
-      errcode=3
+      errcode=4
       CALL ereport('ukca_setup_chem',errcode,cmessage)
     END IF
   END IF
@@ -379,7 +389,7 @@ IF (ukca_config%l_ukca_chem_aero .AND. ukca_config%l_seawater_dms) THEN
     CALL umPrint(                                                              &
       'Marine DMS emissions expected but no UKCA DMS scheme is selected '      &
       // 'i_ukca_dms_flux should be 1,2,3 or 4')
-    errcode = 4
+    errcode = 5
     cmessage = 'RUN_UKCA: DMS flux scheme not specified'
     CALL ereport('UKCA_SETUP_CHEM_MOD',errcode,cmessage)
   END SELECT

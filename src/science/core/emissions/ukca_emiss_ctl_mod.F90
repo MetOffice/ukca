@@ -370,42 +370,44 @@ IF ( l_first ) THEN
     END DO
   END IF
 
-  ! Make sure that there are no missing fields in the emission structure,
-  ! i.e. that all names in em_chem_spec are present in emissions structure
-  ! An exception is that organic matter/BC emissions can be missing if
-  ! l_ukca_primbcoc is false. The same exception doesn't apply to SO2 with
-  ! l_ukca_primsu, since SO2 is emitted into the chemistry.
-  DO k = 1, n_chem_emissions + n_3d_emissions
-    IF (.NOT. ANY(emissions(:)%tracer_name == em_chem_spec (k)) ) THEN
-      IF (.NOT. (                                                              &
-          ((em_chem_spec(k)(1:2) == 'BC') .AND.                                &
-           .NOT. glomap_config%l_ukca_primbcoc) .OR.                           &
-          ((em_chem_spec(k)(1:2) == 'OM') .AND.                                &
-           .NOT. glomap_config%l_ukca_primbcoc))) THEN
-        cmessage = TRIM(em_chem_spec(k))//' missing from supplied emissions '
-        errcode = k
-        CALL ereport (ModuleName//':'//RoutineName, errcode, cmessage)
+  IF (ukca_config%l_ukca_chem) THEN
+    ! Make sure that there are no missing fields in the emission structure,
+    ! i.e. that all names in em_chem_spec are present in emissions structure
+    ! An exception is that organic matter/BC emissions can be missing if
+    ! l_ukca_primbcoc is false. The same exception doesn't apply to SO2 with
+    ! l_ukca_primsu, since SO2 is emitted into the chemistry.
+    DO k = 1, n_chem_emissions + n_3d_emissions
+      IF (.NOT. ANY(emissions(:)%tracer_name == em_chem_spec (k)) ) THEN
+        IF (.NOT. (                                                            &
+            ((em_chem_spec(k)(1:2) == 'BC') .AND.                              &
+             .NOT. glomap_config%l_ukca_primbcoc) .OR.                         &
+            ((em_chem_spec(k)(1:2) == 'OM') .AND.                              &
+             .NOT. glomap_config%l_ukca_primbcoc))) THEN
+          cmessage = TRIM(em_chem_spec(k))//' missing from supplied emissions '
+          errcode = k
+          CALL ereport (ModuleName//':'//RoutineName, errcode, cmessage)
+        END IF
       END IF
+    END DO
+
+    ! Get index for NOx tracer (needed only if ASAD diagnostics
+    ! for NOx lightning emiss are required)
+    DO k = 1, jpctr
+      SELECT CASE (advt(k))
+      CASE ('NOx       ')
+        inox = k
+      CASE ('NO        ')
+        inox = k
+      END SELECT
+    END DO
+
+    IF (inox == -99 .AND.                                                      &
+        ukca_config%i_ukca_light_param /= i_light_param_off) THEN
+      errcode  = 1
+      cmessage = 'Did not find NO or NOx tracer'
+      CALL ereport (ModuleName//':'//RoutineName, errcode, cmessage)
     END IF
-  END DO
-
-  ! Get index for NOx tracer (needed only if ASAD diagnostics
-  ! for NOx lightning emiss are required)
-  DO k = 1, jpctr
-    SELECT CASE (advt(k))
-    CASE ('NOx       ')
-      inox = k
-    CASE ('NO        ')
-      inox = k
-    END SELECT
-  END DO
-
-  IF (inox == -99 .AND.                                                        &
-      ukca_config%i_ukca_light_param /= i_light_param_off) THEN
-    errcode  = 1
-    cmessage = 'Did not find NO or NOx tracer'
-    CALL ereport (ModuleName//':'//RoutineName, errcode, cmessage)
-  END IF
+  END IF ! IF l_ukca_chem
 
   ! Calculate scaling factors indicating how to to spread emissions over
   ! different vertical levels - except for file based emissions, where the
@@ -512,10 +514,10 @@ IF (num_cdf_em_flds > 0) THEN
 
   END IF  !  biogenic_isop
 
-END IF
+  ncdf_emissions(:)%l_update = .FALSE. ! Reset flag after use. This will be
+                                       ! set by parent at appropriate timestep
 
-ncdf_emissions(:)%l_update = .FALSE. ! Reset flag after use. This will be set
-                                     ! by parent at appropriate timestep.
+END IF
 
 ! ----------------------------------------------------------------------
 ! Deal with online emissions, which are not read from NetCDF files and
@@ -1147,41 +1149,46 @@ END IF
 
 IF (ukca_config%l_enable_diag_um) THEN
 
-  section = UKCA_diag_sect
+  IF (ukca_config%l_ukca_chem) THEN
 
-  IF (sf(156,section) .OR. sf(157,section) .OR. sf(158,section) .OR.           &
-      sf(159,section) .OR. sf(160,section) .OR. sf(161,section) .OR.           &
-      sf(162,section) .OR. sf(163,section) .OR. sf(164,section) .OR.           &
-      sf(165,section) .OR. sf(166,section) .OR. sf(167,section) .OR.           &
-      sf(168,section) .OR. sf(169,section) .OR. sf(170,section) .OR.           &
-      sf(171,section) .OR. sf(172,section) .OR. sf(211,section) .OR.           &
-      sf(212,section) .OR. sf(213,section) .OR. sf(214,section) .OR.           &
-      sf(215,section) .OR. sf(216,section) .OR. sf(217,section) .OR.           &
-      sf(304,section) .OR. sf(305,section) .OR. sf(306,section) .OR.           &
-      sf(307,section) .OR. sf(308,section) .OR. sf(309,section) .OR.           &
-      sf(310,section) .OR. sf(311,section) .OR. sf(312,section) .OR.           &
-      sf(313,section) .OR. sf(314,section) ) THEN
+    section = UKCA_diag_sect
 
-    CALL ukca_emiss_diags (row_length, rows, model_levels,                     &
-                           len_stashwork50, stashwork50)
+    IF (sf(156,section) .OR. sf(157,section) .OR. sf(158,section) .OR.         &
+        sf(159,section) .OR. sf(160,section) .OR. sf(161,section) .OR.         &
+        sf(162,section) .OR. sf(163,section) .OR. sf(164,section) .OR.         &
+        sf(165,section) .OR. sf(166,section) .OR. sf(167,section) .OR.         &
+        sf(168,section) .OR. sf(169,section) .OR. sf(170,section) .OR.         &
+        sf(171,section) .OR. sf(172,section) .OR. sf(211,section) .OR.         &
+        sf(212,section) .OR. sf(213,section) .OR. sf(214,section) .OR.         &
+        sf(215,section) .OR. sf(216,section) .OR. sf(217,section) .OR.         &
+        sf(304,section) .OR. sf(305,section) .OR. sf(306,section) .OR.         &
+        sf(307,section) .OR. sf(308,section) .OR. sf(309,section) .OR.         &
+        sf(310,section) .OR. sf(311,section) .OR. sf(312,section) .OR.         &
+        sf(313,section) .OR. sf(314,section) ) THEN
+
+      CALL ukca_emiss_diags (row_length, rows, model_levels,                   &
+                             len_stashwork50, stashwork50)
+    END IF
   END IF
 
-  ! Aerosol diagnostics
-  section = stashcode_glomap_sec
+  IF (ukca_config%l_ukca_mode) THEN
 
-  IF (sf(201,section) .OR. sf(202,section) .OR. sf(203,section) .OR.           &
-      sf(204,section) .OR. sf(205,section) .OR. sf(206,section) .OR.           &
-      sf(207,section) .OR. sf(208,section) .OR. sf(209,section) .OR.           &
-      sf(210,section) .OR. sf(211,section) .OR. sf(212,section) .OR.           &
-      sf(213,section) .OR. sf(388,section) .OR. sf(389,section) .OR.           &
-      sf(575,section) .OR. sf(576,section) .OR.                                &
-      sf(577,section) .OR. sf(579,section) .OR. sf(580,section) .OR.           &
-      sf(581,section) .OR. sf(582,section) .OR. sf(583,section) .OR.           &
-      sf(675,section)) THEN
-    CALL ukca_emiss_diags_mode (row_length, rows, model_levels, area,          &
-                                len_stashwork38, stashwork38)
+    ! Aerosol diagnostics
+    section = stashcode_glomap_sec
+
+    IF (sf(201,section) .OR. sf(202,section) .OR. sf(203,section) .OR.         &
+        sf(204,section) .OR. sf(205,section) .OR. sf(206,section) .OR.         &
+        sf(207,section) .OR. sf(208,section) .OR. sf(209,section) .OR.         &
+        sf(210,section) .OR. sf(211,section) .OR. sf(212,section) .OR.         &
+        sf(213,section) .OR. sf(388,section) .OR. sf(389,section) .OR.         &
+        sf(575,section) .OR. sf(576,section) .OR.                              &
+        sf(577,section) .OR. sf(579,section) .OR. sf(580,section) .OR.         &
+        sf(581,section) .OR. sf(582,section) .OR. sf(583,section) .OR.         &
+        sf(675,section)) THEN
+      CALL ukca_emiss_diags_mode (row_length, rows, model_levels, area,        &
+                                  len_stashwork38, stashwork38)
+    END IF
   END IF
-
 END IF
 
 ! New option to turn the persistence of spatial variables off

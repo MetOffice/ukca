@@ -687,8 +687,8 @@ ELSE IF (ukca_config%l_ukca_offline_be) THEN
   ratt_defs=ratt_defs_offline
   depvel_defs=depvel_defs_offline
   henry_defs=henry_defs_offline
-ELSE IF (.NOT. ukca_config%l_ukca_chem .AND. ukca_config%l_ukca_ageair ) THEN
-  ! Do nothing -- Age-of-air-only configuration
+ELSE IF (.NOT. ukca_config%l_ukca_chem ) THEN
+  ! Do nothing -- Age-of-air-only or dust-only configuration
 ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
          ukca_config%l_ukca_tropisop .OR. ukca_config%l_ukca_offline .OR.      &
          ukca_config%l_ukca_cristrat) THEN

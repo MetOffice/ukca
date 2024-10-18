@@ -536,6 +536,7 @@ INTEGER :: nlev_with_ddep(ukca_config%row_length,                              &
 REAL, SAVE :: lambda_aitken, lambda_accum ! parameters for computation
                                           ! of surface area density
 LOGICAL :: do_chemistry
+LOGICAL :: do_aerosol
 LOGICAL, SAVE :: l_firstchem = .TRUE.     ! Logical for any operations
                    ! specific to first chemical timestep, which is usually
                    ! different to the first ukca_main call. This should
@@ -647,7 +648,7 @@ END IF
 
 CALL set_time(current_time)
 
-IF (ukca_config%l_ukca_chem) THEN
+IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   IF (PRESENT(previous_time)) THEN
     CALL set_previous_time(previous_time)
   ELSE
@@ -662,7 +663,7 @@ END IF
 
 ! Check whether all required environmental driver fields are present
 ! (None are required if the run does not use chemistry)
-IF (ukca_config%l_ukca_chem) THEN
+IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   CALL check_environment(n_fld_present, n_fld_missing)
   IF (n_fld_missing > 0) THEN
     error_code_ptr = errcode_env_field_missing
@@ -868,11 +869,14 @@ IF (L_asad_use_chem_diags) THEN
   CALL asad_allocate_chemdiag(row_length,rows)
 END IF
 
-! decide whether to do chemistry
+! decide whether to do chemistry and/or aerosol
 IF ( ukca_config%l_ukca_chem ) THEN
   do_chemistry = (MOD(timestep_number, interval) == 0)
+  do_aerosol = (do_chemistry .AND. ukca_config%l_ukca_mode)
 ELSE
   do_chemistry = .FALSE.
+  do_aerosol = ((MOD(timestep_number, interval) == 0) .AND.                    &
+                 ukca_config%l_ukca_mode)
 END IF
 
 ! Reallocate the spatial variables in ASAD if persistence is off
@@ -890,7 +894,7 @@ IF (ukca_config%l_ukca_mode .AND. l_first_call) CALL ukca_aero_tracer_init()
 ! ----------------------------------------------------------------------
 
 ! Derived variables for chemistry
-IF (ukca_config%l_ukca_chem) THEN
+IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   ALLOCATE(t_theta_levels(row_length,rows,model_levels))
   ALLOCATE(Thick_bl_levels(row_length,rows,ukca_config%bl_levels))
   ALLOCATE(p_layer_boundaries(row_length,rows,0:model_levels))
@@ -1093,7 +1097,7 @@ IF (ukca_config%l_ukca_chem) THEN
 
   ! Required in calls to chemistry control routines (UKCA_CHEMISTRY_CTL etc.)
   ! but may be unallocated
-  IF (do_chemistry) THEN
+  IF (do_chemistry .OR. do_aerosol) THEN
     IF (.NOT. ALLOCATED(land_index)) ALLOCATE(land_index(0))
     IF (.NOT. ALLOCATED(latitude)) THEN
       ALLOCATE(latitude(row_length,rows))
@@ -1175,13 +1179,14 @@ IF (ukca_config%l_ukca_chem) THEN
   END IF
   ! Air mass passed as argument for emissions, chemistry and aerosols
   IF ( ((.NOT. ukca_config%l_ukca_emissions_off) .OR. do_chemistry .OR.        &
-       l_asad_use_mass_diagnostic) .AND. .NOT. ALLOCATED(grid_airmass) ) THEN
+       do_aerosol .OR. l_asad_use_mass_diagnostic) .AND.                       &
+       .NOT. ALLOCATED(grid_airmass) ) THEN
     ALLOCATE(grid_airmass(row_length,rows,model_levels))
     grid_airmass(:,:,:) = 0.0
   END IF
 
   ! Required in call to UKCA_AERO_CTL, but may be unallocated
-  IF (do_chemistry .AND. ukca_config%l_ukca_mode) THEN
+  IF (do_aerosol) THEN
     IF (.NOT. ALLOCATED(zbl)) THEN
       ALLOCATE(zbl(row_length,rows))
       zbl(:,:) = 0.0
@@ -1456,20 +1461,18 @@ IF (ukca_config%l_ukca_chem) THEN
 
   ! Set flags to indicate which fields are required depending on the
   ! science configuration and whether this is a chemistry time step.
-  l_using_rh = do_chemistry
+  l_using_rh = do_chemistry .OR. do_aerosol
   ! If ukca_volcanic_so2 with plumeria call is TRUE, rel_humid_frac is required
   ! on UKCA timesteps
   IF (ukca_config%l_ukca_so2ems_expvolc .AND.                                  &
       ukca_config%l_ukca_so2ems_plumeria) THEN
     l_using_rh = ukca_config%l_ukca_mode
   END IF
-  l_using_rh_clr = ukca_config%l_ukca_mode .AND. (do_chemistry .OR.            &
-                   glomap_config%l_ukca_fine_no3_prod .OR.                     &
-                   glomap_config%l_ukca_coarse_no3_prod)
-  l_using_svp =                                                                &
-    ukca_config%l_ukca_mode .AND.                                              &
-    (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) .AND.    &
-    do_chemistry
+  l_using_rh_clr = do_aerosol .OR. (ukca_config%l_ukca_mode .AND.              &
+                   (glomap_config%l_ukca_fine_no3_prod .OR.                    &
+                    glomap_config%l_ukca_coarse_no3_prod))
+  l_using_svp = do_aerosol .AND.                                               &
+               (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg)
 
   ! Allocate fields as necessary if not already available.
 
@@ -1760,7 +1763,7 @@ IF (ukca_config%l_ukca_chem) THEN
     END IF
   END IF  ! End of IF (l_first_call)
 
-END IF    ! End of IF (l_ukca_chem)
+END IF    ! End of IF l_ukca_chem .OR. l_ukca_mode
 
 ! Set up tile info
 IF (ukca_config%l_ukca_chem) THEN
@@ -2055,6 +2058,9 @@ IF (ukca_config%l_ukca_chem) THEN
                        sin_declination, cos_zenith_angle, int_zenith_angle)
   END IF
 
+END IF ! IF (ukca_config%l_ukca_chem)
+
+IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   ! Emissions system (based on NetCDF emission input in the case of
   ! non-interactive emissions)
 
@@ -2108,9 +2114,12 @@ IF (ukca_config%l_ukca_chem) THEN
       RETURN
     END IF
 
-  END IF ! l_ukca_emissions_off
+    IF (ALLOCATED(cos_zenith_angle)) DEALLOCATE(cos_zenith_angle)
 
-  IF (ALLOCATED(cos_zenith_angle)) DEALLOCATE(cos_zenith_angle)
+  END IF ! l_ukca_emissions_off
+END IF ! l_ukca_chem or l_ukca_mode
+
+IF (ukca_config%l_ukca_chem) THEN
 
   IF (L_asad_use_chem_diags .AND. L_asad_use_mass_diagnostic)                  &
        CALL asad_mass_diagnostic(                                              &
@@ -2612,7 +2621,7 @@ END IF    ! End of IF (l_ukca_chem) statement
 ! ----------------------------------------------------------------------
 ! 4.6 GLOMAP-mode aerosol scheme
 ! ----------------------------------------------------------------------
-IF (ukca_config%l_ukca_mode .AND. do_chemistry) THEN
+IF (do_aerosol) THEN
 
   ! Allocate space for copies of fields required for later diagnostic
   ! calculations
@@ -2684,6 +2693,12 @@ IF (ukca_config%l_ukca_mode .AND. do_chemistry) THEN
   END IF
 #endif
 
+  ! If no chemistry, i.e., dust only, then turn off wet and dry oxidation
+  IF (.NOT. ukca_config%l_ukca_chem) THEN
+    uph2so4inaer = 0
+    wetox_in_aer = 0
+  END IF
+
   !!!! In the call below, note that cloud_frac field may have lower bound of 0
   !!!! hence the subrange 1:model_levels is specified. This relates to a
   !!!! bug controlled by the temporary logical l_fix_ukca_cloud_frac and can be
@@ -2700,16 +2715,8 @@ IF (ukca_config%l_ukca_mode .AND. do_chemistry) THEN
        rel_humid_frac,                                                         &
        rel_humid_frac_clr,                                                     &
        p_layer_boundaries,                                                     &
-       all_tracers_names(1:n_chem_tracers+n_aero_tracers),                     &
-       all_tracers_names(                                                      &
-            n_chem_tracers+n_aero_tracers+1:                                   &
-            n_chem_tracers+n_aero_tracers+                                     &
-            n_mode_tracers),                                                   &
-       all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers),                     &
-       all_tracers(:,:,:,                                                      &
-            n_chem_tracers+n_aero_tracers+1:                                   &
-            n_chem_tracers+n_aero_tracers+                                     &
-            n_mode_tracers),                                                   &
+       all_tracers_names(1:n_chem_tracers+n_aero_tracers+n_mode_tracers),      &
+       all_tracers(:,:,:,1:n_chem_tracers+n_aero_tracers+n_mode_tracers),      &
        seaice_frac,                                                            &
        rough_length,                                                           &
        u_s,                                                                    &
@@ -2813,7 +2820,7 @@ IF (L_asad_use_chem_diags .AND. L_asad_use_output_tracer)                      &
 ! argument list.
 ! ----------------------------------------------------------------------
 
-IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
+IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode) THEN
 
   ! ----------------------------------------------------------------------
   ! 5.2.1 MODE diagnostics [UM legacy-style requests]
@@ -2894,8 +2901,7 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
 
 
   ! Copy CMIP6 diagnostics and/or PM diagnostics into STASHwork array
-  IF (ukca_config%l_ukca_mode .AND. do_chemistry .AND.                         &
-      (l_ukca_cmip6_diags .OR. l_ukca_pm_diags)) THEN
+  IF (do_aerosol .AND. (l_ukca_cmip6_diags .OR. l_ukca_pm_diags)) THEN
     CALL ukca_mode_diags(row_length, rows, model_levels,                       &
                          theta_field_size*model_levels,                        &
                          n_mode_tracers,                                       &
@@ -2909,6 +2915,9 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
                          SIZE(stashwork38),                                    &
                          stashwork38)
   END IF
+END IF  ! ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode
+
+IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
 
   ! ----------------------------------------------------------------------
   ! 5.2.2 Stratospheric flux diagnostics [UM legacy-style requests]
@@ -3022,6 +3031,10 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_chem) THEN
                  fluxdiag_all_tracers, totnodens, grid_volume,                 &
                  ukca_config%timestep, calculate_STE, l_store_value, ierr)
   END IF
+END IF
+
+IF (ukca_config%l_enable_diag_um .AND.                                         &
+    (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) ) THEN
 
   ! ----------------------------------------------------------------------
   ! 5.2.7 Grid-cell volume [UM legacy style request]

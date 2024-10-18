@@ -450,10 +450,10 @@ IF (PRESENT(error_routine)) error_routine = ''
 ! Ensure all environment-related data are in uninitialised state
 IF (l_environ_req_available) CALL clear_environment_req()
 
-! If run does not include chemistry then no fields are required so set array
-! sizes to zero, set public flag to show that the environment fields
-! requirement is available and return
-IF (.NOT. ukca_config%l_ukca_chem) THEN
+! If run does not include chemistry or aerosol then no fields are required
+! so set array sizes to zero, set public flag to show that the environment
+! fields requirement is available and return
+IF ((.NOT. ukca_config%l_ukca_chem) .AND. (.NOT. ukca_config%l_ukca_mode)) THEN
   ALLOCATE(environ_field_varnames(0))
   ALLOCATE(environ_field_info(0))
   ALLOCATE(environ_field_ptrs(0))

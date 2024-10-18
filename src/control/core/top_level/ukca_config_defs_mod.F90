@@ -437,6 +437,8 @@ ELSE
   ! ============
   n_chem_emissions = 0
   n_chem_tracers   = 0
+  n_aero_tracers   = 0
+  n_3d_emissions   = 0
   ALLOCATE(em_chem_spec(1))
   em_chem_spec = '          '
 END IF
@@ -446,14 +448,8 @@ IF (ukca_config%l_ukca_ageair) THEN
   n_nonchem_tracers = n_nonchem_tracers + 1
 END IF
 
+! GLOMAP-mode
 IF (ukca_config%l_ukca_mode) THEN
-  IF (.NOT. (ukca_config%l_ukca_aerchem .OR. ukca_config%l_ukca_nr_aqchem .OR. &
-             ukca_config%l_ukca_offline_be .OR.                                &
-             ukca_config%l_ukca_raqaero)) THEN
-    cmessage=' the driving aerosol chemistry is needed for GLOMAP-MODE'
-    errcode=1
-    CALL ereport('UKCA_SET_CONFIG_DEFS',errcode,cmessage)
-  END IF
   n_mode_emissions = 0          ! See aerosol chemistry section
   ! n_mode_tracers is now calculated in UKCA_INIT
   nmax_mode_diags  = 359

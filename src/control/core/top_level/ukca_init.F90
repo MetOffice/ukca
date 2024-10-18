@@ -77,7 +77,8 @@ USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_sussbcocntnh_5mode,              &
                                  ukca_indices_orgv1_soto3_solinsol,            &
                                  ukca_indices_solinsol_6mode,                  &
-                                 ukca_indices_sussbcocduntnh_8mode_8cpt
+                                 ukca_indices_sussbcocduntnh_8mode_8cpt,       &
+                                 ukca_indices_nochem
 
 USE umPrintMgr,            ONLY: umPrint, umMessage,                           &
                                  PrintStatus, PrStatus_Oper
@@ -135,9 +136,17 @@ ukca_config%timesteps_per_hour = isec_per_hour / timestep
 ! In that case, set values to default in case they are used elsewhere
 !$OMP PARALLEL
 IF ( ukca_config%i_ukca_chem == i_ukca_chem_off ) THEN
-  interval = 1
-  cdt = REAL(timestep)
-  ncsteps = 1
+  IF (ukca_config%l_ukca_mode) THEN
+    ! No UKCA chemistry - dust only
+    interval = ukca_config%chem_timestep/timestep
+    cdt = REAL(ukca_config%chem_timestep)
+    ncsteps = 1
+  ELSE
+    ! No UKCA chemistry
+    interval = 1
+    cdt = REAL(timestep)
+    ncsteps = 1
+  END IF
 ELSE
   ! Calculate interval depending on chemistry scheme
   ukca_method_type:IF (ukca_config%ukca_int_method == int_method_nr) THEN
@@ -171,31 +180,32 @@ ELSE
     CALL ereport('UKCA_INIT',errcode,cmessage)
   END IF ukca_method_type
 
-  IF (printstatus >= prstatus_oper) THEN
-    WRITE(umMessage,'(A40,I6)') 'Interval for chemical solver set to: ',       &
-                                                               interval
-    CALL umPrint(umMessage,src='ukca_init')
-    WRITE(umMessage,'(A40,E12.4)') 'Timestep for chemical solver set to: ',    &
-                                                               cdt
-    CALL umPrint(umMessage,src='ukca_init')
-    WRITE(umMessage,'(A40,I6)') 'No. steps for chemical solver set to: ',      &
-                                                               ncsteps
-    CALL umPrint(umMessage,src='ukca_init')
-  END IF
-
-  ! Verify that the interval and timestep values have been set correctly
-  IF (ABS(cdt*ncsteps - REAL(timestep*interval)) > 1e-4) THEN
-    cmessage=' chemical timestep does not fit dynamical timestep'
-    WRITE(umMessage,'(A)') cmessage
-    CALL umPrint(umMessage,src='ukca_init')
-    WRITE(umMessage,'(A,I6,A,I6)') ' timestep: ',timestep,                     &
-                                   ' interval: ',interval
-    CALL umPrint(umMessage,src='ukca_init')
-    errcode = ukca_config%chem_timestep
-    CALL ereport('UKCA_INIT',errcode,cmessage)
-  END IF
-
 END IF
+
+IF (printstatus >= prstatus_oper) THEN
+  WRITE(umMessage,'(A40,I6)') 'Interval for chemical solver set to: ',         &
+                                                               interval
+  CALL umPrint(umMessage,src='ukca_init')
+  WRITE(umMessage,'(A40,E12.4)') 'Timestep for chemical solver set to: ',      &
+                                                             cdt
+  CALL umPrint(umMessage,src='ukca_init')
+  WRITE(umMessage,'(A40,I6)') 'No. steps for chemical solver set to: ',        &
+                                                             ncsteps
+  CALL umPrint(umMessage,src='ukca_init')
+END IF
+
+! Verify that the interval and timestep values have been set correctly
+IF (ABS(cdt*ncsteps - REAL(timestep*interval)) > 1e-4) THEN
+  cmessage=' chemical timestep does not fit dynamical timestep'
+  WRITE(umMessage,'(A)') cmessage
+  CALL umPrint(umMessage,src='ukca_init')
+  WRITE(umMessage,'(A,I6,A,I6)') ' timestep: ',timestep,                       &
+                                 ' interval: ',interval
+  CALL umPrint(umMessage,src='ukca_init')
+  errcode = ukca_config%chem_timestep
+  CALL ereport('UKCA_INIT',errcode,cmessage)
+END IF
+
 !$OMP END PARALLEL
 
 IF (ukca_config%l_ukca_mode) THEN
@@ -227,9 +237,7 @@ IF (ukca_config%l_ukca_mode) THEN
       CALL ukca_indices_orgv1_soto6
       CALL ukca_indices_sussbcocso_4mode
     ELSE IF ( glomap_config%i_mode_setup == i_du_2mode ) THEN ! 6
-      !!    CALL ukca_indices_nochem
-      !! temporarily run 2-mode dust only with chemistry, though it's not needed
-      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_nochem
       CALL ukca_indices_duonly_2mode
       !!  ELSE IF ( glomap_config%i_mode_setup == 7 ) THEN
         !!    CALL ukca_indices_nochem
@@ -330,6 +338,7 @@ USE ukca_config_specification_mod, ONLY:                                       &
                                  i_ukca_activation_arg,                        &
                                  i_top_BC,                                     &
                                  i_top_BC_H2O,                                 &
+                                 i_du_2mode,                                   &
                                  bl_tracer_mix
 
 USE asad_mod,              ONLY: nrsteps_max
@@ -418,7 +427,8 @@ END IF
 ! mode_activation_dryr - valid range 20. - 100.
 IF ( (glomap_config%mode_activation_dryr < 20.0 .OR.                           &
       glomap_config%mode_activation_dryr > 100.0) .AND.                        &
-     ukca_config%l_ukca_mode) THEN
+     ukca_config%l_ukca_mode .AND.                                             &
+     (glomap_config%i_mode_setup /= i_du_2mode) ) THEN
   cmessage=' mode_activation_dryr should be between 20.0 and 100.0'
   errcode = 4
   CALL ereport(RoutineName,errcode,cmessage)
@@ -427,7 +437,8 @@ END IF
 ! mode_incld_so2_rfrac - valid range 0. - 1.
 IF ( (glomap_config%mode_incld_so2_rfrac < 0.0 .OR.                            &
       glomap_config%mode_incld_so2_rfrac > 1.0) .AND.                          &
-     ukca_config%l_ukca_mode) THEN
+     ukca_config%l_ukca_mode .AND.                                             &
+     (glomap_config%i_mode_setup /= i_du_2mode) ) THEN
   cmessage=' mode_incld_so2_rfrac should be between 0.0 and 1.0'
   errcode = 5
   CALL ereport(RoutineName,errcode,cmessage)
@@ -909,6 +920,26 @@ IF ( (glomap_config%sigma_updraught_scaling < 0.0 .OR.                         &
   cmessage='sigma_updraught_scaling should be between 0.0 - 10.0'
   errcode = 52
   CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
+! Check configuration if mode setup 6 is selected without chemistry
+IF ( ukca_config%l_ukca_mode .AND.                                             &
+     (glomap_config%i_mode_setup == i_du_2mode)) THEN
+  IF (ukca_config%l_ukca_chem) THEN
+    cmessage='dust only setup does not work with chemistry'
+    errcode = 53
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
+  IF ( glomap_config%l_mode_bhn_on .OR. glomap_config%l_mode_bln_on ) THEN
+    cmessage='nucleation not available for mode aerosol without chemistry'
+    errcode = 54
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
+  IF ( glomap_config%l_dust_ageing_on ) THEN
+    cmessage='dust only setup does not work with dust ageing'
+    errcode = 55
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

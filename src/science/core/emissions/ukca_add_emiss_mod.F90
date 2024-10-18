@@ -301,38 +301,40 @@ IF (firstcall) THEN
   inox             = -99      ! Initial index for nox tracer
   iso2             = -99      ! Initial index for so2 tracer
 
-  !   Find index for SO2 and NOx tracer
-  DO k = 1, jpctr
-    SELECT CASE (advt(k))
-    CASE ('NOx       ')
-      inox = k
-    CASE ('NO        ')
-      inox = k
-    CASE ('SO2       ')
-      iso2 = k
-    END SELECT
-  END DO
+  IF (ukca_config%l_ukca_chem) THEN
+    !   Find index for SO2 and NOx tracer
+    DO k = 1, jpctr
+      SELECT CASE (advt(k))
+      CASE ('NOx       ')
+        inox = k
+      CASE ('NO        ')
+        inox = k
+      CASE ('SO2       ')
+        iso2 = k
+      END SELECT
+    END DO
 
-  IF (inox == -99 .AND. .NOT. (ukca_config%l_ukca_offline .OR.                 &
-                               ukca_config%l_ukca_offline_be)) THEN
-    cmessage = 'Did not find NO or NOx tracer'
-    errcode  = 1
-    CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
-  END IF
+    IF (inox == -99 .AND. .NOT. (ukca_config%l_ukca_offline .OR.               &
+                                 ukca_config%l_ukca_offline_be)) THEN
+      cmessage = 'Did not find NO or NOx tracer'
+      errcode  = 1
+      CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
+    END IF
 
-  IF ((ukca_config%l_ukca_aerchem .OR. ukca_config%l_ukca_nr_aqchem .OR.       &
-       ukca_config%l_ukca_offline_be) .AND. iso2 == -99) THEN
-    cmessage = 'Did not find SO2 tracer'
-    errcode  = 1
-    CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
-  END IF
+    IF ((ukca_config%l_ukca_aerchem .OR. ukca_config%l_ukca_nr_aqchem .OR.     &
+         ukca_config%l_ukca_offline_be) .AND. iso2 == -99) THEN
+      cmessage = 'Did not find SO2 tracer'
+      errcode  = 1
+      CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
+    END IF
+  END IF ! IF l_ukca_chem
 
   ! Temporarily hold tracer names from advt (to check for 'H2O ' before call
   ! to BL_TRACER_MIX in the loop below. Advt is dimensioned to 1:jpctr, while
   ! the loop is over chem+aero_tracers, so fill rest of array with dummy values
   ALLOCATE(nm_tracer(n_tracers))
   nm_tracer(:) = 'XXXXXXXXXX'
-  nm_tracer(1:jpctr) = advt(1:jpctr)
+  IF (jpctr > 0) nm_tracer(1:jpctr) = advt(1:jpctr)
 
   !   This block replicates the code in UKCA_EMISSION_CTL. It is only used by
   !   the Newton-Raphson (N-R) solver, which needs to get molmass and
@@ -412,11 +414,13 @@ IF (firstcall) THEN
   END IF               ! N-R solver
 
   IF (PrintStatus > PrStatus_Normal) THEN
-    DO k = 1, jpctr
-      WRITE (umMessage, '(A,I3,A,A)') 'UKCA_ADD_EMISS - tracer ', k, ': ',     &
-                                       advt(k)
-      CALL umPrint(umMessage,src='ukca_add_emiss')
-    END DO
+    IF (ukca_config%l_ukca_chem) THEN
+      DO k = 1, jpctr
+        WRITE (umMessage, '(A,I3,A,A)') 'UKCA_ADD_EMISS - tracer ', k, ': ',   &
+                                         advt(k)
+        CALL umPrint(umMessage,src='ukca_add_emiss')
+      END DO
+    END IF
     DO imode = 1, nmodes
       IF (mode(imode)) THEN
         k = nmr_index(imode)
@@ -748,140 +752,150 @@ DO l = 1, num_em_flds       ! loop over emission fields
 
 END DO      ! loop over emission fields
 
-DO k = 1, jpctr
+IF (ukca_config%l_ukca_chem) THEN
+  DO k = 1, jpctr
 
-  !   For stratospheric chemistry schemes some species should
-  !   be set to lower boundary conditions. When that is the
-  !   case then set emissions to difference of tracer at surface
-  !   and intended value, scaled with mass in gridbox,
-  !   area and timestep, to turn it into a surface emission rate.
-  !   No emissions for other model levels
-  IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.           &
-      ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
-    DO l = 1, n_boundary_vals
+    !   For stratospheric chemistry schemes some species should
+    !   be set to lower boundary conditions. When that is the
+    !   case then set emissions to difference of tracer at surface
+    !   and intended value, scaled with mass in gridbox,
+    !   area and timestep, to turn it into a surface emission rate.
+    !   No emissions for other model levels
+    IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.         &
+        ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) THEN
+      DO l = 1, n_boundary_vals
 
-      IF (ukca_config%l_ukca_emsdrvn_ch4) THEN
+        IF (ukca_config%l_ukca_emsdrvn_ch4) THEN
 
-        IF (ukca_config%l_ukca_prescribech4 .OR.                               &
-            (.NOT. ukca_config%l_ukca_qch4inter)) THEN
-          !stop model execution
-          IF (ukca_config%l_ukca_prescribech4) THEN
-            errcode = 1
-            cmessage =                                                         &
-              'Running with prescribed CH4 emissions! ' //                     &
-              'Please switch to emission-driven configuration.'
-            CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
-          ELSE IF (.NOT. ukca_config%l_ukca_qch4inter) THEN
-            errcode = 2
-            cmessage =                                                         &
-              'Running without interactive CH4 wetland emissions! ' //         &
-              'Please activate wetland CH4 emissions in UKCA.'
-            CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
-          ELSE
-            errcode = 0
+          IF (ukca_config%l_ukca_prescribech4 .OR.                             &
+              (.NOT. ukca_config%l_ukca_qch4inter)) THEN
+            !stop model execution
+            IF (ukca_config%l_ukca_prescribech4) THEN
+              errcode = 1
+              cmessage =                                                       &
+                'Running with prescribed CH4 emissions! ' //                   &
+                'Please switch to emission-driven configuration.'
+              CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
+            ELSE IF (.NOT. ukca_config%l_ukca_qch4inter) THEN
+              errcode = 2
+              cmessage =                                                       &
+                'Running without interactive CH4 wetland emissions! ' //       &
+                'Please activate wetland CH4 emissions in UKCA.'
+              CALL ereport ('UKCA_ADD_EMISS', errcode, cmessage)
+            ELSE
+              errcode = 0
+            END IF
           END IF
-        END IF
 
-        IF (advt(k) == lbc_spec(l)) THEN
+          IF (advt(k) == lbc_spec(l)) THEN
 
-          IF (advt(k) == 'CH4       ') THEN
-            IF ( ukca_config%l_enable_diag_um ) THEN
-              ! Diagnose methane surface emissions for full-cycle methane
-              ! budget;
-              ! implemented as in-situ diagnostics that take samples directly
-              ! at the point in the code where emissions are added to the
-              ! tracers (see above). Whatever is currently stored in "em_field",
-              ! the array that stores the sum of all emissions for each emitted
-              ! species, is *directly* written to a corresponding diagnostic in
-              ! section 50.
-              ! In-situ emission flux diagnostics for full-cycle methane budget
-              ! CH4 surface emissions from global wetlands (kg m-2 s-1)
-              ! STASHitem m1s50i420
-              section =  50
-              item    = 420
+            IF (advt(k) == 'CH4       ') THEN
+              IF ( ukca_config%l_enable_diag_um ) THEN
+                ! Diagnose methane surface emissions for full-cycle methane
+                ! budget;
+                ! implemented as in-situ diagnostics that take samples directly
+                ! at the point in the code where emissions are added to the
+                ! tracers (see above). Whatever is currently stored in
+                ! "em_field", the array that stores the sum of all emissions for
+                ! each emitted species, is *directly* written to a corresponding
+                ! diagnostic in section 50.
+                ! In-situ emission flux diagnostics for full-cycle methane
+                ! budget CH4 surface emissions from global wetlands (kg m-2 s-1)
+                ! STASHitem m1s50i420
+                section =  50
+                item    = 420
 
-              IF (sf(item,section)) THEN
-                CALL copydiag (                                                &
-                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
-                  emissions(ich4_wetl)%values (:,:,1),                         &
-                  row_length,rows)
-              END IF
+                IF (sf(item,section)) THEN
+                  CALL copydiag (                                              &
+                    stashwork50(si(item,section,1):si_last(item,section,1)),   &
+                    emissions(ich4_wetl)%values (:,:,1),                       &
+                    row_length,rows)
+                END IF
 
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! CH4 surface emissions from anthropogenic sources (kg m-2 s-1)
-              ! STASHitem m1s50i421
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
-
-
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! CH4 surface emissions from pyrogenic sources (kg m-2 s-1)
-              ! STASHitem m1s50i422
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! CH4 surface emissions from anthropogenic sources (kg m-2 s-1)
+                ! STASHitem m1s50i421
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
 
 
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! CH4 surface emissions from biogenic sources (kg m-2 s-1)
-              ! STASHitem m1s50i423
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! CH4 surface emissions from pyrogenic sources (kg m-2 s-1)
+                ! STASHitem m1s50i422
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
 
 
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! CH4 surface emissions from oceanic/hydrates sources (kg m-2 s-1)
-              ! STASHitem m1s50i424
-              ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! CH4 surface emissions from biogenic sources (kg m-2 s-1)
+                ! STASHitem m1s50i423
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
 
 
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! CH4 surface emissions from all residual sources (kg m-2 s-1)
-              ! STASHitem m1s50i425
-              section =  50
-              item    = 425
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! CH4 surface emissions from oceanic/hydrates sources
+                ! (kg m-2 s-1) STASHitem m1s50i424
+                ! +++ placeholder +++ === +++ placeholder +++ === +++
 
-              IF (sf(item,section)) THEN
-                CALL copydiag(                                                 &
-                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
-                  (lbc_mmr(l) - tracers(:,:,surface_level,k)) *                &
-                  mass(:,:,surface_level) / surf_area(:,:) / timestep,         &
-                  row_length,rows)
-              END IF
 
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! Sum over all prescribed CH4 surface emissions (kg m-2 s-1)
-              ! >prescribed< indicates emissions are >provided by an ancillary
-              ! file.
-              ! calculated as >total - wetland< CH4 emissions
-              ! STASHitem m1s50i426
-              section =  50
-              item    = 426
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! CH4 surface emissions from all residual sources (kg m-2 s-1)
+                ! STASHitem m1s50i425
+                section =  50
+                item    = 425
 
-              IF (sf(item,section)) THEN
-                CALL copydiag(                                                 &
-                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
-                  em_field (:,:,surface_level,k) -                             &
-                  emissions(ich4_wetl)%values (:,:,1),                         &
-                  row_length,rows)
-              END IF
+                IF (sf(item,section)) THEN
+                  CALL copydiag(                                               &
+                    stashwork50(si(item,section,1):si_last(item,section,1)),   &
+                    (lbc_mmr(l) - tracers(:,:,surface_level,k)) *              &
+                    mass(:,:,surface_level) / surf_area(:,:) / timestep,       &
+                    row_length,rows)
+                END IF
 
-              ! In-situ emission flux diagnostic for full-cycle methane budget
-              ! Sum over all CH4 surface emissions (kg m-2 s-1)
-              ! STASHitem m1s50i427
-              section =  50
-              item    = 427
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! Sum over all prescribed CH4 surface emissions (kg m-2 s-1)
+                ! >prescribed< indicates emissions are >provided by an ancillary
+                ! file.
+                ! calculated as >total - wetland< CH4 emissions
+                ! STASHitem m1s50i426
+                section =  50
+                item    = 426
 
-              IF (sf(item,section)) THEN
-                CALL copydiag(                                                 &
-                  stashwork50(si(item,section,1):si_last(item,section,1)),     &
-                  em_field (:,:,surface_level,k),                              &
-                  row_length,rows)
-              END IF
-              ! End of full-cycle methane budget diagnostics
-            END IF    ! l_enable_diag_um
+                IF (sf(item,section)) THEN
+                  CALL copydiag(                                               &
+                    stashwork50(si(item,section,1):si_last(item,section,1)),   &
+                    em_field (:,:,surface_level,k) -                           &
+                    emissions(ich4_wetl)%values (:,:,1),                       &
+                    row_length,rows)
+                END IF
 
-          ELSE
+                ! In-situ emission flux diagnostic for full-cycle methane budget
+                ! Sum over all CH4 surface emissions (kg m-2 s-1)
+                ! STASHitem m1s50i427
+                section =  50
+                item    = 427
+
+                IF (sf(item,section)) THEN
+                  CALL copydiag(                                               &
+                    stashwork50(si(item,section,1):si_last(item,section,1)),   &
+                    em_field (:,:,surface_level,k),                            &
+                    row_length,rows)
+                END IF
+                ! End of full-cycle methane budget diagnostics
+              END IF    ! l_enable_diag_um
+
+            ELSE
+              em_field (:,:,:,            k) = 0
+              em_field (:,:,surface_level,k) =                                 &
+                       (lbc_mmr(l) - tracers(:,:,surface_level,k))        *    &
+                       mass(:,:,surface_level) / surf_area(:,:) / timestep
+            END IF
+
+          END IF
+        ELSE ! running with prescribed CH4 emissions
+          IF (advt(k) == lbc_spec(l)) THEN
             em_field (:,:,:,            k) = 0
             em_field (:,:,surface_level,k) =                                   &
                      (lbc_mmr(l) - tracers(:,:,surface_level,k))        *      &
@@ -889,20 +903,12 @@ DO k = 1, jpctr
           END IF
 
         END IF
-      ELSE ! running with prescribed CH4 emissions
-        IF (advt(k) == lbc_spec(l)) THEN
-          em_field (:,:,:,            k) = 0
-          em_field (:,:,surface_level,k) =                                     &
-                   (lbc_mmr(l) - tracers(:,:,surface_level,k))        *        &
-                   mass(:,:,surface_level) / surf_area(:,:) / timestep
-        END IF
-      END IF
 
-    END DO
-  END IF   ! l_ukca_strat, etc
+      END DO
+    END IF   ! l_ukca_strat, etc
 
-END DO  ! jpctr
-
+  END DO  ! jpctr
+END IF ! l_ukca_chem
 ! --------------------------------------------------------------------
 ! After filling in all emission fields now loop over tracers to
 ! first add emissions and later call boundary layer mixing.
@@ -972,171 +978,176 @@ END IF
 ! *directly* written to a corresponding diagnostic in section 50. By
 ! probing emissions in this way any ambiguity is removed and any
 ! potential double counting of emissions will be spotted.
+IF (ukca_config%l_ukca_chem) THEN
+  IF (ukca_config%l_enable_diag_um) THEN
 
-IF (ukca_config%l_enable_diag_um) THEN
+    DO k = 1, n_tracers
 
-  DO k = 1, n_tracers
+      IF (nm_tracer(k) == 'C5H8      ') THEN
 
-    IF (nm_tracer(k) == 'C5H8      ') THEN
+        ! In-situ emission diagnostics for C5H8 (isoprene) --- STASHitem 50300
+        section =  50
+        item    = 300
 
-      ! In-situ emission diagnostics for C5H8 (isoprene) --- STASHitem 50300
-      section =  50
-      item    = 300
+        IF (sf(item,section)) THEN
+          CALL copydiag (                                                      &
+            stashwork50(si(item,section,1):si_last(item,section,1)),           &
+            em_field (:,:,surface_level,k),row_length,rows)
+        END IF
 
-      IF (sf(item,section)) THEN
-        CALL copydiag (stashwork50(si(item,section,1):si_last(item,section,1)),&
-          em_field (:,:,surface_level,k),row_length,rows)
+      ELSE IF (nm_tracer(k) == 'Monoterp  ') THEN
+
+        ! In-situ emission diagnostics for C10H16 ((mono-)terpenes)
+        ! --- STASHitem 50301
+        section =  50
+        item    = 301
+
+        IF (sf(item,section)) THEN
+          CALL copydiag (                                                      &
+            stashwork50(si(item,section,1):si_last(item,section,1)),           &
+            em_field (:,:,surface_level,k),row_length,rows)
+        END IF
+
+      ELSE IF (nm_tracer(k) == 'MeOH      ' .OR.                               &
+              nm_tracer(k) == 'CH3OH     ') THEN
+
+        ! In-situ emission diagnostics for MeOH (methanol) --- STASHitem 50302
+        ! Note that methanol can be referred to with two different names
+        ! depending on the chemistry scheme.
+        section =  50
+        item    = 302
+
+        IF (sf(item,section)) THEN
+          CALL copydiag (                                                      &
+            stashwork50(si(item,section,1):si_last(item,section,1)),           &
+            em_field (:,:,surface_level,k),row_length,rows)
+        END IF
+
+      ELSE IF (nm_tracer(k) == 'Me2CO     ') THEN
+
+        ! In-situ emission diagnostics for Me2CO (acetone) --- STASHitem 50303
+        section =  50
+        item    = 303
+
+        IF (sf(item,section)) THEN
+          CALL copydiag (                                                      &
+            stashwork50(si(item,section,1):si_last(item,section,1)),           &
+            em_field (:,:,surface_level,k),row_length,rows)
+        END IF
       END IF
 
-    ELSE IF (nm_tracer(k) == 'Monoterp  ') THEN
+      ! End of In-situ Diagnostics
+      ! --------------------------------------------------------------------
+      ! --------------------------------------------------------------------
 
-      ! In-situ emission diagnostics for C10H16 ((mono-)terpenes)
-      ! --- STASHitem 50301
-      section =  50
-      item    = 301
+    END DO  ! end of loop over tracers
 
-      IF (sf(item,section)) THEN
-        CALL copydiag (stashwork50(si(item,section,1):si_last(item,section,1)),&
-          em_field (:,:,surface_level,k),row_length,rows)
-      END IF
+  END IF  ! l_enable_diag_um
 
-    ELSE IF (nm_tracer(k) == 'MeOH      ' .OR.                                 &
-            nm_tracer(k) == 'CH3OH     ') THEN
-
-      ! In-situ emission diagnostics for MeOH (methanol) --- STASHitem 50302
-      ! Note that methanol can be referred to with two different names
-      ! depending on the chemistry scheme.
-      section =  50
-      item    = 302
-
-      IF (sf(item,section)) THEN
-        CALL copydiag (stashwork50(si(item,section,1):si_last(item,section,1)),&
-          em_field (:,:,surface_level,k),row_length,rows)
-      END IF
-
-    ELSE IF (nm_tracer(k) == 'Me2CO     ') THEN
-
-      ! In-situ emission diagnostics for Me2CO (acetone) --- STASHitem 50303
-      section =  50
-      item    = 303
-
-      IF (sf(item,section)) THEN
-        CALL copydiag (stashwork50(si(item,section,1):si_last(item,section,1)),&
-          em_field (:,:,surface_level,k),row_length,rows)
-      END IF
-    END IF
-
-    ! End of In-situ Diagnostics
-    ! --------------------------------------------------------------------
-    ! --------------------------------------------------------------------
-
-  END DO  ! end of loop over tracers
-
-END IF  ! l_enable_diag_um
-
-! --------------------------------------------------------------------
-! Calculate emissions diagnostics for ASAD.
-! Note that we are only passing emiss at lowest model level.
-IF (L_asad_use_chem_diags .AND. L_asad_use_surf_ems) THEN
-  CALL asad_emissions_diagnostics (                                            &
-       row_length,                                                             &
-       rows,                                                                   &
-       jpctr,                                                                  &
-       em_field (:,:,surface_level,1:jpctr), &  ! 3-D sfc field to replicate
-                                                ! call in ukca_emission_ctl
-       surf_area,                                                              &
-       n_use_emissions,                                                        &
-       n_boundary_vals,                                                        &
-       em_chem_spec,                                                           &
-       lbc_spec,                                                               &
-       molmass,                                                                &
-       lbc_molmass,                                                            &
-       ierr)
-END IF
-
-! --------------------------------------------------------------------
-! ASAD diagnostics - aircraft NOx emissions.
-IF (L_asad_use_chem_diags .AND. L_asad_use_air_ems                             &
-    .AND. .NOT. (ukca_config%l_ukca_offline .OR.                               &
-                 ukca_config%l_ukca_offline_be)) THEN
-  l_loop: DO l = 1, num_em_flds
-    IF (emissions(l)%tracer_name == 'NO_aircrft') THEN
-      ! Note that emissions(l)%values (:,:,:) is already expressed as
-      ! kg(NO) m-2 s-1 because it was multiplied by base_scaling
-      ! in UKCA_NEW_EMISS_CTL. We will therefore use that field
-      ! for ASAD diagnostics without any further conversions.
-      conv_aircraftems = emissions(l)%values (:,:,:)
-
-      ! conv_aircraftems    ==> aircraft NOx emiss, in kg(NO)/m^2/s
-      ! aircraft_emissions  ==> type flag used in ASAD diags routines
-      CALL asad_3d_emissions_diagnostics(                                      &
-               row_length, rows, model_levels,                                 &
-               inox, conv_aircraftems,  surf_area,                             &
-               mass,                                                           &
-               m_no, timestep, aircraft_emissions,                             &
-               ierr)
-      EXIT l_loop
-    END IF
-  END DO l_loop
-END IF
-
-! --------------------------------------------------------------------
-
-! Emission of volcanic SO2 from explosive volcanic eruptions
-! into stratosphere
-IF ((ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.            &
-     ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) .AND.      &
-    iso2 > 0 .AND. ukca_config%l_ukca_so2ems_expvolc ) THEN
-
-  !   Diagnostics - volcanic SO2 emissions
-  IF (L_asad_use_chem_diags .AND. L_asad_use_volc_ems) THEN
-    ALLOCATE (tmp3dems (row_length, rows, model_levels))
-    tmp3dems (:,:,:) = tracers(1:row_length, 1:rows, 1:model_levels, iso2)
+  ! --------------------------------------------------------------------
+  ! Calculate emissions diagnostics for ASAD.
+  ! Note that we are only passing emiss at lowest model level.
+  IF (L_asad_use_chem_diags .AND. L_asad_use_surf_ems) THEN
+    CALL asad_emissions_diagnostics (                                          &
+         row_length,                                                           &
+         rows,                                                                 &
+         jpctr,                                                                &
+         em_field (:,:,surface_level,1:jpctr), &  ! 3-D sfc field to replicate
+                                                  ! call in ukca_emission_ctl
+         surf_area,                                                            &
+         n_use_emissions,                                                      &
+         n_boundary_vals,                                                      &
+         em_chem_spec,                                                         &
+         lbc_spec,                                                             &
+         molmass,                                                              &
+         lbc_molmass,                                                          &
+         ierr)
   END IF
 
-  IF (ukca_config%l_ukca_so2ems_plumeria) THEN
-    u_rho_levels_plumeria = u_rho_levels
-    v_rho_levels_plumeria = v_rho_levels
-    geopH_on_theta_plumeria = geopH_on_theta_mlevs
+  ! --------------------------------------------------------------------
+  ! ASAD diagnostics - aircraft NOx emissions.
+  IF (L_asad_use_chem_diags .AND. L_asad_use_air_ems                           &
+      .AND. .NOT. (ukca_config%l_ukca_offline .OR.                             &
+                   ukca_config%l_ukca_offline_be)) THEN
+    l_loop: DO l = 1, num_em_flds
+      IF (emissions(l)%tracer_name == 'NO_aircrft') THEN
+        ! Note that emissions(l)%values (:,:,:) is already expressed as
+        ! kg(NO) m-2 s-1 because it was multiplied by base_scaling
+        ! in UKCA_NEW_EMISS_CTL. We will therefore use that field
+        ! for ASAD diagnostics without any further conversions.
+        conv_aircraftems = emissions(l)%values (:,:,:)
+
+        ! conv_aircraftems    ==> aircraft NOx emiss, in kg(NO)/m^2/s
+        ! aircraft_emissions  ==> type flag used in ASAD diags routines
+        CALL asad_3d_emissions_diagnostics(                                    &
+                 row_length, rows, model_levels,                               &
+                 inox, conv_aircraftems,  surf_area,                           &
+                 mass,                                                         &
+                 m_no, timestep, aircraft_emissions,                           &
+                 ierr)
+        EXIT l_loop
+      END IF
+    END DO l_loop
+  END IF
+
+  ! --------------------------------------------------------------------
+
+  ! Emission of volcanic SO2 from explosive volcanic eruptions
+  ! into stratosphere
+  IF ((ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_stratcfc .OR.          &
+       ukca_config%l_ukca_strattrop .OR. ukca_config%l_ukca_cristrat) .AND.    &
+      iso2 > 0 .AND. ukca_config%l_ukca_so2ems_expvolc ) THEN
+
+    !   Diagnostics - volcanic SO2 emissions
+    IF (L_asad_use_chem_diags .AND. L_asad_use_volc_ems) THEN
+      ALLOCATE (tmp3dems (row_length, rows, model_levels))
+      tmp3dems (:,:,:) = tracers(1:row_length, 1:rows, 1:model_levels, iso2)
+    END IF
+
+    IF (ukca_config%l_ukca_so2ems_plumeria) THEN
+      u_rho_levels_plumeria = u_rho_levels
+      v_rho_levels_plumeria = v_rho_levels
+      geopH_on_theta_plumeria = geopH_on_theta_mlevs
+    ELSE
+      u_rho_levels_plumeria = 0.0
+      v_rho_levels_plumeria = 0.0
+      geopH_on_theta_plumeria = 0.0
+    END IF ! ukca_config%l_ukca_so2ems_plumeria
+
+    CALL ukca_volcanic_so2 (                                                   &
+             tracers (1:row_length, 1:rows, :, iso2),                          &
+             mass, row_length, rows, model_levels,                             &
+             iyear, timestep,                                                  &
+             r_theta_levels (1:row_length, 1:rows, 1:model_levels),            &
+             rel_humid_frac (1:row_length, 1:rows, 1:model_levels),            &
+             p_theta_levels (1:row_length, 1:rows, 1:model_levels),            &
+             t_theta_levels (1:row_length, 1:rows, 1:model_levels),            &
+             geopH_on_theta_plumeria, u_rho_levels_plumeria,                   &
+             v_rho_levels_plumeria,                                            &
+             plumeria_height (1:row_length, 1:rows))
+
+    !   Diagnostics - SO2 emissions from explosive volcanic eruptions
+    IF (L_asad_use_chem_diags .AND. L_asad_use_volc_ems) THEN
+      tmp3dems (:,:,:) =                                                       &
+       tracers (1:row_length, 1:rows, :, iso2) - tmp3dems(:,:,:)
+
+      !     tmp3dems              ==> SO2 emission field
+      !     volcanic_emissions    ==> type flag used in ASAD diagnostic routines
+      CALL asad_3d_emissions_diagnostics(                                      &
+           row_length, rows, model_levels,                                     &
+           iso2, tmp3dems, surf_area,                                          &
+           mass,                                                               &
+           m_so2, timestep, volcanic_emissions,                                &
+           ierr)
+      DEALLOCATE (tmp3dems)
+    END IF   ! L_asad_yse_chem_diags, etc.
+
   ELSE
-    u_rho_levels_plumeria = 0.0
-    v_rho_levels_plumeria = 0.0
-    geopH_on_theta_plumeria = 0.0
-  END IF ! ukca_config%l_ukca_so2ems_plumeria
-
-  CALL ukca_volcanic_so2 (                                                     &
-           tracers (1:row_length, 1:rows, :, iso2),                            &
-           mass, row_length, rows, model_levels,                               &
-           iyear, timestep,                                                    &
-           r_theta_levels (1:row_length, 1:rows, 1:model_levels),              &
-           rel_humid_frac (1:row_length, 1:rows, 1:model_levels),              &
-           p_theta_levels (1:row_length, 1:rows, 1:model_levels),              &
-           t_theta_levels (1:row_length, 1:rows, 1:model_levels),              &
-           geopH_on_theta_plumeria, u_rho_levels_plumeria,                     &
-           v_rho_levels_plumeria,                                              &
-           plumeria_height (1:row_length, 1:rows))
-
-  !   Diagnostics - SO2 emissions from explosive volcanic eruptions
-  IF (L_asad_use_chem_diags .AND. L_asad_use_volc_ems) THEN
-    tmp3dems (:,:,:) =                                                         &
-     tracers (1:row_length, 1:rows, :, iso2) - tmp3dems(:,:,:)
-
-    !     tmp3dems               ==> SO2 emission field
-    !     volcanic_emissions     ==> type flag used in ASAD diagnostic routines
-    CALL asad_3d_emissions_diagnostics(                                        &
-         row_length, rows, model_levels,                                       &
-         iso2, tmp3dems, surf_area,                                            &
-         mass,                                                                 &
-         m_so2, timestep, volcanic_emissions,                                  &
-         ierr)
-    DEALLOCATE (tmp3dems)
-  END IF   ! L_asad_yse_chem_diags, etc.
-
-ELSE
-  ! Initialise plumeria_height with a dump value if l_ukca_strat, etc.
-  ! and l_ukca_so2ems_expvolc are not TRUE.
-  plumeria_height = -999.0
-END IF    ! l_ukca_strat, etc.
+    ! Initialise plumeria_height with a dump value if l_ukca_strat, etc.
+    ! and l_ukca_so2ems_expvolc are not TRUE.
+    plumeria_height = -999.0
+  END IF    ! l_ukca_strat, etc.
+END IF ! IF ukca_config%l_ukca_chem
 
 IF (ALLOCATED(hourly_scaling_all_2d)) DEALLOCATE(hourly_scaling_all_2d)
 IF (ALLOCATED(tmp3dems)) DEALLOCATE(tmp3dems)

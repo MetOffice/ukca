@@ -593,6 +593,7 @@ INTEGER, PARAMETER :: i_strat_lbc_env = 2   ! Use environment values
 INTEGER, PARAMETER :: i_strat_lbc_rcp = 3   ! Use RCP file values
 
 ! Option codes for 'ukca_int_method'
+INTEGER, PARAMETER :: int_method_none = 0         ! Null solver (no chemistry)
 INTEGER, PARAMETER :: int_method_impact = 1       ! IMPACT solver
 INTEGER, PARAMETER :: int_method_nr = 3           ! ASAD Newton-Raphson solver
 INTEGER, PARAMETER :: int_method_be = 5           ! ASAD Backward-Euler solver

@@ -47,7 +47,7 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
  cond_on,nucl_on,coag_on,bln_on,icoag,                                         &
  imerge,fine_no3_prod_on,coarse_no3_prod_on,hno3_uptake_coeff,                 &
  ifuchs,idcmfp,icondiam,ibln,i_nuc_method,                                     &
- iactmethod,iddepaer,inucscav,lcvrainout,l_dust_slinn_impc_scav,               &
+ iactmethod,iddepaer,inucscav,ichem,lcvrainout,l_dust_slinn_impc_scav,         &
  verbose,checkmd_nd,intraoff,                                                  &
  interoff,s0g_dot_condensable,lwc,clwc,pvol,pvol_wat,                          &
  jlabove,ilscat,n_merge_1d,height,htpblg)
@@ -139,6 +139,7 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !  INUCSCAV    : Switch : scheme for removal by nucl scav
 !                (1=as GLOMAP [accsol,corsol], 2=scav params as Stier05]
 !                 3=as (1) but no nucl scav of modes 6 & 7 )
+!  ICHEM              : Switch for gas phase chemistry scheme (0=off,1=on)
 !  LCVRAINOUT  : Switch : .FALSE. to disable convective rainout if done
 !                          alongside convective transport
 !  l_dust_slinn_impc_scav : Switch : .TRUE. for new dust impaction
@@ -232,7 +233,6 @@ SUBROUTINE ukca_aero_step(nbox,nchemg,nadvg,nbudaer,                           &
 !  CONDENSABLE        : Logical variable defining which cpts are condensable
 !  CONDENSABLE_CHOICE : Indices of aerosol components into which condensable
 !                         gases go to
-!  ICHEM              : Switch for gas phase chemistry scheme (0=off,1=on)
 !  MH2O2              : Index of MM_GAS, WTRATC and S0G for H2O2
 !  MH2O2F             : Index of MM_GAS, WTRATC and S0G for H2O2F
 !  MH2SO4             : Index of MM_GAS, WTRATC and S0G for H2SO4
@@ -323,7 +323,6 @@ USE ukca_remode_mod,                         ONLY:                             &
 USE ukca_setup_indices,                      ONLY:                             &
     condensable,                                                               &
     condensable_choice,                                                        &
-    ichem,                                                                     &
     mh2o2,                                                                     &
     mh2o2f,                                                                    &
     mh2so4,                                                                    &
@@ -388,6 +387,7 @@ INTEGER, INTENT(IN) :: icondiam
 INTEGER, INTENT(IN) :: ibln
 INTEGER, INTENT(IN) :: i_nuc_method
 INTEGER, INTENT(IN) :: inucscav
+INTEGER, INTENT(IN) :: ichem
 INTEGER, INTENT(IN) :: verbose
 INTEGER, INTENT(IN) :: checkmd_nd
 INTEGER, INTENT(IN) :: intraoff
@@ -828,35 +828,37 @@ DO imts=1,nmts
   !     Calculate rate of condensation of gases onto existing particles
   !     and nucleation rate
   !
-  DO jv=1,nchemg ! loop over gas phase components
-    IF (condensable(jv)) THEN
-      !
-      !        Set index of cpt into which condensable gas to be stored
-      icp=condensable_choice(jv)
-      !
-      !        Calculate ratio of gas phase to aerosol component molar masses
-      s0g_to_gc=mm_gas(jv)/mm(icp)
-      !
-      mask(:)=(s0g(:,jv) > 0.0)
-      !
-      WHERE (mask(:))
+  IF (ichem == 1) THEN
+    DO jv=1,nchemg ! loop over gas phase components
+      IF (condensable(jv)) THEN
         !
-        !         GC is gas phase molecular concentration of condensables
-        !         but molecules refer to molar mass of aerosol cpt
-        gc(:,jv)=s0g_to_gc*s0g(:,jv)*aird(:)/sm(:)
+        !        Set index of cpt into which condensable gas to be stored
+        icp=condensable_choice(jv)
         !
-      END WHERE
-      !
-      WHERE (.NOT. mask(:))
+        !        Calculate ratio of gas phase to aerosol component molar masses
+        s0g_to_gc=mm_gas(jv)/mm(icp)
         !
-        gc(:,jv)=0.0
+        mask(:)=(s0g(:,jv) > 0.0)
         !
-      END WHERE
-      !
-      gcold(:,jv)=gc(:,jv)
-      !
-    END IF
-  END DO
+        WHERE (mask(:))
+          !
+          !         GC is gas phase molecular concentration of condensables
+          !         but molecules refer to molar mass of aerosol cpt
+          gc(:,jv)=s0g_to_gc*s0g(:,jv)*aird(:)/sm(:)
+          !
+        END WHERE
+        !
+        WHERE (.NOT. mask(:))
+          !
+          gc(:,jv)=0.0
+          !
+        END WHERE
+        !
+        gcold(:,jv)=gc(:,jv)
+        !
+      END IF
+    END DO
+  END IF ! ichem == 1
   !
   !      Split microphysics substep into NZTS subsubsteps to allow for
   !      competition between nucleation and condensation (and gas phase

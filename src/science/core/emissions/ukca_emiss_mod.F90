@@ -176,7 +176,11 @@ ierror   = 0
 
 ! Set this from size of ncdf_emissions -assuming that structure has been filled
 ! before call to this routine.
-num_cdf_em_flds = MAX(0, SIZE(ncdf_emissions))
+IF ( ALLOCATED(ncdf_emissions) ) THEN
+  num_cdf_em_flds = MAX(0, SIZE(ncdf_emissions))
+ELSE
+  num_cdf_em_flds = 0
+END IF
 
 num_onln_em_flds = 0
 ! Initialise indices for interative BVOC emissions

@@ -56,10 +56,8 @@ SUBROUTINE ukca_aero_ctl(i_month, i_day_number,                                &
                 q,                                                             &
                 rh3d, rh3d_clr,                                                &
                 p_bdrs,                                                        &
-                chemistry_tracer_names,                                        &
-                mode_tracer_names,                                             &
-                chemistry_tracers,                                             &
-                mode_tracers,                                                  &
+                all_tracer_names,                                              &
+                all_tracers,                                                   &
                 sea_ice_frac,                                                  &
                 z0m,                                                           &
                 u_s,                                                           &
@@ -120,7 +118,7 @@ USE ukca_ntp_mod,     ONLY: ntp_type, dim_ntp, name2ntpindex
 
 USE ukca_setup_indices, ONLY: ntraer, nbudaer, mh2o2f, mh2so4,                 &
                               mm_gas, mox, msec_org, msec_orgi, msotwo,        &
-                              mhno3, mnh3, nadvg, nchemg,                      &
+                              mhno3, mnh3, nadvg, nchemg, ichem,               &
                               nmasagedsuintr52, nmasagedbcintr52,              &
                               nmasagedocintr52, nmasagedsointr52,              &
                               nmasagedduintr63, nmasagedduintr74,              &
@@ -328,19 +326,14 @@ REAL, INTENT(IN) :: cloud_liq_wat(row_length, rows, model_levels)
 REAL, INTENT(IN) :: mass(row_length, rows, model_levels)
 REAL, INTENT(IN) :: zbl(row_length, rows)  ! BL height
 
-! names of chemistry tracers
-CHARACTER(LEN=maxlen_fieldname), INTENT(IN) :: chemistry_tracer_names(         &
-                                                   n_chemistry_tracers)
+! names of tracers
+CHARACTER(LEN=maxlen_fieldname), INTENT(IN) ::                                 &
+                          all_tracer_names(n_chemistry_tracers+ n_mode_tracers)
 
-! names of aerosol tracers
-CHARACTER(LEN=maxlen_fieldname), INTENT(IN) :: mode_tracer_names(n_mode_tracers)
+! tracer mass mixing ratios
+REAL, INTENT(IN OUT) :: all_tracers(row_length, rows, model_levels,            &
+                                    n_chemistry_tracers+ n_mode_tracers)
 
-! chemistry tracer mass mixing ratios
-REAL, INTENT(IN OUT) :: chemistry_tracers(row_length, rows,                    &
-                                          model_levels, n_chemistry_tracers)
-! aerosol tracer mass mixing ratio
-REAL, INTENT(IN OUT) :: mode_tracers(row_length, rows,                         &
-                                     model_levels, n_mode_tracers)
 ! 3-D diagnostic array
 REAL, INTENT(IN OUT) :: mode_diags(row_length, rows,                           &
                                    model_levels, n_mode_diags)
@@ -382,7 +375,6 @@ INTEGER :: ik,ic          ! loop iterators for segments and columns in a segment
 INTEGER :: tid_omp        ! thread id for parallel region
 
 REAL :: a3d_tmp(row_length, rows, model_levels) ! temporary 3D array re-used
-
 
 INTEGER, PARAMETER :: nhet = 2
 ! Number of heterogeneous reaction rates
@@ -492,7 +484,7 @@ INTEGER :: field_size3d            ! size of 3D field
 INTEGER :: i, j, k, l, n, jl, jl2, imode, icp
 ! No of tracers required
 INTEGER :: n_reqd_tracers
-INTEGER :: itra
+INTEGER :: itra, iaer
 
 ! Scaling factor for the in-cloud production rates delso2,delso2_2
 ! to account for removal by precipitation before the cloud
@@ -902,12 +894,15 @@ IF (firstcall .AND. verbose > 0) THEN
 END IF
 !
 ! set ACT according to mode_activation_dryr setting
+act = rmdi
 IF (ABS(glomap_config%mode_activation_dryr - rmdi) < EPSILON(0.0)) THEN
-  cmessage = ' mode_activation_dryr has not been set'
-  errcode = 1
-  WRITE(umMessage, '(A40)') cmessage
-  CALL umPrint(umMessage, src='ukca_aero_ctl')
-  CALL ereport('UKCA_AERO_CTL', errcode, cmessage)
+  IF (ichem == 1) THEN
+    cmessage = ' mode_activation_dryr has not been set'
+    errcode = 1
+    WRITE(umMessage, '(A40)') cmessage
+    CALL umPrint(umMessage, src='ukca_aero_ctl')
+    CALL ereport('UKCA_AERO_CTL', errcode, cmessage)
+  END IF
 ELSE
   act = glomap_config%mode_activation_dryr*1.0e-9 ! convert nm to m
 END IF
@@ -948,14 +943,14 @@ END IF
 ! if chemistry is off reflecting that the only aerosol
 ! scheme that uses this configuration is 2-mode passive
 ! dust
-IF (glomap_config%i_mode_setup == 6) THEN
-  wetox_on = 0
-  cond_on = 0
-  coag_on = 0
-ELSE
+IF (ichem == 1) THEN
   wetox_on = 1
   cond_on = 1
   coag_on = 1
+ELSE
+  wetox_on = 0
+  cond_on = 0
+  coag_on = 0
 END IF
 !
 IF (firstcall .AND. verbose > 0) THEN
@@ -1106,27 +1101,33 @@ IF (verbose > 1) THEN
     CALL umPrint(umMessage, src='ukca_aero_ctl')
   END IF
 
-  DO l = 1, MIN(2, model_levels)            ! model_levels
-    DO j = 1, n_chemistry_tracers
-      WRITE(umMessage, '(A8,I4,A10,I4,A10)') 'Level: ', l, ' Tracer: ', j,     &
-                                             chemistry_tracer_names(j)
-      CALL umPrint(umMessage, src='ukca_aero_ctl')
-      WRITE(umMessage, '(A20,3E12.3)') 'chemistry_tracers: ',                  &
-                                  MINVAL(chemistry_tracers(:, :, l, j)),       &
-                                  MAXVAL(chemistry_tracers(:, :, l, j)),       &
-                                  SUM(chemistry_tracers(:, :, l, j))/          &
-                                  REAL(SIZE(chemistry_tracers(:, :, l, j)))
-      CALL umPrint(umMessage, src='ukca_aero_ctl')
+  IF (ichem == 1) THEN
+    DO l = 1, MIN(2, model_levels)            ! model_levels
+      DO j = 1, n_chemistry_tracers
+        WRITE(umMessage, '(A8,I4,A10,I4,A10)') 'Level: ', l, ' Tracer: ', j,   &
+                                                             all_tracer_names(j)
+        CALL umPrint(umMessage, src='ukca_aero_ctl')
+        WRITE(umMessage, '(A20,3E12.3)') 'chemistry_tracers: ',                &
+                                    MINVAL(all_tracers(:, :, l, j)),           &
+                                    MAXVAL(all_tracers(:, :, l, j)),           &
+                                    SUM(all_tracers(:, :, l, j))/              &
+                                    REAL(SIZE(all_tracers(:, :, l, j)))
+        CALL umPrint(umMessage, src='ukca_aero_ctl')
+      END DO
     END DO
+  END IF
+  DO l = 1, MIN(2, model_levels)            ! model_levels
     DO j = 1, n_mode_tracers
       IF (mode_tracer_debug(j)) THEN
+        iaer = n_chemistry_tracers + j
         WRITE(umMessage, '(A8,I4,A10,I4,A10)') 'Level: ', l,' Tracer: ', j,    &
-                                               mode_tracer_names(j)
+                                                          all_tracer_names(iaer)
         CALL umPrint(umMessage, src='ukca_aero_ctl')
         WRITE(umMessage, '(A18,3E12.3)') 'mode_tracers: ',                     &
-                MINVAL(mode_tracers(:, :, l, j)),                              &
-                MAXVAL(mode_tracers(:, :, l, j)),                              &
-                SUM(mode_tracers(:, :, l,j))/REAL(SIZE(mode_tracers(:, :, l,j)))
+                MINVAL(all_tracers(:, :, l, iaer)),                            &
+                MAXVAL(all_tracers(:, :, l, iaer)),                            &
+                SUM(all_tracers(:, :, l, iaer)) /                              &
+                REAL(SIZE(all_tracers(:, :, l, iaer)))
         CALL umPrint(umMessage, src='ukca_aero_ctl')
       END IF
     END DO
@@ -1242,22 +1243,22 @@ END IF
 !
 !$OMP PARALLEL  DEFAULT(NONE)                                                  &
 !$OMP          SHARED(a3d_tmp, act, all_ntp, bln_on,                           &
-!$OMP chemistry_tracers, cloud_frac, cloud_liq_frac, cloud_liq_wat,            &
-!$OMP component, crain, csnow,                                                 &
+!$OMP all_tracers, cloud_frac, cloud_liq_frac, cloud_liq_wat,                  &
+!$OMP n_chemistry_tracers, component, crain, csnow,                            &
 !$OMP ddepaer_on, delso2_dry_oh, delso2_wet_h2o2, delso2_wet_o3,               &
 !$OMP drain, drydiam, dryox_in_aer, dsnow, dtc, dtm, dtz,                      &
 !$OMP firstcall, glomap_config, glomap_variables,                              &
-!$OMP iactmethod, ibln, iextra_checks, imscav_on, inucscav, jpctr,             &
-!$OMP l_dust_slinn_impc_scav, l_ukca_cmip6_diags, l_ukca_mode_diags,           &
+!$OMP iactmethod, ibln, iextra_checks, imscav_on, inucscav,                    &
+!$OMP jpctr, l_dust_slinn_impc_scav, l_ukca_cmip6_diags, l_ukca_mode_diags,    &
 !$OMP l_ukca_pm_diags, land_fraction, lbase, lcvrainout,                       &
 !$OMP log_sigmag, lscat_zhang,                                                 &
 !$OMP mass, mdtmin, mdwat_diag, mfrac_0, mh2o2f, mh2so4, mlo,                  &
 !$OMP mm, mm_da, mm_gas, mmid, mmr_index,                                      &
-!$OMP mode, mode_diags, mode_tracers, model_levels, modesol, mox,              &
+!$OMP mode, mode_diags, model_levels, modesol, mox,                            &
 !$OMP msec_org, msec_orgi, msotwo,                                             &
 !$OMP n_h2o2, n_h2so4, n_merge_3d, n_o3, n_sec_org, n_sec_org_i, n_so2,        &
 !$OMP n_hono2, n_nh3, mhno3, mnh3,                                             &
-!$OMP nadvg, nbadmdt_3d, nbox, nbox_s, nbudaer, nchemg, ncol_s, ncp,           &
+!$OMP nadvg, nbadmdt_3d, nbox, nbox_s, nbudaer, nchemg, ichem, ncol_s, ncp,    &
 !$OMP nmasddepsunucsol, nmasddepsuaitsol, nmasddepsuaccsol, nmasddepsucorsol,  &
 !$OMP nmasddepssaccsol, nmasddepsscorsol, nmasddepbcaitsol, nmasddepbcaccsol,  &
 !$OMP nmasddepbccorsol, nmasddepbcaitins, nmasddepocnucsol, nmasddepocaitsol,  &
@@ -1326,7 +1327,7 @@ END IF
 !$OMP wetdp_diag, wetox_in_aer, z0m, z_half_alllevs, zbl)                      &
 !$OMP     PRIVATE(cmessage, dp0, errcode,                                      &
 !$OMP             ifirst, i, i_end, i_end_cp, i_start, i_start_cp,             &
-!$OMP             ic, icp, ik, itra, imode, j, jl, jl2, jv, k,                 &
+!$OMP             ic, icp, ik, itra, iaer, imode, j, jl, jl2, jv, k,           &
 !$OMP             l, lb, logic, logic1, logic2, n, ncs, nbs, nbs_index,        &
 !$OMP             seg_aird, seg_airdm3, seg_autoconv1d, seg_bud_aer_mas,       &
 !$OMP             seg_ccn_1, seg_ccn_2, seg_ccn_3, seg_ccn_4, seg_ccn_5,       &
@@ -1668,7 +1669,7 @@ DO ik = 1, nseg
     ! .. set h2o2 when required
     IF (mh2o2f  > 0 .AND. mm_gas(mh2o2f) > 1e-3 ) THEN
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       chemistry_tracers(1, 1, 1, n_h2o2), seg_v1d_tmp(1))
+                       all_tracers(1, 1, 1, n_h2o2), seg_v1d_tmp(1))
       i_start = nbs * (mh2o2f - 1)
       DO jl = 1, nbs
         seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mh2o2f)) *         &
@@ -1686,7 +1687,7 @@ DO ik = 1, nseg
     ! .. set O3
     IF (mox > 0 .AND. mm_gas(mox) > 1e-3 ) THEN
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       chemistry_tracers(1, 1, 1, n_o3), seg_v1d_tmp(1))
+                       all_tracers(1, 1, 1, n_o3), seg_v1d_tmp(1))
       DO jl = 1, nbs
         seg_zo3(jl) = seg_sm(jl) * (mm_da / mm_gas(mox)) * seg_v1d_tmp(jl)
       END DO
@@ -1701,7 +1702,7 @@ DO ik = 1, nseg
     ! .. SO2 mmr in kg[SO2]/kg[dryair]
     IF (msotwo > 0 .AND. mm_gas(msotwo) > 1e-3) THEN
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       chemistry_tracers(1, 1, 1, n_so2), seg_v1d_tmp(1))
+                       all_tracers(1, 1, 1, n_so2), seg_v1d_tmp(1))
       i_start = nbs * (msotwo - 1)
       DO jl = 1, nbs
         seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(msotwo)) *         &
@@ -1721,42 +1722,29 @@ DO ik = 1, nseg
 
   IF (mh2so4   > 0) THEN
     CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
-                     chemistry_tracers(1, 1, 1, n_h2so4), seg_v1d_tmp(1))
+                     all_tracers(1, 1, 1, n_h2so4), seg_v1d_tmp(1))
     i_start = nbs * (mh2so4 - 1)
     DO jl = 1, nbs
       seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mh2so4)) *           &
                              seg_v1d_tmp(jl)
     END DO
-  ELSE
-    errcode = 1
-    cmessage = 'MH2SO4 <= 0'
-    WRITE(umMessage, '(A20,I6)') cmessage, ' MH2SO4 = ', mh2so4
-    CALL umPrint(umMessage, src='ukca_aero_ctl')
-    CALL ereport('UKCA_AERO_CTL', errcode, cmessage)
   END IF
 
   ! .. Secondary Organic tracer mmr in kg[Sec_Org]/kg[dryair]
   IF (msec_org > 0) THEN
     CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
-                     chemistry_tracers(1, 1, 1, n_sec_org), seg_v1d_tmp(1))
+                     all_tracers(1, 1, 1, n_sec_org), seg_v1d_tmp(1))
     i_start = nbs * (msec_org - 1)
     DO jl = 1, nbs
       seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(msec_org)) *         &
                              seg_v1d_tmp(jl)
     END DO
-  ELSE
-     ! may not have Sec_Org tracer - e.g. StratAer
-    errcode = -1
-    cmessage = 'msec_org <= 0'
-    WRITE(umMessage, '(A20,I6)') cmessage, ' msec_org = ', msec_org
-    CALL umPrint(umMessage, src='ukca_aero_ctl')
-    CALL ereport('UKCA_AERO_CTL', errcode, cmessage)
   END IF
 
   ! .. Secondary Organic tracer from isoprene mmr in kg[SEC_ORG I]/kg[dryair]
   IF (msec_orgi > 0) THEN
     CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
-                     chemistry_tracers(1, 1, 1, n_sec_org_i), seg_v1d_tmp(1))
+                     all_tracers(1, 1, 1, n_sec_org_i), seg_v1d_tmp(1))
     i_start = nbs * (msec_orgi - 1)
     DO jl = 1, nbs
       seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(msec_orgi)) *        &
@@ -1768,16 +1756,17 @@ DO ik = 1, nseg
   !                  coarse NO3 off via coarse_no3_prod_on
   IF (mhno3 > 0) THEN
     CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
-                     chemistry_tracers(1, 1, 1, n_hono2), seg_v1d_tmp(1))
+                     all_tracers(1, 1, 1, n_hono2), seg_v1d_tmp(1))
     i_start = nbs * (mhno3 - 1)
     DO jl = 1, nbs
       seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mhno3)) *            &
                              seg_v1d_tmp(jl)
     END DO
   END IF
+
   IF (mnh3 > 0) THEN
     CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                     &
-                     chemistry_tracers(1, 1, 1, n_nh3), seg_v1d_tmp(1))
+                     all_tracers(1, 1, 1, n_nh3), seg_v1d_tmp(1))
     i_start = nbs * (mnh3 - 1)
     DO jl = 1, nbs
       seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mnh3)) *             &
@@ -1799,9 +1788,9 @@ DO ik = 1, nseg
       seg_mdtfixsink(jl2) = 0.0
     END DO
     IF (mode(imode)) THEN
-      itra = nmr_index(imode) - ifirst + 1
+      iaer = n_chemistry_tracers + nmr_index(imode) - ifirst + 1
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       mode_tracers(1, 1, 1, itra), seg_tr_rs(1))
+                       all_tracers(1, 1, 1, iaer), seg_tr_rs(1))
       DO jl = 1, nbs
         ! Set tr_rs to zero if negative
         seg_tr_rs(jl) = MAX(0.0, seg_tr_rs(jl))
@@ -1812,9 +1801,9 @@ DO ik = 1, nseg
       DO icp = 1, ncp
         IF (component(imode, icp)) THEN
           i_start_cp = (icp - 1) * nmodes * nbs
-          itra = mmr_index(imode, icp) - ifirst + 1
+          iaer = n_chemistry_tracers + mmr_index(imode, icp) - ifirst + 1
           CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,               &
-                           mode_tracers(1, 1, 1, itra), seg_tr_rs(1))
+                           all_tracers(1, 1, 1, iaer), seg_tr_rs(1))
 
           DO jl = 1, nbs
             jl2 = nbs_index(imode - 1) + jl
@@ -1934,13 +1923,15 @@ DO ik = 1, nseg
   !
   IF (verbose >= 2) THEN
 
-    DO itra = 1, nadvg
-      CALL select_array_segment(nbs, 1, itra, i_start, i_end)
-      WRITE(umMessage, '(A10,I4,2E12.3)') 'S0 : ',itra,                        &
-                                          MINVAL(seg_s0(i_start:i_end)),       &
-                                          MAXVAL(seg_s0(i_start:i_end))
-      CALL umPrint(umMessage, src='ukca_aero_ctl')
-    END DO
+    IF (ichem == 1) THEN
+      DO itra = 1, nadvg
+        CALL select_array_segment(nbs, 1, itra, i_start, i_end)
+        WRITE(umMessage, '(A10,I4,2E12.3)') 'S0 : ',itra,                      &
+                                            MINVAL(seg_s0(i_start:i_end)),     &
+                                            MAXVAL(seg_s0(i_start:i_end))
+        CALL umPrint(umMessage, src='ukca_aero_ctl')
+      END DO
+    END IF
 
     DO imode = 1, nmodes
       IF (mode(imode)) THEN
@@ -2070,7 +2061,7 @@ DO ik = 1, nseg
                       cond_on, nucl_on, coag_on, bln_on, icoag, imerge,        &
                       fine_no3_prod_on, coarse_no3_prod_on, hno3_uptake_coeff, &
                       ifuchs, idcmfp, icondiam, ibln, i_nuc_method,            &
-                      iactmethod, iddepaer, inucscav,                          &
+                      iactmethod, iddepaer, inucscav, ichem,                   &
                       lcvrainout, l_dust_slinn_impc_scav, verbose_local,       &
                       checkmd_nd, intraoff, interoff,                          &
                       seg_s0_dot_condensable, seg_lwc,seg_clwc, seg_pvol,      &
@@ -2090,7 +2081,7 @@ DO ik = 1, nseg
                           seg_sm(jl)
       END DO
       CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                    &
-                      seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_h2o2))
+                      seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, n_h2o2))
     END IF
     IF (msotwo > 0) THEN
       ! .. update gas phase SO2 mmr following aqueous phase oxidation
@@ -2100,7 +2091,7 @@ DO ik = 1, nseg
                           (mm_gas(msotwo) / mm_da)
       END DO
       CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                    &
-                      seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_so2))
+                      seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, n_so2))
     END IF
   END IF
 
@@ -2112,7 +2103,7 @@ DO ik = 1, nseg
                         (mm_gas(mh2so4) / mm_da)
     END DO
     CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
-                    seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_h2so4))
+                    seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, n_h2so4))
   END IF
 
   IF (msec_org > 0) THEN
@@ -2123,7 +2114,7 @@ DO ik = 1, nseg
                         (mm_gas(msec_org)/mm_da)
     END DO
     CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
-                    seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_sec_org))
+                    seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, n_sec_org))
   END IF
 
   IF (msec_orgi > 0) THEN
@@ -2135,7 +2126,7 @@ DO ik = 1, nseg
     END DO
     CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
                     seg_v1d_tmp(1:nbs),                                        &
-                    chemistry_tracers(1, 1, 1, n_sec_org_i))
+                    all_tracers(1, 1, 1, n_sec_org_i))
   END IF
 
   IF (mhno3   > 0) THEN
@@ -2146,7 +2137,7 @@ DO ik = 1, nseg
                         (mm_gas(mhno3) / mm_da)
     END DO
     CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
-                    seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_hono2))
+                    seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, n_hono2))
   END IF
 
   IF (mnh3   > 0) THEN
@@ -2157,7 +2148,7 @@ DO ik = 1, nseg
                         (mm_gas(mnh3) / mm_da)
     END DO
     CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                      &
-                    seg_v1d_tmp(1:nbs), chemistry_tracers(1, 1, 1, n_nh3))
+                    seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, n_nh3))
   END IF
 
   ! Set H2O2, O3 and SO2 for aqueous oxidation
@@ -2165,7 +2156,7 @@ DO ik = 1, nseg
     ! .. set h2o2 from h2o2_tracer when required
     IF (mh2o2f  > 0 .AND. mm_gas(mh2o2f) > 1e-3 ) THEN
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       chemistry_tracers(1, 1, 1, n_h2o2), seg_v1d_tmp(1))
+                       all_tracers(1, 1, 1, n_h2o2), seg_v1d_tmp(1))
       i_start = nbs * (mh2o2f - 1)
       DO jl = 1, nbs
         seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(mh2o2f)) *         &
@@ -2183,7 +2174,7 @@ DO ik = 1, nseg
     ! .. set O3 from O3_tracer
     IF (mox > 0 .AND. mm_gas(mox) > 1e-3 ) THEN
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       chemistry_tracers(1, 1, 1, n_o3), seg_v1d_tmp(1))
+                       all_tracers(1, 1, 1, n_o3), seg_v1d_tmp(1))
       DO jl = 1, nbs
         seg_zo3(jl) = seg_sm(jl) * (mm_da / mm_gas(mox)) * seg_v1d_tmp(jl)
       END DO
@@ -2197,7 +2188,7 @@ DO ik = 1, nseg
 
     IF (msotwo > 0 .AND. mm_gas(msotwo) > 1e-3) THEN
       CALL extract_seg(lb, ncs, nbs, stride_s, model_levels,                   &
-                       chemistry_tracers(1, 1, 1, n_so2), seg_v1d_tmp(1))
+                       all_tracers(1, 1, 1, n_so2), seg_v1d_tmp(1))
       i_start = nbs * (msotwo - 1)
       DO jl = 1, nbs
         seg_s0(i_start + jl) = seg_sm(jl) * (mm_da / mm_gas(msotwo)) *         &
@@ -2222,13 +2213,13 @@ DO ik = 1, nseg
 
   DO imode = 1, nmodes
     IF (mode(imode)) THEN
-      itra = nmr_index(imode) - ifirst + 1
+      iaer = n_chemistry_tracers + nmr_index(imode) - ifirst + 1
       ! .. update aerosol no. conc. following aerosol microphysics
       DO jl = 1, nbs
         seg_v1d_tmp(jl) = (seg_nd(nbs_index(imode - 1) + jl) / seg_aird(jl))
       END DO
       CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                    &
-                      seg_v1d_tmp(1:nbs), mode_tracers(1, 1, 1, itra) )
+                      seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, iaer) )
       DO icp = 1, ncp
         IF (component(imode,icp)) THEN
           i_start_cp = (icp - 1) * nmodes * nbs
@@ -2243,9 +2234,9 @@ DO ik = 1, nseg
                                 seg_aird(jl) )
           END DO
 
-          itra = mmr_index(imode,icp) - ifirst + 1
+          iaer = n_chemistry_tracers + mmr_index(imode,icp) - ifirst + 1
           CALL insert_seg(lb, ncs, nbs, stride_s, model_levels,                &
-                          seg_v1d_tmp(1:nbs), mode_tracers(1, 1, 1, itra) )
+                          seg_v1d_tmp(1:nbs), all_tracers(1, 1, 1, iaer) )
         END IF
       END DO ! loop over cpts
 
@@ -2345,13 +2336,15 @@ DO ik = 1, nseg
 
     WRITE(umMessage, '(A30)') 'AFTER CALL TO UKCA_AERO_STEP'
     CALL umPrint(umMessage, src='ukca_aero_ctl')
-    DO itra = 1, nadvg
-      CALL select_array_segment(nbs, 1, itra, i_start, i_end)
-      WRITE(umMessage, '(A10,I4,2E12.3)') 'S0 : ', itra,                       &
-                                          MINVAL(seg_s0(i_start:i_end)),       &
-                                          MAXVAL(seg_s0(i_start:i_end))
-      CALL umPrint(umMessage, src='ukca_aero_ctl')
-    END DO
+    IF (ichem == 1) THEN
+      DO itra = 1, nadvg
+        CALL select_array_segment(nbs, 1, itra, i_start, i_end)
+        WRITE(umMessage, '(A10,I4,2E12.3)') 'S0 : ', itra,                     &
+                                            MINVAL(seg_s0(i_start:i_end)),     &
+                                            MAXVAL(seg_s0(i_start:i_end))
+        CALL umPrint(umMessage, src='ukca_aero_ctl')
+      END DO
+    END IF
     DO imode = 1, nmodes
       IF (mode(imode)) THEN
         CALL select_array_segment(nbs, 1, imode, i_start, i_end)
@@ -4636,27 +4629,32 @@ IF (verbose > 1) THEN
   CALL umPrint(umMessage, src='ukca_aero_ctl')
 
   ! Only one model level in UKCA box model
-  DO i = 1, MIN(2, model_levels)           !model_levels
-    DO j = 1, n_chemistry_tracers
-      WRITE(umMessage, '(A10,I6,A10,I6)') 'Level: ',i, ' Tracer: ', j
-      CALL umPrint(umMessage, src='ukca_aero_ctl')
-      WRITE(umMessage, '(A20,3E12.3)') 'chemistry_tracers:',                   &
-         MINVAL(chemistry_tracers(: , :, i, j)),                               &
-         MAXVAL(chemistry_tracers(:, :, i, j)),                                &
-         SUM(chemistry_tracers(:, :, i, j)) /                                  &
-             REAL(SIZE(chemistry_tracers(:, :, i, j)))
-      CALL umPrint(umMessage, src='ukca_aero_ctl')
+  IF (ichem == 1) THEN
+    DO i = 1, MIN(2, model_levels)           !model_levels
+      DO j = 1, n_chemistry_tracers
+        WRITE(umMessage, '(A10,I6,A10,I6)') 'Level: ',i, ' Tracer: ', j
+        CALL umPrint(umMessage, src='ukca_aero_ctl')
+        WRITE(umMessage, '(A20,3E12.3)') 'chemistry_tracers:',                 &
+           MINVAL(all_tracers(: , :, i, j)),                                   &
+           MAXVAL(all_tracers(:, :, i, j)),                                    &
+           SUM(all_tracers(:, :, i, j)) /                                      &
+               REAL(SIZE(all_tracers(:, :, i, j)))
+        CALL umPrint(umMessage, src='ukca_aero_ctl')
+      END DO
     END DO
+  END IF
+  DO i = 1, MIN(2, model_levels)           !model_levels
     DO j = 1, n_mode_tracers
       IF (mode_tracer_debug(j)) THEN
+        iaer = n_chemistry_tracers + j
         WRITE(umMessage, '(A10,I4,A10,I4,A10)') 'Level: ', i, ' Tracer: ',     &
-               j, mode_tracer_names(j)
+               j, all_tracer_names(iaer)
         CALL umPrint(umMessage, src='ukca_aero_ctl')
         WRITE(umMessage, '(A14,3E12.3)') 'mode_tracers: ',                     &
-               MINVAL(mode_tracers(:, :, i, j)),                               &
-               MAXVAL(mode_tracers(:, :, i, j)),                               &
-               SUM(mode_tracers(:, :, i, j))/                                  &
-               REAL(SIZE(mode_tracers(:, :, i, j)))
+               MINVAL(all_tracers(:, :, i, iaer)),                             &
+               MAXVAL(all_tracers(:, :, i, iaer)),                             &
+               SUM(all_tracers(:, :, i, iaer))/                                &
+               REAL(SIZE(all_tracers(:, :, i, iaer)))
         CALL umPrint(umMessage, src='ukca_aero_ctl')
       END IF
     END DO

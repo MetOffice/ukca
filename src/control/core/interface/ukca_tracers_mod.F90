@@ -266,7 +266,7 @@ ALLOCATE(fld_names(n_max))
 
 ! Add all tracers from advt (may include H2O)
 n = jpctr
-fld_names(1:n) = advt(:)
+IF (jpctr > 0) fld_names(1:n) = advt(:)
 
 ! For each MODE tracer, the tracer is required if it's associated mode is
 ! active and either it is the number mixing ratio tracer for that mode

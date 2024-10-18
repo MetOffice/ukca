@@ -595,6 +595,7 @@ IF (PRESENT(l_blankout_invalid_diags))                                         &
 IF (PRESENT(l_enable_diag_um)) ukca_config%l_enable_diag_um = l_enable_diag_um
 IF (PRESENT(l_ukca_persist_off))                                               &
   ukca_config%l_ukca_persist_off = l_ukca_persist_off
+IF (PRESENT(l_ukca_mode)) ukca_config%l_ukca_mode = l_ukca_mode
 IF (PRESENT(l_timer)) ukca_config%l_timer = l_timer
 IF (PRESENT(i_error_method))                                                   &
   ukca_config%i_error_method = i_error_method
@@ -604,7 +605,6 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
   ukca_config%bl_levels = 1
 
   IF (PRESENT(bl_levels)) ukca_config%bl_levels = bl_levels
-  IF (PRESENT(l_ukca_mode)) ukca_config%l_ukca_mode = l_ukca_mode
 
   IF (ukca_config%i_ukca_chem == i_ukca_chem_offline .OR.                      &
       ukca_config%i_ukca_chem == i_ukca_chem_offline_be) THEN
@@ -1128,249 +1128,385 @@ END IF
 ! -- GLOMAP-mode configuration ----------------------------------------
 
 IF (ukca_config%l_ukca_mode) THEN
+  IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
-  ! -- General GLOMAP configuration options ---------------------------
+    ! -- General GLOMAP configuration options ---------------------------
 
-  glomap_config%ukca_mode_seg_size = ukca_config%row_length * ukca_config%rows
-  glomap_config%l_mode_bhn_on = .TRUE.
+    glomap_config%ukca_mode_seg_size = ukca_config%row_length *                &
+                                       ukca_config%rows
+    glomap_config%l_mode_bhn_on = .TRUE.
 
-  IF (PRESENT(i_mode_nzts)) glomap_config%i_mode_nzts = i_mode_nzts
-  IF (PRESENT(ukca_mode_seg_size))                                             &
-    glomap_config%ukca_mode_seg_size = ukca_mode_seg_size
-  IF (PRESENT(i_mode_setup)) glomap_config%i_mode_setup = i_mode_setup
-  IF (PRESENT(l_mode_bhn_on)) glomap_config%l_mode_bhn_on = l_mode_bhn_on
-  IF (PRESENT(mode_activation_dryr))                                           &
-    glomap_config%mode_activation_dryr = mode_activation_dryr
-  IF (PRESENT(l_dust_ageing_on))                                               &
-    glomap_config%l_dust_ageing_on = l_dust_ageing_on
+    IF (PRESENT(i_mode_nzts)) glomap_config%i_mode_nzts = i_mode_nzts
+    IF (PRESENT(ukca_mode_seg_size))                                           &
+      glomap_config%ukca_mode_seg_size = ukca_mode_seg_size
+    IF (PRESENT(i_mode_setup)) glomap_config%i_mode_setup = i_mode_setup
+    IF (PRESENT(l_mode_bhn_on)) glomap_config%l_mode_bhn_on = l_mode_bhn_on
+    IF (PRESENT(mode_activation_dryr))                                         &
+      glomap_config%mode_activation_dryr = mode_activation_dryr
+    IF (PRESENT(l_dust_ageing_on))                                             &
+      glomap_config%l_dust_ageing_on = l_dust_ageing_on
 
+    IF (ukca_config%l_ukca_scale_ppe) THEN
 
-  IF (ukca_config%l_ukca_scale_ppe) THEN
-    IF (PRESENT(dry_depvel_acc_scaling))                                       &
-      glomap_config%dry_depvel_acc_scaling = dry_depvel_acc_scaling
-  END IF
+      IF (PRESENT(dry_depvel_acc_scaling))                                     &
+        glomap_config%dry_depvel_acc_scaling = dry_depvel_acc_scaling
 
-  IF (ukca_config%l_ukca_scale_ppe) THEN
-    IF (PRESENT(acc_cor_scav_scaling))                                         &
-      glomap_config%acc_cor_scav_scaling = acc_cor_scav_scaling
-  END IF
-
-  ! -- GLOMAP deposition configuration options --
-
-  ! Dry deposition
-
-  IF (.NOT. (ukca_config%l_ukca_drydep_off)) THEN
-
-    glomap_config%l_ddepaer = .TRUE.
-
-    IF (PRESENT(l_ddepaer)) glomap_config%l_ddepaer = l_ddepaer
-
-  END IF
-
-  ! Wet deposition
-
-  ! Fraction of in-cloud oxidised SO2 removed by precip. is zero by default
-  ! and is always zero if wet deposition is off. Note that a value of 0.25
-  ! is recommended.
-  glomap_config%mode_incld_so2_rfrac = 0.0
-
-  IF (.NOT. (ukca_config%l_ukca_wetdep_off)) THEN
-
-    glomap_config%l_rainout = .TRUE.
-    glomap_config%l_impc_scav = .TRUE.
-
-    IF (PRESENT(mode_incld_so2_rfrac))                                         &
-      glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
-    IF (PRESENT(l_rainout)) glomap_config%l_rainout = l_rainout
-    IF (PRESENT(l_impc_scav)) glomap_config%l_impc_scav = l_impc_scav
-
-    ! Nucleation scavenging options
-    IF (glomap_config%l_rainout) THEN
-
-      glomap_config%i_mode_nucscav = 3
-      glomap_config%l_cv_rainout = .TRUE.
-
-      IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
-      IF (PRESENT(i_mode_nucscav))                                             &
-        glomap_config%i_mode_nucscav = i_mode_nucscav
+      IF (PRESENT(acc_cor_scav_scaling))                                       &
+        glomap_config%acc_cor_scav_scaling = acc_cor_scav_scaling
 
     END IF
 
-    ! Impaction scavenging options
-    IF (glomap_config%l_impc_scav) THEN
+    ! -- GLOMAP deposition configuration options --
 
-      glomap_config%l_dust_slinn_impc_scav = .TRUE.
+    ! Dry deposition
 
-      IF (PRESENT(l_dust_slinn_impc_scav))                                     &
-        glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
+    IF (.NOT. (ukca_config%l_ukca_drydep_off)) THEN
+
+      glomap_config%l_ddepaer = .TRUE.
+
+      IF (PRESENT(l_ddepaer)) glomap_config%l_ddepaer = l_ddepaer
 
     END IF
 
-  END IF
+    ! Wet deposition
 
-  ! Boundary layer nucleation options
+    ! Fraction of in-cloud oxidised SO2 removed by precip. is zero by default
+    ! and is always zero if wet deposition is off. Note that a value of 0.25
+    ! is recommended.
+    glomap_config%mode_incld_so2_rfrac = 0.0
 
-  IF (glomap_config%l_mode_bhn_on) THEN
+    IF (.NOT. (ukca_config%l_ukca_wetdep_off)) THEN
 
-    glomap_config%l_mode_bln_on = .TRUE.
-    glomap_config%i_mode_bln_param_method = 1
+      glomap_config%l_rainout = .TRUE.
+      glomap_config%l_impc_scav = .TRUE.
 
-    IF (PRESENT(l_mode_bln_on)) glomap_config%l_mode_bln_on = l_mode_bln_on
-    IF (PRESENT(i_mode_bln_param_method))                                      &
-      glomap_config%i_mode_bln_param_method = i_mode_bln_param_method
+      IF (PRESENT(mode_incld_so2_rfrac))                                       &
+        glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
+      IF (PRESENT(l_rainout)) glomap_config%l_rainout = l_rainout
+      IF (PRESENT(l_impc_scav)) glomap_config%l_impc_scav = l_impc_scav
 
-  END IF
+      ! Nucleation scavenging options
+      IF (glomap_config%l_rainout) THEN
 
-  ! -- GLOMAP emissions configuration options --------------------------
+        glomap_config%i_mode_nucscav = 3
+        glomap_config%l_cv_rainout = .TRUE.
 
-  IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
+        IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
+        IF (PRESENT(i_mode_nucscav))                                           &
+          glomap_config%i_mode_nucscav = i_mode_nucscav
 
-    IF (PRESENT(l_ukca_primss)) glomap_config%l_ukca_primss = l_ukca_primss
-    IF (PRESENT(l_ukca_primsu)) glomap_config%l_ukca_primsu = l_ukca_primsu
-    IF (PRESENT(l_ukca_primdu)) glomap_config%l_ukca_primdu = l_ukca_primdu
-    IF (PRESENT(l_ukca_primbcoc))                                              &
-      glomap_config%l_ukca_primbcoc = l_ukca_primbcoc
+      END IF
 
-    ! Carbonaceous emissions configuration
-    IF (glomap_config%l_ukca_primbcoc) THEN
-      IF (PRESENT(l_ukca_prim_moc))                                            &
-        glomap_config%l_ukca_prim_moc = l_ukca_prim_moc
-      IF (PRESENT(l_bcoc_bf)) glomap_config%l_bcoc_bf = l_bcoc_bf
-      IF (PRESENT(l_bcoc_bm)) glomap_config%l_bcoc_bm = l_bcoc_bm
-      IF (PRESENT(l_bcoc_ff)) glomap_config%l_bcoc_ff = l_bcoc_ff
-      IF (PRESENT(l_ukca_scale_biom_aer_ems))                                  &
-        glomap_config%l_ukca_scale_biom_aer_ems = l_ukca_scale_biom_aer_ems
+      ! Impaction scavenging options
+      IF (glomap_config%l_impc_scav) THEN
+
+        glomap_config%l_dust_slinn_impc_scav = .TRUE.
+
+        IF (PRESENT(l_dust_slinn_impc_scav))                                   &
+          glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
+
+      END IF
+
     END IF
 
-    ! Sea salt scaling and parameterisation method
-    IF (glomap_config%l_ukca_primss) THEN
-      IF (PRESENT(l_ukca_scale_sea_salt_ems))                                  &
-        glomap_config%l_ukca_scale_sea_salt_ems = l_ukca_scale_sea_salt_ems
-      IF (PRESENT(i_primss_method))                                            &
-        glomap_config%i_primss_method = i_primss_method
-    END IF
-    ! Marine POM scaling
-    IF (glomap_config%l_ukca_prim_moc .AND.                                    &
-        glomap_config%l_ukca_primbcoc .AND.                                    &
-        glomap_config%l_ukca_primss) THEN
-      IF (PRESENT(l_ukca_scale_marine_pom_ems))                                &
-        glomap_config%l_ukca_scale_marine_pom_ems = l_ukca_scale_marine_pom_ems
+    ! Boundary layer nucleation options
+
+    IF (glomap_config%l_mode_bhn_on) THEN
+
+      glomap_config%l_mode_bln_on = .TRUE.
+      glomap_config%i_mode_bln_param_method = 1
+
+      IF (PRESENT(l_mode_bln_on)) glomap_config%l_mode_bln_on = l_mode_bln_on
+      IF (PRESENT(i_mode_bln_param_method))                                    &
+        glomap_config%i_mode_bln_param_method = i_mode_bln_param_method
+
     END IF
 
-    ! Scaling factor for biomass burning emissions
-    IF (glomap_config%l_ukca_scale_biom_aer_ems) THEN
-      IF (PRESENT(biom_aer_ems_scaling))                                       &
-        glomap_config%biom_aer_ems_scaling = biom_aer_ems_scaling
+    ! -- GLOMAP emissions configuration options --------------------------
+
+    IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
+
+      IF (PRESENT(l_ukca_primss)) glomap_config%l_ukca_primss = l_ukca_primss
+      IF (PRESENT(l_ukca_primsu)) glomap_config%l_ukca_primsu = l_ukca_primsu
+      IF (PRESENT(l_ukca_primdu)) glomap_config%l_ukca_primdu = l_ukca_primdu
+      IF (PRESENT(l_ukca_primbcoc))                                            &
+        glomap_config%l_ukca_primbcoc = l_ukca_primbcoc
+
+      ! Carbonaceous emissions configuration
+      IF (glomap_config%l_ukca_primbcoc) THEN
+        IF (PRESENT(l_ukca_prim_moc))                                          &
+          glomap_config%l_ukca_prim_moc = l_ukca_prim_moc
+        IF (PRESENT(l_bcoc_bf)) glomap_config%l_bcoc_bf = l_bcoc_bf
+        IF (PRESENT(l_bcoc_bm)) glomap_config%l_bcoc_bm = l_bcoc_bm
+        IF (PRESENT(l_bcoc_ff)) glomap_config%l_bcoc_ff = l_bcoc_ff
+        IF (PRESENT(l_ukca_scale_biom_aer_ems))                                &
+          glomap_config%l_ukca_scale_biom_aer_ems = l_ukca_scale_biom_aer_ems
+      END IF
+
+      ! Sea salt scaling
+      IF (glomap_config%l_ukca_primss) THEN
+        IF (PRESENT(l_ukca_scale_sea_salt_ems))                                &
+          glomap_config%l_ukca_scale_sea_salt_ems = l_ukca_scale_sea_salt_ems
+        IF (PRESENT(i_primss_method))                                          &
+          glomap_config%i_primss_method = i_primss_method
+      END IF
+      ! Marine POM scaling
+      IF (glomap_config%l_ukca_prim_moc .AND.                                  &
+          glomap_config%l_ukca_primbcoc .AND.                                  &
+          glomap_config%l_ukca_primss) THEN
+        IF (PRESENT(l_ukca_scale_marine_pom_ems))                              &
+          glomap_config%l_ukca_scale_marine_pom_ems =                          &
+          l_ukca_scale_marine_pom_ems
+      END IF
+
+      ! Scaling factor for biomass burning emissions
+      IF (glomap_config%l_ukca_scale_biom_aer_ems) THEN
+        IF (PRESENT(biom_aer_ems_scaling))                                     &
+          glomap_config%biom_aer_ems_scaling = biom_aer_ems_scaling
+      END IF
+      ! Scaling factor for sea-salt emissions
+      IF (glomap_config%l_ukca_scale_sea_salt_ems) THEN
+        IF (PRESENT(sea_salt_ems_scaling))                                     &
+          glomap_config%sea_salt_ems_scaling = sea_salt_ems_scaling
+      END IF
+      ! Scaling factor for POM emissions
+      IF (glomap_config%l_ukca_scale_marine_pom_ems) THEN
+        IF (PRESENT(marine_pom_ems_scaling))                                   &
+          glomap_config%marine_pom_ems_scaling = marine_pom_ems_scaling
+      END IF
+
     END IF
-    ! Scaling factor for sea-salt emissions
-    IF (glomap_config%l_ukca_scale_sea_salt_ems) THEN
-      IF (PRESENT(sea_salt_ems_scaling))                                       &
-        glomap_config%sea_salt_ems_scaling = sea_salt_ems_scaling
+
+    ! Nitrate emissions configuration
+    IF (PRESENT(l_ukca_fine_no3_prod))                                         &
+      glomap_config%l_ukca_fine_no3_prod = l_ukca_fine_no3_prod
+    IF (PRESENT(l_ukca_coarse_no3_prod))                                       &
+      glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
+    IF (PRESENT(l_no3_prod_in_aero_step))                                      &
+      glomap_config%l_no3_prod_in_aero_step = l_no3_prod_in_aero_step
+    IF (PRESENT(hno3_uptake_coeff))                                            &
+      glomap_config%hno3_uptake_coeff = hno3_uptake_coeff
+
+    ! -- GLOMAP feedback configuration options ---------------------------
+
+    IF (PRESENT(l_ukca_radaer)) glomap_config%l_ukca_radaer = l_ukca_radaer
+    IF (glomap_config%l_ukca_radaer) THEN
+      IF (PRESENT(i_ukca_tune_bc)) glomap_config%i_ukca_tune_bc =              &
+                                   i_ukca_tune_bc
     END IF
-    ! Scaling factor for POM emissions
-    IF (glomap_config%l_ukca_scale_marine_pom_ems) THEN
-      IF (PRESENT(marine_pom_ems_scaling))                                     &
-        glomap_config%marine_pom_ems_scaling = marine_pom_ems_scaling
-    END IF
 
-  END IF
-
-  ! Nitrate emissions configuration
-  IF (PRESENT(l_ukca_fine_no3_prod))                                           &
-    glomap_config%l_ukca_fine_no3_prod = l_ukca_fine_no3_prod
-  IF (PRESENT(l_ukca_coarse_no3_prod))                                         &
-    glomap_config%l_ukca_coarse_no3_prod = l_ukca_coarse_no3_prod
-  IF (PRESENT(l_no3_prod_in_aero_step))                                        &
-    glomap_config%l_no3_prod_in_aero_step = l_no3_prod_in_aero_step
-  IF (PRESENT(hno3_uptake_coeff))                                              &
-    glomap_config%hno3_uptake_coeff = hno3_uptake_coeff
-
-  ! -- GLOMAP feedback configuration options ---------------------------
-
-  IF (PRESENT(l_ukca_radaer)) glomap_config%l_ukca_radaer = l_ukca_radaer
-  IF (glomap_config%l_ukca_radaer) THEN
-    IF (PRESENT(i_ukca_tune_bc)) glomap_config%i_ukca_tune_bc = i_ukca_tune_bc
-  END IF
-
-  glomap_config%i_ukca_activation_scheme = i_ukca_activation_off
-  IF (PRESENT(i_ukca_activation_scheme))                                       &
+    glomap_config%i_ukca_activation_scheme = i_ukca_activation_off
+    IF (PRESENT(i_ukca_activation_scheme))                                     &
     glomap_config%i_ukca_activation_scheme = i_ukca_activation_scheme
 
-  ! Activation scheme configuration
+    ! Activation scheme configuration
 
-  IF (glomap_config%i_ukca_activation_scheme /= i_ukca_activation_off) THEN
+    IF (glomap_config%i_ukca_activation_scheme /= i_ukca_activation_off) THEN
 
-    IF (PRESENT(l_ntpreq_n_activ_sum))                                         &
-      glomap_config%l_ntpreq_n_activ_sum = l_ntpreq_n_activ_sum
-    IF (PRESENT(l_ntpreq_dryd_nuc_sol))                                        &
-      glomap_config%l_ntpreq_dryd_nuc_sol = l_ntpreq_dryd_nuc_sol
+      IF (PRESENT(l_ntpreq_n_activ_sum))                                       &
+        glomap_config%l_ntpreq_n_activ_sum = l_ntpreq_n_activ_sum
+      IF (PRESENT(l_ntpreq_dryd_nuc_sol))                                      &
+        glomap_config%l_ntpreq_dryd_nuc_sol = l_ntpreq_dryd_nuc_sol
 
-    ! Configuration specific to UKCA Activate
+      ! Configuration specific to UKCA Activate
+
+      IF (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) THEN
+
+        glomap_config%sigwmin = 0.01
+
+        IF (PRESENT(i_ukca_nwbins)) glomap_config%i_ukca_nwbins = i_ukca_nwbins
+        IF (PRESENT(sigwmin)) glomap_config%sigwmin = sigwmin
+        IF (PRESENT(l_ukca_sfix)) glomap_config%l_ukca_sfix = l_ukca_sfix
+
+      END IF
+
+    END IF
+
+    IF (ukca_config%l_ukca_scale_ppe) THEN
+      IF (PRESENT(sigma_updraught_scaling))                                    &
+        glomap_config%sigma_updraught_scaling = sigma_updraught_scaling
+    END IF
+
+    ! -- GLOMAP temporary logicals ---------------------------------------
+
+    glomap_config%l_fix_neg_pvol_wat = .TRUE.
+    glomap_config%l_fix_nacl_density = .TRUE.
+
+    IF (PRESENT(l_fix_neg_pvol_wat))                                           &
+      glomap_config%l_fix_neg_pvol_wat = l_fix_neg_pvol_wat
+
+    IF (glomap_config%l_impc_scav) THEN
+
+      glomap_config%l_fix_ukca_impscav = .TRUE.
+
+      IF (PRESENT(l_fix_ukca_impscav))                                         &
+        glomap_config%l_fix_ukca_impscav = l_fix_ukca_impscav
+
+    END IF
+
+    IF (PRESENT(l_fix_nacl_density))                                           &
+      glomap_config%l_fix_nacl_density = l_fix_nacl_density
+
+    IF (glomap_config%l_ddepaer) THEN
+      IF (PRESENT(l_improve_aero_drydep))                                      &
+        glomap_config%l_improve_aero_drydep = l_improve_aero_drydep
+    END IF
+
+    IF (PRESENT(l_fix_ukca_water_content))                                     &
+      glomap_config%l_fix_ukca_water_content = l_fix_ukca_water_content
+
+    ! Temporary logicals for UKCA Activate scheme
 
     IF (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) THEN
 
-      glomap_config%sigwmin = 0.01
+      glomap_config%l_fix_ukca_activate_pdf = .TRUE.
+      glomap_config%l_fix_ukca_activate_vert_rep = .TRUE.
 
-      IF (PRESENT(i_ukca_nwbins)) glomap_config%i_ukca_nwbins = i_ukca_nwbins
-      IF (PRESENT(sigwmin)) glomap_config%sigwmin = sigwmin
-      IF (PRESENT(l_ukca_sfix)) glomap_config%l_ukca_sfix = l_ukca_sfix
+      IF (PRESENT(l_fix_ukca_activate_pdf))                                    &
+        glomap_config%l_fix_ukca_activate_pdf = l_fix_ukca_activate_pdf
+      IF (PRESENT(l_fix_ukca_activate_vert_rep))                               &
+        glomap_config%l_fix_ukca_activate_vert_rep =                           &
+        l_fix_ukca_activate_vert_rep
+      IF (PRESENT(l_bug_repro_tke_index))                                      &
+        glomap_config%l_bug_repro_tke_index = l_bug_repro_tke_index
+
+    END IF
+    IF (PRESENT(l_fix_ukca_hygroscopicities))                                  &
+        glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
+
+  ELSE
+    !
+    !  Below is the standalone GLOMAP-mode setup without chemistry
+    !  including the wider UKCA and environment options needed to run
+    !  dust-only
+    !
+    ! UKCA settings - emissions, environment, etc
+    !
+    ukca_config%bl_levels = 1
+    IF (PRESENT(bl_levels)) ukca_config%bl_levels = bl_levels
+    IF (PRESENT(chem_timestep)) ukca_config%chem_timestep = chem_timestep
+    ukca_config%l_ukca_chem_aero = .FALSE.
+    IF (PRESENT(l_fix_tropopause_level))                                       &
+      ukca_config%l_fix_tropopause_level = l_fix_tropopause_level
+    IF (ukca_config%l_fix_tropopause_level) THEN
+      ukca_config%fixed_tropopause_level = 1
+      IF (PRESENT(fixed_tropopause_level))                                     &
+        ukca_config%fixed_tropopause_level = fixed_tropopause_level
+    END IF
+    IF (PRESENT(l_ukca_emissions_off))                                         &
+      ukca_config%l_ukca_emissions_off = l_ukca_emissions_off
+    IF (PRESENT(l_ukca_drydep_off))                                            &
+      ukca_config%l_ukca_drydep_off = l_ukca_drydep_off
+    IF (PRESENT(l_ukca_wetdep_off))                                            &
+      ukca_config%l_ukca_wetdep_off = l_ukca_wetdep_off
+    IF (PRESENT(l_support_ems_gridbox_units))                                  &
+      ukca_config%l_support_ems_gridbox_units = l_support_ems_gridbox_units
+    IF (PRESENT(l_suppress_ems))                                               &
+      ukca_config%l_suppress_ems = l_suppress_ems
+    ukca_config%i_ukca_light_param = i_light_param_off
+    IF (PRESENT(l_use_gridbox_volume))                                         &
+      ukca_config%l_use_gridbox_volume = l_use_gridbox_volume
+    ukca_config%nlev_ent_tr_mix = 0
+    ukca_config%i_ukca_dms_flux = i_dms_flux_off
+    IF (.NOT. ukca_config%l_suppress_ems .AND. PRESENT(nlev_ent_tr_mix))       &
+      ukca_config%nlev_ent_tr_mix = nlev_ent_tr_mix
+    IF (.NOT. ukca_config%l_ukca_wetdep_off) THEN
+      IF (PRESENT(l_param_conv)) ukca_config%l_param_conv = l_param_conv
+    END IF
+    IF (PRESENT(l_use_gridbox_mass))                                           &
+       ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
+    ukca_config%l_fix_ukca_cloud_frac = .TRUE.
+    IF (PRESENT(l_fix_ukca_cloud_frac))                                        &
+      ukca_config%l_fix_ukca_cloud_frac = l_fix_ukca_cloud_frac
+
+    IF (ukca_config%l_ukca_scale_ppe) THEN
+
+      IF (PRESENT(dry_depvel_acc_scaling))                                     &
+        glomap_config%dry_depvel_acc_scaling = dry_depvel_acc_scaling
+
+      IF (PRESENT(acc_cor_scav_scaling))                                       &
+        glomap_config%acc_cor_scav_scaling = acc_cor_scav_scaling
 
     END IF
 
-  END IF
 
-  IF (ukca_config%l_ukca_scale_ppe) THEN
-    IF (PRESENT(sigma_updraught_scaling))                                      &
-      glomap_config%sigma_updraught_scaling = sigma_updraught_scaling
-  END IF
+    !
+    ! GLOMAP settings
+    !
+    glomap_config%ukca_mode_seg_size = ukca_config%row_length * ukca_config%rows
+    glomap_config%l_mode_bhn_on = .FALSE.
+    glomap_config%l_mode_bln_on = .FALSE.
+    IF (PRESENT(i_mode_nzts)) glomap_config%i_mode_nzts = i_mode_nzts
 
-  ! -- GLOMAP temporary logicals ---------------------------------------
 
-  glomap_config%l_fix_neg_pvol_wat = .TRUE.
-  glomap_config%l_fix_nacl_density = .TRUE.
 
-  IF (PRESENT(l_fix_neg_pvol_wat))                                             &
-    glomap_config%l_fix_neg_pvol_wat = l_fix_neg_pvol_wat
+    IF (PRESENT(ukca_mode_seg_size))                                           &
+      glomap_config%ukca_mode_seg_size = ukca_mode_seg_size
+    IF (PRESENT(i_mode_setup)) glomap_config%i_mode_setup = i_mode_setup
+    IF (PRESENT(l_dust_ageing_on))                                             &
+      glomap_config%l_dust_ageing_on = l_dust_ageing_on
+    IF (.NOT. (ukca_config%l_ukca_drydep_off)) THEN
+      glomap_config%l_ddepaer = .TRUE.
+      IF (PRESENT(l_ddepaer)) glomap_config%l_ddepaer = l_ddepaer
+    END IF
+    IF (.NOT. (ukca_config%l_ukca_wetdep_off)) THEN
+      glomap_config%l_rainout = .TRUE.
+      glomap_config%l_impc_scav = .TRUE.
+      IF (PRESENT(mode_incld_so2_rfrac))                                       &
+        glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
+      IF (PRESENT(l_rainout)) glomap_config%l_rainout = l_rainout
+      IF (PRESENT(l_impc_scav)) glomap_config%l_impc_scav = l_impc_scav
+      ! Nucleation scavenging options
+      IF (glomap_config%l_rainout) THEN
+        glomap_config%i_mode_nucscav = 3
+        glomap_config%l_cv_rainout = .TRUE.
+        IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
+        IF (PRESENT(i_mode_nucscav))                                           &
+          glomap_config%i_mode_nucscav = i_mode_nucscav
+      END IF
+      ! Impaction scavenging options
+      IF (glomap_config%l_impc_scav) THEN
+        glomap_config%l_dust_slinn_impc_scav = .TRUE.
+        IF (PRESENT(l_dust_slinn_impc_scav))                                   &
+          glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
+      END IF
+    END IF
+    IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
+      IF (PRESENT(l_ukca_primdu)) glomap_config%l_ukca_primdu = l_ukca_primdu
+    END IF
+    IF (PRESENT(l_ukca_radaer)) glomap_config%l_ukca_radaer = l_ukca_radaer
+    IF (glomap_config%l_ukca_radaer) THEN
+      IF (PRESENT(i_ukca_tune_bc)) glomap_config%i_ukca_tune_bc =              &
+                                   i_ukca_tune_bc
+    END IF
+    glomap_config%i_ukca_activation_scheme = i_ukca_activation_off
 
-  IF (glomap_config%l_impc_scav) THEN
+    IF (ukca_config%l_ukca_scale_ppe) THEN
+      IF (PRESENT(sigma_updraught_scaling))                                    &
+        glomap_config%sigma_updraught_scaling = sigma_updraught_scaling
+    END IF
 
-    glomap_config%l_fix_ukca_impscav = .TRUE.
-
-    IF (PRESENT(l_fix_ukca_impscav))                                           &
-      glomap_config%l_fix_ukca_impscav = l_fix_ukca_impscav
-
-  END IF
-
-  IF (PRESENT(l_fix_nacl_density))                                             &
-    glomap_config%l_fix_nacl_density = l_fix_nacl_density
-
-  IF (glomap_config%l_ddepaer) THEN
-    IF (PRESENT(l_improve_aero_drydep))                                        &
-      glomap_config%l_improve_aero_drydep = l_improve_aero_drydep
-  END IF
-
-  IF (PRESENT(l_fix_ukca_water_content))                                       &
-      glomap_config%l_fix_ukca_water_content = l_fix_ukca_water_content
-
-  ! Temporary logicals for UKCA Activate scheme
-
-  IF (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) THEN
-
-    glomap_config%l_fix_ukca_activate_pdf = .TRUE.
-    glomap_config%l_fix_ukca_activate_vert_rep = .TRUE.
-
-    IF (PRESENT(l_fix_ukca_activate_pdf))                                      &
-      glomap_config%l_fix_ukca_activate_pdf = l_fix_ukca_activate_pdf
-    IF (PRESENT(l_fix_ukca_activate_vert_rep))                                 &
-      glomap_config%l_fix_ukca_activate_vert_rep = l_fix_ukca_activate_vert_rep
-    IF (PRESENT(l_bug_repro_tke_index))                                        &
-      glomap_config%l_bug_repro_tke_index = l_bug_repro_tke_index
-
-  END IF
-  IF (PRESENT(l_fix_ukca_hygroscopicities))                                    &
-      glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
-
-END IF
+    glomap_config%l_fix_neg_pvol_wat = .TRUE.
+    glomap_config%l_fix_nacl_density = .TRUE.
+    IF (PRESENT(l_fix_neg_pvol_wat))                                           &
+      glomap_config%l_fix_neg_pvol_wat = l_fix_neg_pvol_wat
+    IF (glomap_config%l_impc_scav) THEN
+      glomap_config%l_fix_ukca_impscav = .TRUE.
+      IF (PRESENT(l_fix_ukca_impscav))                                         &
+        glomap_config%l_fix_ukca_impscav = l_fix_ukca_impscav
+    END IF
+    IF (glomap_config%l_ddepaer) THEN
+      IF (PRESENT(l_improve_aero_drydep))                                      &
+        glomap_config%l_improve_aero_drydep = l_improve_aero_drydep
+    END IF
+    IF (PRESENT(l_fix_ukca_water_content))                                     &
+        glomap_config%l_fix_ukca_water_content = l_fix_ukca_water_content
+    IF (.NOT. (ukca_config%l_ukca_emissions_off .OR.                           &
+               ukca_config%l_suppress_ems)) THEN
+      IF (PRESENT(proc_bl_tracer_mix)) bl_tracer_mix => proc_bl_tracer_mix
+    END IF
+  END IF  ! ukca_config%i_ukca_chem /= i_ukca_chem_off
+END IF  ! l_ukca_mode
 
 ! -- UKCA environmental driver options with GLOMAP dependencies --------
 
