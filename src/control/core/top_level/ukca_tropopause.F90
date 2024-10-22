@@ -34,7 +34,7 @@ USE parkind1,    ONLY: jprb, jpim
 USE yomhook,     ONLY: lhook, dr_hook
 USE errormessagelength_mod, ONLY: errormessagelength
 USE ukca_um_legacy_mod, ONLY: planet_radius
-USE missing_data_mod, ONLY: rmdi, imdi
+USE ukca_missing_data_mod, ONLY: rmdi, imdi
 
 IMPLICIT NONE
 SAVE

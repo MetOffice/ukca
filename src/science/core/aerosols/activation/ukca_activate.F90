@@ -105,7 +105,7 @@ USE ereport_mod,               ONLY:                                           &
 USE errormessagelength_mod,    ONLY:                                           &
     errormessagelength
 
-USE missing_data_mod,          ONLY:                                           &
+USE ukca_missing_data_mod,     ONLY:                                           &
     imdi
 
 USE parkind1,                  ONLY:                                           &
@@ -119,7 +119,7 @@ USE ukca_activ_mod,            ONLY:                                           &
     activmklin,                                                                &
     activmkskew
 
-USE chemistry_constants_mod,   ONLY:                                           &
+USE ukca_config_constants_mod, ONLY:                                           &
     boltzmann                           ! Boltzmann's constant
 
 USE ukca_um_legacy_mod,        ONLY:                                           &
@@ -1178,7 +1178,7 @@ USE ukca_drydiam_field_mod, ONLY:                                              &
 USE ukca_mode_setup,        ONLY:                                              &
     nmodes
 
-USE missing_data_mod,       ONLY:                                              &
+USE ukca_missing_data_mod,  ONLY:                                              &
     rmdi
 
 USE umPrintMgr,             ONLY:                                              &

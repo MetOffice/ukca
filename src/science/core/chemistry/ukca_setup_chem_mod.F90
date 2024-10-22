@@ -51,7 +51,7 @@ USE asad_mod, ONLY: jpctr, jpspec, jpbk, jptk, jppj, jphk, jpdd, jpdw,         &
 
 USE ukca_config_specification_mod, ONLY: i_liss_merlivat, i_wanninkhof,        &
                               i_nightingale, i_blomquist
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 USE ereport_mod,     ONLY: ereport
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Diag
 USE parkind1,        ONLY: jprb, jpim

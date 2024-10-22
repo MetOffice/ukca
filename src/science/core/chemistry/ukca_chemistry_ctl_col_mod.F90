@@ -85,8 +85,8 @@ USE ukca_cspecies,        ONLY: c_species, c_na_species, n_cf2cl2, n_cfcl3,    &
                                 nn_oh, nn_so2
 USE ukca_tropopause,      ONLY: L_stratosphere
 USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
-USE chemistry_constants_mod, ONLY: avogadro
 
+USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 
 USE ukca_ntp_mod,       ONLY: ntp_type, dim_ntp, name2ntpindex
@@ -97,7 +97,7 @@ USE parkind1, ONLY: jprb, jpim
 USE ereport_mod, ONLY: ereport
 USE umPrintMgr, ONLY: umMessage, umPrint
 
-USE missing_data_mod,      ONLY: rmdi
+USE ukca_missing_data_mod, ONLY: rmdi
 
 USE errormessagelength_mod, ONLY: errormessagelength
 
@@ -288,7 +288,7 @@ END IF
 !$OMP         fpsc1_full, fpsc2_full, prk_full, y_full, jspf, jna,             &
 !$OMP         H_plus_1d_arr)                                                   &
 !$OMP SHARED(advt, all_ntp, atm_cf2cl2_mol, atm_cfcl3_mol, atm_ch4_mol,        &
-!$OMP        atm_co_mol, atm_h2_mol, atm_mebr_mol, atm_n2o_mol,                &
+!$OMP        atm_co_mol, atm_h2_mol, atm_mebr_mol, atm_n2o_mol, avogadro,      &
 !$OMP        c_species, c_na_species, cloud_frac,                              &
 !$OMP        delh2so4_chem, delSO2_wet_H2O2, delSO2_wet_O3, have_nat3d,        &
 !$OMP        ih2so4_hv, ihso3_h2o2, ihso3_o3, iso2_oh, iso3_o3,                &

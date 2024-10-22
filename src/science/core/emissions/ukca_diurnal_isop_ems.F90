@@ -47,9 +47,8 @@ SUBROUTINE ukca_diurnal_isop_ems(row_length,                                   &
                                  emi_out,                                      &
                                  testdcycl)
 
-USE ukca_um_legacy_mod, ONLY: pi, pi_over_180, recip_pi_over_180,              &
-                              rsec_per_hour, rhour_per_day
-USE ukca_constants,  ONLY: fxb, fxc
+USE ukca_constants,  ONLY: rhour_per_day, rsec_per_hour,  pi, pi_over_180,     &
+                           recip_pi_over_180, fxb, fxc
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Diag

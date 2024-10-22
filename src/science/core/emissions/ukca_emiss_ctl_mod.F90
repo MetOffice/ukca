@@ -101,7 +101,7 @@ USE ukca_environment_fields_mod, ONLY: ibvoc_isoprene,  ibvoc_terpene,         &
 USE ukca_constants,       ONLY: m_c, m_ch4, m_dms,                             &
                                 m_n, m_no, m_no2, m_s, m_c5h8, m_monoterp,     &
                                 m_ch3oh, m_me2co
-USE chemistry_constants_mod, ONLY: boltzmann, avogadro
+USE ukca_config_constants_mod, ONLY: boltzmann, avogadro
 
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
                                          i_light_param_off, glomap_variables,  &

@@ -98,6 +98,11 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       i_ukca_activation_scheme,                                &
                       i_ukca_nwbins,                                           &
                       i_ukca_tune_bc,                                          &
+                      i_photol_scheme,                                         &
+                      i_photol_scheme_off,                                     &
+                      i_photol_scheme_strat_only,                              &
+                      i_photol_scheme_2d,                                      &
+                      i_photol_scheme_fastjx,                                  &
                       dzsoil_layer1,                                           &
                       timestep,                                                &
                       max_ageair_reset_height,                                 &
@@ -123,6 +128,14 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       ph_fit_intercept,                                        &
                       sigwmin,                                                 &
                       sigma_updraught_scaling,                                 &
+                      const_rmol,                                              &
+                      const_tfs,                                               &
+                      const_rho_water,                                         &
+                      const_rhosea,                                            &
+                      const_lc,                                                &
+                      const_avogadro,                                          &
+                      const_boltzmann,                                         &
+                      const_rho_so4,                                           &
                       l_cal360,                                                &
                       l_ukca_chem_aero,                                        &
                       l_ukca_mode,                                             &
@@ -221,16 +234,17 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_impscav,                                      &
                       l_fix_nacl_density,                                      &
                       l_improve_aero_drydep,                                   &
+                      l_fix_ukca_water_content,                                &
                       l_fix_ukca_activate_pdf,                                 &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
                       l_dust_ageing_on,                                        &
+                      l_fix_ukca_hygroscopicities,                             &
+                      l_skip_const_setup,                                      &
                       proc_bl_tracer_mix,                                      &
                       proc_calc_ozonecol,                                      &
                       proc_diag2d_copy_out,                                    &
                       proc_diag3d_copy_out,                                    &
-                      l_fix_ukca_hygroscopicities,                             &
-                      l_fix_ukca_water_content,                                &
                       error_message, error_routine)
 
 ! ----------------------------------------------------------------------
@@ -245,9 +259,16 @@ SUBROUTINE ukca_setup(error_code,                                              &
 !
 ! Method:
 !
-!  1. Copy the configuration variables provided as keyword arguments into
+!  1. Set up UKCA's configurable constants to their default values or
+!     values provided by keyword arguments with the prefix 'const_'.
+!     This step should be skipped if constants have been set up by a previous
+!     API call to 'ukca_constants_setup'. Keyword argument 'l_skip_const_setup'
+!     sholuld be set to .TRUE. for this.
+!  2. Copy the configuration variables provided as keyword arguments into
 !     component variables with matching names in the UKCA (non-GLOMAP)
 !     and/or GLOMAP configuration specification structures.
+!     For keyword argument with the prefix 'proc_', set the appropriate
+!     UKCA procedure pointer to access the given callback procedure.
 !     For certain variables, default values are set here for use if input
 !     values are not provided.
 !     ------------------------------------------------------------------
@@ -265,20 +286,19 @@ SUBROUTINE ukca_setup(error_code,                                              &
 !     with uses that are not specifically associated with particular
 !     schemes or other options that determine whether they are in use.
 !     ------------------------------------------------------------------
-!  2. Check UKCA logicals are consistent and set internal UKCA values
+!  3. Check UKCA logicals are consistent and set internal UKCA values
 !     based on the configuration data provided.
-!  3. Initialise chemistry definition arrays.
-!  4. Set up lists of tracer and NTP species required for the selected
+!  4. Initialise chemistry definition arrays.
+!  5. Set up lists of tracer and NTP species required for the selected
 !     chemical scheme.
-!  5. Set up structure holding details of all NTPs required for the
+!  6. Set up structure holding details of all NTPs required for the
 !     selected UKCA configuration.
-!  6. Set up lists of emitted species.
-!  7. Set up lists of environmental driver fields required.
-!  8. Clear environmental field data to ensure it is properly
+!  7. Set up lists of emitted species.
+!  8. Set up lists of environmental driver fields required.
+!  9. Clear environmental field data to ensure it is properly
 !     initialised for subsequent set up via ukca_set_environment calls.
-!  9. Initialise master diagnostics list and determine availability of
+! 10. Initialise master diagnostics list and determine availability of
 !     each diagnostic given the configuration.
-!
 ! ----------------------------------------------------------------------
 
 USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
@@ -298,6 +318,9 @@ USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     template_proc_diag2d_copy_out, diag2d_copy_out,                            &
     template_proc_diag3d_copy_out, diag3d_copy_out
 
+USE ukca_config_constants_mod, ONLY: l_ukca_constants_available
+USE ukca_constants_setup_mod, ONLY: ukca_constants_setup
+
 USE ukca_um_legacy_mod, ONLY: l_dust, l_twobin_dust, l_um_infrastructure
 
 USE ukca_constants, ONLY: l_ukca_diurnal_isopems
@@ -312,7 +335,8 @@ USE ukca_tracers_mod, ONLY: init_tracer_req
 USE ukca_environment_req_mod, ONLY: init_environment_req
 USE ukca_environment_mod, ONLY: clear_environment_fields
 USE ukca_diagnostics_init_mod, ONLY: init_diagnostics
-USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname
+USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
+                          errcode_ukca_uninit, errcode_value_missing
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
 USE yomhook,                ONLY: lhook, dr_hook  ! DrHook
@@ -327,6 +351,13 @@ IMPLICIT NONE
 ! descriptions (see 'ukca_config_specification_mod').
 ! Order of arguments within each type group should match 'ukca_config_spec_type'
 ! & 'glomap_config_spec_type' order.
+
+! Additional optional arguments with the prefix 'const_' are used to override
+! values of configurable constants defined in 'ukca_config_constants_mod'.
+
+! Additional optional arguments with the prefix 'proc_' are used to supply
+! parent call back routines complying with templates defined in
+! 'ukca_config_specifcation_mod'.
 
 ! WARNING: keyword argument names are part of the UKCA API and any changes to
 ! existing names may affect backwards compatibility. To avoid this, new names
@@ -394,6 +425,11 @@ INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_activation_scheme
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_nwbins
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_tune_bc
 INTEGER, OPTIONAL, INTENT(IN) :: i_primss_method
+INTEGER, OPTIONAL, INTENT(IN) :: i_photol_scheme
+INTEGER, OPTIONAL, INTENT(IN) :: i_photol_scheme_off
+INTEGER, OPTIONAL, INTENT(IN) :: i_photol_scheme_strat_only
+INTEGER, OPTIONAL, INTENT(IN) :: i_photol_scheme_2d
+INTEGER, OPTIONAL, INTENT(IN) :: i_photol_scheme_fastjx
 
 REAL, OPTIONAL, INTENT(IN) :: dzsoil_layer1
 REAL, OPTIONAL, INTENT(IN) :: timestep
@@ -420,6 +456,14 @@ REAL, OPTIONAL, INTENT(IN) :: ph_fit_intercept
 REAL, OPTIONAL, INTENT(IN) :: sigwmin
 REAL, OPTIONAL, INTENT(IN) :: hno3_uptake_coeff
 REAL, OPTIONAL, INTENT(IN) :: sigma_updraught_scaling
+REAL, OPTIONAL, INTENT(IN) :: const_rmol
+REAL, OPTIONAL, INTENT(IN) :: const_tfs
+REAL, OPTIONAL, INTENT(IN) :: const_rho_water
+REAL, OPTIONAL, INTENT(IN) :: const_rhosea
+REAL, OPTIONAL, INTENT(IN) :: const_lc
+REAL, OPTIONAL, INTENT(IN) :: const_avogadro
+REAL, OPTIONAL, INTENT(IN) :: const_boltzmann
+REAL, OPTIONAL, INTENT(IN) :: const_rho_so4
 
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cal360
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_chem_aero
@@ -519,12 +563,15 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_neg_pvol_wat
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_impscav
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_nacl_density
 LOGICAL, OPTIONAL, INTENT(IN) :: l_improve_aero_drydep
+LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_water_content
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
-LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_water_content
 LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_ageing_on
+
+! Control argument for skipping set up of constants if already done
+LOGICAL, OPTIONAL, INTENT(IN) :: l_skip_const_setup
 
 PROCEDURE(template_proc_bl_tracer_mix), OPTIONAL :: proc_bl_tracer_mix
 PROCEDURE(template_proc_calc_ozonecol), OPTIONAL :: proc_calc_ozonecol
@@ -537,9 +584,9 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 
 INTEGER, POINTER :: error_code_ptr ! Pointer for selecting error code variable
-                                   ! (currently for 'init_diagnostics' only)
 INTEGER :: i                       ! loop counter
 
+LOGICAL :: l_setup_constants       ! True if constants need setting up here
 LOGICAL :: l_be_scheme_selected    ! True if B-E solver required for chemistry
 LOGICAL :: l_nr_scheme_selected    ! True if N-R solver required for chemistry
 LOGICAL :: l_strat_scheme_selected ! True if a Stratospheric scheme is
@@ -555,13 +602,57 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_SETUP'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+! Use parent supplied argument for return code. Note that this argument is
+! redundant if UKCA is configured to abort on error and may be made optional
+! in future, being replaced by an internal error code variable when absent.
+error_code_ptr => error_code
+
 ! Set defaults for output arguments
-error_code = 0
+error_code_ptr = 0
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
-! Set all configuration data to default values
+! Set all configurable constants to defaults or values provided
+! if not asked to skip this step
 
+IF (PRESENT(l_skip_const_setup)) THEN
+  l_setup_constants = .NOT. l_skip_const_setup
+ELSE
+  l_setup_constants = .TRUE.
+END IF
+
+IF (l_setup_constants) THEN
+
+  CALL ukca_constants_setup(error_code_ptr,                                    &
+                            const_rmol=const_rmol,                             &
+                            const_tfs=const_tfs,                               &
+                            const_rho_water=const_rho_water,                   &
+                            const_rhosea=const_rhosea,                         &
+                            const_lc=const_lc,                                 &
+                            const_avogadro=const_avogadro,                     &
+                            const_boltzmann=const_boltzmann,                   &
+                            const_rho_so4=const_rho_so4,                       &
+                            error_message=error_message,                       &
+                            error_routine=error_routine)
+
+ELSE
+
+  ! Asked to skip, so check that constants have been set up previously
+  IF (.NOT. l_ukca_constants_available) THEN
+    error_code_ptr = errcode_ukca_uninit
+    IF (PRESENT(error_message))                                                &
+      error_message = 'Configurable UKCA constants have not been set up'
+    IF (PRESENT(error_routine)) error_routine = RoutineName
+  END IF
+
+END IF
+
+IF (error_code_ptr > 0) THEN
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
+
+! Set all configuration data to default values
 CALL init_ukca_configuration()
 
 ! Collate input data specifying the UKCA configuration
@@ -1084,7 +1175,8 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
 
   ukca_config%l_fix_ukca_cloud_frac = .TRUE.
 
-  IF (PRESENT(l_fix_ukca_cloud_frac))                                          &
+  ! Removing this fix is not applicable when building without UM infrastructure
+  IF (PRESENT(l_fix_ukca_cloud_frac) .AND. l_um_infrastructure)                &
     ukca_config%l_fix_ukca_cloud_frac = l_fix_ukca_cloud_frac
 
 END IF
@@ -1123,6 +1215,56 @@ IF (ukca_config%l_ukca_mode .AND. l_nr_scheme_selected) THEN
   ukca_config%l_fix_ukca_h2so4_ystore = .TRUE.
   IF (PRESENT(l_fix_ukca_h2so4_ystore))                                        &
     ukca_config%l_fix_ukca_h2so4_ystore = l_fix_ukca_h2so4_ystore
+END IF
+
+! Settings for managing photolysis environmental driver
+! requirements on behalf of external UKCA Photolysis code
+
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
+
+  ukca_config%i_photol_scheme = 0
+  ukca_config%i_photol_scheme_off = 0
+
+  IF (PRESENT(i_photol_scheme)) THEN
+
+    ukca_config%i_photol_scheme = i_photol_scheme
+
+    IF (PRESENT(i_photol_scheme_off)) THEN
+      ukca_config%i_photol_scheme_off = i_photol_scheme_off
+    ELSE
+      error_code_ptr = errcode_value_missing
+    END IF
+
+    IF (PRESENT(i_photol_scheme_strat_only)) THEN
+      ukca_config%i_photol_scheme_strat_only = i_photol_scheme_strat_only
+    ELSE
+      error_code_ptr = errcode_value_missing
+    END IF
+
+    IF (PRESENT(i_photol_scheme_2d)) THEN
+      ukca_config%i_photol_scheme_2d = i_photol_scheme_2d
+    ELSE
+      error_code_ptr = errcode_value_missing
+    END IF
+
+    IF (PRESENT(i_photol_scheme_fastjx)) THEN
+      ukca_config%i_photol_scheme_fastjx = i_photol_scheme_fastjx
+    ELSE
+      error_code_ptr = errcode_value_missing
+    END IF
+
+    IF (error_code_ptr > 0) THEN
+      IF (PRESENT(error_message))                                              &
+        error_message =                                                        &
+          'Missing one or more option codes for interpreting i_photol_scheme'
+      IF (PRESENT(error_routine)) error_routine = RoutineName
+      IF (lhook)                                                               &
+        CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+      RETURN
+    END IF
+
+  END IF
+
 END IF
 
 ! -- GLOMAP-mode configuration ----------------------------------------
@@ -1370,9 +1512,10 @@ IF (ukca_config%l_ukca_mode) THEN
       IF (PRESENT(l_bug_repro_tke_index))                                      &
         glomap_config%l_bug_repro_tke_index = l_bug_repro_tke_index
 
-    END IF
-    IF (PRESENT(l_fix_ukca_hygroscopicities))                                  &
-        glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
+  END IF
+
+  IF (PRESENT(l_fix_ukca_hygroscopicities))                                    &
+      glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
 
   ELSE
     !
@@ -1592,10 +1735,10 @@ END IF
 
 ! Specify tracer requirement based on details of the configuration
 CALL init_tracer_req( ukca_config,                                             &
-                      advt, error_code,                                        &
+                      advt, error_code_ptr,                                    &
                       error_message=error_message,                             &
                       error_routine=error_routine)
-IF (error_code > 0) THEN
+IF (error_code_ptr > 0) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF
@@ -1620,10 +1763,6 @@ END IF
 
 ! Initialise master diagnostics list and determine availability of
 ! each diagnostic given the configuration.
-! Use parent supplied argument for return code. Note that this argument is
-! redundant if UKCA is configured to abort on error and may be made optional
-! in future, being replaced by an internal error code variable when absent.
-error_code_ptr => error_code
 CALL init_diagnostics(error_code_ptr, ukca_config, advt,                       &
                       error_message=error_message,                             &
                       error_routine=error_routine)
@@ -1635,9 +1774,9 @@ END IF
 ! Specify environment field requirement based on details of the configuration
 CALL init_environment_req(ukca_config, glomap_config,                          &
                           speci, advt, lbc_spec, cfc_lumped, em_chem_spec,     &
-                          ctype, error_code, error_message=error_message,      &
+                          ctype, error_code_ptr, error_message=error_message,  &
                           error_routine=error_routine)
-IF (error_code > 0) THEN
+IF (error_code_ptr > 0) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF

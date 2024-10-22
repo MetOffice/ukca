@@ -46,7 +46,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_diagname,                                 &
                               diagname_o3_column_du,                           &
                               diagname_plumeria_height
 
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_ukca_internal_fault, error_report

@@ -105,9 +105,9 @@ SUBROUTINE ukca_calc_drydiam( nbox, glomap_variables_local,                    &
 !     MLO       : Lo-interf masses for initial radius grid
 !
 !--------------------------------------------------------------------
-USE chemistry_constants_mod,  ONLY: avogadro, rho_so4
-USE ukca_constants,  ONLY: mmsul
-USE ukca_um_legacy_mod, ONLY: pi, cubrt_v
+USE ukca_config_constants_mod, ONLY: avogadro, rho_so4
+USE ukca_constants,  ONLY: pi, mmsul
+USE ukca_um_legacy_mod, ONLY: cubrt_v
 USE ukca_types_mod, ONLY: log_small
 
 USE ukca_mode_setup, ONLY:                                                     &
@@ -197,9 +197,9 @@ ratio1(:)=mm(:)/(avogadro*rhocomp(:))
 ! Below is over NMODES
 !
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
-!$OMP PRIVATE(imode,icp,ratio2,mask,i)                                         &
-!$OMP SHARED(mode,ncp,nbox, nd, dvol, mmid,component,md,                       &
-!$OMP sixovrpix,ddpcub,num_eps, ratio1,x_equation)
+!$OMP PRIVATE(i, icp, imode, mask, ratio2)                                     &
+!$OMP SHARED(avogadro, component, ddpcub, dvol, md, mmid, mode, nbox, ncp, nd, &
+!$OMP num_eps, ratio1, rho_so4, sixovrpix, x_equation)
 DO imode=1,nmodes
   IF (mode(imode)) THEN
     DO i=1,nbox
@@ -239,8 +239,9 @@ CALL cubrt_v(nmodes*nbox, ddpcub, drydp)
 ! .. also check whether mean diameter too low for mode
 ! only do check for solvent modes nuc,ait,acc
 !$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE)                               &
-!$OMP PRIVATE(imode,dp,dp_thresh1,jl,icp) SHARED(mode,nbox,drydp,ddplim0,ncp,  &
-!$OMP component, md, mlo,mfrac_0,mdt,dvol,sixovrpix)
+!$OMP PRIVATE(dp, dp_thresh1, icp, imode, jl)                                  &
+!$OMP SHARED(avogadro, component, ddplim0, drydp, dvol, md, mdt, mfrac_0,      &
+!$OMP mlo, mode, nbox, ncp, rho_so4, sixovrpix)
 DO imode=mode_nuc_sol,mode_acc_sol
   IF (mode(imode)) THEN
     DO jl=1,nbox

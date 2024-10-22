@@ -80,16 +80,17 @@ USE ukca_config_specification_mod, ONLY: glomap_variables,                     &
 
 USE ukca_mode_setup,       ONLY: nmodes
 
-USE ukca_um_legacy_mod,    ONLY: rmol         ! molar gas constant
+USE ukca_um_legacy_mod,    ONLY: umErf
 
 USE ukca_constants,        ONLY: mmw,      &  ! H2O molecular weight kg/mol
                                  zsten,    &  ! surface tension of H2O [J m-2]
                                  zosm         ! Osmotic coefficient
-USE water_constants_mod,   ONLY: rho_water    ! density H2O kg/m^3
+
+USE ukca_config_constants_mod, ONLY: rmol,      & ! molar gas constant
+                                     rho_water    ! density H2O kg/m^3
 
 USE yomhook,               ONLY: lhook, dr_hook
 USE parkind1,              ONLY: jprb, jpim
-USE umErf_mod,             ONLY: umErf
 
 IMPLICIT NONE
 

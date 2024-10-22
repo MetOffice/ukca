@@ -37,7 +37,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='ACSBRCL_MOD'
 CONTAINS
 
 SUBROUTINE acsbrcl(temp,jpwav,wavenm,abrcl)
-USE chemistry_constants_mod, ONLY: boltzmann
+USE ukca_config_constants_mod, ONLY: boltzmann
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 IMPLICIT NONE

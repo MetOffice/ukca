@@ -107,8 +107,8 @@ USE photol_constants_mod,  ONLY: const_pi, const_pi_over_180,                  &
                               const_molemass_nh42so4, const_molemass_air,      &
                               const_planet_radius, const_s2r
 
-USE ukca_error_mod,        ONLY: maxlen_message, maxlen_procname,              &
-                                 errcode_value_unknown, errcode_value_invalid
+USE ukca_error_mod,          ONLY: maxlen_message, maxlen_procname,            &
+                                   errcode_value_unknown
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
 USE yomhook,                ONLY: lhook, dr_hook  ! DrHook

@@ -73,7 +73,8 @@ SUBROUTINE ukca_vmrsat_liq(row_length, rows, model_levels,                     &
 
 USE ereport_mod,            ONLY: ereport
 USE errormessagelength_mod, ONLY: errormessagelength
-USE ukca_config_specification_mod, ONLY: zerodegc, repsilon
+USE ukca_config_constants_mod, ONLY: repsilon
+USE ukca_constants, ONLY: zerodegc
 
 IMPLICIT NONE
 
@@ -126,7 +127,7 @@ IF (PRESENT(vmr_sat) .AND. (.NOT. PRESENT(pres))) THEN
 END IF
 
 ! An upper limit for `vmr_sat` is set to match the maximum returned by the
-! equivalent subroutine in the Unified Module ('qsat_wat_mix')
+! equivalent subroutine in the Unified Model ('qsat_wat_mix')
 vmr_sat_limit = repsilon * 10.0
 
 DO k = 1, model_levels

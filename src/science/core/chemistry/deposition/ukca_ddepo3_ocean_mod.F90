@@ -46,10 +46,10 @@ SUBROUTINE ukca_ddepo3_ocean(p0,t0,sst,usa,rc)
 ! A new two-layer model to calculate the surface resistance (rc) of ocean
 ! surface to ozone dry deposition (based on Luhar et al. (2018, 18: 4329, ACP)
 
-USE ukca_um_legacy_mod,      ONLY: vkman, rgas => r
-USE water_constants_mod,     ONLY: rhosea
-USE parkind1,                ONLY: jpim, jprb
-USE yomhook,                 ONLY: lhook, dr_hook
+USE ukca_um_legacy_mod,        ONLY: vkman, rgas => r
+USE ukca_config_constants_mod, ONLY: rhosea
+USE parkind1,                  ONLY: jpim, jprb
+USE yomhook,                   ONLY: lhook, dr_hook
 
 
 IMPLICIT NONE

@@ -46,6 +46,15 @@ USE parkind1,                        ONLY:                                     &
 USE ukca_config_specification_mod,   ONLY:                                     &
     glomap_variables_climatology
 
+USE ukca_config_constants_mod,        ONLY:                                    &
+    l_ukca_constants_available
+
+USE ereport_mod,                     ONLY:                                     &
+    ereport
+
+USE errormessagelength_mod,          ONLY:                                     &
+    errormessagelength
+
 USE yomhook,                         ONLY:                                     &
     lhook,                                                                     &
     dr_hook
@@ -63,12 +72,23 @@ LOGICAL, INTENT(IN) :: l_dust_ageing_on
 
 ! Local variables
 
+CHARACTER(LEN=errormessagelength) :: cmessage
+INTEGER                           :: errcode
+
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER   :: RoutineName='GLOMAP_CLIM_MODE_SETUP_INTERFACE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+! This routine is called from outside UKCA, by-passing the UKCA API.
+! This is only allowed if UKCA constants are properly set up.
+IF (.NOT. l_ukca_constants_available) THEN
+  cmessage = 'Configurable UKCA constants have not been set up'
+  errcode = 1
+  CALL ereport(RoutineName, errcode, cmessage)
+END IF
 
 CALL common_mode_setup_interface ( glomap_variables_climatology,               &
                                    i_mode_setup_in,                            &

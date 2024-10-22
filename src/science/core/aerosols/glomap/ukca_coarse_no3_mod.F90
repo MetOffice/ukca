@@ -70,8 +70,9 @@ USE ukca_config_specification_mod, ONLY: glomap_variables
 USE ukca_mode_setup,         ONLY: nmodes, cp_nn, cp_du, cp_cl,                &
                                    mode_acc_sol, mode_cor_sol,                 &
                                    mode_acc_insol, mode_cor_insol
-USE ukca_um_legacy_mod,      ONLY: pi, rgas => r
-USE chemistry_constants_mod, ONLY: avc => avogadro, zboltz => boltzmann
+USE ukca_um_legacy_mod,      ONLY: rgas => r
+USE ukca_constants,          ONLY: pi
+USE ukca_config_constants_mod, ONLY: avc => avogadro, zboltz => boltzmann
 USE ukca_setup_indices,      ONLY: mm_gas, mhno3,                              &
                                    nmascondnnaccsol, nmascondnncorsol
 

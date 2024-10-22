@@ -38,7 +38,7 @@
 
 MODULE ukca_config_specification_mod
 
-USE missing_data_mod, ONLY: imdi, rmdi
+USE ukca_missing_data_mod, ONLY: imdi, rmdi
 
 USE ukca_mode_setup,  ONLY: glomap_variables_type
 
@@ -113,9 +113,6 @@ TYPE :: ukca_config_spec_type
                                        ! a day-of-week scaling requirement
                                        ! can't be used with a 360-day
                                        ! calendar).
-                                       !!!! Also required for external
-                                       !!!! photolysis code pending complete
-                                       !!!! separation of photolysis from UKCA.
   REAL :: timestep                     ! Model timestep in seconds (an integer
                                        ! no of timesteps is expected in 1 hour)
 
@@ -243,11 +240,6 @@ TYPE :: ukca_config_spec_type
                                        ! chemistry on CLASSIC aerosols (RAQ
                                        ! chemistry scheme only)
 
-  LOGICAL :: l_use_photolysis          ! True if UKCA is expecting to apply
-                                       ! Photolysis rates in the solver and
-                                       ! hence needs the rates from the parent
-  !!!! Currently this will be set based on i_ukca_photol in the namelist !!!
-
   ! -- UKCA emissions configuration options --
   LOGICAL :: l_ukca_ibvoc              ! True for interactive bVOC emissions
   LOGICAL :: l_ukca_inferno            ! True for INFERNO fire emissions
@@ -297,6 +289,9 @@ TYPE :: ukca_config_spec_type
                                        ! when 'l_ukca_h2o_feedback' is true
 
   ! -- UKCA environmental driver configuration options --
+  LOGICAL :: l_use_photolysis          ! True if UKCA is expecting to apply
+                                       ! Photolysis rates in the solver and
+                                       ! hence needs the rates from the parent
   LOGICAL :: l_param_conv              ! True if using precipitation diagnostics
                                        ! from a parameterized convection scheme
   LOGICAL :: l_ctile                   ! True if using partial land points at
@@ -358,6 +353,15 @@ TYPE :: ukca_config_spec_type
                                        ! B-E Offline Oxidants scheme
   LOGICAL :: l_fix_ukca_h2so4_ystore   ! True to fix storage of H2SO4 in ASAD
                                        ! N-R schemes for updating in GLOMAP
+
+  ! Settings for managing photolysis environmental driver
+  ! requirements on behalf of external UKCA Photolysis code
+  INTEGER :: i_photol_scheme           ! Photolysis scheme
+  INTEGER :: i_photol_scheme_off       ! Option code: Photolysis off
+  INTEGER :: i_photol_scheme_strat_only ! Option code: Stratospheric photolysis
+                                        ! only
+  INTEGER :: i_photol_scheme_2d        ! Option code: 2D photolysis
+  INTEGER :: i_photol_scheme_fastjx    ! Option code: Fast-JX photolysis
 
   ! -- UKCA internal configuration variables (not modifiable by parent) --
   LOGICAL :: l_ukca_chem               ! True if chemistry is on
@@ -510,6 +514,8 @@ TYPE :: glomap_config_spec_type
                                        ! aerosol dry deposition is provided by
                                        ! the parent, rather than being inferred
                                        ! from roughness length in GLOMAP.
+  LOGICAL :: l_fix_ukca_water_content  ! True to fix bugs in the calculation
+                                       ! of aerosol water content values.
   LOGICAL :: l_fix_ukca_activate_pdf   ! True to fix probability density fn.
                                        ! of updraft velocities in Activate
   LOGICAL :: l_fix_ukca_activate_vert_rep
@@ -524,9 +530,6 @@ TYPE :: glomap_config_spec_type
                                        ! hygroscopicities to kappa-Kohler
                                        ! values and fix bug in calculation of
                                        ! volume-weighted hygroscopicity value
-  LOGICAL :: l_fix_ukca_water_content
-                                       ! True to fix bugs in the calculation
-                                       ! of aerosol water content values.
 
   ! -- GLOMAP internal configuration variables (not modifiable by parent) --
   INTEGER :: n_dust_emissions          ! Number of dust emission size ranges
@@ -644,62 +647,6 @@ TYPE(glomap_config_spec_type), SAVE :: glomap_config
 
 TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables
 TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables_climatology
-
-! ---------------------------------------------------------------------------
-! -- Configurable set of constants used in UKCA --
-! ---------------------------------------------------------------------------
-! These are constants that can potentially be overridden by a parent
-! application (e.g. if required for consistency with values used elsewhere).
-! Values are set in the routine 'init_ukca_configuration' defined below.
-! Override functionality via the 'ukca_setup' argument list is not yet
-! available. UM values are currently provided via 'ukca_um_legacy_mod'.
-! These replace the default values from this module in UM builds.
-
-!!!! Note that 'pi', 'zerodegc' and 'rmol' are currently declared as parameters
-!!!! to avoid the need for adding them to OpenMP parallel sections in
-!!!! 'ukca_abdulrazzak_ghan_mod', 'ukca_aero_ctl_mod' and
-!!!! 'ukca_calc_drydiam_mod' and consequently having to make them variables
-!!!! in the UM version of 'ukca_um_legacy_mod'. They will need to be changed to
-!!!! variables and initialised in 'init_ukca_configuration' before they can
-!!!! be overriden via 'ukca_setup'.
-
-! Conversion Parameters
-INTEGER :: isec_per_day = imdi    ! No. of seconds in a day (24 hours)
-INTEGER :: isec_per_hour = imdi   ! No. of seconds in an hour
-REAL :: rhour_per_day = rmdi      ! No. of hours in a day
-REAL :: rsec_per_day = rmdi       ! No. of seconds in a day
-REAL :: rsec_per_hour = rmdi      ! No. of seconds in an hour
-REAL, PARAMETER :: pi = 3.14159265358979323846
-                                  ! Pi
-REAL :: pi_over_180 = rmdi        ! Pi / 180
-REAL :: recip_pi_over_180 = rmdi  ! 180 / Pi
-REAL, PARAMETER :: zerodegc = 273.15
-                                  ! 0 degrees Celsius in Kelvin
-
-! Molar universal gas constant (J/K/mol)
-REAL, PARAMETER :: rmol = 8.314
-
-! Planet Constants (Earth values by default)
-REAL :: planet_radius = rmdi  ! Planet radius (m)
-REAL :: g = rmdi              ! Mean acceleration due to gravity at
-                              ! surface (m/s^2)
-REAL :: r = rmdi              ! Gas constant for dry air (J/kg/K)
-REAL :: cp = rmdi             ! Specific heat of dry air at constant
-                              ! pressure (J/kg/K)
-REAL :: pref = rmdi           ! Reference surface pressure (Pa)
-REAL :: vkman = rmdi          ! Von Karman's constant
-REAL :: repsilon = rmdi       ! Ratio of molecular weights of water and dry air
-REAL :: rv = rmdi             ! Gas constant for water vapour (J/kg/K)
-REAL :: kappa = rmdi          ! r/cp
-REAL :: c_virtual = rmdi      ! (1/repsilon) - 1
-REAL :: s2r = rmdi            ! Seconds-to-radians converter
-
-! CLASSIC aerosol parameters for heterogeneous PSC chemistry
-REAL :: rad_ait = rmdi  ! Mean radius of Aitken mode particles (m)
-REAL :: rad_acc = rmdi  ! Meac radius of accumulation mode particles (m)
-REAL :: chi = rmdi      ! Mole fraction of S in particle
-REAL :: sigma = rmdi    ! Std. dev. of accumulation mode particle size
-                        ! distribution
 
 ! ---------------------------------------------------------------------------
 ! -- Templates for parent callback procedures to be used in UKCA --
@@ -833,8 +780,6 @@ SUBROUTINE init_ukca_configuration()
 !   In the UKCA and GLOMAP configuration structures, all logicals are
 !   set to .FALSE., arrays are DEALLOCATED and other variables are set
 !   to missing data values.
-!   In addition, all configurable constants are set to their UKCA
-!   default values.
 ! ----------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -992,6 +937,13 @@ ukca_config%l_fix_drydep_so2_water = .FALSE.
 ukca_config%l_fix_ukca_offox_h2o_fac = .FALSE.
 ukca_config%l_fix_ukca_h2so4_ystore = .FALSE.
 
+! -- Settings for managing Photolysis driver requirements
+ukca_config%i_photol_scheme = imdi
+ukca_config%i_photol_scheme_off = imdi
+ukca_config%i_photol_scheme_strat_only = imdi
+ukca_config%i_photol_scheme_2d = imdi
+ukca_config%i_photol_scheme_fastjx = imdi
+
 ! -- UKCA internal configuration variables
 ukca_config%l_ukca_chem = .FALSE.
 ukca_config%l_ukca_trop = .FALSE.
@@ -1078,41 +1030,17 @@ glomap_config%l_fix_neg_pvol_wat = .FALSE.
 glomap_config%l_fix_ukca_impscav = .FALSE.
 glomap_config%l_fix_nacl_density = .FALSE.
 glomap_config%l_improve_aero_drydep = .FALSE.
+glomap_config%l_fix_ukca_water_content = .FALSE.
 glomap_config%l_fix_ukca_activate_pdf = .FALSE.
 glomap_config%l_fix_ukca_activate_vert_rep = .FALSE.
 glomap_config%l_bug_repro_tke_index = .FALSE.
 glomap_config%l_fix_ukca_hygroscopicities = .FALSE.
-glomap_config%l_fix_ukca_water_content = .FALSE.
 
 ! -- GLOMAP internal configuration variables --
 glomap_config%n_dust_emissions = imdi
 glomap_config%i_dust_scheme = imdi
 glomap_config%l_6bin_dust_no3 = .FALSE.
 glomap_config%l_2bin_dust_no3 = .FALSE.
-
-! -- Configurable constants --
-isec_per_day = 86400
-isec_per_hour = 3600
-rhour_per_day = 24.0
-rsec_per_day = 86400.0
-rsec_per_hour = 3600.0
-pi_over_180 = pi / 180.0
-recip_pi_over_180 = 180.0 / pi
-planet_radius = 6371229.0
-g = 9.80665
-r = 287.05
-cp = 1005.0
-pref = 100000.0
-vkman = 0.4
-repsilon = 0.62198
-rv = r / repsilon
-kappa = r / cp
-c_virtual = 1.0 / repsilon - 1.0
-s2r = 2.0 * pi / rsec_per_day
-rad_ait = 6.5e-9
-rad_acc = 95.0e-9
-chi = 32.0 / 132.0
-sigma = 1.4
 
 ! -- Parent callback procedures --
 NULLIFY(bl_tracer_mix)
@@ -1268,13 +1196,13 @@ SUBROUTINE ukca_get_config(                                                    &
    l_fix_ukca_impscav,                                                         &
    l_fix_nacl_density,                                                         &
    l_improve_aero_drydep,                                                      &
+   l_fix_ukca_water_content,                                                   &
    l_fix_ukca_activate_pdf,                                                    &
    l_fix_ukca_activate_vert_rep,                                               &
    l_bug_repro_tke_index,                                                      &
    l_6bin_dust_no3,                                                            &
    l_2bin_dust_no3,                                                            &
    l_fix_ukca_hygroscopicities,                                                &
-   l_fix_ukca_water_content,                                                   &
    l_config_available)
 ! ----------------------------------------------------------------------
 ! Description:
@@ -1500,11 +1428,11 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_neg_pvol_wat
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_impscav
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_nacl_density
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_improve_aero_drydep
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_water_content
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_hygroscopicities
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_water_content
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_6bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_2bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_config_available

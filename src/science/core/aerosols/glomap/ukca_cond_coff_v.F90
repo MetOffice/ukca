@@ -88,8 +88,9 @@ SUBROUTINE ukca_cond_coff_v(nv,mask,rp,tsqrt,airdm3,rhoa,                      &
 ! AVOGADRO  : Avogadros constant (mol-1)
 !
 !--------------------------------------------------------------------
-USE chemistry_constants_mod, ONLY: boltzmann, avogadro
-USE ukca_um_legacy_mod, ONLY: rmol, pi, rgas => r
+USE ukca_config_constants_mod, ONLY: rmol, boltzmann, avogadro
+USE ukca_constants,   ONLY: pi
+USE ukca_um_legacy_mod, ONLY: rgas => r
 USE ukca_types_mod,   ONLY: log_small
 USE yomhook,          ONLY: lhook, dr_hook
 USE parkind1,         ONLY: jprb, jpim

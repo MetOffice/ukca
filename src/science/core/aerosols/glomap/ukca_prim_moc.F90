@@ -99,8 +99,9 @@ SUBROUTINE ukca_prim_moc(row_length, rows, model_levels,                       &
 
 USE ukca_mode_setup,                ONLY: nmodes, cp_cl, cp_oc
 
-USE ukca_um_legacy_mod,             ONLY: pi, rgas => r
-USE chemistry_constants_mod,        ONLY: avogadro, boltzmann
+USE ukca_um_legacy_mod,             ONLY: rgas => r
+USE ukca_constants,                 ONLY: pi
+USE ukca_config_constants_mod,      ONLY: avogadro, boltzmann
 
 USE ukca_config_specification_mod,  ONLY: glomap_config, glomap_variables
 

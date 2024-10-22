@@ -41,8 +41,9 @@ CONTAINS
 SUBROUTINE ukca_wdeprt(p_fieldda,model_levels,drain,crain,t,lat,tstep,wetrt,   &
                        H_plus_2d_arr)
 
-USE asad_mod,         ONLY: ddhr, dhr, kd298, k298, jpdw
-USE ukca_um_legacy_mod, ONLY: rmol, exp_v, log_v
+USE asad_mod, ONLY: ddhr, dhr, kd298, k298, jpdw
+USE ukca_um_legacy_mod, ONLY: exp_v, log_v
+USE ukca_config_constants_mod, ONLY: rmol
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 

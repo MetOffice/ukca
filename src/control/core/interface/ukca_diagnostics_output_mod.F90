@@ -566,7 +566,7 @@ SUBROUTINE blank_out_missing_diags(error_code_ptr, diagnostics,                &
 !   data.
 ! ----------------------------------------------------------------------
 
-USE missing_data_mod, ONLY: rmdi
+USE ukca_missing_data_mod, ONLY: rmdi
 
 IMPLICIT NONE
 

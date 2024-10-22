@@ -44,9 +44,6 @@
 
 MODULE ukca_dms_flux_mod
 
-USE ukca_config_specification_mod, ONLY: i_liss_merlivat, i_wanninkhof,        &
-                                         i_nightingale, i_blomquist, zerodegc
-
 IMPLICIT NONE
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_DMS_FLUX_MOD'
@@ -56,7 +53,10 @@ CONTAINS
 SUBROUTINE ukca_dms_flux(row_length, rows, wind_10m, tstar, land_fract,        &
                          dms_conc, i_dms_flux, f_dms)
 
-USE water_constants_mod, ONLY: tfs
+USE ukca_config_specification_mod, ONLY: i_liss_merlivat, i_wanninkhof,        &
+                                         i_nightingale, i_blomquist
+USE ukca_config_constants_mod, ONLY: tfs
+USE ukca_constants, ONLY: zerodegc
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim

@@ -44,9 +44,8 @@
 !
 MODULE ukca_trop_hetchem_mod
 
-USE chemistry_constants_mod, ONLY: avogadro
-USE ukca_um_legacy_mod,   ONLY: rmol, pi
-USE ukca_constants,       ONLY: m_ho2, m_n2o5, m_air
+USE ukca_config_constants_mod, ONLY: rmol, avogadro
+USE ukca_constants,       ONLY: pi, m_ho2, m_n2o5, m_air
 
 USE ukca_mode_setup,      ONLY: nmodes,                                        &
                                 cp_su, cp_bc, cp_oc, cp_cl,                    &

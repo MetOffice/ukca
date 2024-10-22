@@ -81,8 +81,7 @@ USE ukca_cspecies,        ONLY: c_species, n_ch4, n_hono2, n_o3,               &
                                 n_h2o, nn_so2, c_na_species,                   &
                                 n_h2so4
 USE ukca_constants,       ONLY: c_h2o, c_hono2
-USE chemistry_constants_mod, ONLY: avogadro, boltzmann
-
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_config_specification_mod, ONLY: ukca_config
 
 USE ukca_raq_diags_mod,   ONLY: ukca_raq_diags
@@ -95,7 +94,7 @@ USE parkind1,             ONLY: jprb, jpim
 USE ereport_mod,          ONLY: ereport
 USE umPrintMgr,           ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper
 
-USE missing_data_mod,     ONLY: rmdi
+USE ukca_missing_data_mod, ONLY: rmdi
 
 USE errormessagelength_mod, ONLY: errormessagelength
 
@@ -319,7 +318,7 @@ END DO
 !$OMP         SO2_dryox_OH, SO2_wetox_H2O2, SO2_wetox_O3,                      &
 !$OMP         stratflag, ystore,                                               &
 !$OMP         zfnatr, zftr)                                                    &
-!$OMP SHARED(advt, biogenic, c_species, c_na_species,                          &
+!$OMP SHARED(advt, avogadro, biogenic, boltzmann, c_species, c_na_species,     &
 !$OMP        cloud_frac, delh2so4_chem, delSO2_drydep, delSO2_wet_H2O2,        &
 !$OMP        delSO2_wet_O3, delSO2_wetdep, dry_dep_3d, dts, speci,             &
 !$OMP        jpctr, jpdd, jpdw, jphk, jppj, jpspec, jpro2,                     &
@@ -426,7 +425,7 @@ DO k=1,model_levels
   !         Calculate total number  density, o2, h2o, and tracer
   !         concentrations for Backward Euler solver
 
-  BE_tnd(:) = pres(kcs:kce) / (Boltzmann * 1.0e6 * temp(kcs:kce))
+  BE_tnd(:) = pres(kcs:kce) / (boltzmann * 1.0e6 * temp(kcs:kce))
   BE_o2(:)  = 0.2095 * BE_tnd(:)
   BE_h2o(:) = q(kcs:kce)*BE_tnd(:)
   BE_vol(:) = volume(kcs:kce)*1.0e6 !  m3->cm3

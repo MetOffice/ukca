@@ -42,7 +42,7 @@ SUBROUTINE ukca_fdiss_constant(n_points, qcl_min, t, p, qcl,                   &
 USE asad_mod,            ONLY: ct_ddhr, ct_dhr, ct_kd298, ct_k298, jpeq
 USE ukca_chem_offline,   ONLY: nwet_constant
 USE ukca_constants,      ONLY: m_air
-USE ukca_um_legacy_mod,  ONLY: rmol
+USE ukca_config_constants_mod, ONLY: rmol
 USE parkind1,            ONLY: jprb, jpim
 USE yomhook,             ONLY: lhook, dr_hook
 

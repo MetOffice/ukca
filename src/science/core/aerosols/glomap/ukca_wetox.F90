@@ -138,8 +138,8 @@ SUBROUTINE ukca_wetox(nbox,nd,drydp,delso2,delso2_2,                           &
 !     NUM_EPS    : Value of NEWN below which don't apply process
 !     MH2O2F     : Index for semi-prognostic H2O2
 !--------------------------------------------------------------------
-USE chemistry_constants_mod, ONLY: avogadro
-USE ukca_um_legacy_mod,   ONLY: rmol, pi
+USE ukca_config_constants_mod, ONLY: rmol, avogadro
+USE ukca_constants,       ONLY: pi
 
 USE ukca_mode_setup,      ONLY: nmodes
 

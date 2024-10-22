@@ -29,7 +29,8 @@ USE ukca_config_specification_mod, ONLY: ukca_config, int_method_nr
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
+
 IMPLICIT NONE
 PUBLIC
 

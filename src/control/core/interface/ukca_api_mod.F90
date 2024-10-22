@@ -82,6 +82,7 @@ USE ukca_config_specification_mod, ONLY:                                       &
   ukca_liss_merlivat => i_liss_merlivat,                                       &
   ukca_wanninkhof => i_wanninkhof,                                             &
   ukca_nightingale => i_nightingale
+USE ukca_constants_setup_mod, ONLY: ukca_constants_setup
 USE ukca_tracers_mod, ONLY: ukca_get_tracer_varlist
 USE ukca_ntp_mod, ONLY: ukca_get_ntp_varlist
 USE ukca_chem_defs_mod, ONLY:                                                  &
@@ -144,7 +145,8 @@ USE ukca_error_mod, ONLY:                                                      &
   ukca_errcode_ukca_internal_fault => errcode_ukca_internal_fault,             &
   ukca_errcode_value_unknown => errcode_value_unknown,                         &
   ukca_errcode_value_invalid => errcode_value_invalid,                         &
-  ukca_errcode_value_missing => errcode_value_missing
+  ukca_errcode_value_missing => errcode_value_missing,                         &
+  ukca_errcode_unexpected_api_call => errcode_unexpected_api_call
 USE ukca_ddepaer_coeff_mod, ONLY:                                                 ukca_zhg_eg_nedleaf => zhg_eg_nedleaf, &
   ukca_zhg_eg_brdleaf => zhg_eg_brdleaf,                                       &
   ukca_zhg_dec_nedleaf => zhg_dec_nedleaf,                                     &

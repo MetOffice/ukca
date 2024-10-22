@@ -56,8 +56,7 @@ USE asad_mod,        ONLY: t, p, tnd, rk, ih_o3, ih_h2o2, ih_so2,              &
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_chem_offline, ONLY: nwet_constant
 USE ukca_fdiss_constant_mod, ONLY: ukca_fdiss_constant
-USE chemistry_constants_mod,  ONLY: avogadro
-USE water_constants_mod,  ONLY: rho_water
+USE ukca_config_constants_mod,  ONLY: rho_water, avogadro
 USE ukca_constants,  ONLY: m_air, H_plus
 USE parkind1,        ONLY: jprb, jpim
 USE yomhook,         ONLY: lhook, dr_hook

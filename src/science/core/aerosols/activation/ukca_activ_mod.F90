@@ -75,8 +75,8 @@ END SUBROUTINE activmklin
 SUBROUTINE activmkskew (kbdim, model_levels, nbins, array, sigma, mean,        &
                         alpha, pdfarr)
 
-USE ukca_um_legacy_mod, ONLY: pi, exp_v
-USE umErf_mod, ONLY: umErf
+USE ukca_constants,     ONLY: pi
+USE ukca_um_legacy_mod, ONLY: exp_v, umErf
 
 IMPLICIT NONE
 

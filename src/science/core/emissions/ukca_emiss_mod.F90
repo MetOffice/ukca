@@ -30,7 +30,6 @@
 ! ---------------------------------------------------------------------
 !
 MODULE ukca_emiss_mod
-!
 
 USE ukca_emiss_struct_mod, ONLY: ukca_em_struct, ukca_em_struct_init,          &
                                  ncdf_emissions
@@ -38,6 +37,8 @@ USE ukca_emiss_struct_mod, ONLY: ukca_em_struct, ukca_em_struct_init,          &
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
                                          i_light_param_off, glomap_variables,  &
                                          i_solinsol_6mode
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
+USE ukca_constants, ONLY: pi
 
 USE ukca_config_defs_mod,  ONLY: em_chem_spec
 USE ukca_emiss_mode_mod,   ONLY: ukca_def_mode_emiss
@@ -47,13 +48,11 @@ USE ukca_mode_setup,       ONLY: nmodes,                                       &
                                  cp_no3, cp_nh4, cp_nn,                        &
                                  moment_number, moment_mass
 
-! UM specific modules
-USE ukca_um_legacy_mod,    ONLY: pi, rgas => r
+USE ukca_um_legacy_mod,    ONLY: rgas => r
 USE ereport_mod,           ONLY: ereport
 USE errormessagelength_mod, ONLY: errormessagelength
 USE umPrintMgr,            ONLY: umPrint, umMessage, PrintStatus,              &
                                  PrStatus_Normal, newline
-USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 
 USE parkind1,              ONLY: jpim, jprb      ! DrHook
 USE yomhook,               ONLY: lhook, dr_hook  ! DrHook

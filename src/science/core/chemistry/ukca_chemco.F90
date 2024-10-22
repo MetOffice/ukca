@@ -39,9 +39,8 @@ CONTAINS
 SUBROUTINE ukca_chemco(nr,n_pnts,tc,m,h2o,o2,                                  &
                        clw,fcloud,fdiss,k_dms,rc,H_plus_1d_arr)
 
-USE water_constants_mod, ONLY: rho_water
-USE chemistry_constants_mod, ONLY: avogadro
 USE ukca_constants,   ONLY: H_plus, m_air
+USE ukca_config_constants_mod, ONLY: rho_water, avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE asad_mod,         ONLY: peps, jpeq, jpspec
 USE parkind1, ONLY: jprb, jpim

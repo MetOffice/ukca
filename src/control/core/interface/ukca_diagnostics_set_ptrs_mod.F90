@@ -35,7 +35,7 @@ USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_diag_mismatch, error_report
 
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 
 USE yomhook,             ONLY: lhook, dr_hook
 USE parkind1,            ONLY: jprb, jpim

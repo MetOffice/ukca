@@ -388,7 +388,7 @@ SUBROUTINE ukca_impc_scav(nbox,nbudaer,nd,md,                                  &
 !     Various indices for budget terms in BUD_AER_MAS
 !
 !--------------------------------------------------------------------
-USE ukca_um_legacy_mod, ONLY: pi
+USE ukca_constants,     ONLY: pi
 
 USE ukca_mode_setup,    ONLY:                                                  &
     cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_du, nmodes,                          &

@@ -90,10 +90,9 @@ SUBROUTINE ukca_hetero(n_points, have_nat, stratflag)
 USE asad_mod,        ONLY: specf, cdt, f, nhrkx, p, peps, rk,                  &
                            shno3, sph, sph2o, sphno3, t, tnd, wp, za,          &
                            fpsc1, sh2o, jpcspf, jphk
-USE chemistry_constants_mod,  ONLY: avogadro, boltzmann
-USE ukca_constants,  ONLY: m_clono2, m_hocl, m_brono2, m_hobr, m_n2o5,         &
+USE ukca_config_constants_mod,  ONLY: avogadro, boltzmann
+USE ukca_constants,  ONLY: pi, m_clono2, m_hocl, m_brono2, m_hobr, m_n2o5,     &
                            m_h2o, m_hno3
-USE ukca_um_legacy_mod, ONLY: pi
 USE ukca_config_specification_mod, ONLY: ukca_config
 IMPLICIT NONE
 
@@ -196,7 +195,7 @@ REAL :: gam3calc(n_points, 8) !
 
 REAL :: mm_arr(13) ! relevent molar mass for each reaction
 
-REAL, PARAMETER :: amu=1.0/(avogadro * 1000.0)  ! Atomic mass unit (kg)
+REAL :: amu        ! atomic mass unit (kg)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -519,6 +518,10 @@ ELSE ! New config
                                  gam3calc(1:n_points,:))
   END IF
   IF ( gppsc ) THEN     !  If heterogeneous processes are on.
+
+    ! Set conversion factor (atomic mass unit in kg)
+    amu = 1.0 / (avogadro * 1000.0)
+
     ! calculate reaction rate on psc
     IF (ukca_config%i_ukca_hetconfig == 2) THEN
       n_hk = 13
@@ -781,8 +784,8 @@ SUBROUTINE ukca_shi_liquid_aerosol(kstart,kend,kchmlev,t,th2o,                 &
 !temperature is limited to 185k
 !
 
-USE chemistry_constants_mod, ONLY: boltzmann
-USE asad_mod,                ONLY: peps
+USE ukca_config_constants_mod, ONLY: boltzmann
+USE asad_mod,                  ONLY: peps
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: kchmlev             ! no. of chem. levels
@@ -1260,9 +1263,9 @@ SUBROUTINE ukca_calckpsc(sasa,t,th2o,thcl,tcnit,tn2o5,thocl,                   &
 !
 !-----------------------------------------------------------------------
 !
-USE asad_mod,                 ONLY: fpsc1, shno3, sh2o
-USE chemistry_constants_mod,  ONLY: avogadro, boltzmann
-USE ukca_um_legacy_mod,       ONLY: pi
+USE asad_mod,                  ONLY: fpsc1, shno3, sh2o
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
+USE ukca_constants, ONLY: pi
 
 IMPLICIT NONE
 
@@ -1505,7 +1508,7 @@ SUBROUTINE ukca_eqcomp(t,th2o,kstart,kend,kchmlev,lphocl,                      &
 !
 !-----------------------------------------------------------------------
 !
-USE chemistry_constants_mod,  ONLY: boltzmann
+USE ukca_config_constants_mod,  ONLY: boltzmann
 
 IMPLICIT NONE
 

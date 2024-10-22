@@ -55,7 +55,7 @@ USE ereport_mod,         ONLY: ereport
 USE errormessagelength_mod, ONLY: errormessagelength
 USE umPrintMgr,          ONLY: umPrint, umMessage, PrintStatus, PrStatus_Normal
 
-USE missing_data_mod,    ONLY: rmdi, imdi
+USE ukca_missing_data_mod, ONLY: rmdi, imdi
 
 USE parkind1,            ONLY: jpim, jprb      ! DrHook
 USE yomhook,             ONLY: lhook, dr_hook  ! DrHook

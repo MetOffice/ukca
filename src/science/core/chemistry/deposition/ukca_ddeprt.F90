@@ -39,8 +39,8 @@ SUBROUTINE ukca_ddeprt(p_fieldda, bl_levels, i_day_number, i_mon, i_hour,      &
                        r_minute, secs_per_step, lon, lat, tanlat, dzl, z0m,    &
                        u_s, temp, dryrt)
 
-USE ukca_um_legacy_mod, ONLY: vkman, pi_over_180
-USE ukca_constants,     ONLY: fxb, fxc
+USE ukca_um_legacy_mod, ONLY: vkman
+USE ukca_constants,     ONLY: pi_over_180, fxb, fxc
 USE asad_mod, ONLY: depvel, jpdd
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook

@@ -53,8 +53,6 @@ SUBROUTINE ukca_chemco_raq (nr, n_pnts, tc, m, h2o, o2,                        &
 !
 USE ukca_chemco_raq_init_mod, ONLY: ukca_chemco_raq_init, rk, pdep
 USE asad_mod, ONLY: peps, jpeq, jpspec, jphk
-USE chemistry_constants_mod, ONLY: avogadro
-USE water_constants_mod, ONLY: rho_water
 USE ukca_constants, ONLY: m_air, m_n2o5
 
 USE ereport_mod, ONLY: ereport
@@ -63,6 +61,7 @@ USE errormessagelength_mod, ONLY: errormessagelength
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 
+USE ukca_config_constants_mod, ONLY: rho_water, avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_mode_setup,        ONLY: cp_su, cp_bc, cp_oc, cp_cl, cp_so
 USE ukca_um_legacy_mod,     ONLY: calc_surf_area, l_um_calc_surf_area

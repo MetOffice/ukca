@@ -133,8 +133,9 @@ END TYPE photol_config_spec_type
 
 TYPE(photol_config_spec_type),   SAVE :: photol_config
 
-LOGICAL :: l_photol_config_available   ! Flag to determine if photolysis
-                                       ! configuration has been set.
+LOGICAL, SAVE :: l_photol_config_available = .FALSE.
+                                     ! Flag to determine if photolysis
+                                     ! configuration has been set.
 
 ! ---------------------------------------------------------------------------
 ! -- Derived configuration variables --

@@ -34,8 +34,7 @@ SUBROUTINE ukca_fracdiss(row_length, rows, model_levels, temp, p_theta_levels, &
 
 
 USE asad_mod,             ONLY: ddhr, dhr, kd298, k298, jpeq, jpdw
-USE ukca_um_legacy_mod,   ONLY: rmol
-USE chemistry_constants_mod, ONLY: avogadro
+USE ukca_config_constants_mod, ONLY: rmol, avogadro
 USE ukca_constants,       ONLY: m_air
 USE parkind1,             ONLY: jprb, jpim
 USE yomhook,              ONLY: lhook, dr_hook

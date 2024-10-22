@@ -54,14 +54,17 @@ CONTAINS
 SUBROUTINE ukca_main1(error_code_ptr, timestep_number, current_time,           &
                       environ_ptrs, r_theta_levels, r_rho_levels,              &
                       diagnostics, all_tracers, all_ntp,                       &
-                      previous_time, error_message, error_routine)
+                      previous_time, eta_theta_levels,                         &
+                      error_message, error_routine)
 ! ----------------------------------------------------------------------
 
-USE missing_data_mod, ONLY: rmdi
+USE ukca_missing_data_mod, ONLY: imdi, rmdi
+USE ukca_config_constants_mod, ONLY: boltzmann, avogadro, rho_so4
 
 USE ukca_config_specification_mod, ONLY: ukca_config, glomap_config,           &
                                          i_ukca_activation_arg,                &
                                          l_ukca_config_available,              &
+                                         i_age_reset_by_height,                &
                                          int_method_nr, int_method_be_explicit,&
                                          glomap_variables
 
@@ -131,7 +134,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     rh_z_top_theta, a_realhd,                                                  &
     delta_lambda, delta_phi,                                                   &
     l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
-    rad_ait, rad_acc, chi, sigma, pi,                                          &
+    rad_ait, rad_acc, chi, sigma,                                              &
     stashwork34, stashwork38, stashwork50,                                     &
     copydiag, copydiag_3d, stashcode_glomap_sec, len_stlist, stindex,          &
     stlist, num_stash_levels, stash_levels, si, sf, si_last,                   &
@@ -148,7 +151,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
 USE ukca_um_legacy_mod, ONLY:                                                  &
     delta_lambda, delta_phi,                                                   &
     l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
-    rad_ait, rad_acc, chi, sigma, pi,                                          &
+    rad_ait, rad_acc, chi, sigma,                                              &
     stashwork34, stashwork38, stashwork50,                                     &
     copydiag, copydiag_3d, stashcode_glomap_sec, len_stlist, stindex,          &
     stlist, num_stash_levels, stash_levels, si, sf, si_last,                   &
@@ -172,7 +175,6 @@ USE ukca_tracer_vars,       ONLY: trmol_post_chem
 USE ukca_cspecies,          ONLY: c_species, c_na_species, n_bro, n_h2o,       &
                                   n_hcl, n_no2, n_o3,                          &
                                   ukca_calc_cspecies, n_passive
-USE chemistry_constants_mod, ONLY: boltzmann, avogadro, rho_so4
 USE ukca_tropopause,        ONLY:                                              &
     p_tropopause,           theta_trop,            pv_trop,                    &
     tropopause_level,       l_stratosphere,        ukca_calc_tropopause
@@ -223,11 +225,9 @@ USE ukca_mode_diags_mod,    ONLY: ukca_mode_diags_alloc, ukca_mode_diags,      &
                                   l_ukca_cmip6_diags,                          &
                                   l_ukca_pm_diags
 USE ukca_age_air_mod,       ONLY: ukca_age_air
-USE level_heights_mod,      ONLY: eta_theta_levels
 USE ereport_mod,            ONLY: ereport
-USE missing_data_mod,       ONLY: imdi
 USE ukca_calc_cloud_ph_mod, ONLY: ukca_calc_cloud_ph
-USE ukca_constants,         ONLY: H_plus
+USE ukca_constants,         ONLY: pi, H_plus
 
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper,          &
                       PrStatus_Min
@@ -248,7 +248,7 @@ USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_ukca_uninit, errcode_env_req_uninit,         &
                           errcode_env_field_missing,                           &
                           errcode_env_field_mismatch,                          &
-                          errcode_value_missing
+                          errcode_value_missing, errcode_value_invalid
 
 USE ukca_environment_check_mod, ONLY: check_environment
 
@@ -293,6 +293,12 @@ TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(:)
 
 ! Model time at previous timestep (required for chemistry)
 INTEGER, OPTIONAL, INTENT(IN) :: previous_time(7)
+
+! Non-dimensional coordinate vector for theta levels (0.0 at planet radius,
+! 1.0 at top of model), used to define level height without orography effect for
+! age-of-air reset height and for defining conditions for heterogeneous PSC
+! chemistry. Allocatable to preserve bounds (may or may not include Level 0).
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: eta_theta_levels(:)
 
 ! Optional arguments for status reporting
 CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
@@ -535,6 +541,8 @@ INTEGER :: nlev_with_ddep(ukca_config%row_length,                              &
 
 REAL, SAVE :: lambda_aitken, lambda_accum ! parameters for computation
                                           ! of surface area density
+
+LOGICAL :: l_do_bound_check
 LOGICAL :: do_chemistry
 LOGICAL :: do_aerosol
 LOGICAL, SAVE :: l_firstchem = .TRUE.     ! Logical for any operations
@@ -661,6 +669,52 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   END IF
 END IF
 
+! Check that non-dimensional vertical coordinate vector is present if required
+! for heterogeneous PSC chemistry or age-of-air reset by height; check it
+! covers the range 1:model_levels if present (and required)
+
+l_do_bound_check = .FALSE.
+
+IF (ukca_config%l_ukca_het_psc .AND.                                           &
+    (ukca_config%l_ukca_sa_clim .OR. ukca_config%l_ukca_limit_nat)) THEN
+  IF (.NOT. PRESENT(eta_theta_levels)) THEN
+    error_code_ptr = errcode_value_missing
+    IF (PRESENT(error_message))                                                &
+      error_message =                                                          &
+        'Missing eta_theta_levels, needed for heterogeneous PSC chemistry'
+  ELSE
+    l_do_bound_check = .TRUE.
+  END IF
+END IF
+
+IF ((error_code_ptr == 0) .AND.                                                &
+    (ukca_config%i_ageair_reset_method == i_age_reset_by_height)) THEN
+  IF (.NOT. PRESENT(eta_theta_levels)) THEN
+    error_code_ptr = errcode_value_missing
+    IF (PRESENT(error_message))                                                &
+      error_message =                                                          &
+        'Missing eta_theta_levels, needed for age-of-air reset by height'
+  ELSE
+    l_do_bound_check = .TRUE.
+  END IF
+END IF
+
+IF ((error_code_ptr == 0) .AND. l_do_bound_check) THEN
+  IF ((LBOUND(eta_theta_levels, DIM=1) > 1) .OR.                               &
+      (UBOUND(eta_theta_levels, DIM=1) < ukca_config%model_levels)) THEN
+    error_code_ptr = errcode_value_invalid
+    IF (PRESENT(error_message))                                                &
+      error_message =                                                          &
+        'Coordinate vector eta_theta_levels does not span range 1:model_levels'
+  END IF
+END IF
+
+IF (error_code_ptr /= 0) THEN
+  IF (PRESENT(error_routine)) error_routine = RoutineName
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
+
 ! Check whether all required environmental driver fields are present
 ! (None are required if the run does not use chemistry)
 IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
@@ -715,7 +769,7 @@ z_top_of_model = r_theta_levels(1,1,model_levels) - planet_radius
 ! conserved. However, a tolerance check must then be passed to ensure
 ! that the UM value supplied is consistent with the value calculated above
 ! which UKCA takes to be the definitive value.
-tol = 1e-10 * (r_theta_levels(1,1,model_levels) - r_theta_levels(1,1,1))
+tol = 1e-10 * (r_theta_levels(1,1,model_levels) - r_theta_levels(1,1,0))
 IF (ukca_config%l_environ_z_top) THEN
   z_top_of_model_ext = a_realhd(rh_z_top_theta)
   IF (ABS(z_top_of_model_ext - z_top_of_model) > tol) THEN
@@ -1790,7 +1844,8 @@ END IF
 
 IF ( ukca_config%l_ukca_ageair ) THEN
   CALL ukca_age_air(row_length, rows, model_levels, ukca_config%timestep,      &
-                    z_top_of_model, all_tracers_names, all_tracers)
+                    z_top_of_model, all_tracers_names, all_tracers,            &
+                    eta_theta_levels=eta_theta_levels)
 END IF    ! ukca_config%l_ukca_ageair
 
 ! ----------------------------------------------------------------------

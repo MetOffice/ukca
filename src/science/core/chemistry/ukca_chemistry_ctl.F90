@@ -85,14 +85,14 @@ USE ukca_cspecies,        ONLY: c_species, c_na_species, n_cf2cl2, n_cfcl3,    &
                                 nn_h2o2, nn_h2so4, nn_o1d, nn_o3, nn_o3p,      &
                                 nn_oh, nn_so2
 USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
+USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_ntp_mod,         ONLY: ntp_type, dim_ntp, name2ntpindex
-USE chemistry_constants_mod, ONLY: avogadro
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
 USE ereport_mod,          ONLY: ereport
 USE umPrintMgr,           ONLY: umMessage, umPrint
-USE missing_data_mod,     ONLY: rmdi
+USE ukca_missing_data_mod, ONLY: rmdi
 USE errormessagelength_mod, ONLY: errormessagelength
 
 IMPLICIT NONE
@@ -242,7 +242,7 @@ END DO
 !$OMP PRIVATE(cdot, ddmask, errcode, ierr, jna, jro2, js, jspf, jtr, k, kcs,   &
 !$OMP         kce, l, rc_het, ystore, zdryrt2, zftr, zprt1d, zq, co2_1d)       &
 !$OMP SHARED(advt, atm_cf2cl2_mol, atm_cfcl3_mol, atm_ch4_mol,                 &
-!$OMP        atm_co_mol, atm_h2_mol, atm_mebr_mol, atm_n2o_mol,                &
+!$OMP        atm_co_mol, atm_h2_mol, atm_mebr_mol, atm_n2o_mol, avogadro,      &
 !$OMP        c_species, c_na_species, cloud_frac, cmessage,                    &
 !$OMP        delh2so4_chem, delSO2_wet_H2O2, delSO2_wet_O3,                    &
 !$OMP        dpd_dummy, dpw_dummy, fpsc1_dummy, fpsc2_dummy, H_plus,           &

@@ -41,28 +41,16 @@ MODULE ukca_um_legacy_mod
 ! UM-LFRic-UKCA changes that includes the provision of any non-default values
 ! required using the new 'ukca_setup' functionality.
 
-USE ukca_config_specification_mod, ONLY:                                       &
-  isec_per_day,                                                                &
-  isec_per_hour,                                                               &
-  rhour_per_day,                                                               &
-  rsec_per_day,                                                                &
-  rsec_per_hour,                                                               &
-  pi,                                                                          &
-  pi_over_180,                                                                 &
-  recip_pi_over_180,                                                           &
-  zerodegc,                                                                    &
-  rmol,                                                                        &
+USE ukca_config_constants_mod, ONLY:                                           &
   planet_radius,                                                               &
   g,                                                                           &
   r,                                                                           &
   cp,                                                                          &
   pref,                                                                        &
   vkman,                                                                       &
-  repsilon,                                                                    &
   rv,                                                                          &
   kappa,                                                                       &
   c_virtual,                                                                   &
-  s2r,                                                                         &
   rad_ait,                                                                     &
   rad_acc,                                                                     &
   chi,                                                                         &
@@ -132,9 +120,6 @@ LOGICAL, PARAMETER :: l_autotune_segments = .FALSE.
 TYPE :: autotune_type
   INTEGER :: dummy_value
 END TYPE
-
-! Required by ukca_add_emiss_mod
-LOGICAL, PARAMETER :: l_ukca_so2ems_expvolc = .FALSE.
 
 ! Required by ukca_aer_no3_mod, ukca_prod_no3_mod and/or ukca_setup_mod;
 ! relate to use of CLASSIC dust
@@ -373,7 +358,22 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! -- UKCA Replacements for UM Procedures in Use --
 ! ----------------------------------------------------------------------
-! These are Vectlib replacement subroutines required by various modules
+! These are umerf and Vectlib replacement procedures required by various
+! modules
+! ----------------------------------------------------------------------
+
+ELEMENTAL FUNCTION umerf(x)
+
+IMPLICIT NONE
+
+REAL             :: umErf
+REAL, INTENT(IN) :: x
+
+umerf = ERF(x)
+
+END FUNCTION umerf
+
+! ----------------------------------------------------------------------
 
 SUBROUTINE exp_v(n, x, y)
 

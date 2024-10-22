@@ -118,8 +118,9 @@ SUBROUTINE ukca_prim_ss(row_length, rows, model_levels, verbose,               &
 ! CP_CL     : index of cpt in which sea-salt mass is stored
 !
 !--------------------------------------------------------------------
-USE ukca_um_legacy_mod,             ONLY: pi, rgas => r
-USE chemistry_constants_mod,        ONLY: avogadro, boltzmann
+USE ukca_um_legacy_mod,             ONLY: rgas => r
+USE ukca_constants,                 ONLY: pi
+USE ukca_config_constants_mod,      ONLY: avogadro, boltzmann
 
 USE ukca_mode_setup,                ONLY: cp_cl, nmodes
 

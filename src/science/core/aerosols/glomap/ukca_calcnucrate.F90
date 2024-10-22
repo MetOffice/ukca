@@ -163,7 +163,7 @@ SUBROUTINE ukca_calcnucrate(nbox, dtz, t, s, rh, aird, h2so4,                  &
 !     formation, ACP, 10:4775-4793.
 !
 !----------------------------------------------------------------------
-USE chemistry_constants_mod, ONLY: boltzmann
+USE ukca_config_constants_mod, ONLY: boltzmann
 USE ukca_constants,     ONLY: nmol, conc_eps
 USE ukca_binapara_mod,  ONLY: ukca_binapara
 USE yomhook,            ONLY: lhook, dr_hook

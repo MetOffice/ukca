@@ -74,7 +74,7 @@ USE ukca_environment_diags_mod, ONLY: photol_rate_diag
 USE ukca_config_specification_mod, ONLY:  calc_ozonecol
 USE ukca_cspecies, ONLY: n_o3
 USE ukca_constants, ONLY: c_o3, dobson
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname
 

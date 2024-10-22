@@ -76,7 +76,7 @@ CONTAINS
 SUBROUTINE ukca_step_1d_domain(timestep_number, current_time,                  &
                                tracer_data_parent, ntp_data_parent,            &
                                r_theta_levels, r_rho_levels,                   &
-                               error_code, previous_time,                      &
+                               error_code, previous_time, eta_theta_levels,    &
                                diag_status_flat_real, diag_status_fullht_real, &
                                diag_data_flat_real, diag_data_fullht_real,     &
                                error_message, error_routine)
@@ -126,6 +126,11 @@ INTEGER, TARGET, INTENT(OUT) :: error_code
 
 ! Model time at previous timestep (required for chemistry)
 INTEGER, OPTIONAL, INTENT(IN) :: previous_time(7)
+
+! Non-dimensional coordinate vector for theta levels (0.0 at planet radius,
+! 1.0 at top of model), used to define level height without orography effect.
+! Allocatable to preserve bounds (may or may not include Level 0).
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: eta_theta_levels(:)
 
 ! Diagnostic status flags
 INTEGER, OPTIONAL, INTENT(OUT) :: diag_status_flat_real(:)
@@ -201,6 +206,7 @@ IF (error_code_ptr <= 0) THEN
                   environ_field_ptrs, r_theta_levels, r_rho_levels,            &
                   diagnostics, all_tracers, all_ntp,                           &
                   previous_time=previous_time,                                 &
+                  eta_theta_levels=eta_theta_levels,                           &
                   error_message=error_message, error_routine=error_routine)
 
 END IF
@@ -249,7 +255,7 @@ END SUBROUTINE ukca_step_1d_domain
 SUBROUTINE ukca_step_3d_domain(timestep_number, current_time,                  &
                                tracer_data_parent, ntp_data_parent,            &
                                r_theta_levels, r_rho_levels,                   &
-                               error_code, previous_time,                      &
+                               error_code, previous_time, eta_theta_levels,    &
                                diag_status_flat_real, diag_status_fullht_real, &
                                diag_data_flat_real, diag_data_fullht_real,     &
                                error_message, error_routine)
@@ -290,6 +296,11 @@ INTEGER, TARGET, INTENT(OUT) :: error_code
 
 ! Model time at previous timestep (required for chemistry)
 INTEGER, OPTIONAL, INTENT(IN) :: previous_time(7)
+
+! Non-dimensional coordinate vector for theta levels (0.0 at planet radius,
+! 1.0 at top of model), used to define level height without orography effect.
+! Allocatable to preserve bounds (may or may not include Level 0).
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: eta_theta_levels(:)
 
 ! Diagnostic status flags
 INTEGER, OPTIONAL, INTENT(OUT) :: diag_status_flat_real(:)
@@ -366,6 +377,7 @@ IF (error_code_ptr <= 0) THEN
                   environ_field_ptrs, r_theta_levels, r_rho_levels,            &
                   diagnostics, all_tracers, all_ntp,                           &
                   previous_time=previous_time,                                 &
+                  eta_theta_levels=eta_theta_levels,                           &
                   error_message=error_message, error_routine=error_routine)
 
 END IF

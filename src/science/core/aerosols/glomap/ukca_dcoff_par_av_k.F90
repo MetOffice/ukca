@@ -80,8 +80,8 @@ SUBROUTINE ukca_dcoff_par_av_k(nbox,k,dp,sigma,t,dvisc,mfpa,                   &
 ! BOLTZMANN      : Boltzmann's constant (kg m2 s-2 K-1 molec-1)
 !
 !--------------------------------------------------------------------
-USE ukca_um_legacy_mod,  ONLY: pi
-USE chemistry_constants_mod, ONLY: boltzmann
+USE ukca_constants,   ONLY: pi
+USE ukca_config_constants_mod, ONLY: boltzmann
 USE yomhook,          ONLY: lhook, dr_hook
 USE parkind1,         ONLY: jprb, jpim
 IMPLICIT NONE

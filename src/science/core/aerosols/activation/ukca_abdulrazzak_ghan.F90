@@ -81,22 +81,28 @@ SUBROUTINE ukca_abdulrazzak_ghan(kbdim,   klev,                                &
 USE ukca_mode_setup,       ONLY: nmodes, glomap_variables_type
 
 USE ukca_activ_mod,        ONLY: activclosest
-USE ukca_um_legacy_mod,    ONLY: rmol,     &  ! gas constant
-                                 zerodegc, &  ! in K
-                                 pi,                                           &
-                                 gg => g,  &  ! Acceleration due to gravity
-                                 cp   ! Specific heat at const p J/(kg.K)
-USE ukca_constants,        ONLY: mmw,      &  ! H2O molecular weight kg/mol
+USE ukca_um_legacy_mod,    ONLY: gg => g,  & ! Acceleration due to gravity
+                                 cp,       & ! Specific heat at const p J/(kg.K)
+                                 umErf
+
+USE ukca_config_constants_mod, ONLY: rmol,      & ! gas constant
+                                     rho_water, & ! density H2O kg/m^3
+                                     lc,        & ! latent heat of condensation
+                                                  ! J/kg
+                                     l_ukca_constants_available
+
+USE ukca_constants,        ONLY: zerodegc, &  ! 0 degrees C in K
+                                 pi,       &  ! Pi
+                                 mmw,      &  ! H2O molecular weight kg/mol
                                  m_air,    &  ! Dry air  ------ " ---------
                                  zsten,    &  ! surface tension of H2O [J m-2]
                                  zosm         ! Osmotic coefficient
-USE water_constants_mod,   ONLY: tm,        & ! t melt 273.15 K
-                                 rho_water, & ! density H2O kg/m^3
-                                 lc           ! latent heat of condensation J/kg
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Diag
+USE ereport_mod, ONLY: ereport
+USE errormessagelength_mod, ONLY: errormessagelength
+
 USE yomhook,               ONLY: lhook, dr_hook
 USE parkind1,              ONLY: jprb, jpim
-USE umErf_mod,             ONLY: umErf
 
 IMPLICIT NONE
 
@@ -208,27 +214,13 @@ REAL :: zcls
 
 REAL, PARAMETER :: p0=101325.0     ! in Pa
 
-!---constants needed which now come from mo_constants:
-! REAL, PARAMETER :: t0=273.15             !in K   =zerodegc
-! REAL, PARAMETER :: rhoh2o= 1000.0        ! =rho_water density of liquid water
-                                           ! in kg/m3
-! REAL, PARAMETER :: argas = 8.314409      ! =rmol universal gas constant in
-                                           ! J/K/mol
-! REAL, PARAMETER :: alv   = 2.5008e6      ! =lc latent heat for vaporisation in
-                                           ! J/kg
-! REAL, PARAMETER :: api   = 3.14159265358979323846 ! =pi
-! REAL, PARAMETER :: cpd   = 1005.46       ! =cp specific heat of dry air at
-                                           ! constant
-! REAL, PARAMETER :: g     = 9.80665       ! =g gravity acceleration in m/s2
-! REAL, PARAMETER :: amw   = 18.0154       ! =mmw molecular wght of water vapour
-! REAL, PARAMETER :: amd   = 28.970        ! =m_air molecular weight of dry air
-! The replacement molecular weights are already in kg/mol units
-! REAL, PARAMETER :: tmelt = 273.15        ! =tm melting temperature of ice/snow
-!---------------------------------------------------------------
 REAL :: cthomi
 REAL :: lc_sq
 
 REAL :: no_ions_div_mm( glomap_variables_local%ncp )
+
+INTEGER                           :: errcode  ! error code
+CHARACTER(LEN=errormessagelength) :: cmessage ! error message
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -238,6 +230,15 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_ABDULRAZZAK_GHAN'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Allow for the possibility that this routine is called from outside UKCA,
+! by-passing the UKCA API. This is only allowed if UKCA constants are properly
+! set up.
+IF (.NOT. l_ukca_constants_available) THEN
+  cmessage = 'Configurable UKCA constants have not been set up'
+  errcode = 1
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
 
 ! Caution - pointers to TYPE glomap_variables_local%
 !           have been included here to make the code easier to read
@@ -252,7 +253,7 @@ sigmag      => glomap_variables_local%sigmag
 modesol     => glomap_variables_local%modesol
 topmode     => glomap_variables_local%topmode
 
-cthomi  = tm-35.0
+cthomi  = zerodegc - 35.0
 lc_sq=lc**2
 
 !--- 0) Initializations:
@@ -387,9 +388,9 @@ END DO                    !jmod=1, topmode
 !$OMP         zalpha, zcdncm, zdif, zerf_ratio, zeta,                          &
 !$OMP         zf, zg, zgamma, zgrowth, zk, zka, zpwdw,                         &
 !$OMP         zrc, zsm, zsmax, zsum, zw, zwpwdw, zxi)                          &
-!$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc_sq, mode, nwbins, topmode,        &
+!$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc,lc_sq, mode, nwbins, topmode,        &
 !$OMP        modesol, papm1, pesw, pn, pqm1, prdry, Printstatus,               &
-!$OMP        psmax, ptm1, pwarr, pwbin, pwpdf,                                 &
+!$OMP        psmax, ptm1, pwarr, pwbin, pwpdf, rho_water, rmol,                &
 !$OMP        za, zb, zcdnc, zeps,                                              &
 !$OMP        zndbot, zndbotm, zndtop, zndtopm,                                 &
 !$OMP        zsigmaln, l_fix_ukca_hygroscopicities_local)
@@ -429,7 +430,7 @@ DO jw=1, nwbins
         !--- Thermal conductivity zk (P&K, 13.18) [cal cm-1 s-1 K-1]:
 
         ! Mole fraction of water:
-        zka=(5.69+0.017*(ptm1(jl,jk)-tm))*1.0e-5
+        zka=(5.69+0.017*(ptm1(jl,jk)-zerodegc))*1.0e-5
 
         ! Moist air, convert to [J m-1 s-1 K-1]:
 

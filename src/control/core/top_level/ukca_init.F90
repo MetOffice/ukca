@@ -33,7 +33,7 @@ CONTAINS
 
 SUBROUTINE ukca_init
 
-USE ukca_um_legacy_mod,    ONLY: isec_per_day, isec_per_hour
+USE ukca_constants,        ONLY: isec_per_day, isec_per_hour
 USE asad_mod,              ONLY: cdt, interval, ncsteps, tslimit
 
 USE ukca_config_specification_mod, ONLY:                                       &
@@ -55,7 +55,6 @@ USE ukca_config_specification_mod, ONLY:                                       &
 
 USE ukca_mode_setup_interface_mod, ONLY: ukca_mode_setup_interface
 
-USE ukca_constants,        ONLY: set_derived_constants
 USE ukca_setup_chem_mod,   ONLY: ukca_setup_chem
 USE ukca_config_defs_mod,  ONLY: n_mode_tracers
 
@@ -109,9 +108,6 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Check the logical switches
 CALL check_settings(ukca_config, glomap_config)
-
-! Set derived constants that depend on potentially user configurable values
-CALL set_derived_constants()
 
 ! Set internal UKCA values for chemistry scheme
 CALL ukca_setup_chem()

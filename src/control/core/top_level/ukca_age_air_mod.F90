@@ -28,7 +28,8 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_AGE_AIR_MOD'
 CONTAINS
 
 SUBROUTINE ukca_age_air(row_length, rows, model_levels, timestep,              &
-                        z_top_of_model, all_tracers_names, all_tracers)
+                        z_top_of_model, all_tracers_names, all_tracers,        &
+                        eta_theta_levels)
 
 USE ukca_fieldname_mod,     ONLY: maxlen_fieldname, fldname_age_of_air
 
@@ -38,7 +39,6 @@ USE ereport_mod,            ONLY: ereport
 USE errormessagelength_mod, ONLY: errormessagelength
 USE parkind1,               ONLY: jprb, jpim
 USE ukca_tracers_mod,       ONLY: n_tracers
-USE level_heights_mod,      ONLY: eta_theta_levels
 USE UmPrintMgr,             ONLY: umPrint
 
 USE yomhook,                ONLY: lhook, dr_hook
@@ -58,6 +58,11 @@ CHARACTER(LEN=maxlen_fieldname), INTENT(IN) :: all_tracers_names(n_tracers)
 
 ! UKCA tracer fields corresponding to the given list of tracer names
 REAL, INTENT(IN OUT) :: all_tracers(row_length, rows, model_levels, n_tracers)
+
+! Non-dimensional coordinate vector for theta levels (0.0 at planet radius,
+! 1.0 at top of model), used to define level height without orography effect
+! Allocatable to preserve bounds (may or may not include Level 0).
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: eta_theta_levels(:)
 
 ! Local variables
 
@@ -113,6 +118,12 @@ IF (l_first_call) THEN
     max_zero_age = ukca_config%max_ageair_reset_level
   ELSE
     ! Reset based on user-specified height
+    IF (.NOT. PRESENT(eta_theta_levels)) THEN
+      cmessage =                                                               &
+        'Missing eta_theta_levels for finding max. reset level by height.'
+      errcode = 3
+      CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+    END IF
     DO k = 1, model_levels-1
       IF ( (eta_theta_levels(k) * z_top_of_model)                              &
             <= ukca_config%max_ageair_reset_height ) max_zero_age = k
@@ -120,7 +131,7 @@ IF (l_first_call) THEN
   END IF   ! reset method
   IF ( max_zero_age < 0 ) THEN
     cmessage = ' Error setting maximum reset level for Age-of-Air tracer.'
-    errcode = 3
+    errcode = 4
     CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
   ELSE
     WRITE(cmessage,'(2(A,I5))') 'UKCA AGE-OF-AIR: Reset method= ',             &

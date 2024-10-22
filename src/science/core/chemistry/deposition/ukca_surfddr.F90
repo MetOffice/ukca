@@ -55,7 +55,7 @@ USE parkind1,                ONLY:                                             &
     jprb,                                                                      &
     jpim
 
-USE ukca_um_legacy_mod,      ONLY:                                             &
+USE ukca_config_constants_mod, ONLY:                                           &
     rmol
 
 USE ukca_config_specification_mod, ONLY:                                       &

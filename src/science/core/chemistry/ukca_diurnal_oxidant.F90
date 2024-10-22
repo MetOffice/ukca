@@ -64,7 +64,7 @@ SUBROUTINE ukca_set_diurnal_ox(species, field, n_points, nlev)
 
 USE ukca_chem_offline,        ONLY: o3_offline_diag, oh_offline_diag,          &
                                     no3_offline_diag, ho2_offline_diag
-USE ukca_um_legacy_mod,       ONLY: rsec_per_day, pi
+USE ukca_constants,           ONLY: rsec_per_day, pi
 USE ereport_mod,              ONLY: ereport
 
 USE errormessagelength_mod,   ONLY: errormessagelength
@@ -160,7 +160,7 @@ SUBROUTINE ukca_set_diurnal_ox_col(species, field, n_points, ix, jy)
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_chem_offline,      ONLY: o3_offline_diag, oh_offline_diag,            &
                                   no3_offline_diag, ho2_offline_diag
-USE ukca_um_legacy_mod,     ONLY: pi, rsec_per_day
+USE ukca_constants,         ONLY: rsec_per_day, pi
 USE ereport_mod,            ONLY: ereport
 
 USE errormessagelength_mod, ONLY: errormessagelength
@@ -266,7 +266,7 @@ SUBROUTINE ukca_int_cosz(row_length, rows,                                     &
 !
 ! ######################################################################
 
-USE ukca_um_legacy_mod,  ONLY: pi, rsec_per_day
+USE ukca_constants, ONLY: rsec_per_day, pi
 
 IMPLICIT NONE
 

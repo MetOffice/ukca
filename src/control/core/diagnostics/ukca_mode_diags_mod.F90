@@ -25,7 +25,7 @@
 !
 MODULE ukca_mode_diags_mod
 
-USE chemistry_constants_mod, ONLY: avogadro, boltzmann
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_constants,         ONLY: mmw, m_air
 USE ukca_mode_setup,        ONLY: nmodes, ncp_max,                             &
                                   cp_su, cp_bc, cp_oc, cp_cl, cp_du,           &

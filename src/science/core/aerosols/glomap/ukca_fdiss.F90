@@ -34,9 +34,10 @@ SUBROUTINE ukca_fdiss(n_points, qcl_min, t, p, qcl, fdiss, H_plus_1d_arr)
 
 USE asad_mod,            ONLY: ddhr, dhr, kd298, k298, jpeq, jpdw
 USE ukca_constants,      ONLY: m_air
-USE ukca_um_legacy_mod,  ONLY: rmol
+USE ukca_config_constants_mod,  ONLY: rmol
 USE parkind1,            ONLY: jprb, jpim
 USE yomhook,             ONLY: lhook, dr_hook
+
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: n_points                 ! No of points

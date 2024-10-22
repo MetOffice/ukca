@@ -150,11 +150,10 @@ SUBROUTINE ukca_volume_mode( glomap_variables_local, nbox, nd, md, mdt,        &
 !
 !--------------------------------------------------------------------
 
-USE ukca_um_legacy_mod,   ONLY: pi, l_glomap_clim_radaer, cubrt_v
+USE ukca_um_legacy_mod,   ONLY: l_glomap_clim_radaer, cubrt_v
 USE ukca_types_mod,       ONLY: log_small
-USE water_constants_mod,  ONLY: rho_water
-USE chemistry_constants_mod, ONLY: avogadro, rho_so4
-USE ukca_constants,       ONLY: mmw
+USE ukca_constants,       ONLY: pi, mmw
+USE ukca_config_constants_mod, ONLY: rho_water, avogadro, rho_so4
 
 USE ukca_mode_setup,      ONLY: nmodes, nanion, ncation,                       &
                                 cp_su, cp_oc, cp_cl,                           &

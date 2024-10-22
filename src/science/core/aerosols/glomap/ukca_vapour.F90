@@ -48,8 +48,8 @@ CONTAINS
 
 SUBROUTINE ukca_vapour(nbox,t,pmid,s,rp,wts,rhosol_strat)
 
-USE chemistry_constants_mod, ONLY: rho_so4
-USE ukca_um_legacy_mod,  ONLY: rmol, log_v, exp_v, powr_v, l_glomap_clim_radaer
+USE ukca_config_constants_mod, ONLY: rmol, rho_so4
+USE ukca_um_legacy_mod,  ONLY: log_v, exp_v, powr_v, l_glomap_clim_radaer
 USE ukca_constants,      ONLY: mmsul
 USE parkind1,            ONLY: jprb, jpim
 USE yomhook,             ONLY: lhook, dr_hook

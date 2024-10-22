@@ -37,7 +37,7 @@ CONTAINS
 SUBROUTINE ukca_solang (sindec, t, dt, eqt, sinlat, coslat, longit,            &
                         k, cosz)
 
-USE ukca_um_legacy_mod, ONLY: pi, pi_over_180, s2r
+USE ukca_constants, ONLY: rsec_per_day, pi, pi_over_180
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 
@@ -61,7 +61,7 @@ REAL, INTENT(OUT)   :: cosz(k)    ! Mean Cos(sza)
 
 INTEGER          :: j         ! Loop counter over points
 
-!!!      REAL, PARAMETER  :: s2r = pi/43200.0  ! sec-to-rads converter
+REAL, PARAMETER  :: s2r = 2.0 * pi / rsec_per_day  ! sec-to-rads converter
 
 REAL             :: sinsin    ! Products of the sines and of the cosines
 REAL             :: coscos    ! of solar declination and of latitude.

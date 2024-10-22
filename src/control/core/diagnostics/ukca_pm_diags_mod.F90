@@ -90,9 +90,9 @@ CONTAINS
 SUBROUTINE ukca_pm_diags(nbox,nd,md,mdwat_diag,wetdp_diag,                     &
                          d_cutoff,pm_request,pm_dry,pm_wet,pm_component)
 
-USE chemistry_constants_mod, ONLY: avogadro
+USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_constants, ONLY: mmw
-USE umErf_mod, ONLY: umErf
+USE ukca_um_legacy_mod, ONLY: umErf
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
 USE yomhook,                ONLY: lhook, dr_hook  ! DrHook

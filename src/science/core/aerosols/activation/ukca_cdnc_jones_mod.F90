@@ -41,12 +41,10 @@ USE ukca_mode_setup,  ONLY:                                                    &
     glomap_variables_type,                                                     &
     nmodes
 
-USE umErf_mod,        ONLY:                                                    &
-    umErf
-
 USE ukca_um_legacy_mod,      ONLY:                                             &
     exp_v,                                                                     &
-    log_v
+    log_v,                                                                     &
+    umErf
 
 USE yomhook,          ONLY:                                                    &
     lhook,                                                                     &

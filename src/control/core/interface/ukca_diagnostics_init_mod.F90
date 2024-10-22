@@ -43,7 +43,7 @@ USE ukca_diagnostics_type_mod, ONLY: dgroup_flat_real, dgroup_fullht_real
 
 USE ukca_fieldname_mod, ONLY: maxlen_diagname
 
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_ukca_uninit, error_report

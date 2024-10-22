@@ -42,8 +42,8 @@ CONTAINS
 
 SUBROUTINE asad_totnud(n_points)
 
-USE asad_mod,             ONLY: tnd, p, t, pmintnd, pmin
-USE chemistry_constants_mod, ONLY: boltzmann
+USE asad_mod, ONLY: tnd, p, t, pmintnd, pmin
+USE ukca_config_constants_mod, ONLY: boltzmann
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 IMPLICIT NONE

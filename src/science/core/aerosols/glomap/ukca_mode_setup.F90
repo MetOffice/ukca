@@ -56,7 +56,8 @@ MODULE ukca_mode_setup
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE umPrintMgr, ONLY: umPrint, umMessage
-USE chemistry_constants_mod, ONLY: avogadro, rho_so4
+USE ukca_constants, ONLY: pi
+USE ukca_config_constants_mod, ONLY: avogadro, rho_so4
 
 IMPLICIT NONE
 
@@ -304,8 +305,7 @@ SUBROUTINE ukca_mode_allcp_4mode ( glomap_variables_local,                     &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
-                                   l_dust_ageing_on,                           &
-                                   pi )
+                                   l_dust_ageing_on )
 
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components with all components
@@ -321,7 +321,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -512,8 +511,7 @@ SUBROUTINE ukca_mode_suss_4mode( glomap_variables_local,                       &
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
                                  l_fix_ukca_hygroscopicities_in,               &
-                                 l_dust_ageing_on,                             &
-                                 pi )
+                                 l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate and sea-salt only in 4 modes.
@@ -529,7 +527,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -719,8 +716,7 @@ SUBROUTINE ukca_mode_sussbcocdu_4mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
-                                       l_dust_ageing_on,                       &
-                                       pi )
+                                       l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  SO4, sea-salt, bc, oc (secondary & primary combined) & du in 4 modes.
@@ -736,7 +732,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -926,8 +921,7 @@ SUBROUTINE ukca_mode_sussbcocdu_7mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
-                                       l_dust_ageing_on,                       &
-                                       pi )
+                                       l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  SO4, sea-salt, bc, oc (secondary & primary combined) & du in 7 modes.
@@ -943,7 +937,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -1132,8 +1125,7 @@ SUBROUTINE ukca_mode_sussbcoc_4mode( glomap_variables_local,                   &
                                      i_tune_bc_in,                             &
                                      l_fix_nacl_density_in,                    &
                                      l_fix_ukca_hygroscopicities_in,           &
-                                     l_dust_ageing_on,                         &
-                                     pi )
+                                     l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc & oc (secondary & primary combined) in 4 modes.
@@ -1149,7 +1141,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -1340,8 +1331,7 @@ SUBROUTINE ukca_mode_sussbcoc_5mode( glomap_variables_local,                   &
                                      i_tune_bc_in,                             &
                                      l_fix_nacl_density_in,                    &
                                      l_fix_ukca_hygroscopicities_in,           &
-                                     l_dust_ageing_on,                         &
-                                     pi )
+                                     l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc & oc (secondary & primary combined) in 5 modes.
@@ -1357,7 +1347,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -1547,8 +1536,7 @@ SUBROUTINE ukca_mode_sussbcocso_4mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
-                                       l_dust_ageing_on,                       &
-                                       pi )
+                                       l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, primary oc & secondary oc cpts in 5 modes.
@@ -1564,7 +1552,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -1753,8 +1740,7 @@ SUBROUTINE ukca_mode_sussbcocso_5mode( glomap_variables_local,                 &
                                        i_tune_bc_in,                           &
                                        l_fix_nacl_density_in,                  &
                                        l_fix_ukca_hygroscopicities_in,         &
-                                       l_dust_ageing_on,                       &
-                                       pi )
+                                       l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, primary oc & secondary oc cpts in 5 modes.
@@ -1770,7 +1756,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -1961,8 +1946,7 @@ SUBROUTINE ukca_mode_duonly_2mode( glomap_variables_local,                     &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
-                                   l_dust_ageing_on,                           &
-                                   pi )
+                                   l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  only du cpt in 2 (insoluble) modes.
@@ -1978,7 +1962,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -2166,8 +2149,7 @@ SUBROUTINE ukca_mode_sussbcocntnh_5mode_7cpt( glomap_variables_local,          &
                                               i_tune_bc_in,                    &
                                               l_fix_nacl_density_in,           &
                                               l_fix_ukca_hygroscopicities_in,  &
-                                              l_dust_ageing_on,                &
-                                              pi )
+                                              l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, oc (secondary & primary combined),
@@ -2186,7 +2168,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -2399,8 +2380,7 @@ SUBROUTINE  ukca_mode_solinsol_6mode( glomap_variables_local,                  &
                                       i_tune_bc_in,                            &
                                       l_fix_nacl_density_in,                   &
                                       l_fix_ukca_hygroscopicities_in,          &
-                                      l_dust_ageing_on,                        &
-                                      pi )
+                                      l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  soluble and insoluble components in 6 modes.
@@ -2417,7 +2397,6 @@ INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 
@@ -2621,8 +2600,7 @@ SUBROUTINE ukca_mode_sussbcocduntnh_8mode_8cpt( glomap_variables_local,        &
                                                 l_radaer_in,                   &
                                                 i_tune_bc_in,                  &
                                                 l_fix_nacl_density_in,         &
-                                                l_dust_ageing_on,              &
-                                                pi )
+                                                l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
 !  sulfate, sea-salt, bc, oc, du (secondary & primary combined),
@@ -2640,7 +2618,6 @@ LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
-REAL,                        INTENT(IN)     :: pi
 
 ! Local variables
 

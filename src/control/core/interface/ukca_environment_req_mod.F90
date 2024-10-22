@@ -379,10 +379,6 @@ USE ukca_config_specification_mod, ONLY: ukca_config_spec_type,                &
                                          i_top_bc,                             &
                                          i_primss_method_jaegle
 
-USE photol_api_mod, ONLY:                photol_get_config,                    &
-                                         photolysis_off, photolysis_strat_only,&
-                                         photolysis_2d, photolysis_fastjx
-
 USE ukca_chem_defs_mod, ONLY: ratj_defs
 ! Need ratj_defs to calculate the dimensions of photol_rates array
 
@@ -390,7 +386,7 @@ USE ukca_um_legacy_mod, ONLY: tdims
 !!!! tdims required to replicate results impacted by cloud_frac level offset
 !!!! bug pending removal of temporary logical l_fix_ukca_cloud_frac
 
-USE missing_data_mod, ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 
 IMPLICIT NONE
 
@@ -426,9 +422,6 @@ TYPE(env_field_info_type) :: fld_info_default
 
 ! Requirement for solar angle calculations
 LOGICAL :: l_solang
-
-! Get the photolysis scheme being used
-INTEGER :: photol_scheme
 
 ! Requirement for external lower BC values for a stratospheric chemistry scheme
 LOGICAL :: l_req_strat_lbc
@@ -497,13 +490,14 @@ fld_info(:) = fld_info_default
 ! photolysis scheme is used. This is temporary pending completion of the
 ! separation of photolysis from UKCA. (In that case, they are not used
 ! internally.)
-CALL photol_get_config(i_photol_scheme=photol_scheme)
 
 l_solang = ukca_config%l_ukca_offline .OR. ukca_config%l_ukca_offline_be .OR.  &
            (ukca_config%l_diurnal_isopems .AND.                                &
             .NOT. ukca_config%l_ukca_emissions_off) .OR.                       &
-           photol_scheme == photolysis_fastjx .OR.                             &
-           photol_scheme == photolysis_strat_only
+           ukca_config%i_photol_scheme ==                                      &
+             ukca_config%i_photol_scheme_fastjx .OR.                           &
+           ukca_config%i_photol_scheme ==                                      &
+             ukca_config%i_photol_scheme_strat_only
 
 n = 0
 
@@ -762,7 +756,7 @@ END IF
 ! (In that case, they are not used internally.)
 IF (ukca_config%i_ukca_light_param == i_light_param_pr .OR.                    &
     ukca_config%i_ukca_light_param == i_light_param_luhar .OR.                 &
-    photol_scheme == photolysis_fastjx) THEN
+    ukca_config%i_photol_scheme == ukca_config%i_photol_scheme_fastjx) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_conv_cloud_base
@@ -937,7 +931,7 @@ END IF  ! .NOT. ukca_config%l_ukca_drydep_off
 ! Convective cloud liquid water path and surface albedo are required for
 ! for photolysis if Fast-JX is used. This is temporary pending completion of
 ! the separation of photolysis from UKCA. (They are not used internally.)
-IF (photol_scheme == photolysis_fastjx) THEN
+IF (ukca_config%i_photol_scheme == ukca_config%i_photol_scheme_fastjx) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_conv_cloud_lwp
@@ -1062,7 +1056,7 @@ END IF  !.NOT. ukca_config%l_ukca_emissions_off
 ! temporary pending completion of the separation of photolysis from UKCA.
 IF ((.NOT. ukca_config%l_ukca_emissions_off) .OR.                              &
     ukca_config%l_ukca_intdd .OR. glomap_config%l_ddepaer .OR.                 &
-    photol_scheme == photolysis_fastjx) THEN
+    ukca_config%i_photol_scheme == ukca_config%i_photol_scheme_fastjx) THEN
   n = n + 1
   IF (n <= n_max) THEN
     fld_names(n) = fldname_land_sea_mask
@@ -1147,7 +1141,7 @@ END IF
 ! Convective cloud amount and cloud fraction are required for photolysis
 ! if Fast-JX is used. This is temporary pending completion of the separation
 ! of photolysis from UKCA. (They are not used internally.)
-IF (photol_scheme == photolysis_fastjx) THEN
+IF (ukca_config%i_photol_scheme == ukca_config%i_photol_scheme_fastjx) THEN
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_conv_cloud_amount
   n = n + 1

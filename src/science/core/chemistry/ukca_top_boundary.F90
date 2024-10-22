@@ -41,8 +41,7 @@ SUBROUTINE ukca_top_boundary(row_length, rows, model_levels, ntracers,         &
 
 USE ukca_config_specification_mod, ONLY: ukca_config, i_top_BC_H2O
 USE asad_mod,               ONLY: advt, jpctr, peps
-USE ukca_um_legacy_mod,     ONLY: pi
-USE ukca_constants,         ONLY: c_no, c_co, c_h2o, c_h2, c_h, c_oh, c_o3
+USE ukca_constants,         ONLY: pi, c_no, c_co, c_h2o, c_h2, c_h, c_oh, c_o3
 USE ukca_time_mod,          ONLY: i_day_number, i_year, days_in_year
 
 USE yomhook,                ONLY: lhook, dr_hook

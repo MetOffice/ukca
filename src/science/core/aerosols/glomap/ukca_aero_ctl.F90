@@ -27,14 +27,6 @@
 !
 MODULE ukca_aero_ctl_mod
 
-USE ukca_um_legacy_mod, ONLY: stashcode_glomap_sec, pi,                        &
-                              n_mode_diags,                                    &
-                              nukca_d1items,                                   &
-                              ukcaD1codes,                                     &
-                              item1_mode_diags, L_ukca_mode_diags,             &
-                              item1_nitrate_diags, itemN_nitrate_diags,        &
-                              item1_dust3mode_diags, itemN_dust3mode_diags,    &
-                              log_v, rgas => r
 USE ukca_types_mod, ONLY: log_small, integer_32
 USE parkind1,   ONLY: jprb, jpim
 USE yomhook,    ONLY: lhook, dr_hook
@@ -82,6 +74,15 @@ SUBROUTINE ukca_aero_ctl(i_month, i_day_number,                                &
                 nseg, nbox_s, ncol_s, lbase, stride_s                          &
                 )
 
+USE ukca_um_legacy_mod, ONLY: stashcode_glomap_sec,                            &
+                              n_mode_diags,                                    &
+                              nukca_d1items,                                   &
+                              ukcaD1codes,                                     &
+                              item1_mode_diags, L_ukca_mode_diags,             &
+                              item1_nitrate_diags, itemN_nitrate_diags,        &
+                              item1_dust3mode_diags, itemN_dust3mode_diags,    &
+                              log_v, umErf, rgas => r
+
 USE ukca_drydiam_field_mod, ONLY: drydiam
 USE ukca_config_defs_mod, ONLY: nmax_mode_diags
 
@@ -95,7 +96,6 @@ USE ukca_mode_setup,  ONLY: nmodes,                                            &
 
 USE ukca_mode_tracer_maps_mod, ONLY:  nmr_index, mmr_index
 USE ukca_mode_verbose_mod, ONLY: verbose => glob_verbose
-USE chemistry_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_mode_check_artefacts_mod, ONLY:                                       &
                             ukca_mode_check_artefacts
 USE ukca_cspecies,    ONLY: n_h2so4,n_h2o2,n_so2,n_o3,n_sec_org, n_sec_org_i,  &
@@ -112,7 +112,8 @@ USE ukca_config_specification_mod, ONLY:                                       &
                             i_ukca_activation_arg,                             &
                             i_ukca_activation_jones,                           &
                             glomap_variables
-
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
+USE ukca_constants, ONLY: pi
 
 USE ukca_ntp_mod,     ONLY: ntp_type, dim_ntp, name2ntpindex
 
@@ -244,10 +245,8 @@ USE ukca_trop_hetchem_mod, ONLY: ukca_trop_hetchem,                            &
 USE ukca_fieldname_mod, ONLY: maxlen_fieldname
 USE ukca_environment_fields_mod, ONLY: lscat_zhang
 
-USE ereport_mod,      ONLY: ereport
-USE missing_data_mod,      ONLY: rmdi, imdi
-
-USE umErf_mod, ONLY: umErf
+USE ereport_mod, ONLY: ereport
+USE ukca_missing_data_mod, ONLY: rmdi, imdi
 
 USE errormessagelength_mod, ONLY: errormessagelength
 
@@ -1242,7 +1241,7 @@ END IF
 ! OpenMP parallel region starts here (loop later around IK segments)
 !
 !$OMP PARALLEL  DEFAULT(NONE)                                                  &
-!$OMP          SHARED(a3d_tmp, act, all_ntp, bln_on,                           &
+!$OMP          SHARED(a3d_tmp, act, all_ntp, avogadro, bln_on, boltzmann,      &
 !$OMP all_tracers, cloud_frac, cloud_liq_frac, cloud_liq_wat,                  &
 !$OMP n_chemistry_tracers, component, crain, csnow,                            &
 !$OMP ddepaer_on, delso2_dry_oh, delso2_wet_h2o2, delso2_wet_o3,               &

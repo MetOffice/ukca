@@ -413,7 +413,7 @@ USE asad_trimol_mod,     ONLY: asad_trimol
 USE ukca_chem_defs_mod,  ONLY: ratb_defs, ratt_defs, rath_defs
 USE asad_mod,            ONLY: p, t, wp, spb, spt, sph, nbrkx, ntrkx, nhrkx,   &
                                rk, jpspb, jpspt, jpsph, jpbk, jptk, jphk
-USE missing_data_mod,    ONLY: rmdi, imdi
+USE ukca_missing_data_mod, ONLY: rmdi, imdi
 USE umPrintMgr,          ONLY: umPrint, umMessage
 USE ereport_mod,         ONLY: ereport
 USE yomhook,             ONLY: lhook, dr_hook

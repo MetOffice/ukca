@@ -39,7 +39,8 @@ SUBROUTINE aer_no3_2bindu (row_length, rows, nlevs, ptsphy, nssmodes,          &
                            ! INPUT above , OUTPUT below
                            ptss, pthno3, ptno3)
 
-USE ukca_um_legacy_mod,   ONLY: drep, rho_dust => rhop, rpi => pi
+USE ukca_um_legacy_mod,   ONLY: drep, rho_dust => rhop
+USE ukca_constants,       ONLY: rpi => pi
 USE parkind1,             ONLY: jpim, jprb      ! DrHook
 USE yomhook,              ONLY: lhook, dr_hook  ! DrHook
 IMPLICIT NONE
@@ -288,7 +289,8 @@ SUBROUTINE aer_no3_6bindu (row_length, rows, nlevs, ptsphy, nssmodes,          &
                            ! INPUT above , OUTPUT below
                            ptss, pthno3, ptno3)
 
-USE ukca_um_legacy_mod,   ONLY: drep, rho_dust => rhop, rpi => pi
+USE ukca_um_legacy_mod,   ONLY: drep, rho_dust => rhop
+USE ukca_constants,       ONLY: rpi => pi
 USE parkind1,             ONLY: jpim, jprb      ! DrHook
 USE yomhook,              ONLY: lhook, dr_hook  ! DrHook
 IMPLICIT NONE
@@ -566,7 +568,7 @@ SUBROUTINE aer_no3_ukcadu (row_length, rows, nlevs, ptsphy, nssmodes,          &
                            ! INPUT above , OUTPUT below
                            ptdu, ptss, pthno3, ptno3)
 
-USE ukca_um_legacy_mod,      ONLY: rpi => pi
+USE ukca_constants,       ONLY: rpi => pi
 USE parkind1,             ONLY: jpim, jprb      ! DrHook
 USE yomhook,              ONLY: lhook, dr_hook  ! DrHook
 IMPLICIT NONE

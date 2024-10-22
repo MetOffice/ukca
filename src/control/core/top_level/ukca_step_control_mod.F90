@@ -68,7 +68,7 @@ CONTAINS
 SUBROUTINE ukca_step_control_1d_domain(timestep_number, current_time,          &
                                        tracer_data, ntp_data,                  &
                                        r_theta_levels, r_rho_levels,           &
-                                       error_code, previous_time,              &
+                                       error_code, previous_time, eta_theta_levels,      &
                                        ! Scalar environment field groups
                                        envgroup_flat_integer,                  &
                                        envgroup_scalar_real,                   &
@@ -161,6 +161,11 @@ INTEGER, INTENT(OUT) :: error_code
 
 ! Model time at previous timestep (required for chemistry)
 INTEGER, OPTIONAL, INTENT(IN) :: previous_time(7)
+
+! Non-dimensional coordinate vector for theta levels (0.0 at planet radius,
+! 1.0 at top of model), used to define level height without orography effect.
+! Allocatable to preserve bounds (may or may not include Level 0).
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: eta_theta_levels(:)
 
 ! Environmental driver field groups (ordered by dimension and type)
 ! Outer dimension is field index determined with reference to list of
@@ -839,7 +844,8 @@ IF (error_code <= 0) THEN
 
   CALL ukca_step(timestep_number, current_time,                                &
                  tracer_data, ntp_data, r_theta_levels, r_rho_levels,          &
-                 error_code,  previous_time=previous_time,                     &
+                 error_code, previous_time=previous_time,                      &
+                 eta_theta_levels=eta_theta_levels,                            &
                  diag_status_flat_real=diag_status_flat_real,                  &
                  diag_status_fullht_real=diag_status_fullht_real,              &
                  diag_data_flat_real=diag_data_flat_real,                      &

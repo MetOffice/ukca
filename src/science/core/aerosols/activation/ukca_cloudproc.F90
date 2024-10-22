@@ -128,7 +128,7 @@ USE ukca_setup_indices, ONLY: nmasprocsuintr23,                                &
                               nmasprocntintr23, nmasprocnhintr23
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
-USE umErf_mod,          ONLY: umErf
+USE ukca_um_legacy_mod, ONLY: umErf
 
 IMPLICIT NONE
 

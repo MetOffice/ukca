@@ -23,10 +23,12 @@
 
 MODULE ukca_error_mod
 
+USE errormessagelength_mod, ONLY: errormessagelength
+
 IMPLICIT NONE
 PUBLIC
 
-INTEGER, PARAMETER :: maxlen_message = 256
+INTEGER, PARAMETER :: maxlen_message = errormessagelength
 INTEGER, PARAMETER :: maxlen_procname = 80
 INTEGER, PARAMETER :: errcode_ukca_uninit = 1
 INTEGER, PARAMETER :: errcode_tracer_req_uninit = 2
@@ -45,6 +47,7 @@ INTEGER, PARAMETER :: errcode_ukca_internal_fault = 14
 INTEGER, PARAMETER :: errcode_value_unknown = 15
 INTEGER, PARAMETER :: errcode_value_invalid = 16
 INTEGER, PARAMETER :: errcode_value_missing = 17
+INTEGER, PARAMETER :: errcode_unexpected_api_call = 18
 
 CONTAINS
 
@@ -97,8 +100,10 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: locn_out
 
 INTEGER :: ereport_code  ! Non-pointer error code for 'ereport' call
 
-CHARACTER(LEN=maxlen_message) :: ereport_msg  ! Modified error message
+CHARACTER(LEN=errormessagelength) :: ereport_msg  ! Message buffer passed to
+                                                  ! 'ereport'
 
+CHARACTER(LEN=*), PARAMETER :: term_suffix = ' - UKCA TERMINATING'
 CHARACTER(LEN=*), PARAMETER :: RoutineName='ERROR_REPORT'
 
 ! End of header
@@ -107,7 +112,8 @@ IF (error_code_ptr <= 0) THEN
 
   ! Print warning message
   ereport_code = error_code_ptr
-  CALL ereport(locn_in, ereport_code, msg_in)
+  ereport_msg = msg_in
+  CALL ereport(locn_in, ereport_code, ereport_msg)
   ! Control is returned from 'ereport' with error code
   ! reset to zero. No error info needed.
   error_code_ptr = ereport_code
@@ -123,7 +129,8 @@ ELSE
     ! Error handling method: write error message and abort
     ! ----------------------------------------------------
     ereport_code = error_code_ptr
-    CALL ereport(locn_in, ereport_code, msg_in)
+    ereport_msg = msg_in
+    CALL ereport(locn_in, ereport_code, ereport_msg)
 
   CASE (i_error_method_return)
     ! -----------------------------------------------
@@ -134,10 +141,17 @@ ELSE
   CASE (i_error_method_warn_and_return)
     ! -----------------------------------------------------
     ! Error handling method: Return control to parent after
-    ! printing error message as a warning
+    ! printing error message as a warning.
+    ! Include message to indicate UKCA is terminating.
+    ! (This suffix is suppressed if buffer space is
+    ! insufficient.)
     ! -----------------------------------------------------
     ereport_code = - error_code_ptr
-    ereport_msg = TRIM(msg_in) // ' - UKCA TERMINATING'
+    IF (LEN(TRIM(msg_in)) + LEN(term_suffix) <= errormessagelength) THEN
+      ereport_msg = TRIM(msg_in) // term_suffix
+    ELSE
+      ereport_msg = TRIM(msg_in)
+    END IF
     CALL ereport(locn_in, ereport_code, ereport_msg)
 
   END SELECT

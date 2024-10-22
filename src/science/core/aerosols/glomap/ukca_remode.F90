@@ -120,7 +120,7 @@ USE ukca_setup_indices, ONLY: nmasmergbcintr23, nmasmergbcintr34,              &
 
 USE yomhook,   ONLY: lhook, dr_hook
 USE parkind1,  ONLY: jprb, jpim
-USE umErf_mod, ONLY: umErf
+USE ukca_um_legacy_mod, ONLY: umErf
 
 USE ukca_types_mod, ONLY: integer_32
 

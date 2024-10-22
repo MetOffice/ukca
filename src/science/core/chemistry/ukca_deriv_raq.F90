@@ -44,7 +44,7 @@ USE ukca_chemco_raq_mod, ONLY: in2o5, in2o5_ss
 USE asad_mod, ONLY: jpspec, jphk, jppj, jpdd, jpdw
 USE ukca_config_specification_mod, ONLY: ukca_config
 
-USE ukca_constants, ONLY: recip_avogad
+USE ukca_config_constants_mod, ONLY: avogadro
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE ukca_um_legacy_mod, ONLY: oneover_v
@@ -82,6 +82,7 @@ REAL, INTENT(OUT)   :: wdflux (n_pnts,jpdw)
 INTEGER :: i, j, n            ! loop variables
 INTEGER :: icnt_dd, icnt_wd   ! indices for dry/wet dep fluxes
 
+REAL :: recip_avogad          ! 1 / no.of molecules in 1 mole
 REAL :: p(n_pnts)             ! production rate
 REAL :: l(n_pnts)             ! loss rate
 REAL :: yp(n_pnts,jpspec)     ! previous species concn
@@ -95,6 +96,8 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_DERIV_RAQ'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+recip_avogad = 1.0 / avogadro
 
 !     Initialise flux diagnostics to zero
 tmp1 = 0.0

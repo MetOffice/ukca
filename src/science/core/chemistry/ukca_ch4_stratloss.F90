@@ -38,7 +38,8 @@ SUBROUTINE ukca_ch4_stratloss(n_be_calls, n_pnts,                              &
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
-USE chemistry_constants_mod, ONLY: avogadro
+USE ukca_config_constants_mod, ONLY: avogadro
+
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: n_be_calls ! No. chemical steps

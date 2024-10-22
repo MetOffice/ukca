@@ -45,9 +45,10 @@ USE ukca_mode_setup,         ONLY: nmodes, cp_no3, cp_nh4, cp_su,              &
                                    mode_ait_sol, mode_acc_sol, mode_cor_sol,   &
                                    mode_acc_insol
 
-USE ukca_um_legacy_mod,      ONLY: drep, rho_dust => rhop, pi, rgas => r
-USE chemistry_constants_mod, ONLY: avc => avogadro, zboltz => boltzmann,       &
-                                   rho_so4
+USE ukca_um_legacy_mod,      ONLY: drep, rho_dust => rhop, rgas => r
+USE ukca_constants,          ONLY: pi
+USE ukca_config_constants_mod, ONLY: avc => avogadro, zboltz => boltzmann,     &
+                                     rho_so4
 USE asad_mod,                ONLY: jpctr
 USE ukca_config_defs_mod,          ONLY: n_mode_tracers
 USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables
@@ -774,8 +775,9 @@ SUBROUTINE ukca_prod_no3_coarse(                                               &
                         dust_div1, dust_div2, dust_div3, dust_div4,            &
                         dust_div5, dust_div6, dmas_no3, dmas_dust, dmas_nacl)
 
-USE chemistry_constants_mod,  ONLY: zboltz => boltzmann
-USE ukca_um_legacy_mod,       ONLY: pi, rgas => r
+USE ukca_um_legacy_mod,       ONLY: rgas => r
+USE ukca_constants,           ONLY: pi
+USE ukca_config_constants_mod, ONLY: zboltz => boltzmann
 
 USE ukca_mode_setup,          ONLY: nmodes,                                    &
                                     cp_nn, cp_cl, cp_du,                       &

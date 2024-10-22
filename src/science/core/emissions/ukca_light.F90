@@ -64,9 +64,8 @@ SUBROUTINE ukca_light(delta_lambda,delta_phi,ppress,niv,                       &
 
 USE yomhook,         ONLY: lhook, dr_hook
 USE parkind1,        ONLY: jprb, jpim
-USE ukca_um_legacy_mod, ONLY: recip_pi_over_180
-USE chemistry_constants_mod, ONLY: avogadro
-USE ukca_constants,  ONLY: m_n
+USE ukca_config_constants_mod, ONLY: avogadro
+USE ukca_constants,  ONLY: recip_pi_over_180, m_n
 USE ukca_config_specification_mod, ONLY: ukca_config, i_light_param_ext,       &
                                          i_light_param_pr, i_light_param_luhar
 

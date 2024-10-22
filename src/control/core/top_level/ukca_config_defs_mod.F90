@@ -70,7 +70,7 @@ USE asad_mod,                ONLY: jpro2
 USE parkind1,                ONLY: jprb, jpim
 USE yomhook,                 ONLY: lhook, dr_hook
 USE ereport_mod,             ONLY: ereport
-USE missing_data_mod,        ONLY: rmdi
+USE ukca_missing_data_mod,   ONLY: rmdi
 USE errormessagelength_mod,  ONLY: errormessagelength
 
 IMPLICIT NONE

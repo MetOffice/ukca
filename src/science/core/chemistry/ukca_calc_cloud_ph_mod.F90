@@ -73,7 +73,7 @@ SUBROUTINE ukca_calc_cloud_ph(tracer, row_length, rows, model_levels,          &
 
 ! default global pH value of 5 from [H+] = 1.0e-5
 USE ukca_constants, ONLY: H_plus, m_so2
-USE chemistry_constants_mod, ONLY: avogadro, boltzmann
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_cspecies,  ONLY: c_species,n_so2 ! to convert so2 concs
 ! import fitting coefficients from input Rose metadata
 USE ukca_config_specification_mod, ONLY: ukca_config

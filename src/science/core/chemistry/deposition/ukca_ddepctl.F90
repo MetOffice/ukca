@@ -43,8 +43,8 @@ SUBROUTINE ukca_ddepctl(row_length, rows, bl_levels, ntype,                    &
   nlev_with_ddep, zdryrt, len_stashwork, stashwork)
 
 USE ukca_config_specification_mod, ONLY: ukca_config
+USE ukca_config_constants_mod, ONLY: tfs, rho_water
 USE asad_mod, ONLY: jpdd
-USE water_constants_mod, ONLY: tfs, rho_water
 USE yomhook,             ONLY: lhook, dr_hook
 USE parkind1,            ONLY: jprb, jpim
 

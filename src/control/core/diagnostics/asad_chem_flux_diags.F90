@@ -46,7 +46,7 @@ USE yomhook,          ONLY: lhook, dr_hook
 USE ereport_mod,      ONLY: ereport
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus,                         &
                       PrStatus_Oper, PrStatus_Diag, umPrintFlush
-USE missing_data_mod,      ONLY: imdi
+USE ukca_missing_data_mod, ONLY: imdi
 USE errormessagelength_mod, ONLY: errormessagelength
 USE ukca_fieldname_mod, ONLY: maxlen_diagname
 
@@ -1465,7 +1465,7 @@ SUBROUTINE asad_chemical_diagnostics(row_length, rows, model_levels,           &
      chunk_size, dpd_full, dpw_full, prk_full, y_full,                         &
      ix, jy, klevel, volume, ierr)
 
-USE chemistry_constants_mod,  ONLY: avogadro
+USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 
 IMPLICIT NONE
@@ -1484,14 +1484,13 @@ REAL, INTENT(IN)    :: dpw_full(chunk_size,jpspec)
 REAL, INTENT(IN)    :: prk_full(chunk_size,jpnr)
 REAL, INTENT(IN)    :: y_full(chunk_size,jpspec)
 
-REAL, PARAMETER :: convfac = 1.0e6/avogadro ! conversion factor to convert
-                                            ! volume into cm^3 and result in mol
-
 LOGICAL, SAVE :: firstcall=.TRUE.
 LOGICAL, SAVE :: first_pass=.TRUE.
 
 INTEGER :: k                      ! index for vertical coordinate
 INTEGER :: l                      ! counter
+
+REAL :: convfac                   ! Conversion from molecules/cm3 to mol/m3
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1531,11 +1530,15 @@ IF (first_pass) THEN
 END IF     ! first_pass
 !$OMP END CRITICAL (chemical_diagnostics_init)
 
+! Set factor for converting fluxes specified in molecules.cm^-3.s^-1 to
+! mol.m^-3.s^-1
+convfac = 1.0e6 / avogadro
+
 IF (ukca_config%l_ukca_asad_full) THEN
   ! Go through and pick up fluxes from ASAD arrays
   ! prk is in units of molecules.cm^-3.s^-1
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(l)                                        &
-!$OMP SHARED(asad_chemdiags, dpd_full, dpw_full, L_stratosphere,               &
+!$OMP SHARED(asad_chemdiags, convfac, dpd_full, dpw_full, L_stratosphere,      &
 !$OMP        model_levels, n_chemdiags, prk_full, row_length, rows, volume,    &
 !$OMP        y_full)
 !$OMP DO SCHEDULE(DYNAMIC)
@@ -1982,7 +1985,7 @@ SUBROUTINE asad_tendency_ste(row_length, rows, model_levels,                   &
      n_chem_tracers,all_tracers, total_number_density, volume,                 &
      timestep, which_diagnostic, L_store_value, ierr)
 
-USE chemistry_constants_mod,   ONLY: avogadro
+USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_constants,   ONLY: m_air
 IMPLICIT NONE
 

@@ -176,7 +176,8 @@ USE ukca_constants,          ONLY:                                             &
     m_ra16no3,                                                                 &
     m_ra19no3
 
-USE ukca_um_legacy_mod,      ONLY: rmol, vkman, gg => g
+USE ukca_um_legacy_mod,      ONLY: vkman, gg => g
+USE ukca_config_constants_mod, ONLY: rmol
 USE parkind1,                ONLY: jprb, jpim
 USE yomhook,                 ONLY: lhook, dr_hook
 USE ereport_mod,             ONLY: ereport

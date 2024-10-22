@@ -5,7 +5,7 @@
 ! *****************************COPYRIGHT*******************************
 !
 ! Description:
-!  Module to contain constants used in UKCA
+!  Module to contain constants used in UKCA chemistry
 !
 !  Part of the UKCA model, a community model supported by the
 !  Met Office and NCAS, with components provided initially
@@ -23,15 +23,24 @@
 !
 MODULE ukca_constants
 
-USE ukca_um_legacy_mod, ONLY: pi, recip_pi_over_180, rhour_per_day
-USE chemistry_constants_mod, ONLY: avogadro
-
 IMPLICIT NONE
 
-! UM definitions of MODE constants
-REAL, PARAMETER :: recip_avogad=1.0/Avogadro
+! General Conversion Constants
 
-! MODE/aerosol chemistry constants not already in UM
+INTEGER, PARAMETER :: isec_per_day = 86400  ! No. of seconds in a day (24 hours)
+INTEGER, PARAMETER :: isec_per_hour = 3600  ! No. of seconds in an hour
+
+REAL, PARAMETER :: rhour_per_day = 24.0     ! No. of hours in a day
+REAL, PARAMETER :: rsec_per_day = 86400.0   ! No. of seconds in a day
+REAL, PARAMETER :: rsec_per_hour = 3600.0   ! No. of seconds in an hour
+
+REAL, PARAMETER :: pi = 3.14159265358979323846     ! Pi
+REAL, PARAMETER :: pi_over_180 = pi / 180.0        ! Pi / 180
+REAL, PARAMETER :: recip_pi_over_180 = 180.0 / pi  ! 180 / Pi
+
+REAL, PARAMETER :: zerodegc = 273.15        ! 0 degrees Celsius in Kelvin
+
+! MODE/aerosol chemistry constants
 REAL, PARAMETER :: nmol=1.0e2          !
 REAL, PARAMETER :: tdays=0.0           !
 REAL, PARAMETER :: ems_eps=1.0e-8      !
@@ -618,8 +627,10 @@ REAL, PARAMETER :: m_maco3      = 101.081
 REAL, PARAMETER :: m_cri = 150.0
 
 ! For solar calculations
-REAL :: fxb  ! Latitude of tropic of Capricorn (radians)
-REAL :: fxc  ! Hours per day / pi
+
+REAL, PARAMETER :: fxb = 23.45 / recip_pi_over_180  ! Latitude of tropic of
+                                                    ! Capricorn (radians)
+REAL, PARAMETER :: fxc = rhour_per_day / pi
 
 ! For ACTIVATE, used in hygroscopy and curvature parameter
 
@@ -627,26 +638,5 @@ REAL, PARAMETER :: zsten = 75.0e-3 ! surface tension of H2O [J m-2]
 !                                  !   neglecting salts and temperature
                                    ! from Vargaftik et al, JPCRD 1983
 REAL, PARAMETER :: zosm = 1.0      ! Osmotic coefficient, currently fixed
-
-
-CONTAINS
-
-! ----------------------------------------------------------------------
-SUBROUTINE set_derived_constants()
-! ----------------------------------------------------------------------
-! Description:
-!   Sets values of UKCA constants derived from other constants that are
-!   potentially user configurable (so cannot be determined at compile time)
-! ----------------------------------------------------------------------
-
-USE ukca_um_legacy_mod, ONLY: rhour_per_day, pi, recip_pi_over_180
-
-IMPLICIT NONE
-
-fxb = 23.45 / recip_pi_over_180
-fxc = rhour_per_day / pi
-
-RETURN
-END SUBROUTINE set_derived_constants
 
 END MODULE ukca_constants

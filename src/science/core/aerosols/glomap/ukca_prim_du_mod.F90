@@ -82,8 +82,9 @@ SUBROUTINE ukca_prim_du(row_length, rows, model_levels, ndiv,                  &
 
 !--------------------------------------------------------------------------
 
-USE ukca_um_legacy_mod,     ONLY: pi, rgas => r
-USE chemistry_constants_mod, ONLY: avogadro, boltzmann
+USE ukca_um_legacy_mod,     ONLY: rgas => r
+USE ukca_constants,         ONLY: pi
+USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
 
 USE ukca_config_specification_mod, ONLY: glomap_variables
 

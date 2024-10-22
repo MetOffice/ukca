@@ -166,9 +166,9 @@ SUBROUTINE ukca_coag_coff_v(nv,mask,ri,rj,vi,vj,rhoi,rhoj,                     &
 ! BOLTZMANN : Boltzmann's constant (kg m2 s-2 K-1 molec-1)
 !
 !--------------------------------------------------------------------
-USE ukca_um_legacy_mod, ONLY: pi
+USE ukca_constants,     ONLY: pi
 USE ukca_types_mod,     ONLY: log_small
-USE chemistry_constants_mod, ONLY: boltzmann
+USE ukca_config_constants_mod, ONLY: boltzmann
 USE parkind1,           ONLY: jprb, jpim
 USE yomhook,            ONLY: lhook, dr_hook
 IMPLICIT NONE
