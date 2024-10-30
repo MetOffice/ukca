@@ -1512,10 +1512,10 @@ IF (ukca_config%l_ukca_mode) THEN
       IF (PRESENT(l_bug_repro_tke_index))                                      &
         glomap_config%l_bug_repro_tke_index = l_bug_repro_tke_index
 
-  END IF
+    END IF
 
-  IF (PRESENT(l_fix_ukca_hygroscopicities))                                    &
-      glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
+    IF (PRESENT(l_fix_ukca_hygroscopicities))                                  &
+        glomap_config%l_fix_ukca_hygroscopicities = l_fix_ukca_hygroscopicities
 
   ELSE
     !

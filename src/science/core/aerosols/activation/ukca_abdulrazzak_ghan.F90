@@ -388,7 +388,7 @@ END DO                    !jmod=1, topmode
 !$OMP         zalpha, zcdncm, zdif, zerf_ratio, zeta,                          &
 !$OMP         zf, zg, zgamma, zgrowth, zk, zka, zpwdw,                         &
 !$OMP         zrc, zsm, zsmax, zsum, zw, zwpwdw, zxi)                          &
-!$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc,lc_sq, mode, nwbins, topmode,        &
+!$OMP SHARED(cp, cthomi, gg, kbdim, klev, lc,lc_sq, mode, nwbins, topmode,     &
 !$OMP        modesol, papm1, pesw, pn, pqm1, prdry, Printstatus,               &
 !$OMP        psmax, ptm1, pwarr, pwbin, pwpdf, rho_water, rmol,                &
 !$OMP        za, zb, zcdnc, zeps,                                              &

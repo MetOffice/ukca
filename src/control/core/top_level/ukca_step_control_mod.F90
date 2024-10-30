@@ -68,7 +68,7 @@ CONTAINS
 SUBROUTINE ukca_step_control_1d_domain(timestep_number, current_time,          &
                                        tracer_data, ntp_data,                  &
                                        r_theta_levels, r_rho_levels,           &
-                                       error_code, previous_time, eta_theta_levels,      &
+                                       error_code, previous_time, eta_theta_levels, &
                                        ! Scalar environment field groups
                                        envgroup_flat_integer,                  &
                                        envgroup_scalar_real,                   &
