@@ -233,7 +233,7 @@ USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper,          &
                       PrStatus_Min
 
 USE ukca_tracers_mod,       ONLY: all_tracers_names, n_tracers
-USE ukca_ntp_mod,           ONLY: ntp_type, name2ntpindex
+USE ukca_ntp_mod,           ONLY: ntp_type, name2ntpindex, dim_ntp
 
 USE errormessagelength_mod, ONLY: errormessagelength
 
@@ -289,7 +289,7 @@ TYPE(diagnostics_type), INTENT(IN OUT) :: diagnostics
 REAL, INTENT(IN OUT) :: all_tracers(:, :, :, :)
 
 ! Non-transported prognostics.
-TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(:)
+TYPE(ntp_type), INTENT(IN OUT) :: all_ntp(dim_ntp)
 
 ! Model time at previous timestep (required for chemistry)
 INTEGER, OPTIONAL, INTENT(IN) :: previous_time(7)
