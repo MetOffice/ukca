@@ -269,7 +269,7 @@ DO jit = 1, ukca_config%nrsteps
         corrn(jl) = 0.0
       END DO
 
-      undef_loop: DO
+      DO
 
         ir   = nlpdv(ipos,1)
         irk  = nprkx(ir)
@@ -325,8 +325,8 @@ DO jit = 1, ukca_config%nrsteps
           corrn(j) = corrn(j) + dd(j)*dely(jl,ireac)
         END DO
 
-        IF ( ipos - ipos0 >= ntr2 ) EXIT undef_loop
-      END DO undef_loop
+        IF ( ipos - ipos0 >= ntr2 ) EXIT
+      END DO
 
       !             2.4.3  Now add correction to the tracer (rows). If the
       !                    tracer is of type 'FT', then for each pt, we must
@@ -357,13 +357,13 @@ DO jit = 1, ukca_config%nrsteps
   !            ----- --- -----------
 
   gconv = .TRUE.
-  jtr_loop: DO jtr = 1,jpcspf
+  DO jtr = 1,jpcspf
     DO jl = 1, n_points
       IF ( ABS(f(jl,jtr)-zprf(jl,jtr)) >  ptol*f(jl,jtr)                       &
       .AND. f(jl,jtr) >  pmintnd(jl) ) gconv=.FALSE.
     END DO
-    IF ( .NOT. gconv ) EXIT jtr_loop
-  END DO jtr_loop
+    IF ( .NOT. gconv ) EXIT
+  END DO
   IF (gconv) THEN
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN

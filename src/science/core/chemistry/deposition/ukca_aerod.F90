@@ -766,7 +766,7 @@ END DO
 !
 so4_vd = 1.0 / r_null
 
-outer_loop: DO j = 1, ndepd
+DO j = 1, ndepd
   IF ( (speci(nldepd(j)) == 'ORGNIT    ') .OR.                                 &
        (speci(nldepd(j)) == 'ASOA      ') .OR.                                 &
        (speci(nldepd(j)) == 'BSOA      ') .OR.                                 &
@@ -790,9 +790,9 @@ outer_loop: DO j = 1, ndepd
       END DO
     END DO
 
-    EXIT outer_loop
+    EXIT
   END IF
-END DO outer_loop
+END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

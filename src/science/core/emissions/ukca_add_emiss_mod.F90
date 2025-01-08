@@ -598,12 +598,12 @@ DO l = 1, num_em_flds       ! loop over emission fields
 
     !   Loop over tracers to find the position k in em_field (:,:,:,k)
     !   to add there the new emission field
-    m_loop: DO m = 1, jpctr          ! loop over tracers
+    DO m = 1, jpctr          ! loop over tracers
       IF (mapped_tracer == advt (m)) THEN
         k = m
-        EXIT m_loop
+        EXIT
       END IF
-    END DO m_loop
+    END DO
 
   END IF  ! emissions(l)%l_mode
 
@@ -659,12 +659,12 @@ DO l = 1, num_em_flds       ! loop over emission fields
   !   First look for the index containing the right hourly factor
   !   for the emission field
   pp = -1
-  p_loop: DO p = 1, num_hourly_profs
+  DO p = 1, num_hourly_profs
     IF (emissions(l)%hourly_fact == hourly_prof_name (p)) THEN
       pp = p
-      EXIT p_loop
+      EXIT
     END IF
-  END DO p_loop
+  END DO
   !
   !   Stop with error message if hourly profile not found
   IF (pp < 0) THEN
@@ -1069,7 +1069,7 @@ IF (ukca_config%l_ukca_chem) THEN
   IF (L_asad_use_chem_diags .AND. L_asad_use_air_ems                           &
       .AND. .NOT. (ukca_config%l_ukca_offline .OR.                             &
                    ukca_config%l_ukca_offline_be)) THEN
-    l_loop: DO l = 1, num_em_flds
+    DO l = 1, num_em_flds
       IF (emissions(l)%tracer_name == 'NO_aircrft') THEN
         ! Note that emissions(l)%values (:,:,:) is already expressed as
         ! kg(NO) m-2 s-1 because it was multiplied by base_scaling
@@ -1085,9 +1085,9 @@ IF (ukca_config%l_ukca_chem) THEN
                  mass,                                                         &
                  m_no, timestep, aircraft_emissions,                           &
                  ierr)
-        EXIT l_loop
+        EXIT
       END IF
-    END DO l_loop
+    END DO
   END IF
 
   ! --------------------------------------------------------------------

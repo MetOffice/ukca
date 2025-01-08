@@ -1348,12 +1348,12 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 name2ntpindex = -999
 
 ! Search all entries in ntp array to find the one we want
-ntp_loop: DO i = 1, SIZE(all_ntp)
+DO i = 1, SIZE(all_ntp)
   IF (all_ntp(i)%varname == varname) THEN
     name2ntpindex = i
-    EXIT ntp_loop
+    EXIT
   END IF
-END DO ntp_loop
+END DO
 
 ! If name2ntpindex is -999 then call ereport
 IF (name2ntpindex == -999) THEN

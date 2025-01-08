@@ -61,7 +61,7 @@ USE fastjx_data,    ONLY: fastjx_set_limits,                                   &
                           fastjx_allocate_memory,                              &
                           fastjx_deallocate_memory, cmessage,                  &
                           nsl,                                                 &
-                          Blocking,kpcx,                                       &
+                          Blocking_Mode,kpcx,                                  &
                           aer_swband,                                          &
                           tau, daynumber,                                      &
                           sza, szafac, sza_2d, szafac_2d, u0,                  &
@@ -272,7 +272,7 @@ i_second              = current_time(6)
         !                     2) blocking domain
         !                     3) compressed  (not implemented)
         !                     4) load balancing (not implemented)
-Blocking%Mode = 2
+Blocking_Mode = 2
 
 ! Allocate arrays etc.
 CALL fastjx_set_limits(row_length,rows,model_levels)
@@ -317,7 +317,7 @@ END IF
 ! Initialise longitude counter to 1
 nslon = 1
 
-SELECT CASE (Blocking%Mode)
+SELECT CASE (Blocking_Mode)
 
   ! if blocking point by point
 CASE (0)
@@ -426,7 +426,7 @@ CASE (2)
 CASE DEFAULT
 
   cmessage='Blocking Mode does not Exist'
-  CALL ereport('UKCA_FASTJX', Blocking%Mode,cmessage)
+  CALL ereport('UKCA_FASTJX', Blocking_Mode,cmessage)
 
 END SELECT
 

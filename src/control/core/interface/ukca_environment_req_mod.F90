@@ -2147,12 +2147,12 @@ environ_field_available = .FALSE.
 
 ! Proceed only if environment fields requirement has been set
 IF ( l_environ_req_available ) THEN
-  fields_loop: DO i = 1, SIZE(environ_field_varnames)
+  DO i = 1, SIZE(environ_field_varnames)
     IF (varname == environ_field_varnames(i)) THEN
       environ_field_available = l_environ_field_available(i)
-      EXIT fields_loop
+      EXIT
     END IF
-  END DO fields_loop
+  END DO
   ! If we are here the supplied varname does not match any required env field
 END IF
 

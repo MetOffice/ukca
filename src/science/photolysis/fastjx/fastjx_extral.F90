@@ -167,7 +167,7 @@ END DO
 
 ! Check on overflow of arrays, cut off jxtra at lower l if too many levels
 jtotl    = l2x + 2
-l2_loop: DO l2 = l2x,1,-1
+DO l2 = l2x,1,-1
   jtotl  = jtotl + jxtra(l2)
   IF (jtotl > nx/2) THEN
     cmessage = ' Too many levels, cutting off'
@@ -180,9 +180,9 @@ l2_loop: DO l2 = l2x,1,-1
     DO l = l2,1,-1
       jxtra(l) = 0
     END DO
-    EXIT l2_loop
+    EXIT
   END IF
-END DO l2_loop
+END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

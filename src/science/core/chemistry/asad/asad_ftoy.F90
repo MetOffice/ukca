@@ -522,14 +522,14 @@ DO jit = 1, iter
   !         4.7 Test for convergence.
 
   gconv = .TRUE.
-  j_loop: DO j = 1,nstst
+  DO j = 1,nstst
     js = nlstst(j)
     DO jl = 1, n_points
       IF ( ABS(y(jl,js)-zy(jl,js)) >  ftol*y(jl,js)                            &
       .AND. y(jl,js) >  pmintnd(jl) ) gconv=.FALSE.
     END DO
-    IF ( .NOT. gconv ) EXIT j_loop
-  END DO j_loop
+    IF ( .NOT. gconv ) EXIT
+  END DO
   IF (gconv) THEN
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                      &
                             zhook_out,zhook_handle)

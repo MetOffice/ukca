@@ -1339,13 +1339,13 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
     ! Calculate last model level for integration of offline oxidants (BE)
     k_be_top = model_levels        ! default
     IF (ukca_config%l_ukca_offline_be) THEN
-      k_loop: DO k = 2,model_levels
+      DO k = 2,model_levels
         IF ((MINVAL(r_theta_levels(:,:,k)) - planet_radius) >                  &
              ukca_config%max_z_for_offline_chem) THEN
           k_be_top = k
-          EXIT k_loop
+          EXIT
         END IF
-      END DO k_loop
+      END DO
       IF (PrintStatus >=  PrStatus_Oper) THEN
         WRITE(umMessage,'(A50,I5)') 'Top level for offline oxidants'//         &
                                     ' integration: ',k_be_top

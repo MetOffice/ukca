@@ -1381,7 +1381,7 @@ DO jprod=1,numprods ! cycle over number of products
 END DO
 
 j = 1
-find_loop: DO
+DO
   jr = r_index(j)            ! loop over reactions
 
   ! ASSUME 2 REACTANTS HERE!!
@@ -1446,9 +1446,9 @@ find_loop: DO
 
   j = j + 1
   IF ( j > nreacts ) THEN
-    EXIT find_loop
+    EXIT
   END IF
-END DO find_loop
+END DO
 
 IF (ALLOCATED(prods)) DEALLOCATE( prods )
 IF (ALLOCATED(inprods)) DEALLOCATE( inprods )
@@ -2031,9 +2031,8 @@ ierr = 1
 IF (firstcall_tendency .OR. firstcall_STE) THEN
 
   DO m=1,n_chem_tracers
-    chemdiags_loop_first: DO l=1,n_chemdiags
-      IF (which_diagnostic /= asad_chemdiags(l)%diag_type)                     &
-              CYCLE chemdiags_loop_first
+    DO l=1,n_chemdiags
+      IF (which_diagnostic /= asad_chemdiags(l)%diag_type) CYCLE
       SELECT CASE (asad_chemdiags(l)%diag_type)
       CASE (cdnet,cdste)
         IF (advt(m) == asad_chemdiags(l)%species) THEN
@@ -2042,7 +2041,7 @@ IF (firstcall_tendency .OR. firstcall_STE) THEN
           asad_chemdiags(l)%c_vmr_to_mmr = c_species(m)
         END IF
       END SELECT
-    END DO chemdiags_loop_first
+    END DO
   END DO
 
   SELECT CASE (which_diagnostic)
@@ -2054,9 +2053,8 @@ IF (firstcall_tendency .OR. firstcall_STE) THEN
 END IF         ! firstcall_tendency .OR. firstcall_STE
 
 ! calculate tendency/STE
-chemdiags_loop: DO l=1,n_chemdiags
-  IF (which_diagnostic /= asad_chemdiags(l)%diag_type)                         &
-        CYCLE chemdiags_loop
+DO l=1,n_chemdiags
+  IF (which_diagnostic /= asad_chemdiags(l)%diag_type) CYCLE
   SELECT CASE (asad_chemdiags(l)%diag_type)
   CASE (cdnet,cdste)
     IF (L_store_value) THEN         ! store value in %throughput
@@ -2083,9 +2081,9 @@ chemdiags_loop: DO l=1,n_chemdiags
           asad_chemdiags(l)%throughput(:,:,:) = 0.0
         END WHERE
       END IF
-    END IF              ! L_store_value
-  END SELECT             ! asad_chemdiags(l)%diag_type
-END DO chemdiags_loop     ! l=1,n_chemdiags
+    END IF   ! L_store_value
+  END SELECT ! asad_chemdiags(l)%diag_type
+END DO       ! l=1,n_chemdiags
 
 ierr = 0
 

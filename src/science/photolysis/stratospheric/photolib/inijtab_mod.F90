@@ -247,9 +247,9 @@ END DO
 
 !     Interpolate temperature and O3 to level centres
 DO l=1,jplev
-  inner_loop: DO jl=1,nin
-    IF (rdpres(jl) < presc(l)) EXIT inner_loop
-  END DO inner_loop
+  DO jl=1,nin
+    IF (rdpres(jl) < presc(l)) EXIT
+  END DO
   jlu=jl
   jll=jl-1
   csup=(LOG(rdpres(jll)) - LOG(presc (l  )))/                                  &

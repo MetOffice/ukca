@@ -270,12 +270,12 @@ DO js = 1, jpspec
       nltr3(ntr3) = iadv
     END IF
     l_fa=.TRUE.
-    jadv_loop: DO jadv = 1, iadv
+    DO jadv = 1, iadv
       IF ( family(js) == advt(jadv) ) THEN
         l_fa=.FALSE.
-        EXIT jadv_loop
+        EXIT
       END IF
-    END DO jadv_loop
+    END DO
     IF (l_fa) THEN
       iadv = iadv + 1
       ntrf = ntrf + 1

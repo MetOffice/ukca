@@ -125,10 +125,10 @@ END DO
 iwork(0,1) = 0
 iwork(0,2) = 0
 
-Loop: DO jp = 1, jppj
+DO jp = 1, jppj
   ipr = nprkx(jp)
   ir  = nspi(ipr,1)
-  IF ( madvtr(ir) == 0 .AND. moffam(ir) == 0 ) CYCLE Loop
+  IF ( madvtr(ir) == 0 .AND. moffam(ir) == 0 ) CYCLE
 
   DO jm = 3, jpspj
     ip = nspi(ipr,jm)
@@ -169,7 +169,7 @@ Loop: DO jp = 1, jppj
       iwork(ientry,2) = ifam(j)
     END IF
   END DO
-END DO Loop
+END DO
 
 
 !       2.  Build lists.
@@ -250,7 +250,7 @@ DO j = 1, ntr
     nlpdv(indx,1) = iwork(ji,1)
     nlpdv(indx,2) = 1
     IF ( ji /= inf ) THEN
-      inr_loop: DO inr=1,inf-ji
+      DO inr=1,inf-ji
         ir    = iwork(ji+inr,1)
         ir2   = iwork(ji,1)
         irk   = nprkx(ir)
@@ -262,11 +262,11 @@ DO j = 1, ntr
         IF ( irtr  == 0 ) irtr = moffam(iss)
         IF ( irtr2 == 0 ) irtr2 = moffam(is2)
         IF ( irtr /= irtr2 ) THEN
-          EXIT inr_loop
+          EXIT
         ELSE
           nlpdv(indx,2) = nlpdv(indx,2) + 1
         END IF
-      END DO inr_loop     ! inr
+      END DO     ! inr
     END IF
   END DO         ! ji
 

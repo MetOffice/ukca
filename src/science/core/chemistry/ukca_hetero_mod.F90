@@ -1858,24 +1858,24 @@ IF ( iorder == 0 ) THEN
     jx = 0
     ier = 0
   ELSE
-    i_loop1: DO i = 1 , n
+    DO i = 1 , n
       IF ( x < xc(i) ) THEN
         ier = 0
-        EXIT i_loop1
+        EXIT
       END IF
-    END DO i_loop1
+    END DO
     jx = i - 1
   END IF
 ELSE IF ( x > xc(1) ) THEN
   jx = 0
   ier = 0
 ELSE
-  i_loop2: DO i = 1 , n
+  DO i = 1 , n
     IF ( x > xc(i) ) THEN
       ier = 0
-      EXIT i_loop2
+      EXIT
     END IF
-  END DO i_loop2
+  END DO
   jx = i - 1
 END IF
 !

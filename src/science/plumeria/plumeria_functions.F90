@@ -122,15 +122,15 @@ INTEGER  :: ilayer
 
 IF (((znow + vent_elevation) > ZairLayer(1)) .AND.                             &
      ((znow + vent_elevation) < ZairLayer(iatmlayers))) THEN
-  check_airtemp: DO ilayer = 2, iatmlayers
+  DO ilayer = 2, iatmlayers
     IF ((znow + vent_elevation) < ZairLayer(ilayer)) THEN
       plumeria_AirTemp = TairLayer(ilayer - 1) +                               &
                          ( (znow + vent_elevation) - ZairLayer(ilayer - 1) ) * &
                          ( TairLayer(ilayer) - TairLayer(ilayer - 1) ) /       &
                          ( ZairLayer(ilayer) - ZairLayer(ilayer - 1) )
-      EXIT check_airtemp
+      EXIT
     END IF
-  END DO check_airtemp
+  END DO
   !If we!re below the lowest sounding
 ELSE IF ((znow + vent_elevation) <= ZairLayer(1)) THEN
   plumeria_AirTemp = TairLayer(1) +                                            &
@@ -174,16 +174,16 @@ Tnow = plumeria_AirTemp(0.0) !gives air temperature at the vent elevation
 
 IF ((VentElevation >= ZairLayer(1)) .AND.                                      &
     (VentElevation < ZairLayer(iatmlayers))) THEN
-  check_airpres: DO ilayer = 2, iatmlayers
+  DO ilayer = 2, iatmlayers
     IF (VentElevation < ZairLayer(ilayer)) THEN
       LapseRate = (TairLayer(ilayer) - TairLayer(ilayer - 1)) /                &
                   (ZairLayer(ilayer) - ZairLayer(ilayer - 1))
       p0 = pAirLayer(ilayer - 1)
       z0 = ZairLayer(ilayer - 1)
       t0 = plumeria_AirTemp(ZairLayer(ilayer - 1) - VentElevation)
-      EXIT check_airpres
+      EXIT
     END IF
-  END DO check_airpres
+  END DO
   !If we!re below the lowest sounding
 ELSE IF (VentElevation < ZairLayer(1)) THEN
   LapseRate = ( TairLayer(2) - TairLayer(1) ) /                                &
@@ -233,15 +233,15 @@ INTEGER       :: ilayer
 
 IF (((znow + vent_elevation) > ZairLayer(1)) .AND.                             &
   ((znow + vent_elevation) < ZairLayer(iatmlayers))) THEN
-  check_airhumid: DO ilayer = 2, iatmlayers
+  DO ilayer = 2, iatmlayers
     IF ((znow + vent_elevation) < ZairLayer(ilayer)) THEN
       plumeria_AirHumid = HumidAirLayer(ilayer - 1) +                          &
                          ( (znow + vent_elevation) - ZairLayer(ilayer - 1) ) * &
                          ( HumidAirLayer(ilayer) - HumidAirLayer(ilayer - 1)) /&
                          ( ZairLayer(ilayer) - ZairLayer(ilayer - 1) )
-      EXIT check_airhumid
+      EXIT
     END IF
-  END DO check_airhumid
+  END DO
   !If we!re below the lowest sounding
 ELSE IF ((znow + vent_elevation) <= ZairLayer(1)) THEN
   plumeria_AirHumid = HumidAirLayer(1) +                                       &
@@ -285,7 +285,7 @@ ilayer = 0
 
 IF (((znow + vent_elevation) > ZairLayer(1)) .AND.                             &
    ((znow + vent_elevation) < ZairLayer(iatmlayers))) THEN
-  check_zeta: DO ilayer = 2, iatmlayers
+  DO ilayer = 2, iatmlayers
     IF ((znow + vent_elevation) < ZairLayer(ilayer)) THEN
       xwind1 = WindspeedLayer(ilayer - 1) *                                    &
                SIN(pi_over_180 * (WinddirLayer(ilayer - 1) + 180.0))
@@ -304,9 +304,9 @@ IF (((znow + vent_elevation) > ZairLayer(1)) .AND.                             &
                 ( ywind2 - ywind1 ) /                                          &
                 ( ZairLayer(ilayer) - ZairLayer(ilayer-1) )
       plumeria_zeta = ATAN2(xwindnow, ywindnow)
-      EXIT check_zeta
+      EXIT
     END IF
-  END DO check_zeta
+  END DO
   !If we!re below the lowest sounding
 ELSE IF ((znow + vent_elevation) <= ZairLayer(1)) THEN
   plumeria_zeta = pi_over_180 * (WinddirLayer(1) + 180.0)
@@ -344,7 +344,7 @@ ilayer = 0
 
 IF (((znow + vent_elevation) > ZairLayer(1)) .AND.                             &
   ((znow + vent_elevation) < ZairLayer(iatmlayers))) THEN
-  check_wind: DO ilayer = 2, iatmlayers
+  DO ilayer = 2, iatmlayers
     IF ((znow + vent_elevation) < ZairLayer(ilayer)) THEN
       xwind1 = WindspeedLayer(ilayer - 1) *                                    &
                SIN(pi_over_180 * (WinddirLayer(ilayer - 1) + 180.0))
@@ -361,9 +361,9 @@ IF (((znow + vent_elevation) > ZairLayer(1)) .AND.                             &
                 (ywind2 - ywind1) /                                            &
                 (ZairLayer(ilayer) - ZairLayer(ilayer - 1))
       plumeria_wind = SQRT(xwindnow ** 2 + ywindnow ** 2)
-      EXIT check_wind
+      EXIT
     END IF
-  END DO check_wind
+  END DO
   !If we!re below the lowest sounding
 ELSE IF ((znow + vent_elevation) <= ZairLayer(1)) THEN
   plumeria_wind = WindspeedLayer(1)
@@ -547,14 +547,14 @@ ELSE IF (t_k > tk(11)) THEN
   CALL ereport(RoutineName,errcode,cmessage)
 
 ELSE
-  check_cp_l: DO i=1,11
+  DO i=1,11
     IF (tk(i) > t_k) THEN
       plumeria_cp_l = cp(i - 1) +                                              &
                       ( t_k - tk(i - 1) ) * ( cp(i - 1) + cp(i) ) /            &
                       ( tk(i) - tk(i - 1) )
-      EXIT check_cp_l
+      EXIT
     END IF
-  END DO check_cp_l
+  END DO
 END IF
 
 END FUNCTION plumeria_cp_l
@@ -621,12 +621,12 @@ IF (tk(1) >= t_k) THEN
 ELSE IF (tk(11) <= t_k) THEN
   plumeria_h_l = hnow(11) + 4200.0 * (t_k - tk(11))
 ELSE
-  check_h_l: DO i = 1,11
+  DO i = 1,11
     IF (tk(i) > t_k) THEN
       plumeria_h_l = hnow(i - 1) + (t_k - tk(i - 1)) * (cp(i - 1) + cp(i)) / 2
-      EXIT check_h_l
+      EXIT
     END IF
-  END DO check_h_l
+  END DO
 END IF
 
 END FUNCTION plumeria_h_l
@@ -730,7 +730,7 @@ T_boiling = 182.82 * p_Pa ** 0.0611
 pnow = plumeria_psat(T_boiling)
 
 !Adjust until we get within 10 Pascals
-check_pnow: DO
+DO
   IF (ABS(pnow - p_Pa) >= 10.0) THEN
 
     IF (T_boiling < t0) THEN
@@ -747,9 +747,9 @@ check_pnow: DO
     pnow = plumeria_psat(T_boiling)
 
   ELSE
-    EXIT check_pnow
+    EXIT
   END IF
-END DO check_pnow
+END DO
 
 plumeria_Tsat = T_boiling
 

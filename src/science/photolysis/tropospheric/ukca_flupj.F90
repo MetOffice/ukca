@@ -85,7 +85,7 @@ END IF
 !       Do linear interpolation
 
 L_in_range = .FALSE.
-Loop: DO i = 2,ln
+DO i = 2,ln
   IF (temp_xs(i-1) <= x .AND. x <= temp_xs(i)) THEN
     delta_xs = temp_xs(i) - temp_xs(i-1)
     ukca_flupj = (x - temp_xs(i-1))                                            &
@@ -93,9 +93,9 @@ Loop: DO i = 2,ln
                + (temp_xs(i) - x  )                                            &
                * temp_ys(i-1)/delta_xs
     L_in_range = .TRUE.
-    EXIT Loop
+    EXIT
   END IF
-END DO Loop
+END DO
 
 IF (.NOT. (L_in_range)) THEN
   WRITE(umMessage,'(A,F0.5)') 'Max value of xs = ',MAXVAL(xs)

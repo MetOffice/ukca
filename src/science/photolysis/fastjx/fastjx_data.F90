@@ -78,12 +78,7 @@ SAVE
 !                             3: compressed   (Not implemented yet)
 !                             0: point by point
 
-TYPE :: Block_setup
-  INTEGER               :: Mode=0
-  INTEGER               :: Bl_size=1
-END TYPE Block_setup
-
-TYPE (Block_setup)                      :: Blocking
+INTEGER :: Blocking_Mode=0
 
 CHARACTER(LEN=errormessagelength) :: cmessage   ! Error message
 
@@ -338,7 +333,7 @@ ELSE
 END IF
 
 ! Construct arrays depending on how they are passed to fast-jx
-SELECT CASE (Blocking%Mode)
+SELECT CASE (Blocking_Mode)
 CASE (0)
   kpcx  = 1                    ! Blocking row-wise
   jjpnl  = jpcl*kpcx
@@ -350,8 +345,7 @@ CASE (2)
   jjpnl  = jpcl*kpcx
 CASE DEFAULT
   cmessage='Blocking Mode does not Exist'
-  CALL ereport('FASTJX_DATA.FASTJX_SET_LIMITS', Blocking%Mode,                 &
-               cmessage)
+  CALL ereport('FASTJX_DATA.FASTJX_SET_LIMITS', Blocking_Mode, cmessage)
 END SELECT
 
 

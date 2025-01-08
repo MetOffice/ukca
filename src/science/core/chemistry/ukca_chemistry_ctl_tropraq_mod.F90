@@ -513,22 +513,22 @@ DO k=1,model_levels
 
   BE_y(:,:) = 0.0
   DO i = 1,jpspec
-    j_loop1: DO j = 1,jpctr
+    DO j = 1,jpctr
       IF (speci(i) == advt(j)) THEN
         BE_y(:,i) = zftr(:,j)
-        EXIT j_loop1
+        EXIT
       END IF
-    END DO j_loop1
+    END DO
   END DO
 
   ! Assign non-advected concentrations to species concentrations
   DO i = 1,jpspec
-    j_loop2: DO j = 1,nnaf
+    DO j = 1,nnaf
       IF (speci(i) == nadvt(j)) THEN
         BE_y(:,i) = zfnatr(:,j)
-        EXIT j_loop2
+        EXIT
       END IF
-    END DO j_loop2
+    END DO
   END DO
 
   IF (ukca_config%l_ukca_aerchem .OR. ukca_config%l_ukca_raqaero) THEN
@@ -589,12 +589,12 @@ DO k=1,model_levels
   END IF
 
   DO j = 1,jpctr
-    i_loop1: DO i = 1,jpspec
+    DO i = 1,jpspec
       IF (advt(j) == speci(i)) THEN
         zftr(:,j) = BE_y(:,i)
-        EXIT i_loop1
+        EXIT
       END IF
-    END DO i_loop1
+    END DO
   END DO
 
   DO js = 1, jpctr
@@ -603,12 +603,12 @@ DO k=1,model_levels
 
   ! Convert non-advected tracers back to vmr
   DO j = 1,nnaf
-    i_loop2: DO i = 1,jpspec
+    DO i = 1,jpspec
       IF (nadvt(j) == speci(i)) THEN
         zfnatr(:,j) = BE_y(:,i)/BE_tnd(:)
-        EXIT i_loop2
+        EXIT
       END IF
-    END DO i_loop2
+    END DO
   END DO
 
   ! Set the value of all non-transported prognostics here

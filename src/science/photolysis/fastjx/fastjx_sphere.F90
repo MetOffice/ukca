@@ -133,9 +133,9 @@ END IF
 !---  and the level above, and deriving the appropriate air mass factor
 amf2(:,:) = 0.0e0
 
-loop1: DO j = 1,2*l1_+1
+DO j = 1,2*l1_+1
   ! air mass factors all zero if below the tangent height
-  IF (rz2(j) < shadht) CYCLE loop1
+  IF (rz2(j) < shadht) CYCLE
 
   ! ascend from layer j calculating amf2s
   xmu1 = ABS(gmu)
@@ -150,7 +150,7 @@ loop1: DO j = 1,2*l1_+1
   amf2(2*l1_+1,j) = 1.0e0
 
   !  twilight case - emergent beam, calc air mass factors below layer
-  IF (gmu >= 0.0e0) CYCLE loop1
+  IF (gmu >= 0.0e0) CYCLE
 
   !  Descend from layer j
   xmu1       = ABS(gmu)
@@ -169,10 +169,10 @@ loop1: DO j = 1,2*l1_+1
     ELSE
       xl        = rz2(ii+1)*xmu1*2.0e0
       amf2(ii,j) = xl/(rz2(ii+1)-rz2(ii))
-      CYCLE loop1
+      EXIT
     END IF
   END DO    ! ii
-END DO loop1    ! j
+END DO    ! j
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

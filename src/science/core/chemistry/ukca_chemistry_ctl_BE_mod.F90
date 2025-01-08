@@ -348,12 +348,12 @@ DO k=1,k_be_top
 
   ! Retrieve tracer concentrations
   DO j = 1,jpctr
-    i_loop: DO i = 1,jpspec
+    DO i = 1,jpspec
       IF (advt(j) == speci(i)) THEN
         tracer(kcs:kce,j) = y(:,i)/tnd(:)*c_species(j)
-        EXIT i_loop
+        EXIT
       END IF
-    END DO i_loop
+    END DO
   END DO
 
   ! Update the 3-D SO2 flux arrays (molecules cm-3 per timestep)
