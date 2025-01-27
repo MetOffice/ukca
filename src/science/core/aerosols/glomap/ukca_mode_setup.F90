@@ -2340,9 +2340,11 @@ END DO
 ! ~0.61 when sulfate is ammonium bisulfate by itself
 IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
    l_fix_nacl_density_in) THEN
-  glomap_variables_local%no_ions(1:ncp)=[2.25,0.0,0.06,2.23,0.0,0.06,1.9,2.56,0.0]
+  glomap_variables_local%no_ions(1:ncp)=                                       &
+    [2.25,0.0,0.06,2.23,0.0,0.06,1.9,2.56,0.0]
 ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
-  glomap_variables_local%no_ions(1:ncp)=[2.25,0.0,0.06,3.04,0.0,0.06,1.9,2.56,0.0]
+  glomap_variables_local%no_ions(1:ncp)=                                       &
+    [2.25,0.0,0.06,3.04,0.0,0.06,1.9,2.56,0.0]
 ELSE
   glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
 END IF
@@ -2600,6 +2602,7 @@ SUBROUTINE ukca_mode_sussbcocduntnh_8mode_8cpt( glomap_variables_local,        &
                                                 l_radaer_in,                   &
                                                 i_tune_bc_in,                  &
                                                 l_fix_nacl_density_in,         &
+                                                l_fix_ukca_hygroscopicities_in,&
                                                 l_dust_ageing_on )
 ! ---------------------------------------------------------------------|
 !  Subroutine to define modes and components for version with
@@ -2617,6 +2620,7 @@ TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_local
 LOGICAL,                     INTENT(IN)     :: l_radaer_in
 INTEGER,                     INTENT(IN)     :: i_tune_bc_in
 LOGICAL,                     INTENT(IN)     :: l_fix_nacl_density_in
+LOGICAL,                     INTENT(IN)     :: l_fix_ukca_hygroscopicities_in
 LOGICAL,                     INTENT(IN)     :: l_dust_ageing_on
 
 ! Local variables
@@ -2781,7 +2785,22 @@ DO imode=1,nmodes
 END DO
 
 ! number of dissociating ions in soluble components
-glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
+! l_fix_ukca_hygroscopicities logical uses kappa-Kohler theory
+! Petters and Kreidenweis, Atmos Chem Phys. 2007
+! kappa values for components: 0.61,0.0,0.1,1.5,0.0,0.1
+! conversion: no_ions = kappa*(rho_water/rhocomp)*(mm/mm_water)
+! Everything set to zero here except h2so4 since only h2so4 and dust
+! are used. Dust hygroscopicity assumed zero.
+IF (l_fix_ukca_hygroscopicities_in .AND.                                       &
+   l_fix_nacl_density_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=                                       &
+    [2.25,0.0,0.06,2.23,0.0,0.06,1.9,2.56,0.0]
+ELSE IF (l_fix_ukca_hygroscopicities_in) THEN
+  glomap_variables_local%no_ions(1:ncp)=                                       &
+    [2.25,0.0,0.06,3.04,0.0,0.06,1.9,2.56,0.0]
+ELSE
+  glomap_variables_local%no_ions(1:ncp)=[3.0,0.0,0.0,2.0,0.0,0.0,2.0,2.0,2.0]
+END IF
 
 ! Fractions of primary BC/POM emissions to go to each mode at emission
 ! (emit into insoluble Aitken for this setup).
