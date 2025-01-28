@@ -81,7 +81,11 @@ USE ukca_config_specification_mod, ONLY:                                       &
   ukca_dms_flux_off => i_dms_flux_off,                                         &
   ukca_liss_merlivat => i_liss_merlivat,                                       &
   ukca_wanninkhof => i_wanninkhof,                                             &
-  ukca_nightingale => i_nightingale
+  ukca_nightingale => i_nightingale,                                           &
+  ukca_i_primss_method_smith => i_primss_method_smith,                         &
+  ukca_i_primss_method_monahan => i_primss_method_monahan,                     &
+  ukca_i_primss_method_combined => i_primss_method_combined,                   &
+  ukca_i_primss_method_jaegle => i_primss_method_jaegle
 USE ukca_constants_setup_mod, ONLY: ukca_constants_setup
 USE ukca_tracers_mod, ONLY: ukca_get_tracer_varlist
 USE ukca_ntp_mod, ONLY: ukca_get_ntp_varlist

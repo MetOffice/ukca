@@ -938,6 +938,18 @@ IF ( ukca_config%l_ukca_mode .AND.                                             &
   END IF
 END IF
 
+! Number of boundary layer levels - valid range: 1 to model_levels - 1
+! (Top model level can be a boundary layer level if there is only 1 level)
+IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
+    (ukca_config%bl_levels < 1 .OR.                                            &
+     ukca_config%bl_levels > ukca_config%model_levels .OR.                     &
+     (ukca_config%bl_levels == ukca_config%model_levels .AND.                  &
+      ukca_config%model_levels > 1))) THEN
+  cmessage='bl_levels is out of range 1 to max(1, model_levels - 1)'
+  errcode = 56
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE check_settings

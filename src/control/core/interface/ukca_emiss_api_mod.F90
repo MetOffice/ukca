@@ -54,8 +54,10 @@ IMPLICIT NONE
 ! Default private
 PRIVATE
 
-INTEGER :: em_id_loc = 0    ! position of field in fields list, to be
-                            ! returned to the parent via emiss_id
+INTEGER, PUBLIC :: n_ems_registered = 0
+                            ! Number of emissions fields registered,
+                            ! to be returned to the parent as emiss_id so that
+                            ! each field has a unique identifier
 INTEGER :: ecount = 0       ! Index of actual position in data array
                             ! after considering aerosol slots
 INTEGER :: n_cdf_emiss      ! Total number of emissions from files
@@ -140,11 +142,21 @@ IF (.NOT. l_ukca_config_available) THEN
 END IF
 
 ! Store active emission species and names
-n_species = SIZE(em_chem_spec)
+! (The list will be empty if emissions are turned off)
+
+IF (ukca_config%l_ukca_emissions_off .OR. (.NOT. ukca_config%l_ukca_chem)) THEN
+  n_species = 0
+ELSE
+  n_species = SIZE(em_chem_spec)
+END IF
+
 ALLOCATE(em_spec(n_species))
-em_spec(:) = ''
 ALLOCATE(n_per_species(n_species))
-n_per_species(:) = 0
+
+IF (n_species > 0) THEN
+  em_spec(:) = ''
+  n_per_species(:) = 0
+END IF
 
 ! Store names of emission fields, including those feeding into aerosols.
 ! At the same time calculate the expected slots required in the emissions
@@ -236,6 +248,28 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_REGISTER_EMISSION'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+! Check for availability of UKCA configuration data
+IF (.NOT. l_ukca_config_available) THEN
+  errcode = 1
+  cmessage = 'No UKCA configuration has been set up'
+  CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
+END IF
+
+IF (ukca_config%l_ukca_emissions_off .OR. (.NOT. ukca_config%l_ukca_chem)) THEN
+  errcode = 1
+  cmessage = 'Not expecting any emissions to be registered ' //                &
+             'for the current UKCA configuration'
+  CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
+END IF
+
+! Check that the emissions species name is valid for the UKCA configuration
+IF (.NOT. ANY(tracer_name == em_chem_spec)) THEN
+  errcode = 1
+  cmessage = 'The name ' // TRIM(tracer_name) // ' is not an expected ' //     &
+             'emission species for the current UKCA configuration'
+  CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
+END IF
+
 ! If the emissions structure is not allocated, allocate using total number
 ! received from the parent
 IF ( .NOT. ALLOCATED(ncdf_emissions) ) THEN
@@ -256,8 +290,10 @@ IF ( .NOT. ALLOCATED(emiss_map) ) THEN
   emiss_map(:) = -99
 END IF
 
-em_id_loc = em_id_loc + 1  ! Returned index, always in contiguous order
-ecount = ecount + 1        ! Actual position in data structure, next slot
+n_ems_registered = n_ems_registered + 1  ! Returned index, always in
+                                         ! contiguous order
+ecount = ecount + 1                      ! Actual position in data structure,
+                                         ! next slot
 IF ( ecount > n_cdf_emiss ) THEN
   errcode = 2
   WRITE(cmessage,'(A,2(1x,I0))') 'Number of emission slots exceeds maximum',   &
@@ -265,8 +301,8 @@ IF ( ecount > n_cdf_emiss ) THEN
   CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
 END IF
 
-emiss_map(em_id_loc) = ecount  ! Store mapping between the two indices
-emiss_id = em_id_loc           ! Index value to be returned to parent
+emiss_map(n_ems_registered) = ecount  ! Store mapping between the two indices
+emiss_id = n_ems_registered           ! Index value to be returned to parent
 
 ! Assign received values to components in emission structure. Defaults for
 ! optional components are set in ukca_em_struct_init
@@ -371,7 +407,7 @@ n_2d_ems = 0
 n_3d_ems = 0
 l_ndim_order = .TRUE.
 
-DO i = 1, em_id_loc
+DO i = 1, n_ems_registered
   ecount = emiss_map(i)
   IF (ecount > 0) THEN
     IF (ncdf_emissions(ecount)%three_dim) THEN
@@ -437,13 +473,31 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_SET_EMISSION'
 ! End of header
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
+! Check that the index given to identify the emission is in range
+
+IF (emiss_id < 1) THEN
+  errcode = 1
+  WRITE(cmessage,'(A,I0,A)') 'The given emission index ', emiss_id,            &
+                             ' is not a positive integer'
+  CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
+END IF
+
+IF (emiss_id > n_ems_registered) THEN
+  errcode = 1
+  WRITE(cmessage,'(A,I0,A,I0)')                                                &
+    'The given emission index ', emiss_id,                                     &
+    ' exceeds the number of registered emissions ', n_ems_registered
+  CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
+END IF
+
 ! Get the emission slot corresponding to this emiss_id
 idx = emiss_map(emiss_id)
 
-IF ( idx < 0 .OR. idx > n_cdf_emiss ) THEN
+IF ( idx < 1 .OR. idx > n_cdf_emiss ) THEN
   errcode = 1
-  WRITE(cmessage,'(A,3I4)') 'Invalid emission index supplied', emiss_id, idx,  &
-        n_cdf_emiss
+  WRITE(cmessage,'(A,I0,A,I0,A,I0,A)')                                         &
+    'Bad emissions structure index idx = ', idx,                               &
+    ' (emiss_id = ', emiss_id, ', n_cdf_emiss = ', n_cdf_emiss, ')'
   CALL ereport(ModuleName//':'//RoutineName, errcode, cmessage)
 END IF
 

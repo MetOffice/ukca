@@ -663,10 +663,51 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
     error_code_ptr = errcode_value_missing
     IF (PRESENT(error_message))                                                &
       error_message = 'Missing previous time argument required for chemistry'
-    IF (PRESENT(error_routine)) error_routine = RoutineName
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-    RETURN
   END IF
+END IF
+
+! Check level height arrays have the expected bounds
+
+IF ((error_code_ptr == 0) .AND.                                                &
+    ((LBOUND(r_theta_levels, DIM=3) /= 0) .OR.                                 &
+     (UBOUND(r_theta_levels, DIM=3) /= ukca_config%model_levels))) THEN
+  error_code_ptr = errcode_value_invalid
+  IF (PRESENT(error_message))                                                  &
+    error_message =                                                            &
+      'r_theta_levels does not have the expected bounds 0:model_levels'
+END IF
+
+IF ((error_code_ptr == 0) .AND.                                                &
+    ((LBOUND(r_rho_levels, DIM=3) /= 1) .OR.                                   &
+     (UBOUND(r_rho_levels, DIM=3) /= ukca_config%model_levels))) THEN
+  error_code_ptr = errcode_value_invalid
+  IF (PRESENT(error_message))                                                  &
+    error_message =                                                            &
+      'r_rho_levels does not have the expected bounds 1:model_levels'
+END IF
+
+IF ((error_code_ptr == 0) .AND.                                                &
+    ((LBOUND(r_theta_levels, DIM=1) /= 1) .OR.                                 &
+     (UBOUND(r_theta_levels, DIM=1) /= ukca_config%row_length) .OR.            &
+     (LBOUND(r_theta_levels, DIM=2) /= 1) .OR.                                 &
+     (UBOUND(r_theta_levels, DIM=2) /= ukca_config%rows))) THEN
+  error_code_ptr = errcode_value_invalid
+  IF (PRESENT(error_message))                                                  &
+    error_message =                                                            &
+      'r_theta_levels bounds inconsistent with the horizontal extent of ' //   &
+      'the model domain'
+END IF
+
+IF ((error_code_ptr == 0) .AND.                                                &
+    ((LBOUND(r_rho_levels, DIM=1) /= 1) .OR.                                   &
+     (UBOUND(r_rho_levels, DIM=1) /= ukca_config%row_length) .OR.              &
+     (LBOUND(r_rho_levels, DIM=2) /= 1) .OR.                                   &
+     (UBOUND(r_rho_levels, DIM=2) /= ukca_config%rows))) THEN
+  error_code_ptr = errcode_value_invalid
+  IF (PRESENT(error_message))                                                  &
+    error_message =                                                            &
+      'r_rho_levels bounds inconsistent with the horizontal extent of ' //     &
+      'the model domain'
 END IF
 
 ! Check that non-dimensional vertical coordinate vector is present if required
@@ -675,8 +716,9 @@ END IF
 
 l_do_bound_check = .FALSE.
 
-IF (ukca_config%l_ukca_het_psc .AND.                                           &
-    (ukca_config%l_ukca_sa_clim .OR. ukca_config%l_ukca_limit_nat)) THEN
+IF ((error_code_ptr == 0) .AND.                                                &
+    (ukca_config%l_ukca_het_psc .AND.                                          &
+    (ukca_config%l_ukca_sa_clim .OR. ukca_config%l_ukca_limit_nat))) THEN
   IF (.NOT. PRESENT(eta_theta_levels)) THEN
     error_code_ptr = errcode_value_missing
     IF (PRESENT(error_message))                                                &
@@ -709,25 +751,24 @@ IF ((error_code_ptr == 0) .AND. l_do_bound_check) THEN
   END IF
 END IF
 
-IF (error_code_ptr /= 0) THEN
-  IF (PRESENT(error_routine)) error_routine = RoutineName
-  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-  RETURN
-END IF
-
 ! Check whether all required environmental driver fields are present
 ! (None are required if the run does not use chemistry)
-IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
+IF ((error_code_ptr == 0) .AND.                                                &
+    (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode)) THEN
   CALL check_environment(n_fld_present, n_fld_missing)
   IF (n_fld_missing > 0) THEN
     error_code_ptr = errcode_env_field_missing
     IF (PRESENT(error_message))                                                &
       WRITE(error_message,'(A,I4,A,I4,A)') 'Missing ', n_fld_missing, ' of ',  &
       n_fld_present + n_fld_missing, ' environmental driver fields'
-    IF (PRESENT(error_routine)) error_routine = RoutineName
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-    RETURN
   END IF
+END IF
+
+! Return if any of the sequence of checks above failed
+IF (error_code_ptr /= 0) THEN
+  IF (PRESENT(error_routine)) error_routine = RoutineName
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
 END IF
 
 ! Ensure unsupported diagnostic output is suppressed if not using the

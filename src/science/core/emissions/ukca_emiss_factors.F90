@@ -200,18 +200,26 @@ CASE ('step1')
   ! SPREAD is required to cast the 2D array total_depth to the same shape as
   ! the 3D slice of zthick.
 CASE ('high_level', 'single_level')
-  nlevs            = highest_lev - lowest_lev + 1
-  IF (nlevs <= 0 .OR. nlevs >= model_levels) THEN
-    ierror = 2
+  IF (highest_lev < 1 .OR. highest_lev > model_levels) THEN
+    ierror = 2  ! Highest level out of range
+  ELSE IF (lowest_lev < 1 .OR. lowest_lev > model_levels) THEN
+    ierror = 3  ! Lowest level out of range
   ELSE
-    zthick(:,:,:) = interf_z(:,:,1:model_levels)                               &
-                  - interf_z(:,:,0:model_levels-1)
-    total_depth(:,:) = interf_z(:,:,highest_lev) - interf_z(:,:,lowest_lev-1)
+    nlevs = highest_lev - lowest_lev + 1
+    IF (vert_fact == 'single_level' .AND. nlevs /= 1) THEN
+      ierror = 4  ! Highest and lowest level mismatch for 'single_level' profile
+    ELSE IF (nlevs <= 0 .OR. nlevs >= model_levels) THEN
+      ierror = 5  ! Invalid number of levels
+    ELSE
+      zthick(:,:,:) = interf_z(:,:,1:model_levels)                             &
+                    - interf_z(:,:,0:model_levels-1)
+      total_depth(:,:) = interf_z(:,:,highest_lev) - interf_z(:,:,lowest_lev-1)
 
-    vert_scaling_3d (:,:,:) = 0.0
-    vert_scaling_3d (:,:,lowest_lev:highest_lev) =                             &
-        zthick(:,:,lowest_lev:highest_lev) /                                   &
-        SPREAD(total_depth(:,:), 3, nlevs)
+      vert_scaling_3d (:,:,:) = 0.0
+      vert_scaling_3d (:,:,lowest_lev:highest_lev) =                           &
+          zthick(:,:,lowest_lev:highest_lev) /                                 &
+          SPREAD(total_depth(:,:), 3, nlevs)
+    END IF
   END IF
 
   !--------------------------------------------------------------------
@@ -311,9 +319,16 @@ END SELECT
 IF (ierror > 0) THEN
   SELECT CASE (ierror)
   CASE (1)
-    cmessage = 'Unexpected vertical profile ('  // TRIM (vert_fact)    //      &
+    cmessage = 'Unexpected vertical profile ('  // TRIM (vert_fact) //         &
                ') found for ' // TRIM (field_name)
   CASE (2)
+    cmessage = 'Highest level specified is out of range'
+  CASE (3)
+    cmessage = 'Lowest level specified is out of range'
+  CASE (4)
+    cmessage = 'Non-matching highest and lowest levels specified for ' //      &
+               '''single_level'' vertical profile'
+  CASE (5)
     WRITE (umMessage,'(A,1X,A,1X,A,1X,I3)')                                    &
       'Number of vertical levels used to spread emissions of',                 &
       TRIM (field_name), 'is', nlevs
@@ -323,7 +338,7 @@ IF (ierror > 0) THEN
                TRIM (vert_fact) // ' emissions'
   END SELECT
 
-  CALL ereport ('VERTICAL_EMISS_FACTORS', ierror, cmessage)
+  CALL ereport (RoutineName, ierror, cmessage)
 END IF
 
 ! When using avg. profiles given for specific altitudes we still need to

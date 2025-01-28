@@ -2286,16 +2286,24 @@ DO i = 1, SIZE(environ_field_varnames)
       error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_land_real)
-    ! 1D field
+    ! 1D field (may have size 0 if no land points)
     IF (ASSOCIATED(environ_ptrs(i)%value_1d_real)) THEN
-      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                       &
-            l_border, id_code,                                                 &
-            environ_field_info(i)%group,                                       &
-            environ_field_varnames(i),                                         &
-            MAXVAL(environ_ptrs(i)%value_1d_real),                             &
-            MINVAL(environ_ptrs(i)%value_1d_real),                             &
-            SUM(environ_ptrs(i)%value_1d_real) /                               &
-            SIZE(environ_ptrs(i)%value_1d_real)
+      IF (SIZE(environ_ptrs(i)%value_1d_real) == 0) THEN
+        WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,A11))')                       &
+              l_border, id_code,                                               &
+              environ_field_info(i)%group,                                     &
+              environ_field_varnames(i),                                       &
+              '***********', '***********', '***********'
+      ELSE
+        WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                     &
+              l_border, id_code,                                               &
+              environ_field_info(i)%group,                                     &
+              environ_field_varnames(i),                                       &
+              MAXVAL(environ_ptrs(i)%value_1d_real),                           &
+              MINVAL(environ_ptrs(i)%value_1d_real),                           &
+              SUM(environ_ptrs(i)%value_1d_real) /                             &
+              SIZE(environ_ptrs(i)%value_1d_real)
+      END IF
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
       error_code_ptr = errcode_ukca_internal_fault
@@ -2316,16 +2324,24 @@ DO i = 1, SIZE(environ_field_varnames)
       error_code_ptr = errcode_ukca_internal_fault
     END IF
   CASE (group_flat_real, group_landtile_real, group_landpft_real)
-    ! 2D real field
+    ! 2D real field (may have size 0 if no land points)
     IF (ASSOCIATED(environ_ptrs(i)%value_2d_real)) THEN
-      WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                       &
-            l_border, id_code,                                                 &
-            environ_field_info(i)%group,                                       &
-            environ_field_varnames(i),                                         &
-            MAXVAL(environ_ptrs(i)%value_2d_real),                             &
-            MINVAL(environ_ptrs(i)%value_2d_real),                             &
-            SUM(environ_ptrs(i)%value_2d_real) /                               &
-            SIZE(environ_ptrs(i)%value_2d_real)
+      IF (SIZE(environ_ptrs(i)%value_2d_real, DIM=1) == 0) THEN
+        WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,A11))')                       &
+              l_border, id_code,                                               &
+              environ_field_info(i)%group,                                     &
+              environ_field_varnames(i),                                       &
+              '***********', '***********', '***********'
+      ELSE
+        WRITE(umMessage,'(A,I5,1X,I3,1X,A20,3(1X,E11.4))')                     &
+              l_border, id_code,                                               &
+              environ_field_info(i)%group,                                     &
+              environ_field_varnames(i),                                       &
+              MAXVAL(environ_ptrs(i)%value_2d_real),                           &
+              MINVAL(environ_ptrs(i)%value_2d_real),                           &
+              SUM(environ_ptrs(i)%value_2d_real) /                             &
+              SIZE(environ_ptrs(i)%value_2d_real)
+      END IF
       CALL umPrint(umMessage,src=RoutineName)
     ELSE
       error_code_ptr = errcode_ukca_internal_fault
