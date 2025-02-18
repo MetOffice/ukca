@@ -6,6 +6,9 @@
     {{ "Error: No SITE in the rose.conf" / 0 }}
 {% endif %}
 
+{# Dictionary to store site variables #}
+{% set SITE_VARS = {} %}
+
 {#- Import variable definitions #}
 %include 'include/variables.rc'
 
