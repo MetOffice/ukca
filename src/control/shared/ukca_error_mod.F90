@@ -5,7 +5,7 @@
 ! *****************************COPYRIGHT*******************************
 !
 ! Description:
-!   Module providing parameters for UKCA error handling.
+!   Module providing parameters for error handling.
 !
 ! Part of the UKCA model, a community model supported by the
 ! Met Office and NCAS, with components provided initially
@@ -13,7 +13,7 @@
 ! The Met. Office.  See www.ukca.ac.uk
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: UKCA
+! This file belongs in section: UKCA/Shared
 !
 ! Code Description:
 !   Language:  FORTRAN 2003
@@ -49,10 +49,18 @@ INTEGER, PARAMETER :: errcode_value_invalid = 16
 INTEGER, PARAMETER :: errcode_value_missing = 17
 INTEGER, PARAMETER :: errcode_unexpected_api_call = 18
 
+! Codes that govern action in case of an error - options available to parent
+INTEGER, PARAMETER :: i_error_method_abort = 1   ! Write err message and abort
+INTEGER, PARAMETER :: i_error_method_return = 2  ! Return control to parent
+INTEGER, PARAMETER :: i_error_method_warn_and_return = 3
+                                                 ! Return control to parent
+                                                 ! after printing error message
+                                                 ! as a warning
+
 CONTAINS
 
 ! ----------------------------------------------------------------------
-SUBROUTINE error_report(error_code_ptr, msg_in, locn_in,                       &
+SUBROUTINE error_report(i_error_method, error_code_ptr, msg_in, locn_in,       &
                         msg_out, locn_out)
 ! ----------------------------------------------------------------------
 ! Description:
@@ -77,17 +85,12 @@ SUBROUTINE error_report(error_code_ptr, msg_in, locn_in,                       &
 !   any additional information defined by `ereport`.
 ! ----------------------------------------------------------------------
 
-USE ukca_config_specification_mod, ONLY: ukca_config,                          &
-                                         i_error_method_abort,                 &
-                                         i_error_method_return,                &
-                                         i_error_method_warn_and_return
-
 USE ereport_mod, ONLY: ereport
 
 IMPLICIT NONE
 
 ! Subroutine arguments
-
+INTEGER, INTENT(IN) :: i_error_method
 INTEGER, POINTER, INTENT(IN) :: error_code_ptr
 
 CHARACTER(LEN=*), INTENT(IN) :: msg_in
@@ -122,7 +125,7 @@ IF (error_code_ptr <= 0) THEN
 
 ELSE
 
-  SELECT CASE (ukca_config%i_error_method)
+  SELECT CASE (i_error_method)
 
   CASE (i_error_method_abort)
     ! ----------------------------------------------------

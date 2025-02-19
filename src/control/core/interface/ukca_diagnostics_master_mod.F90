@@ -48,6 +48,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_diagname,                                 &
 
 USE ukca_missing_data_mod, ONLY: imdi
 
+USE ukca_config_specification_mod,  ONLY: ukca_config
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_ukca_internal_fault, error_report
 
@@ -138,8 +139,8 @@ IF (n /= n_diag_tot) THEN
     'Number of diagnostics being created (', n,                                &
     ') differs from that expected: n_diag_tot = ', n_diag_tot
   error_code_ptr = errcode_ukca_internal_fault
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF
@@ -305,7 +306,7 @@ DO i = 1, SIZE(master_diag_list)
         master_diag_list(i)%asad_id = stash_value
       ELSE
         error_code_ptr = errcode_ukca_internal_fault
-        CALL error_report(error_code_ptr,                                      &
+        CALL error_report(ukca_config%i_error_method, error_code_ptr,          &
           'No ASAD id code defined for a recognised ASAD diagnostic: ' //      &
           master_diag_list(i)%varname, RoutineName,                            &
           msg_out=error_message, locn_out=error_routine)

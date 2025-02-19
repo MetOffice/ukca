@@ -58,6 +58,7 @@ USE ukca_diagnostics_output_mod, ONLY: update_diagnostics_3d_real
 USE ukca_fieldname_mod, ONLY: diagname_jrate_no2, diagname_jrate_o3a,          &
                               diagname_jrate_o3b, diagname_jrate_o2b
 USE ukca_chem_defs_mod, ONLY: ratj_defs
+USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_ukca_internal_fault, error_report
 
@@ -131,7 +132,7 @@ CASE (diagname_jrate_o2b)
   jrate_prod2 = 'O(1D)'
 CASE DEFAULT
   error_code_ptr = errcode_ukca_internal_fault
-  CALL error_report(error_code_ptr,                                            &
+  CALL error_report(ukca_config%i_error_method, error_code_ptr,                &
     'The name given (' // TRIM(diag_name) //                                   &
     ') does not match a recognised photolysis rate diagnostic',                &
     RoutineName, msg_out=error_message, locn_out=error_routine)

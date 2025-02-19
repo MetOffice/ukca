@@ -63,9 +63,9 @@ MODULE fastjx_data
 
 USE yomhook,             ONLY: lhook, dr_hook
 USE parkind1,            ONLY: jprb, jpim
-USE asad_mod,            ONLY: jppj
+
 USE ukca_parpho_mod,     ONLY: jpwav
-USE errormessagelength_mod, ONLY: errormessagelength
+
 IMPLICIT NONE
 PUBLIC
 SAVE
@@ -80,7 +80,6 @@ SAVE
 
 INTEGER :: Blocking_Mode=0
 
-CHARACTER(LEN=errormessagelength) :: cmessage   ! Error message
 
 ! ***********************************************************************
        ! Defaults and Parameters
@@ -99,6 +98,7 @@ INTEGER                       :: jpcl      ! Number of chem. levels
 
 INTEGER                       :: kpcx      ! No. points (xy) in photoj
 INTEGER                       :: jjpnl     ! No. points (xyz)in photoj
+INTEGER                       :: jppj      ! Local copy of num phot species
 
 REAL                          :: tau       ! Time in hours
 INTEGER                       :: daynumber ! Day of the year
@@ -146,19 +146,19 @@ INTEGER :: n_solcyc_ts
 ! Number of cloud/aerosol types for scattering
 ! At present set to 2 (water/ice clouds)
 ! Will need to increase to include aerosols
-INTEGER,PARAMETER             :: mx =  3    !kk look at set_aer!
+INTEGER,PARAMETER        :: mx =  3   !kk look at set_aer!
 
 ! Index within the loaded array of scattering types
-INTEGER                       :: miedx(mx)
+INTEGER                  :: miedx(mx)
 
 ! Arrays that depend on GCM parameters
 
-      ! Array containing quantum yields
-REAL,  ALLOCATABLE        :: jfacta(:)
+! Array containing quantum yields
+REAL,  ALLOCATABLE       :: jfacta(:)
 INTEGER, ALLOCATABLE     :: jind(:)
 
-! Array containing labels for photolysed species    ! was len=10!
-CHARACTER(LEN=7), ALLOCATABLE     :: jlabel(:)
+! Array containing labels for photolysed species  ! was len=10!
+CHARACTER(LEN=7), ALLOCATABLE  :: jlabel(:)
 
 ! Array containing indices in domain (xy) arrays
 INTEGER, ALLOCATABLE     :: nsl(:,:)
@@ -271,8 +271,7 @@ REAL :: atau
 REAL :: atau0
 
 ! SIZES
-
-      ! Maximum number of cloud sub layers
+! Maximum number of cloud sub layers
 INTEGER      :: jtaumx
 
 ! Number of aerosol/ cloud data types (must be less than a_)
@@ -285,8 +284,6 @@ INTEGER      :: njval
 INTEGER      :: nw1
 INTEGER      :: nw2
 
-
-
 ! **********************************************************************
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='FASTJX_DATA'
 
@@ -297,10 +294,13 @@ CONTAINS
 ! subroutine that will set limits on lon, lat etc.
 ! Based on approach of fast-j routines
 ! Included as a dummy routine at present.
-SUBROUTINE fastjx_set_limits (row_length, rows, model_levels,                  &
-                              chemlev)
+SUBROUTINE fastjx_set_limits (error_code_ptr, row_length, rows, model_levels,  &
+                              n_phot, chemlev, error_message, error_routine)
 
-USE ereport_mod, ONLY: ereport
+USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname, error_report,       &
+                          errcode_value_unknown
+USE photol_config_specification_mod, ONLY: photol_config
+
 USE yomhook,     ONLY: lhook, dr_hook
 USE parkind1,    ONLY: jprb, jpim
 
@@ -309,7 +309,17 @@ IMPLICIT  NONE
 INTEGER,INTENT(IN)            :: row_length        ! Model dimensions
 INTEGER,INTENT(IN)            :: rows
 INTEGER,INTENT(IN)            :: model_levels
+INTEGER,INTENT(IN)            :: n_phot
 INTEGER,INTENT(IN),OPTIONAL   :: chemlev
+
+! error handling arguments
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
+CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
+                                                       ! Error return message
+CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
+                                         ! Routine in which error was trapped
+
+CHARACTER(LEN=maxlen_message) :: cmessage
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -321,10 +331,16 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='FASTJX_SET_LIMITS'
 ! ***********************************************************************
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+error_code_ptr = 0
+cmessage = ''
+IF (PRESENT(error_message)) error_message = ''
+IF (PRESENT(error_routine)) error_routine = ''
+
 ! load size of GCM patch into module
 ipcx   = row_length
 jpcx   = rows
 lpar   = model_levels
+jppj   = n_phot
 
 IF (PRESENT(chemlev)) THEN
   jpcl = chemlev
@@ -344,10 +360,12 @@ CASE (2)
   kpcx  = ipcx*jpcx            ! Blocking domain
   jjpnl  = jpcl*kpcx
 CASE DEFAULT
+  error_code_ptr = errcode_value_unknown
   cmessage='Blocking Mode does not Exist'
-  CALL ereport('FASTJX_DATA.FASTJX_SET_LIMITS', Blocking_Mode, cmessage)
-END SELECT
+  CALL error_report(photol_config%i_error_method, error_code_ptr, cmessage,    &
+         RoutineName, msg_out= error_message, locn_out = error_routine)
 
+END SELECT
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -360,24 +378,20 @@ SUBROUTINE fastjx_allocate_memory
 
 IMPLICIT  NONE
 
-LOGICAL :: first=.TRUE.
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='FASTJX_ALLOCATE_MEMORY'
 
-
 ! ***********************************************************************
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-! Allocate arrays that depend on number of species
-IF (first) THEN
-  ALLOCATE(jind(jppj))
-  ALLOCATE(jlabel(jppj))
-  ALLOCATE(jfacta(jppj))
-  first=.FALSE.
-END IF
+! Allocate arrays that depend on number of species.
+! These hold data from files read only once at start so cannot be deallocated.
+IF (.NOT. ALLOCATED(jind)) ALLOCATE(jind(jppj))
+IF (.NOT. ALLOCATED(jlabel)) ALLOCATE(jlabel(jppj))
+IF (.NOT. ALLOCATED(jfacta)) ALLOCATE(jfacta(jppj))
 
 ! Allocate arrays that depend on GCM size
 IF (.NOT. ALLOCATED(amf2))                                                     &

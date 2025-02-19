@@ -70,6 +70,8 @@ USE ukca_config_constants_mod, ONLY: init_config_constants,                    &
                                      rho_so4,                                  &
                                      l_ukca_constants_available
 
+USE ukca_config_specification_mod, ONLY: ukca_config
+
 USE ukca_error_mod, ONLY: error_report, maxlen_message, maxlen_procname,       &
                           errcode_unexpected_api_call
 
@@ -121,7 +123,7 @@ IF (PRESENT(error_routine)) error_routine = ''
 ! Check for potential conflict with a previous call (possibly via 'ukca_setup')
 IF (l_ukca_constants_available) THEN
   error_code_ptr = errcode_unexpected_api_call
-  CALL error_report(error_code_ptr,                                            &
+  CALL error_report(ukca_config%i_error_method, error_code_ptr,                &
          'UKCA configurable constants have already been set', RoutineName,     &
          msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

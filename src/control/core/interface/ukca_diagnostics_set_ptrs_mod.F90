@@ -186,8 +186,8 @@ ELSE
 END IF
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF
@@ -254,8 +254,8 @@ ELSE
 END IF
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF
@@ -425,8 +425,8 @@ ELSE
 END IF
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF
@@ -495,8 +495,8 @@ ELSE
 END IF
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF

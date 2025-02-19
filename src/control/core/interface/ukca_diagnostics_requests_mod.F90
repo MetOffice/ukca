@@ -48,7 +48,8 @@ USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_diag_req_duplicate,                          &
                           errcode_diag_req_unsupported_use,                    &
                           errcode_diag_mismatch, errcode_value_unknown,        &
-                          errcode_value_invalid, error_report
+                          errcode_value_invalid, error_report,                 &
+                          i_error_method_abort
 
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -181,7 +182,7 @@ message_txt = ''
 ! Check for availability of UKCA configuration data
 IF (.NOT. l_ukca_config_available) THEN
   error_code_ptr = errcode_ukca_uninit
-  CALL error_report(error_code_ptr,                                            &
+  CALL error_report(i_error_method_abort, error_code_ptr,                      &
          'No UKCA configuration has been set up', RoutineName,                 &
          msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -281,8 +282,8 @@ END IF
 ! Call error report here if an error has been trapped locally (i.e. not in a
 ! subroutine call) as indicated by presence of message text.
 IF (error_code_ptr > 0 .AND. message_txt /= '') THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -300,6 +301,7 @@ SUBROUTINE set_diag_requests(error_code_ptr, group, varnames,                  &
 !   in the current UKCA configuration.
 ! ----------------------------------------------------------------------
 
+USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_fieldname_mod, ONLY: maxlen_diagname
 
 IMPLICIT NONE
@@ -361,8 +363,8 @@ IF (SIZE(status_flags) /= n_req) THEN
   WRITE(message_txt, '(A,I0,A)')                                               &
     'Wrong number of status flags for group ', group,                          &
     ' diagnostic requests'
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF
@@ -384,8 +386,8 @@ DO i = 1, n_req
     WRITE(message_txt, '(A,I0,A,A,A)')                                         &
       'Duplicate group ', group, ' request found for diagnostic ''',           &
       TRIM(varnames(i)), ''''
-    CALL error_report(error_code_ptr, message_txt, RoutineName,                &
-                      msg_out=error_message, locn_out=error_routine)
+    CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt, &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
     IF (lhook) THEN
       CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
     END IF
@@ -402,8 +404,8 @@ DO i = 1, n_req
     WRITE(message_txt, '(A,I0,A,I0,A)')                                        &
       'Unexpected value of status flag (', status_flags(i), ') in group ',     &
       group, ' diagnostic request'
-    CALL error_report(error_code_ptr, message_txt, RoutineName,                &
-                      msg_out=error_message, locn_out=error_routine)
+    CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt, &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
     IF (lhook) THEN
       CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
     END IF
@@ -424,8 +426,9 @@ DO i = 1, n_req
         WRITE(message_txt, '(A,A,A,I0)')                                       &
           'Diagnostic ''', TRIM(varnames(i)),                                  &
           ''' is not compatible with request group ', group
-        CALL error_report(error_code_ptr, message_txt, RoutineName,            &
-                          msg_out=error_message, locn_out=error_routine)
+        CALL error_report(ukca_config%i_error_method, error_code_ptr,          &
+                          message_txt, RoutineName, msg_out=error_message,     &
+                          locn_out=error_routine)
         IF (lhook) THEN
           CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
         END IF
@@ -442,7 +445,7 @@ DO i = 1, n_req
 
   IF (.NOT. l_found) THEN
     error_code_ptr = errcode_diag_req_unknown
-    CALL error_report(error_code_ptr,                                          &
+    CALL error_report(ukca_config%i_error_method, error_code_ptr,              &
            'Diagnostic name ''' // TRIM(varnames(i)) //                        &
            ''' is not recognised',                                             &
            RoutineName, msg_out=error_message, locn_out=error_routine)
@@ -501,7 +504,7 @@ SUBROUTINE ukca_update_diagnostic_requests(error_code,                         &
 !   support this functionality.
 ! ----------------------------------------------------------------------
 
-USE ukca_config_specification_mod, ONLY: l_ukca_config_available
+USE ukca_config_specification_mod, ONLY: ukca_config, l_ukca_config_available
 
 IMPLICIT NONE
 
@@ -544,7 +547,7 @@ IF (PRESENT(error_routine)) error_routine = ''
 ! Check for availability of UKCA configuration data
 IF (.NOT. l_ukca_config_available) THEN
   error_code_ptr = errcode_ukca_uninit
-  CALL error_report(error_code_ptr,                                            &
+  CALL error_report(i_error_method_abort, error_code_ptr,                      &
          'No UKCA configuration has been set up', RoutineName,                 &
          msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -578,8 +581,9 @@ END IF
 
 IF (.NOT. l_status_flags_present) THEN
   error_code_ptr = errcode_diag_mismatch
-  CALL error_report(error_code_ptr, 'No status flag arrays provided',          &
-                    RoutineName, msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr,                &
+                    'No status flag arrays provided', RoutineName,             &
+                     msg_out=error_message, locn_out=error_routine)
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -597,6 +601,8 @@ SUBROUTINE update_diag_requests(error_code_ptr, group,                         &
 !   flags in the input array imply no update. Any updates for
 !   unavailable diagnostics are ignored.
 ! ----------------------------------------------------------------------
+
+USE ukca_config_specification_mod, ONLY: ukca_config
 
 IMPLICIT NONE
 
@@ -657,8 +663,8 @@ IF (error_code_ptr <=0 .AND. SIZE(status_flags) /= n_req) THEN
 END IF
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
   RETURN
 END IF
@@ -679,7 +685,8 @@ DO i = 1, n_req
       WRITE(message_txt, '(A,I0,A,I0,A)')                                      &
         'Unexpected value of status flag (', status_flags(i), ') in group ',   &
          group, ' diagnostic request'
-      CALL error_report(error_code_ptr, message_txt, RoutineName,              &
+      CALL error_report(ukca_config%i_error_method, error_code_ptr,            &
+                        message_txt, RoutineName,                              &
                         msg_out=error_message, locn_out=error_routine)
       IF (lhook) THEN
         CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -700,7 +707,8 @@ DO i = 1, n_req
         WRITE(message_txt, '(A,A,A,I0)')                                       &
           'Status flag set to ''unavailable'' for available diagnostic ''',    &
           TRIM(diag_requests(group)%varnames(i)), ''' in group ', group
-        CALL error_report(error_code_ptr, message_txt, RoutineName,            &
+        CALL error_report(ukca_config%i_error_method, error_code_ptr,          &
+                          message_txt, RoutineName,                            &
                           msg_out=error_message, locn_out=error_routine)
         IF (lhook) THEN
           CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -788,7 +796,7 @@ IF (PRESENT(error_routine)) error_routine = ''
 ! Check for availability of UKCA configuration data
 IF (.NOT. l_ukca_config_available) THEN
   error_code_ptr = errcode_ukca_uninit
-  CALL error_report(error_code_ptr,                                            &
+  CALL error_report(i_error_method_abort, error_code_ptr,                      &
          'No UKCA configuration has been set up', RoutineName,                 &
          msg_out=error_message, locn_out=error_routine)
   IF (PRESENT(names_flat_real_ptr)) NULLIFY(names_flat_real_ptr)

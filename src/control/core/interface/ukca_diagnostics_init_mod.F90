@@ -45,8 +45,8 @@ USE ukca_fieldname_mod, ONLY: maxlen_diagname
 
 USE ukca_missing_data_mod, ONLY: imdi
 
-USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
-                          errcode_ukca_uninit, error_report
+USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname, errcode_ukca_uninit,&
+                          i_error_method_abort, error_report
 
 IMPLICIT NONE
 
@@ -253,7 +253,7 @@ IF (PRESENT(error_routine)) error_routine = ''
 ! Check for availability of UKCA configuration data
 IF (.NOT. l_ukca_config_available) THEN
   error_code_ptr = errcode_ukca_uninit
-  CALL error_report(error_code_ptr,                                            &
+  CALL error_report(i_error_method_abort, error_code_ptr,                      &
          'No UKCA configuration has been set up', RoutineName,                 &
          msg_out=error_message, locn_out=error_routine)
   NULLIFY(varnames_ptr)

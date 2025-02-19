@@ -49,6 +49,7 @@ USE ukca_diagnostics_type_mod, ONLY: dgroup_flat_real, dgroup_fullht_real,     &
                                      diag_status_requested,                    &
                                      diag_status_skipped, diag_status_valid
 
+USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
                           errcode_diag_mismatch, errcode_ukca_internal_fault,  &
                           errcode_value_unknown, error_report
@@ -511,8 +512,8 @@ CASE DEFAULT
 END SELECT
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
@@ -615,7 +616,7 @@ DO group = 1, n_diag_group
         diagnostics%value_3d_real_ptr(:,:,:,i) = rmdi
       CASE DEFAULT
         error_code_ptr = errcode_ukca_internal_fault
-        CALL error_report(error_code_ptr,                                      &
+        CALL error_report(ukca_config%i_error_method, error_code_ptr,          &
           'Invalid no. of dimensions for diagnostic output',                   &
           RoutineName, msg_out=error_message, locn_out=error_routine)
         IF (lhook) THEN
@@ -716,8 +717,8 @@ ELSE
 END IF
 
 IF (error_code_ptr > 0) THEN
-  CALL error_report(error_code_ptr, message_txt, RoutineName,                  &
-                    msg_out=error_message, locn_out=error_routine)
+  CALL error_report(ukca_config%i_error_method, error_code_ptr, message_txt,   &
+                    RoutineName, msg_out=error_message, locn_out=error_routine)
 ELSE IF (n_req > 0) THEN
   status_flags = diagnostics%outvalue_status(group)%status_flags
 END IF

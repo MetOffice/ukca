@@ -303,8 +303,6 @@ SUBROUTINE ukca_setup(error_code,                                              &
 
 USE ukca_config_specification_mod, ONLY: init_ukca_configuration,              &
     copy_config_vector, ukca_config, glomap_config,                            &
-    i_error_method_abort, i_error_method_return,                               &
-    i_error_method_warn_and_return,                                            &
     i_ukca_chem_off, i_ukca_chem_trop, i_ukca_chem_raq,                        &
     i_ukca_chem_offline_be, i_ukca_chem_tropisop, i_ukca_chem_strattrop,       &
     i_ukca_chem_strat, i_ukca_chem_offline, i_ukca_chem_cristrat,              &
@@ -336,7 +334,9 @@ USE ukca_environment_req_mod, ONLY: init_environment_req
 USE ukca_environment_mod, ONLY: clear_environment_fields
 USE ukca_diagnostics_init_mod, ONLY: init_diagnostics
 USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
-                          errcode_ukca_uninit, errcode_value_missing
+                          errcode_ukca_uninit, errcode_value_missing,          &
+                          i_error_method_abort, i_error_method_return,         &
+                          i_error_method_warn_and_return
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
 USE yomhook,                ONLY: lhook, dr_hook  ! DrHook

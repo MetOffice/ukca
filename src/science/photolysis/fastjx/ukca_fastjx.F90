@@ -40,29 +40,27 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_FASTJX_MOD'
 
 CONTAINS
 
-SUBROUTINE ukca_fastjx(                                                        &
+SUBROUTINE ukca_fastjx(error_code_ptr,                                         &
   row_length, rows, model_levels, jppj,                                        &
-  p_layer_boundaries, pstar,                                                   &
-  p_theta_levels,                                                              &
+  p_layer_boundaries,                                                          &
   t_theta_levels,                                                              &
+  r_theta_levels, r_rho_levels,                                                &
   longitude, sin_latitude,                                                     &
   z_top_of_model,                                                              &
-  so4_aitken, so4_accum,                                                       &
-  qcl, qcf, rel_humid_frac, area_cloud_fraction,                               &
+  sulph_aitk, sulph_accu,                                                      &
+  qcl, qcf, area_cloud_fraction,                                               &
   conv_cloud_lwp, conv_cloud_top, conv_cloud_base,                             &
-  conv_cloud_amount,                                                           &
+  conv_cloud_amount, aod_sulph_aitk, aod_sulph_accum,                          &
   surf_albedo,                                                                 &
   ozone,                                                                       &
   land_fraction,                                                               &
   current_time,                                                                &
-  photol_rates_fastjx)
+  photol_rates_fastjx, error_message, error_routine)
 
 USE fastjx_data,    ONLY: fastjx_set_limits,                                   &
                           fastjx_allocate_memory,                              &
-                          fastjx_deallocate_memory, cmessage,                  &
-                          nsl,                                                 &
+                          fastjx_deallocate_memory, nsl,                       &
                           Blocking_Mode,kpcx,                                  &
-                          aer_swband,                                          &
                           tau, daynumber,                                      &
                           sza, szafac, sza_2d, szafac_2d, u0,                  &
                           sa_block, fl_cyc,                                    &
@@ -80,13 +78,11 @@ USE photol_constants_mod,   ONLY: c_o3 => const_o3_mmr_vmr,                    &
                                   pi_over_180 => const_pi_over_180,            &
                                   avogadro => const_avogadro,                  &
                                   m_air => const_molemass_air
-
-USE level_heights_mod,       ONLY: r_theta_levels,   r_rho_levels
-USE spec_sw_lw,              ONLY: sw_spectrum
-
+USE ukca_error_mod,          ONLY: maxlen_message, maxlen_procname,            &
+                                   error_report, errcode_value_unknown
 USE umPrintMgr,              ONLY: umMessage, umPrint, PrintStatus,            &
-                                   PrStatus_Diag, umPrintFlush
-USE ereport_mod,             ONLY: ereport
+                                   PrStatus_Diag
+
 USE yomhook,                 ONLY: lhook, dr_hook
 USE parkind1,                ONLY: jprb, jpim
 USE fastjx_inphot_mod,       ONLY: fastjx_inphot
@@ -103,38 +99,38 @@ INTEGER, INTENT(IN) :: model_levels
 INTEGER, INTENT(IN) :: jppj ! number of photolytic reactions
 
 ! Pressure on rho levels
-REAL, INTENT(IN)    :: p_layer_boundaries(row_length,rows,                     &
-                                          model_levels+1)
-! Pressure on theta levels
-REAL, INTENT(IN)    :: p_theta_levels(row_length,rows,model_levels)
+REAL, INTENT(IN)    :: p_layer_boundaries(row_length,rows,model_levels+1)
 ! Temperature
 REAL, INTENT(IN)    :: t_theta_levels(row_length,rows,model_levels)
+! - height of theta levels
+REAL, INTENT(IN)  :: r_theta_levels(row_length,rows,0:model_levels)
+! - height of rho levels
+REAL, INTENT(IN)  :: r_rho_levels(row_length,rows,model_levels)
 ! longitude (degrees)
 REAL, INTENT(IN)    :: longitude(row_length,rows)
 ! SIN(latitude)
 REAL, INTENT(IN)    :: sin_latitude(row_length,rows)
 ! Sulphate aerosol (aitken mode)
-REAL, INTENT(IN)    :: so4_aitken(row_length,rows,model_levels)
+REAL, INTENT(IN) :: sulph_aitk(row_length,rows,model_levels)
 ! Sulphate aerosol (accumulation mode)
-REAL, INTENT(IN)    :: so4_accum(row_length,rows,model_levels)
+REAL, INTENT(IN) :: sulph_accu(row_length,rows,model_levels)
 ! Top of model
 REAL, INTENT(IN)    :: z_top_of_model
 ! liquid water cloud
 REAL, INTENT(IN)    :: qcl(row_length,rows,model_levels)
 ! ice water cloud
 REAL, INTENT(IN)    :: qcf(row_length,rows,model_levels)
-! Relative humidity fraction
-REAL, INTENT(IN)    :: rel_humid_frac(row_length,rows,model_levels)
 ! cloud area fraction
 REAL, INTENT(IN)    :: area_cloud_fraction(row_length,rows,model_levels)
 ! convective cloud amount
 REAL, INTENT(IN)    :: conv_cloud_amount(row_length,rows,model_levels)
 ! ozone mmr
 REAL, INTENT(IN)    :: ozone(row_length,rows,model_levels)
-! surface pressure
-REAL, INTENT(IN)    :: pstar(row_length,rows)
 ! Convective cloud LWP
 REAL, INTENT(IN)    :: conv_cloud_lwp(row_length,rows)
+! Aerosol Optical Depths - sulphate
+REAL, INTENT(IN) :: aod_sulph_aitk(row_length, rows, model_levels)
+REAL, INTENT(IN) :: aod_sulph_accum(row_length, rows, model_levels)
 ! Surface albedo
 REAL, INTENT(IN)    :: surf_albedo(row_length,rows)
 ! Land fraction
@@ -148,6 +144,12 @@ INTEGER, INTENT(IN) :: current_time(7)
 ! Output photolysis rates
 REAL, INTENT(IN OUT) :: photol_rates_fastjx(row_length,rows,model_levels,jppj)
 
+! error handling arguments
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
+CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
+                                                       ! Error return message
+CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
+                                         ! Routine in which error was trapped
 ! Local variables
 
 ! used for solar cycle to inform calulation method
@@ -167,6 +169,9 @@ INTEGER                       :: i_day_number
 INTEGER                       :: i_hour
 INTEGER                       :: i_minute
 INTEGER                       :: i_second
+
+CHARACTER(LEN=maxlen_message) :: err_message
+
 ! First time?
 LOGICAL                       :: first=.TRUE.
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -181,81 +186,72 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_FASTJX'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+error_code_ptr = 0
+err_message = ''
+IF (PRESENT(error_message)) error_message = ''
+IF (PRESENT(error_routine)) error_routine = ''
+
 IF (PrintStatus >= PrStatus_Diag) THEN
   WRITE(umMessage,'(A)') 'UKCA_FASTJX inputs:'
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '1: ',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'p_layer_boundaries: ',                        &
                    MINVAL(p_layer_boundaries), MAXVAL(p_layer_boundaries),     &
                    SUM(p_layer_boundaries) / SIZE(p_layer_boundaries)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '2: ',                                         &
-                   MINVAL(p_theta_levels), MAXVAL(p_theta_levels),             &
-                   SUM(p_theta_levels) / SIZE(p_theta_levels)
-  CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '3: ',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 't_theta_levels: ',                            &
                    MINVAL(t_theta_levels), MAXVAL(t_theta_levels),             &
                    SUM(t_theta_levels) / SIZE(t_theta_levels)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '4: ',                                         &
-                   MINVAL(so4_aitken), MAXVAL(so4_aitken),                     &
-                   SUM(so4_aitken) / SIZE(so4_aitken)
+  WRITE(umMessage,'(A,3E12.3)') 'SO4_aitken: ',                                &
+                   MINVAL(sulph_aitk), MAXVAL(sulph_aitk),                     &
+                   SUM(sulph_aitk) / SIZE(sulph_aitk)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '5: ',                                         &
-                   MINVAL(so4_accum), MAXVAL(so4_accum),                       &
-                   SUM(so4_accum) / SIZE(so4_accum)
+  WRITE(umMessage,'(A,3E12.3)') 'SO4_accum: ',                                 &
+                   MINVAL(sulph_accu), MAXVAL(sulph_accu),                     &
+                   SUM(sulph_accu) / SIZE(sulph_accu)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,E12.3)') '6: ', z_top_of_model
+  WRITE(umMessage,'(A,E12.3)') 'z_top_of_model: ', z_top_of_model
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '7: ',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'QCL: ',                                       &
                    MINVAL(qcl), MAXVAL(qcl),                                   &
                    SUM(qcl) / SIZE(qcl)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '8: ',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'QCF: ',                                       &
                    MINVAL(qcf), MAXVAL(qcf),                                   &
                    SUM(qcf) / SIZE(qcf)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '9:',                                          &
-                   MINVAL(rel_humid_frac), MAXVAL(rel_humid_frac),             &
-                   SUM(rel_humid_frac) / SIZE(rel_humid_frac)
-  CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '10:',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'Area_cloud_frac:',                            &
                    MINVAL(area_cloud_fraction), MAXVAL(area_cloud_fraction),   &
                    SUM(area_cloud_fraction) / SIZE(area_cloud_fraction)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '11:',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'Conv_cloud_amount:',                          &
                    MINVAL(conv_cloud_amount), MAXVAL(conv_cloud_amount),       &
                    SUM(conv_cloud_amount) / SIZE(conv_cloud_amount)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '12:',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'Ozone MMR:',                                  &
                    MINVAL(ozone), MAXVAL(ozone),                               &
                    SUM(ozone) / SIZE(ozone)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '13:',                                         &
-                   MINVAL(pstar), MAXVAL(pstar),                               &
-                   SUM(pstar) / SIZE(pstar)
-  CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '14:',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'Conv_cloud_LWP:',                             &
                    MINVAL(conv_cloud_lwp), MAXVAL(conv_cloud_lwp),             &
                    SUM(conv_cloud_lwp) / SIZE(conv_cloud_lwp)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '15:',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'Surf_albedo:',                                &
                    MINVAL(surf_albedo), MAXVAL(surf_albedo),                   &
                    SUM(surf_albedo) / SIZE(surf_albedo)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3E12.3)') '17:',                                         &
+  WRITE(umMessage,'(A,3E12.3)') 'Land_fraction:',                              &
                    MINVAL(land_fraction), MAXVAL(land_fraction),               &
                    SUM(land_fraction) / SIZE(land_fraction)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3I6)') '18:',                                            &
+  WRITE(umMessage,'(A,3I6)') 'Conv_cloud_top:',                                &
                    MINVAL(conv_cloud_top), MAXVAL(conv_cloud_top),             &
                    SUM(conv_cloud_top) / SIZE(conv_cloud_top)
   CALL umPrint(umMessage,src='ukca_fastjx')
-  WRITE(umMessage,'(A,3I6)') '19:',                                            &
+  WRITE(umMessage,'(A,3I6)') 'Conv_cloud_base:',                               &
                    MINVAL(conv_cloud_base), MAXVAL(conv_cloud_base),           &
                    SUM(conv_cloud_base) / SIZE(conv_cloud_base)
   CALL umPrint(umMessage,src='ukca_fastjx')
-
-  CALL umPrintFlush()
 END IF
 
 ! Initialise
@@ -275,7 +271,13 @@ i_second              = current_time(6)
 Blocking_Mode = 2
 
 ! Allocate arrays etc.
-CALL fastjx_set_limits(row_length,rows,model_levels)
+CALL fastjx_set_limits(error_code_ptr, row_length, rows, model_levels, jppj,   &
+        error_message=error_message, error_routine=error_routine)
+IF ( error_code_ptr > 0 ) THEN
+
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
 CALL fastjx_allocate_memory
 
 ! Read in data from files
@@ -420,14 +422,9 @@ CASE (2)
 
   CALL fastjx_photoj (photol_rates_fastjx)
 
-
   ! *********************************
-  ! Else exit with an error (need to implement blocking types 3 and 4)
-CASE DEFAULT
-
-  cmessage='Blocking Mode does not Exist'
-  CALL ereport('UKCA_FASTJX', Blocking_Mode,cmessage)
-
+  ! No DEFAULT Case needed since Blocking_Mode is set in this routine itself
+  ! and already checked in fastjx_set_limits
 END SELECT
 
   ! Tidy up at the end
@@ -443,21 +440,20 @@ SUBROUTINE fastjx_set_arrays
 
 IMPLICIT NONE
 
-  ! Loop variables
-INTEGER                               :: i,j,k,ia
+! Loop variables
+INTEGER :: i,j,k
 
-  ! Total mass in column
+! Total mass in column
 REAL :: total_mass(1:row_length,1:rows)
 
-  ! Mass column per layer
+! Mass column per layer
 REAL :: d_mass(1:row_length,1:rows,1:model_levels)
 
-  ! Relative humidity
-REAL :: rh(1:row_length,1:rows,1:model_levels)
+! Local copies of SO4 aitken and accum to enable unit conversion
+REAL :: sulph_aitk_local(1:row_length,1:rows,1:model_levels)
+REAL :: sulph_accu_local(1:row_length,1:rows,1:model_levels)
 
-  ! Sulphate in accumulation and aitken modes
-REAL :: sulph_accu(1:row_length,1:rows,1:model_levels)
-REAL :: sulph_aitk(1:row_length,1:rows,1:model_levels)
+! Sulphate total, in accumulation and aitken modes
 REAL :: sulphur(1:row_length,1:rows,1:model_levels)
 
   ! Cloud optical depths
@@ -466,12 +462,7 @@ REAL :: odw(1:row_length,1:rows,1:model_levels)
 REAL :: ods(1:row_length,1:rows,1:model_levels)
 
   ! Conversion factor from kg to molecules
-REAL                                               :: masfac
-
-  ! Temp variables used to calc aerosol od
-INTEGER                                            :: i_humidity
-REAL                                               :: delta_humidity
-REAL                                               :: f
+REAL :: masfac
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -493,7 +484,7 @@ rz_3d(:,:,model_levels+1) =                                                    &
     r_Theta_levels(1:row_length,1:rows,model_levels)*100.0
 
   ! calculate pressure at box edges
-pz_3d(:,:,1)              = pstar
+pz_3d(:,:,1)              = p_layer_boundaries(:,:,1)
 pz_3d(:,:,2:model_levels) = p_layer_boundaries(:,:,2:model_levels)
 pz_3d(:,:,model_levels+1) = 0.0
 
@@ -595,88 +586,25 @@ odi_3d(:,:,1:model_levels)      = odi
 odi_3d(:,:,(model_levels+1))    = odi_3d(:,:,(model_levels))
 
 ! **********************************************************
-! Calculate aerosol od columns @600nm
+! Apply aerosol od columns @600nm to the concentrations
 
-! Use input aerosol concentrations
-sulph_accu(:,:,:) = so4_accum(:,:,:)
-sulph_aitk(:,:,:) = so4_aitken(:,:,:)
+! Firsti, multiply by molecular weight ratio to convert from mass mixing ratio
+! of sulphur atoms to mass mixing ratio of ammonium sulphate. Then, use d_mass
+! to convert to mass of ammonium sulphate.
+sulph_accu_local = sulph_accu * d_mass * m_nh42so4/m_s
+sulph_aitk_local = sulph_aitk * d_mass * m_nh42so4/m_s
 
-!-----------------------------------------------------------
-! Calculate relative humidity
-
-rh = rel_humid_frac !             *1.0E2
-
-! Adopt ukca_fastj approach (see ukca_fast.F90)
-! Multiply by molecular weight ratio to convert from mass mixing ratio of
-! sulphur atoms to mass mixing ratio of ammonium sulphate.
-! Use d_mass to convert to mass of ammonium sulphate.
-sulph_accu = sulph_accu*d_mass*m_nh42so4/m_s
-sulph_aitk = sulph_aitk*d_mass*m_nh42so4/m_s
-
-! Loop over aerosol types
-DO ia=1,sw_spectrum(1)%aerosol%n_aerosol
-
-    ! Select sulfate in aitken and accumulation modes
-  IF (sw_spectrum(1)%aerosol%type_aerosol(ia)                                  &
-        == photol_config%ip_accum_sulphate .OR.                                &
-      sw_spectrum(1)%aerosol%type_aerosol(ia)                                  &
-        == photol_config%ip_aitken_sulphate) THEN
-
-    IF (sw_spectrum(1)%aerosol%i_aerosol_parm(ia) ==                           &
-           photol_config%ip_aerosol_param_moist) THEN ! moist aerosol
-
-        ! evaluate size of humidity bins
-      delta_humidity = sw_spectrum(1)%aerosol%humidities(2,ia)-                &
-                        sw_spectrum(1)%aerosol%humidities(1,ia)
-
-        ! Loop over grid cells calculating optical depths
-      DO k=1,model_levels
-        DO j = 1, rows
-          DO i = 1, row_length
-
-             ! Determine humidity bin of parameterisation
-            i_humidity = INT(rh(i,j,k)/delta_humidity)+1
-
-            ! fraction of bin
-            f = (rh(i,j,k)-                                                    &
-              sw_spectrum(1)%aerosol%humidities(i_humidity,ia))/               &
-              delta_humidity
-
-             ! Determine optical depths from parameterisation
-            ods(i,j,k) =                                                       &
-            (sw_spectrum(1)%aerosol%ABS(i_humidity,ia,                         &
-                                               aer_swband)+                    &
-             sw_spectrum(1)%aerosol%scat(i_humidity,ia,                        &
-                                               aer_swband))*f+                 &
-            (sw_spectrum(1)%aerosol%ABS(i_humidity+1,ia,                       &
-                                               aer_swband)+                    &
-             sw_spectrum(1)%aerosol%scat(i_humidity+1,ia,                      &
-                                               aer_swband))*(1-f)
-          END DO
-        END DO
-      END DO
-
-    ELSE ! dry aerosol
-      DO k=1,model_levels
-        DO j = 1, rows
-          DO i = 1, row_length
-            ods(i,j,k) =                                                       &
-              sw_spectrum(1)%aerosol%ABS(1,ia,aer_swband)+                     &
-              sw_spectrum(1)%aerosol%scat(1,ia,aer_swband)
-          END DO
-        END DO
-      END DO
-    END IF
-
-    IF (sw_spectrum(1)%aerosol%type_aerosol(ia)                                &
-      == photol_config%ip_accum_sulphate) sulph_accu = sulph_accu*ods
-    IF (sw_spectrum(1)%aerosol%type_aerosol(ia)                                &
-      == photol_config%ip_aitken_sulphate) sulph_aitk = sulph_aitk*ods
-  END IF   ! type_aerosol_sw
-END DO  ! ia
+DO k = 1, model_levels
+  DO j = 1, rows
+    DO i = 1, row_length
+      sulph_accu_local(i,j,k) = sulph_accu_local(i,j,k) * aod_sulph_accum(i,j,k)
+      sulph_aitk_local(i,j,k) = sulph_aitk_local(i,j,k) * aod_sulph_aitk(i,j,k)
+    END DO
+  END DO
+END DO
 
 ! Sum the aitkin and accumulation type optical depths
-sulphur = sulph_aitk + sulph_accu
+sulphur = sulph_aitk_local + sulph_accu_local
 
 ! Copy sulphate od to global array
 ods_3d(:,:,1:model_levels)  = sulphur(:,:,1:model_levels)

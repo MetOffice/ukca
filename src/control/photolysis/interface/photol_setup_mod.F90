@@ -16,7 +16,7 @@
 ! The Met. Office.  See www.ukca.ac.uk
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: UKCA/Photolysis
+! This file belongs in section: UKCA_Photolysis
 !
 ! Code Description:
 !   Language:  FORTRAN 2003
@@ -38,8 +38,8 @@ CONTAINS
 
 ! ----------------------------------------------------------------------
 
-SUBROUTINE photol_setup(error_code,                                            &
-                      i_photol_scheme,                                         &
+SUBROUTINE photol_setup(i_photol_scheme,                                       &
+                      error_code,                                              &
                       chem_timestep,                                           &
                       fastjx_mode,                                             &
                       fastjx_numwl,                                            &
@@ -51,16 +51,17 @@ SUBROUTINE photol_setup(error_code,                                            &
                       model_levels,                                            &
                       n_cca_lev,                                               &
                       solcylc_start_year,                                      &
+                      i_error_method,                                          &
                       l_cal360,                                                &
                       l_cloud_pc2,                                             &
                       l_3d_cca,                                                &
                       l_enable_diag_um,                                        &
                       l_environ_jo2,                                           &
                       l_environ_jo2b,                                          &
+                      l_environ_ztop,                                          &
                       l_strat_chem,                                            &
                       fastjx_prescutoff,                                       &
                       timestep,                                                &
-                      z_top_of_model,                                          &
                       pi,                                                      &
                       o3_mmr_vmr,                                              &
                       molemass_sulp,                                           &
@@ -107,8 +108,11 @@ USE photol_constants_mod,  ONLY: const_pi, const_pi_over_180,                  &
                               const_molemass_nh42so4, const_molemass_air,      &
                               const_planet_radius, const_s2r
 
-USE ukca_error_mod,          ONLY: maxlen_message, maxlen_procname,            &
-                                   errcode_value_unknown
+USE photol_environment_mod, ONLY: photol_init_environ_req
+
+USE ukca_error_mod,         ONLY: maxlen_message, maxlen_procname,             &
+                                  error_report, errcode_value_unknown,         &
+                                  errcode_value_invalid
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
 USE yomhook,                ONLY: lhook, dr_hook  ! DrHook
@@ -125,8 +129,8 @@ IMPLICIT NONE
 !  current photolysis workflow and not setting these can lead to unexpected
 !  behaviour.
 
-INTEGER, TARGET, INTENT(OUT) :: error_code
 INTEGER, INTENT(IN) :: i_photol_scheme
+INTEGER, TARGET, INTENT(OUT) :: error_code
 
 ! Optional arguments
 INTEGER, OPTIONAL, INTENT(IN) :: chem_timestep
@@ -144,6 +148,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: ip_aitken_sulphate
 INTEGER, OPTIONAL, INTENT(IN) :: model_levels
 INTEGER, OPTIONAL, INTENT(IN) :: n_cca_lev
 INTEGER, OPTIONAL, INTENT(IN) :: solcylc_start_year
+INTEGER, OPTIONAL, INTENT(IN) :: i_error_method
 
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cal360
 
@@ -153,11 +158,11 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_enable_diag_um
 
 LOGICAL, OPTIONAL, INTENT(IN) :: l_environ_jo2
 LOGICAL, OPTIONAL, INTENT(IN) :: l_environ_jo2b
+LOGICAL, OPTIONAL, INTENT(IN) :: l_environ_ztop
 LOGICAL, OPTIONAL, INTENT(IN) :: l_strat_chem
 
 REAL, OPTIONAL, INTENT(IN)    :: fastjx_prescutoff
 REAL, OPTIONAL, INTENT(IN)    :: timestep
-REAL, OPTIONAL, INTENT(IN)    :: z_top_of_model
 ! Configurable constants
 REAL, OPTIONAL, INTENT(IN)    :: pi
 REAL, OPTIONAL, INTENT(IN)    :: o3_mmr_vmr
@@ -170,7 +175,8 @@ CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
 CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 
 ! Local variables
-LOGICAL, SAVE :: first_call = .TRUE.             ! T If the first call to setup
+INTEGER, POINTER :: error_code_ptr
+CHARACTER(LEN=maxlen_message) :: err_message
 
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0  ! DrHook tracing entry
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1  ! DrHook tracing exit
@@ -183,33 +189,38 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='PHOTOL_SETUP'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 ! Set defaults for output arguments
-error_code = 0
+error_code_ptr => error_code
+error_code_ptr = 0
+err_message = ''
 IF (PRESENT(error_message)) error_message = ''
 IF (PRESENT(error_routine)) error_routine = ''
 
-! Set all configuration data to default values, if this is the first call
-! to setup. For subsequent calls only update the variables passed in
-IF ( first_call ) THEN
-  CALL init_photol_configuration()
-END IF
+! Set all configuration data to default values
+CALL init_photol_configuration()
 
-! Collate input data specifying the UKCA configuration
-! (loosely following 'photol_config_spec_type'
+! First, check if parent has specified a method for error handling, in case of
+! any errors further on.
+IF (PRESENT(i_error_method)) photol_config%i_error_method = i_error_method
 
-! Check that known photolysis scheme is specified.
+! Check that a known photolysis scheme is specified.
 IF ( i_photol_scheme /= i_scheme_nophot        .AND.                           &
      i_photol_scheme /= i_scheme_photol_strat  .AND.                           &
      i_photol_scheme /= i_scheme_phot2d        .AND.                           &
      i_photol_scheme /= i_scheme_fastjx ) THEN
-  error_code = errcode_value_unknown
-  WRITE(error_message, '(A,I0)') 'Unknown Photolysis scheme specified ',       &
+  error_code_ptr = errcode_value_unknown
+  WRITE(err_message, '(A,I0)') 'Unknown Photolysis scheme specified ',         &
     i_photol_scheme
-  error_routine = RoutineName
+  CALL error_report(photol_config%i_error_method, error_code_ptr, err_message, &
+         RoutineName, msg_out=error_message, locn_out=error_routine)
+
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 ELSE
   photol_config%i_photol_scheme = i_photol_scheme
 END IF
+
+! Collate input data specifying the UKCA configuration
+! (loosely following 'photol_config_spec_type'
 
 IF (PRESENT(chem_timestep))  photol_config%chem_timestep = chem_timestep
 IF (PRESENT(fastjx_mode))    photol_config%fastjx_mode  = fastjx_mode
@@ -218,13 +229,6 @@ IF (PRESENT(fastjx_numwl))   photol_config%fastjx_numwl = fastjx_numwl
 IF (PRESENT(global_row_length)) photol_config%global_row_length                &
                                                         = global_row_length
 IF (PRESENT(i_solcylc_type)) photol_config%i_solcylc_type = i_solcylc_type
-
-IF (PRESENT(ip_aerosol_param_moist)) photol_config%ip_aerosol_param_moist      &
-                                                    = ip_aerosol_param_moist
-IF (PRESENT(ip_accum_sulphate)) photol_config%ip_accum_sulphate                &
-                                                    = ip_accum_sulphate
-IF (PRESENT(ip_aitken_sulphate)) photol_config%ip_aitken_sulphate              &
-                                                    = ip_aitken_sulphate
 
 IF (PRESENT(model_levels)) photol_config%model_levels = model_levels
 IF (PRESENT(n_cca_lev))    photol_config%n_cca_lev    = n_cca_lev
@@ -238,6 +242,9 @@ IF (PRESENT(l_cloud_pc2))    photol_config%l_cloud_pc2 = l_cloud_pc2
 IF (PRESENT(l_3d_cca))       photol_config%l_3d_cca    = l_3d_cca
 IF (PRESENT(l_environ_jo2))  photol_config%l_environ_jo2  = l_environ_jo2
 IF (PRESENT(l_environ_jo2b)) photol_config%l_environ_jo2b = l_environ_jo2b
+
+IF (PRESENT(l_environ_ztop)) photol_config%l_environ_ztop = l_environ_ztop
+
 IF (PRESENT(l_enable_diag_um))  photol_config%l_enable_diag_um                 &
                                                       = l_enable_diag_um
 IF (PRESENT(l_strat_chem))   photol_config%l_strat_chem   = l_strat_chem
@@ -245,7 +252,6 @@ IF (PRESENT(l_strat_chem))   photol_config%l_strat_chem   = l_strat_chem
 IF (PRESENT(fastjx_prescutoff)) photol_config%fastjx_prescutoff                &
                                                       = fastjx_prescutoff
 IF (PRESENT(timestep))       photol_config%timestep   = timestep
-IF (PRESENT(z_top_of_model)) photol_config%z_top_of_model = z_top_of_model
 
 IF (PRESENT(pi)) THEN
   const_pi = pi
@@ -260,10 +266,12 @@ IF (PRESENT(molemass_nh42so4)) const_molemass_nh42so4 = molemass_nh42so4
 IF (PRESENT(molemass_air)) const_molemass_air = molemass_air
 IF (PRESENT(planet_radius)) const_planet_radius = planet_radius
 
-first_call = .FALSE.
-
 ! Set flag to show that a valid photolysis configuration is set up
 l_photol_config_available = .TRUE.
+
+! Routine to set up list of driving fields required based on user choices
+CALL photol_init_environ_req(error_code_ptr, error_message=error_message,      &
+                             error_routine=error_routine)
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
 RETURN

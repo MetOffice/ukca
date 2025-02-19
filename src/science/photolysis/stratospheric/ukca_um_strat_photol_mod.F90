@@ -26,8 +26,6 @@
 
 MODULE ukca_um_strat_photol_mod
 
-
-
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 
@@ -35,7 +33,11 @@ USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus,                         &
                       PrStatus_Normal, PrStatus_Oper
 IMPLICIT NONE
 
+PRIVATE
+
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_UM_STRAT_PHOTOL_MOD'
+
+PUBLIC strat_photol
 
 CONTAINS
 
@@ -48,10 +50,9 @@ CONTAINS
 ! one level at a time. The stratospheric photolysis routines are taken
 ! from SLIMCAT.
 
-
 SUBROUTINE strat_photol(                                                       &
   row_length, rows,                                                            &
-  jppj, spj,                                                                   &
+  spj,                                                                         &
   pressure,                                                                    &
   temp,                                                                        &
   ozonecol,                                                                    &
@@ -77,8 +78,6 @@ USE ukca_um_dissoc_mod,   ONLY: aj2a, aj2b, aj3, aj3a, ajbrcl, ajbrno3, ajbro, &
                                 ajn2o5, ajno, ajno2, ajno31, ajno32, ajoclo,   &
                                 ajpna, ajso3
 
-USE um_parcore, ONLY: mype
-
 IMPLICIT NONE
 
 
@@ -89,7 +88,6 @@ INTEGER, INTENT(IN) :: row_length
 INTEGER, INTENT(IN) :: rows
 
 ! Photolysis reaction data
-INTEGER, INTENT(IN) :: jppj
 CHARACTER(LEN=10), POINTER, INTENT(IN) :: spj(:,:)
 
 REAL, INTENT(IN) :: pressure(row_length, rows)
@@ -97,7 +95,7 @@ REAL, INTENT(IN) :: temp(row_length, rows)
 REAL, INTENT(IN) :: ozonecol(row_length, rows)
 REAL, INTENT(IN) :: cos_zenith_angle(row_length, rows)
 INTEGER, INTENT(IN)  :: current_time(7)
-REAL, INTENT(IN OUT) :: photrates(row_length, rows, jppj)
+REAL, INTENT(IN OUT) :: photrates(:,:,:)
 
 ! local variables
 INTEGER :: theta_field_size
@@ -105,6 +103,7 @@ INTEGER :: i
 INTEGER :: j
 INTEGER :: l
 INTEGER :: k
+INTEGER :: jppj
 
 REAL :: frac
 LOGICAL, SAVE :: firstcall = .TRUE.
@@ -174,6 +173,8 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='STRAT_PHOTOL'
 
 ! upon first entry initialize positions of photolysis reactions
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+jppj = SIZE(spj, DIM=1)
 
 ! Set local time variable
 i_month = current_time(2)
@@ -433,7 +434,7 @@ IF (tables_filled .AND. (current_month /= i_month)) THEN
 END IF
 
 IF (.NOT. tables_filled) THEN
-  CALL inijtab(current_time,                                                   &
+  CALL inijtab( current_time,                                                  &
     ((photol_config%i_photol_scheme == i_scheme_fastjx) .AND.                  &
      (photol_config%fastjx_mode /= fjx_mode_2Donly) ) )
   tables_filled = .TRUE.

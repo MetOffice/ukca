@@ -217,19 +217,22 @@ DO i = 1, SIZE(available_diag_varnames)
         ! Calculate ozone column from actual post-chemistry
         ! ozone, for diagnostic purposes. As ozone is tracer,
         ! this makes the ozone column available on all timesteps
-        CALL calc_ozonecol(row_length, rows, model_levels, z_top_of_model,     &
-                           p_layer_boundaries, p_theta_levels,                 &
-                           all_tracers(:,:,:,n_o3) / c_o3,                     &
-                           o3col_du(:,:,:))
+        CALL calc_ozonecol(error_code_ptr, row_length, rows, model_levels,     &
+                           z_top_of_model, p_layer_boundaries, p_theta_levels, &
+                           all_tracers(:,:,:,n_o3) / c_o3, o3col_du(:,:,:),    &
+                           error_message=error_message,                        &
+                           error_routine=error_routine)
 
-        ! Convert to Dobson Units from molecules/cm2
-        o3col_du(:,:,:) = o3col_du(:,:,:)/(dobson * 1.0e-4)
+        IF ( error_code_ptr <= 0 ) THEN
+          ! Convert to Dobson Units from molecules/cm2
+          o3col_du(:,:,:) = o3col_du(:,:,:)/(dobson * 1.0e-4)
 
-        CALL update_diagnostics_3d_real(error_code_ptr, diagname,              &
+          CALL update_diagnostics_3d_real(error_code_ptr, diagname,            &
                                         o3col_du, diagnostics,                 &
                                         i_diag_req=i_diag_req,                 &
                                         error_message=error_message,           &
                                         error_routine=error_routine)
+        END IF
 
       END IF
 

@@ -581,14 +581,6 @@ INTEGER, PARAMETER :: i_sussbcocduntnh_8mode_8cpt = 12
 INTEGER, PARAMETER :: i_age_reset_by_level = 1   ! Based on model level number
 INTEGER, PARAMETER :: i_age_reset_by_height = 2  ! Based on height above ground
 
-! Option codes for 'i_error_method'
-INTEGER, PARAMETER :: i_error_method_abort = 1   ! Write error message and abort
-INTEGER, PARAMETER :: i_error_method_return = 2  ! Return control to parent
-INTEGER, PARAMETER :: i_error_method_warn_and_return = 3
-                                                 ! Return control to parent
-                                                 ! after printing error messagea
-                                                 ! as a warning
-
 ! Option codes for 'i_strat_lbc_source'
 INTEGER, PARAMETER :: i_strat_lbc_off = 0   ! LBCs off
 INTEGER, PARAMETER :: i_strat_lbc_wmoa1 = 1 ! Use internal WMO A1 values
@@ -667,10 +659,10 @@ ABSTRACT INTERFACE
                                          we_lim_dsc, t_frac_dsc, zrzi_dsc,     &
                                          z_uv, rhokh_rdz, dtrdz, field)
   IMPLICIT NONE
-  INTEGER :: row_length
-  INTEGER :: rows
-  INTEGER :: bl_levels
-  INTEGER :: nlev_ent_tr_mix
+  INTEGER, INTENT(IN) :: row_length
+  INTEGER, INTENT(IN) :: rows
+  INTEGER, INTENT(IN) :: bl_levels
+  INTEGER, INTENT(IN) :: nlev_ent_tr_mix
   REAL, INTENT(IN) :: r_theta_levels(1:row_length,1:rows,0:bl_levels)
   ! Height of theta levels from Earth centre
   REAL, INTENT(IN) :: r_rho_levels(1:row_length,1:rows,bl_levels)
@@ -717,10 +709,13 @@ ABSTRACT INTERFACE
 
   ! Subroutine to calculate ozone column. This does not have a UKCA default
   ! so a parent routine must be provided.
-  SUBROUTINE template_proc_calc_ozonecol(row_length, rows, model_levels,       &
-    z_top_of_model, p_layer_boundaries, p_layer_centres, ozone_vmr, ozonecol)
+  SUBROUTINE template_proc_calc_ozonecol(error_code_ptr, row_length, rows,     &
+    model_levels, z_top_of_model, p_layer_boundaries, p_layer_centres,         &
+    ozone_vmr, ozonecol, error_message, error_routine)
+  USE ukca_error_mod,   ONLY: maxlen_message, maxlen_procname
   IMPLICIT NONE
   ! Model dimensions
+  INTEGER, POINTER, INTENT(IN) :: error_code_ptr
   INTEGER, INTENT(IN) :: row_length
   INTEGER, INTENT(IN) :: rows
   INTEGER, INTENT(IN) :: model_levels
@@ -732,6 +727,11 @@ ABSTRACT INTERFACE
   REAL, INTENT(IN) :: ozone_vmr(row_length, rows, model_levels)
 
   REAL, INTENT(OUT) :: ozonecol(row_length, rows, model_levels)
+  ! error handling arguments
+  CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
+                                                      ! Error return message
+  CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
+                                        ! Routine in which error was trapped
   END SUBROUTINE template_proc_calc_ozonecol
 
   ! Subroutine to do parent-specific copy of 2D output for a named diagnostic

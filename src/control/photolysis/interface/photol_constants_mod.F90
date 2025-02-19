@@ -18,7 +18,7 @@
 ! The Met. Office.  See www.ukca.ac.uk
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: UKCA/Photolysis
+! This file belongs in section: UKCA_Photolysis
 !
 ! Code Description:
 !   Language:  FORTRAN 2003

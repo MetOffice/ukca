@@ -66,7 +66,7 @@ CONTAINS
 SUBROUTINE fastjx_photoj(zpj)
 
 USE fastjx_data, ONLY: amf2, atau, atau0, dm_3d, dm_block,                     &
-                       fl, fl_cyc, flint, jfacta, jind, jpcl, jtaumx,          &
+                       fl, fl_cyc, flint, jfacta, jind, jpcl, jppj, jtaumx,    &
                        kpcx, lpar, miedx, mx, n_, njval, nsl,                  &
                        o3_3d, o3_block, od_block, od600,                       &
                        odi_3d, odi_block, ods_3d, ods_block,                   &
@@ -75,7 +75,7 @@ USE fastjx_data, ONLY: amf2, atau, atau0, dm_3d, dm_block,                     &
                        rz_all, rz_block, sa_block, saa,                        &
                        sw_band_aer, sw_phases, szafac,                         &
                        tqq, tz_3d, tz_block, u0, w_, wl
-USE asad_mod, ONLY: jppj
+
 USE yomhook,  ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 USE fastjx_extral_mod, ONLY: fastjx_extral

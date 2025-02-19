@@ -25,7 +25,7 @@
 ! The Met. Office.  See www.ukca.ac.uk
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: UKCA/Photolysis
+! This file belongs in section: UKCA_Photolysis
 !
 ! Code Description:
 !   Language:  FORTRAN 2003
@@ -51,7 +51,7 @@ PUBLIC
 ! be retained in the structure as duplicates of the new input variables
 ! (to support retention of old keyword argument names for backward
 ! compatibility and/or to avoid the need to change variable names throughout
-! the UKCA/ photolysis code), but should be re-categorised as internal variables.
+! the photolysis code), but should be re-categorised as internal variables.
 
 TYPE :: photol_config_spec_type
 
@@ -84,13 +84,6 @@ TYPE :: photol_config_spec_type
                                      !     and number of months in input file
                                      ! 2 = use an average cycle for all times
 
-  !!!! These indices for location of sulphate properties/ parameters in the  !!
-  !!!! sw_spectrum data structure from Radiation scheme are only temporarily !!
-  !!!!  added here till the API development is complete.                    !!!
-  INTEGER :: ip_aerosol_param_moist
-  INTEGER :: ip_accum_sulphate
-  INTEGER :: ip_aitken_sulphate
-
   INTEGER :: model_levels            ! Z dimension of domain (levels)
 
   INTEGER :: n_cca_lev               ! Number of Conv Cloud Amount levels
@@ -98,6 +91,10 @@ TYPE :: photol_config_spec_type
 
   INTEGER :: solcylc_start_year      ! 1st year for the solar cycle obs data
 
+  INTEGER :: i_error_method          ! Governs process to follow on error, i.e.
+                                     ! - Write error message and abort, or
+                                     ! - Return to parent
+                                     ! - Write error as warning and return
   ! ----- -- Logical items ------------------------------
   LOGICAL :: l_cal360                ! True if using a 360-day calendar
 
@@ -108,10 +105,12 @@ TYPE :: photol_config_spec_type
                                      ! loop over n_cca_lev, else use only
                                      ! first level from cca array.
 
-    ! Use of external photolysis rates (e.g. from radiation scheme)
+  ! Use of external photolysis rates (e.g. from radiation scheme)
   LOGICAL :: l_environ_jo2           ! True if using ext O2 -> O(3P) rate
   LOGICAL :: l_environ_jo2b          ! True if using ext O2 -> O(1D) rate
 
+  LOGICAL :: l_environ_ztop          ! True if z_top_of_model is being
+                                     ! supplied by parent model
   LOGICAL :: l_enable_diag_um        ! True to enable diagnostic output via
                                      ! the Unified Model STASH system
   LOGICAL :: l_strat_chem            ! True if UKCA is using a scheme that
@@ -126,27 +125,13 @@ TYPE :: photol_config_spec_type
   REAL    :: timestep                ! Model (dynamical) timestep in seconds
                                      ! (an integer no of timesteps is
                                      !  expected in 1 hour)
-  REAL    :: z_top_of_model          ! Height at model top (metres)
-                                     ! (from surface - does not include r)
 
 END TYPE photol_config_spec_type
 
 TYPE(photol_config_spec_type),   SAVE :: photol_config
 
-LOGICAL, SAVE :: l_photol_config_available = .FALSE.
-                                     ! Flag to determine if photolysis
-                                     ! configuration has been set.
-
-! ---------------------------------------------------------------------------
-! -- Derived configuration variables --
-! ---------------------------------------------------------------------------
-
-! These variables are derived from other (or combination of multiple)
-!  configuration values, for simplication inside the photolysis routines
-!  or to pass back to the parent
-! ---------------------------------------------------------------------------
-
-! -- None yet ----
+LOGICAL :: l_photol_config_available   ! Flag to determine if photolysis
+                                       ! configuration has been set.
 
 ! ---------------------------------------------------------------------------
 ! -- Option values for configuration variables --
@@ -190,6 +175,8 @@ USE photol_constants_mod,  ONLY: const_pi, const_pi_over_180,                  &
                               const_planet_radius, const_g, const_r,           &
                               const_avogadro, const_tm, const_s2r
 
+USE ukca_error_mod,        ONLY: i_error_method_abort
+
 IMPLICIT NONE
 
 l_photol_config_available = .FALSE.
@@ -205,14 +192,12 @@ photol_config%global_row_length = imdi
 photol_config%i_photol_scheme  = imdi
 photol_config%i_solcylc_type = imdi
 
-photol_config%ip_aerosol_param_moist = imdi
-photol_config%ip_accum_sulphate = imdi
-photol_config%ip_aitken_sulphate = imdi
-
 photol_config%model_levels = imdi
 photol_config%n_cca_lev = imdi
 
 photol_config%solcylc_start_year = imdi
+
+photol_config%i_error_method = i_error_method_abort
 
 ! -- Set Logicals ---
 photol_config%l_cal360 = .FALSE.
@@ -225,6 +210,7 @@ photol_config%l_enable_diag_um = .FALSE.
 photol_config%l_environ_jo2 = .FALSE.
 photol_config%l_environ_jo2b = .FALSE.
 
+photol_config%l_environ_ztop = .FALSE.
 photol_config%l_strat_chem = .FALSE.
 
 ! -- Set Real Items ---
@@ -232,17 +218,13 @@ photol_config%fastjx_prescutoff = rmdi
 
 photol_config%timestep = rmdi
 
-photol_config%z_top_of_model = rmdi
+! -- Constants used by Photolysis --
+! Set to UM values by default.
 
-
-! -- Configurable constants --
-!  Set to UM values by default, but can be overridden
-
+! Configurable by parent
 const_pi = 3.14159265358979323846
 const_pi_over_180      = const_pi / 180.0
 const_recip_pi_over_180 = 180.0 / const_pi
-
-const_rhour_per_day    = 24.0
 
 const_o3_mmr_vmr       = 1.657
 const_molemass_sulp    = 32.07
@@ -250,15 +232,17 @@ const_molemass_nh42so4 = 132.16
 const_molemass_air     = 0.02897
 
 const_planet_radius    = 6371229.0
-const_g                = 9.80665
-const_r                = 287.05
-const_avogadro         = 6.022e23
-const_tm               = 273.15
-
 ! Seconds-to-radians calculated as :
 ! earth_dha (Increment to Earth's hour angle per day number from epoch) /
 !  rsec_per_day
 const_s2r             = (2.0*const_pi)/ 86400.0
+
+! Not currently configurable
+const_rhour_per_day    = 24.0
+const_g                = 9.80665
+const_r                = 287.05
+const_avogadro         = 6.022e23
+const_tm               = 273.15
 
 RETURN
 END SUBROUTINE init_photol_configuration

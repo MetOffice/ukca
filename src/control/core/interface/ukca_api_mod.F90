@@ -44,9 +44,6 @@ USE ukca_step_control_mod, ONLY: ukca_step_control
 USE ukca_step_mod, ONLY: ukca_step
 USE ukca_config_specification_mod, ONLY:                                       &
   ukca_get_config,                                                             &
-  ukca_error_method_abort => i_error_method_abort,                             &
-  ukca_error_method_return => i_error_method_return,                           &
-  ukca_error_method_warn_and_return => i_error_method_warn_and_return,         &
   ukca_chem_off => i_ukca_chem_off,                                            &
   ukca_chem_trop => i_ukca_chem_trop,                                          &
   ukca_chem_raq => i_ukca_chem_raq,                                            &
@@ -150,8 +147,11 @@ USE ukca_error_mod, ONLY:                                                      &
   ukca_errcode_value_unknown => errcode_value_unknown,                         &
   ukca_errcode_value_invalid => errcode_value_invalid,                         &
   ukca_errcode_value_missing => errcode_value_missing,                         &
-  ukca_errcode_unexpected_api_call => errcode_unexpected_api_call
-USE ukca_ddepaer_coeff_mod, ONLY:                                                 ukca_zhg_eg_nedleaf => zhg_eg_nedleaf, &
+  ukca_errcode_unexpected_api_call => errcode_unexpected_api_call,             &
+  ukca_error_method_abort => i_error_method_abort,                             &
+  ukca_error_method_return => i_error_method_return,                           &
+  ukca_error_method_warn_and_return => i_error_method_warn_and_return
+USE ukca_ddepaer_coeff_mod, ONLY: ukca_zhg_eg_nedleaf => zhg_eg_nedleaf,       &
   ukca_zhg_eg_brdleaf => zhg_eg_brdleaf,                                       &
   ukca_zhg_dec_nedleaf => zhg_dec_nedleaf,                                     &
   ukca_zhg_dec_brdleaf => zhg_dec_brdleaf,                                     &

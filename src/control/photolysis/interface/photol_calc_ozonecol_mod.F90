@@ -17,7 +17,7 @@
 !  www.ukca.ac.uk
 
 ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: UKCA
+! This file belongs in section: UKCA_Photolysis
 
 !  Code Description:
 !    Language:  FORTRAN 90
@@ -29,8 +29,6 @@ MODULE photol_calc_ozonecol_mod
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
 
-USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus,                         &
-                      PrStatus_Normal, PrStatus_Oper
 IMPLICIT NONE
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='PHOTOL_CALC_OZONECOL_MOD'
@@ -45,20 +43,20 @@ CONTAINS
 ! This routine calculates overhead ozone columns in molecules/cm^2 needed
 ! for photolysis calculations.
 
-SUBROUTINE photol_calc_ozonecol(row_length, rows, model_levels,                &
-  z_top_of_model, p_layer_boundaries,                                          &
-  p_layer_centres, ozone_vmr, ozonecol)
+SUBROUTINE photol_calc_ozonecol(error_code_ptr, row_length, rows, model_levels,&
+  z_top_of_model, p_layer_boundaries, p_layer_centres, ozone_vmr, ozonecol,    &
+  error_message, error_routine)
 
-
-USE ereport_mod,          ONLY: ereport
-
-USE errormessagelength_mod, ONLY: errormessagelength
+USE photol_config_specification_mod, ONLY: photol_config
+USE ukca_error_mod,                  ONLY: maxlen_message, maxlen_procname,    &
+                                           error_report, errcode_value_invalid
 
 IMPLICIT NONE
 
 ! Subroutine interface
 
 ! Model dimensions
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
 INTEGER, INTENT(IN) :: row_length
 INTEGER, INTENT(IN) :: rows
 INTEGER, INTENT(IN) :: model_levels
@@ -71,6 +69,12 @@ REAL, INTENT(IN) :: ozone_vmr(row_length, rows, model_levels)
 
 REAL, INTENT(OUT) :: ozonecol(row_length, rows, model_levels)
 ! Ozone column above level in molecules/cm^2
+
+! error handling arguments
+CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
+                                                       ! Error return message
+CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
+                                         ! Routine in which error was trapped
 
 ! local variables
 
@@ -86,8 +90,7 @@ REAL, PARAMETER :: ozcol_85km = 6.7e13
 REAL, PARAMETER :: colfac = 2.117e20      ! Na/(g*M_air*1e4)
 
 INTEGER :: l
-INTEGER           :: errcode      ! Error code
-CHARACTER(LEN=errormessagelength) :: cmessage     !   "   message
+CHARACTER(LEN=maxlen_message) :: cmessage   !  Error message
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -97,6 +100,11 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='PHOTOL_CALC_OZONECOL'
 
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+error_code_ptr = 0
+IF (PRESENT(error_message)) error_message = ''
+IF (PRESENT(error_routine)) error_routine = ''
+
 ozonecol = 0.0
 DO l=model_levels-1,1,-1
 
@@ -116,7 +124,6 @@ DO l=1,model_levels-1
     p_layer_boundaries(:,:,model_levels)) * colfac
 END DO
 
-
 ! Add contribution above model top.
 ! If z_top_of_model lies in the given ranges, an approximate contribution
 ! of ozone column for above the model top (selected at 39, 41 or 85 km)
@@ -129,12 +136,12 @@ ELSE IF (z_top_of_model > 40500.0 .AND. z_top_of_model < 42000.0) THEN
 ELSE IF (z_top_of_model > 77000.0 .AND. z_top_of_model < 85500.0) THEN
   ozonecol = ozonecol + ozcol_85km
 ELSE
-  cmessage = ' Ozone column undefined for model top'
-  errcode = 1
-  CALL umPrint( cmessage,src='photol_calc_ozonecol_mod')
-  WRITE(umMessage,'(A,E12.5)') 'z_top_of_model: ',z_top_of_model
-  CALL umPrint(umMessage,src='photol_calc_ozonecol_mod')
-  CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  WRITE(cmessage, '(A,I0)')                                                    &
+    'Ozone column undefined for specified z_top_of_model: ', z_top_of_model
+  error_code_ptr = errcode_value_invalid
+  CALL error_report(photol_config%i_error_method, error_code_ptr, cmessage,    &
+          RoutineName, msg_out=error_message, locn_out=error_routine)
+
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
