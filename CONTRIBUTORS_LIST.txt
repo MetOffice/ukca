@@ -20,6 +20,7 @@ Alan J Hewitt                   Met Office
 Jenny Hickson                   Met Office
 Ben Johnson                     Met Office
 Anthony Jones                   Met Office
+Andy Malcolm                    Met Office
 Jane Mulcahy                    Met Office
 Charlotte Norris                Met Office
 Leighton Regayre                Met Office and University of Leeds
