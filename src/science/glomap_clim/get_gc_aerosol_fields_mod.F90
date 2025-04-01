@@ -188,14 +188,14 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(i, j, k)                                  &
 !$OMP SHARED(n_points, glomap_variables_climatology,  nmr1d, mmr1d)
 
-!$OMP DO SCHEDULE(STATIC) 
+!$OMP DO SCHEDULE(STATIC)
 DO j = 1, nmodes
   DO i = 1, n_points
     nmr1d(i,j) = 0.0
   END DO
 END DO
 !$OMP END DO NOWAIT
-!$OMP DO SCHEDULE(STATIC) 
+!$OMP DO SCHEDULE(STATIC)
 DO k = 1, glomap_variables_climatology%ncp
   DO j = 1, nmodes
     DO i = 1, n_points
@@ -205,7 +205,7 @@ DO k = 1, glomap_variables_climatology%ncp
 END DO
 !$OMP END DO
 
-!$OMP END PARALLEL 
+!$OMP END PARALLEL
 
 SELECT CASE(i_glomap_clim_setup)
 CASE (i_sussbcoc_5mode)
