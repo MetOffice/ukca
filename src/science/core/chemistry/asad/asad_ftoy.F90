@@ -197,6 +197,8 @@ INTEGER, SAVE :: ift
 !        INTEGER       :: ilft(jpspec)         ! Now in ASAD_MOD
 
 CHARACTER (LEN=errormessagelength) :: cmessage     ! Error message
+INTEGER :: errcode          ! Variable passed to ereport
+INTEGER :: errcodes(nstst)  ! Array for recording error codes
 
 REAL          :: zthresh
 REAL          :: sl
@@ -225,6 +227,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                          &
 ! OMP CRITICAL will only allow one thread through this code at a time,
 ! while the other threads are held until completion.
 !$OMP CRITICAL (asad_ftoy_init)
+errcodes(:) = 0
 IF ( first_pass ) THEN
   IF ( gonce ) THEN
     gonce  = .FALSE.
@@ -253,12 +256,7 @@ IF ( first_pass ) THEN
         istmin          = istmin + 1
         ilstmin(istmin) = js
       ELSE
-        CALL umPrint( '**** ASAD ERROR in ASAD_FTOY!! ',src='asad_ftoy')
-        CALL umPrint( 'ASAD_FTOY found an unexpected species type',            &
-            src='asad_ftoy')
-        CALL umPrint( 'in the species list nlstst ',src='asad_ftoy')
-        cmessage='Found unexpected species type'
-        CALL ereport('ASAD_FTOY',js,cmessage)
+        errcodes(j) = js
       END IF
     END DO
 
@@ -266,6 +264,15 @@ IF ( first_pass ) THEN
   first_pass = .FALSE.
 END IF     ! End of IF (first_pass) statement
 !$OMP END CRITICAL (asad_ftoy_init)
+
+! Perform error check outside of the loop to better suit GPU runs
+IF (ANY(errcodes(:) /= 0)) THEN
+  errcode = MINVAL(errcodes,mask=(errcodes(:) /= 0))
+  CALL umPrint( '**** ASAD ERROR in ASAD_FTOY!! ',src='asad_ftoy')
+  CALL umPrint( 'ASAD_FTOY found an unexpected species type',src='asad_ftoy')
+  CALL umPrint( 'in the species list nlstst ',src='asad_ftoy')
+  CALL ereport('ASAD_FTOY',errcode,'Found unexpected species type')
+END IF
 
 !       1.1 Set concentrations/initialise species
 

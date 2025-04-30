@@ -103,6 +103,7 @@ INTEGER :: js                     ! Loop variable
 INTEGER :: jx                     ! Loop variable
 INTEGER :: jpnpx3                 ! Loop variable
 INTEGER :: errcode                ! Variable passed to ereport
+INTEGER :: errcodes(jpspec,2)     ! Array for recording error codes
 INTEGER, PARAMETER :: nit0_max    = 50   ! max
 INTEGER, PARAMETER :: nitfg_max   = 50   ! max
 INTEGER, PARAMETER :: nitnr_max   = 50   ! max
@@ -299,18 +300,28 @@ npdfr  = 0
 CALL asad_inrats
 
 ! Check that deposition and emission is not on for constant species
+errcodes(:,:) = 0
 DO js = 1, jpspec
   IF ( ldepd(js) .AND. ctype(js)(1:1)  ==  'C' ) THEN
-    cmessage='Dry deposition turned on for constant species'
-    errcode = js
-    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+    errcodes(js,1) = js
   END IF
   IF ( ldepw(js) .AND. ctype(js)(1:1)  ==  'C' ) THEN
-    cmessage='Wet deposition turned on for constant species'
-    errcode = js
-    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+    errcodes(js,2) = js
   END IF
 END DO
+
+! Perform error check outside of the loop to better suit GPU runs
+IF (ANY(errcodes(:,:) /= 0)) THEN
+  IF (ANY(errcodes(:,1) /= 0)) THEN
+    cmessage='Dry deposition turned on for constant species'
+    errcode = MINVAL(errcodes(:,1),mask=(errcodes(:,1) /= 0))
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  ELSE
+    cmessage='Wet deposition turned on for constant species'
+    errcode = MINVAL(errcodes(:,2),mask=(errcodes(:,2) /= 0))
+    CALL ereport(ModuleName//':'//RoutineName,errcode,cmessage)
+  END IF
+END IF
 
 
 IF ( method == int_method_nr) THEN  ! For Newton-Raphson solver only

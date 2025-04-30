@@ -94,6 +94,7 @@ IMPLICIT NONE
 !       Local variables
 
 INTEGER :: errcode               ! Variable passed to ereport
+INTEGER :: errcodes(jpspec,3)    ! Array for recording error codes
 
 INTEGER :: inadv                 ! Counter for non-advected species
 INTEGER :: iro2                  ! Counter for tracer-steady type RO2 species
@@ -171,6 +172,7 @@ nro2 = 0
 ! Add counter for total number of chemically active species
 ispf = 0
 
+errcodes(:,:) = 0
 DO js = 1, jpspec
   IF ( ctype(js) /= jpfm .AND. ctype(js) /= jpif )                             &
     family(js)='          '
@@ -179,18 +181,10 @@ DO js = 1, jpspec
     ntrf = ntrf + 1
     ispf = ispf + 1
     IF ( iadv > jpctr ) THEN
-      WRITE(umMessage,'(A)') '** ASAD ERROR in subroutine ' // RoutineName
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I3)') '** Parameter jpctr is too low; found',iadv
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I3)') '** tracers so far with ',jpspec-js
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A)') '** species to check.'
-      CALL umPrint(umMessage,src=RoutineName)
-      cmessage = 'ASAD ERROR: jpctr is too low'
-      CALL ereport(RoutineName,iadv,cmessage)
+      errcodes(js,1) = iadv
+    ELSE
+      advt(iadv)  = speci(js)
     END IF
-    advt(iadv)  = speci(js)
 
     ! Tracers added to lists of all species treated in f array,
     ! which includes non-transported RO2 species if option is set
@@ -199,46 +193,43 @@ DO js = 1, jpspec
 
     ! Second block to separate tracer-steady type RO2 species from other tracers
   ELSE IF (ctype(js) == jpoo) THEN
-    ! First add to RO2 counters and arrays
     iro2 = iro2 + 1
     nro2 = nro2 + 1
-    spro2(iro2) = speci(js)
-    IF ( iro2 > jpro2 ) THEN
-      WRITE(umMessage,'(A)') '** ASAD ERROR in subroutine ' // RoutineName
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I3)') '** Parameter jpro2 is too low; found',iro2
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A,I3)') '** tracers so far with ',jpspec-js
-      CALL umPrint(umMessage,src=RoutineName)
-      WRITE(umMessage,'(A)') '** species to check.'
-      CALL umPrint(umMessage,src=RoutineName)
-      cmessage = 'ASAD ERROR: jpro2 is too low'
-      CALL ereport(RoutineName,iadv,cmessage)
-    END IF
+    ntrf = ntrf + 1
+    ispf = ispf + 1
 
     ! Add RO2 species to the list of species treated by ASAD (ntrf)
-    ntrf        = ntrf + 1
-    ispf        = ispf + 1
     nltrf(ntrf) = ispf ! ispf is always == ntrf
     specf(ntrf) = speci(js)
 
-    ! Create mapping indices to position in f-array
-    nlfro2(iro2) = ispf
-
-    ! See whether or not RO2 species are transported
-    IF (ukca_config%l_ukca_ro2_ntp) THEN
-
-      ! Add RO2 species to non-transported counters
-      inadv        = inadv + 1
-      nnaf         = nnaf + 1
-      nadvt(inadv) = speci(js)
-      ! Create mapping indices to position in non-advected species list
-      nlnaro2(iro2) = inadv
+    ! First add to RO2 counters and arrays
+    IF ( iro2 > jpro2 ) THEN
+      errcodes(js,2) = iro2
     ELSE
+      spro2(iro2) = speci(js)
 
-      ! Otherwise add RO2 species to list of transported tracers
-      iadv = iadv + 1
-      advt(iadv)  = speci(js)
+      ! Create mapping indices to position in f-array
+      nlfro2(iro2) = ispf
+
+      ! See whether or not RO2 species are transported
+      IF (ukca_config%l_ukca_ro2_ntp) THEN
+
+        ! Add RO2 species to non-transported counters
+        inadv        = inadv + 1
+        nnaf         = nnaf + 1
+        nadvt(inadv) = speci(js)
+        ! Create mapping indices to position in non-advected species list
+        nlnaro2(iro2) = inadv
+      ELSE
+
+        ! Otherwise add RO2 species to list of transported tracers
+        iadv = iadv + 1
+        IF ( iadv > jpctr ) THEN
+          errcodes(js,1) = iadv
+        ELSE
+          advt(iadv)  = speci(js)
+        END IF
+      END IF
     END IF
 
   ELSE IF ( ctype(js) == jpna ) THEN       ! Steady-state species
@@ -247,27 +238,16 @@ DO js = 1, jpspec
     nadvt(inadv)= speci(js)
 
   ELSE IF ( ctype(js) == jpfm .OR. ctype(js) == jpif ) THEN
-    cmessage = ' Family chemistry not available in this version'
-    errcode = js
-    CALL ereport('ASAD_INRATS',errcode,cmessage)
+    errcodes(js,3) = js
     IF ( ctype(js) == jpif ) THEN
       iadv = iadv + 1
       ntr3 = ntr3 + 1
       IF ( iadv  >   jpctr ) THEN
-        WRITE(umMessage,'(A)') '** ASAD ERROR in subroutine ' // RoutineName
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A,I3)') '** Parameter jpctr is too low; found',iadv
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A,I3)') '** tracers so far with ',jpspec-js
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A)') '** species to check.'
-        CALL umPrint(umMessage,src=RoutineName)
-        cmessage = 'ERROR in jpctr'
-        errcode = js
-        CALL ereport(RoutineName,errcode,cmessage)
+        errcodes(js,1) = js
+      ELSE
+        advt(iadv)  = speci(js)
+        nltr3(ntr3) = iadv
       END IF
-      advt(iadv)  = speci(js)
-      nltr3(ntr3) = iadv
     END IF
     l_fa=.TRUE.
     DO jadv = 1, iadv
@@ -281,22 +261,47 @@ DO js = 1, jpspec
       ntrf = ntrf + 1
       ispf = ispf + 1
       IF ( iadv  >   jpctr ) THEN
-        WRITE(umMessage,'(A)') '***** ASAD ERROR in subroutine ' // RoutineName
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A,I3)') '***** Param jpctr is too low; found',iadv
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A,I3)') '***** tracers so far with ',jpspec-js
-        CALL umPrint(umMessage,src=RoutineName)
-        WRITE(umMessage,'(A)') '***** species to check.'
-        CALL umPrint(umMessage,src=RoutineName)
-        cmessage = 'INRATS ERROR : jpctr is too low'
-        CALL ereport(RoutineName,iadv,cmessage)
+        errcodes(js,1) = iadv
+      ELSE
+        advt(iadv) = family(js)
+        nltrf(ntrf) = ispf
       END IF
-      advt(iadv) = family(js)
-      nltrf(ntrf) = ispf
     END IF      ! l_fa
   END IF
 END DO
+
+! Perform error checks outside of the loop to better suit GPU runs
+IF (ANY(errcodes(:,:) /= 0)) THEN
+  WRITE(umMessage,'(A)') '** ASAD ERROR in subroutine ' // RoutineName
+  CALL umPrint(umMessage,src=RoutineName)
+  IF (ANY(errcodes(:,3) /= 0)) THEN
+    js = MINVAL(errcodes(:,3),mask=(errcodes(:,3) /= 0))
+    cmessage = ' Family chemistry not available in this version'
+    errcode = js
+  ELSE
+    IF (ANY(errcodes(:,1) /= 0)) THEN
+      js = MINVAL(errcodes(:,1),mask=(errcodes(:,1) /= 0))
+      iadv = errcodes(js,1)
+      WRITE(umMessage,'(A,I3)') '** Parameter jpctr is too low; found',iadv
+      CALL umPrint(umMessage,src=RoutineName)
+      cmessage = 'ASAD ERROR: jpctr is too low'
+      errcode = iadv
+    END IF
+    IF (ANY(errcodes(:,2) /= 0)) THEN
+      js = MINVAL(errcodes(:,2),mask=(errcodes(:,2) /= 0))
+      iro2 = errcodes(js,2)
+      WRITE(umMessage,'(A,I3)') '** Parameter jpro2 is too low; found',iro2
+      CALL umPrint(umMessage,src=RoutineName)
+      cmessage = 'ASAD ERROR: jpro2 is too low'
+      errcode = iro2
+    END IF
+    WRITE(umMessage,'(A,I3)') '***** tracers so far with ',jpspec-js
+    CALL umPrint(umMessage,src=RoutineName)
+    WRITE(umMessage,'(A)') '***** species to check.'
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  CALL ereport(RoutineName,errcode,cmessage)
+END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN

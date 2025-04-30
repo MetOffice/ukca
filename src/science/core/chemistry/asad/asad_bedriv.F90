@@ -86,6 +86,7 @@ INTEGER, PARAMETER :: prodmax = 50 ! maximum number of reactions that
                                    ! produce or destroy any species
 
 INTEGER :: errcode                ! Variable passed to ereport
+LOGICAL :: errcodes(jpspec)       ! Array for recording error codes
 CHARACTER(LEN=errormessagelength) :: cmessage
 
 
@@ -240,28 +241,27 @@ IF (first_pass) THEN
     nfracprod= 0
     nuloss = 0
     nbloss = 0
+    errcodes(:) = .FALSE.
     DO jr=1,jpnr
       ! Do production first, for reactions with non-fractional products
       IF (nfrpx(jr) == 0) THEN
         DO jp=3,jpmsp
           js = nspi(jr,jp)
-          IF (js > 0) THEN
+          IF ((js >= 1) .AND. (js <= jpspec)) THEN
             IF (jr <= nuni) THEN
               nuintprod(js) = nuintprod(js) + 1
               IF (nuintprod(js) > prodmax) THEN
-                errcode=1
-                cmessage='Increase prodmax.'
-                CALL ereport('ASAD_BEDRIV',errcode,cmessage)
+                errcodes(js) = .TRUE.
+              ELSE
+                uprodreac(js,nuintprod(js)) = jr
               END IF
-              uprodreac(js,nuintprod(js)) = jr
             ELSE
               nbintprod(js) = nbintprod(js) + 1
               IF (nbintprod(js) > prodmax) THEN
-                errcode=1
-                cmessage='Increase prodmax.'
-                CALL ereport('ASAD_BEDRIV',errcode,cmessage)
+                errcodes(js) = .TRUE.
+              ELSE
+                bprodreac(js,nbintprod(js)) = jr
               END IF
-              bprodreac(js,nbintprod(js)) = jr
             END IF
           END IF
         END DO
@@ -269,33 +269,38 @@ IF (first_pass) THEN
       ! Do loss
       DO jp=1,2
         js = nspi(jr,jp)
-        IF (js > 0) THEN
+        IF ((js >= 1) .AND. (js <= jpspec)) THEN
           IF (jr <= nuni) THEN
             nuloss(js) = nuloss(js) + 1
             IF (nuloss(js) > prodmax) THEN
-              errcode=1
-              cmessage='Increase prodmax.'
-              CALL ereport('ASAD_BEDRIV',errcode,cmessage)
+              errcodes(js) = .TRUE.
+            ELSE
+              ulossreac(js,nuloss(js)) = jr
             END IF
-            ulossreac(js,nuloss(js)) = jr
           ELSE
             nbloss(js) = nbloss(js) + 1
             IF (nbloss(js) > prodmax) THEN
-              errcode=1
-              cmessage='Increase prodmax.'
-              CALL ereport('ASAD_BEDRIV',errcode,cmessage)
-            END IF
-            blossreac(js,nbloss(js)) = jr
-            ! Remember which partner the loss reaction is done with
-            IF (jp == 1) THEN
-              blosspartner(js,nbloss(js)) = nspi(jr,2)
+              errcodes(js) = .TRUE.
             ELSE
-              blosspartner(js,nbloss(js)) = nspi(jr,1)
+              blossreac(js,nbloss(js)) = jr
+              ! Remember which partner the loss reaction is done with
+              IF (jp == 1) THEN
+                blosspartner(js,nbloss(js)) = nspi(jr,2)
+              ELSE
+                blosspartner(js,nbloss(js)) = nspi(jr,1)
+              END IF
             END IF
           END IF
         END IF
       END DO
     END DO
+
+    ! Perform error check outside of the loop to better suit GPU runs
+    IF (ANY(errcodes(:))) THEN
+      errcode=1
+      cmessage='Increase prodmax.'
+      CALL ereport('ASAD_BEDRIV',errcode,cmessage)
+    END IF
 
     ! Do production by reactions with fractional products
     nfracprod = nbintprod
@@ -305,13 +310,20 @@ IF (first_pass) THEN
       ix = ntabfp(i,3) ! pointer to fraction index
       nfracprod(js) = nfracprod(js) + 1
       IF (nfracprod(js) > prodmax) THEN
-        errcode=1
-        cmessage='Increase prodmax.'
-        CALL ereport('ASAD_BEDRIV',errcode,cmessage)
+        errcodes(js) = .TRUE.
+      ELSE
+        bprodreac(js,nfracprod(js)) = jr
+        frac_prod(js,nfracprod(js)) = frpx(ix)
       END IF
-      bprodreac(js,nfracprod(js)) = jr
-      frac_prod(js,nfracprod(js)) = frpx(ix)
     END DO
+
+    ! Perform error check outside of the loop to better suit GPU runs
+    IF (ANY(errcodes(:))) THEN
+      errcode=1
+      cmessage='Increase prodmax.'
+      CALL ereport('ASAD_BEDRIV',errcode,cmessage)
+    END IF
+
     IF (mype == 0) THEN
       WRITE(umMessage,'(A12,I4)') 'NUINTPROD = ',nuintprod
       CALL umPrint(umMessage,src='asad_bedriv')

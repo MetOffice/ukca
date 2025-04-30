@@ -125,6 +125,7 @@ IMPLICIT NONE
 
 INTEGER :: total1            ! total number of nonzero entries in Jacobian
 INTEGER :: errcode           ! Variable passed to ereport
+INTEGER :: errcodes(spfjsize_max,3)  ! An array for recording error codes
 
 INTEGER :: irj
 INTEGER :: itrd
@@ -328,15 +329,6 @@ DO kr=1,jpcspf
           ! as in dense case. If it is, create new matrix element.
           IF (ij1 <= 0) THEN
             total1 = total1 + 1
-            IF (total1 > spfjsize_max) THEN
-              errcode=total1
-              WRITE(umMessage,'(A,2I4)') 'Total1 exceeded spfjsize_max: ',     &
-                          total1, spfjsize_max
-              CALL umPrint(umMessage,src='asad_sparse_vars')
-              cmessage='Increase spfjsize_max'
-              CALL ereport                                                     &
-                ('SETUP_SPFULJAC',errcode,cmessage)
-            END IF
             modified_map(i,j) = total1
           END IF
         END IF
@@ -344,6 +336,15 @@ DO kr=1,jpcspf
     END IF
   END DO
 END DO
+
+! Perform error check outside of the loop to better suit GPU runs
+IF (total1 > spfjsize_max) THEN
+  errcode = total1
+  WRITE(umMessage,'(A,2I4)') 'Total1 exceeded spfjsize_max: ', total1,         &
+    spfjsize_max
+  CALL umPrint(umMessage,src='asad_sparse_vars')
+  CALL ereport('SETUP_SPFULJAC',errcode,'Increase spfjsize_max')
+END IF
 
 IF (mype == 0 .AND. printstatus >= prstatus_normal) THEN
   WRITE(umMessage,'(A,2I4)') 'Initial and final fill-in: ',total, total1
@@ -370,6 +371,7 @@ ffrac(:,:)     = 0.0
 ! typically with size 1000 x 160, less than 0.5% of the array contain nonzero
 ! values so there is potential here to use compressed storage format.
 
+errcodes(:,:) = 0
 DO jc = 1, ntrf
   itrcr = nltrf(jc)
   !
@@ -385,11 +387,10 @@ DO jc = 1, ntrf
         i = nonzero_map(ij(jn),itrcr)
         nnegterms(i) = nnegterms(i) + 1
         IF (nnegterms(i) > maxterms) THEN
-          errcode=1
-          cmessage=' Increase maxterms'
-          CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+          errcodes(i,1) = 1
+        ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
+          negterms(i,nnegterms(i)) = irj
         END IF
-        negterms(i,nnegterms(i)) = irj
       END IF
     END DO
     IF (nfrpx(irj) == 0) THEN
@@ -398,11 +399,10 @@ DO jc = 1, ntrf
           i = nonzero_map(ij(jn),itrcr)
           nposterms(i) = nposterms(i) + 1
           IF (nposterms(i) > maxterms) THEN
-            errcode=2
-            cmessage=' Increase maxterms'
-            CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+            errcodes(i,1) = 2
+          ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
+            posterms(i,nposterms(i)) = irj
           END IF
-          posterms(i,nposterms(i)) = irj
         END IF
       END DO
     ELSE
@@ -411,23 +411,15 @@ DO jc = 1, ntrf
           i = nonzero_map(ij(jn),itrcr)
           nfracterms(i) = nfracterms(i) + 1
           IF (nfracterms(i) > maxfterms) THEN
-            errcode = 3
-            cmessage=' Increase maxfterms'
-            CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+            errcodes(i,1) = 3
           END IF
           IF (nfrpx(irj)+jn-3 > jpfrpx) THEN
-            cmessage = ' frpx array index > jpfrpx'
-            errcode = 3
-            WRITE(umMessage,'(A)') cmessage
-            CALL umPrint(umMessage,src='asad_sparse_vars')
-            WRITE(umMessage,'(A,I4,A,I4)')'irj: ',irj,' nfrpx(irj): ',nfrpx(irj)
-            CALL umPrint(umMessage,src='asad_sparse_vars')
-            WRITE(umMessage,'(A,I4,A,I4)') 'i: ',i,' jn: ',jn
-            CALL umPrint(umMessage,src='asad_sparse_vars')
-            CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+            errcodes(i,2) = i
+            errcodes(i,3) = jn
+          ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
+            fracterms(i,nfracterms(i)) = irj
+            ffrac(i,nfracterms(i))     = frpx(nfrpx(irj)+jn-3)
           END IF
-          fracterms(i,nfracterms(i)) = irj
-          ffrac(i,nfracterms(i))     = frpx(nfrpx(irj)+jn-3)
         END IF
       END DO
     END IF
@@ -440,18 +432,38 @@ DO jc = 1, ntrf
         i = nonzero_map(isx,itrcr)
         nfracterms(i) = nfracterms(i) + 1
         IF (nfracterms(i) > maxfterms) THEN
-          errcode=3
-          cmessage=' Increase maxfterms'
-          CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+          errcodes(i,1) = 3
+        ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
+          fracterms(i,nfracterms(i)) = irj
+          ffrac(i,nfracterms(i))     = ztabpd(jn,1)
         END IF
-        fracterms(i,nfracterms(i)) = irj
-        ffrac(i,nfracterms(i))     = ztabpd(jn,1)
       END DO
     END IF
     !
   END DO
 END DO
 
+! Perform error checks outside of the loop to better suit GPU runs
+IF (ANY(errcodes(:,:) /= 0)) THEN
+  IF (ANY(errcodes(:,1) /= 0)) THEN
+    errcode = MINVAL(errcodes(:,1),mask=(errcodes(:,1) /= 0))
+    cmessage = ' Increase maxterms'
+    CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+  ELSE
+    errcode = 4
+    i = MINVAL(errcodes(:,2),mask=(errcodes(:,2) /= 0))
+    irj = negterms(i,nnegterms(i))
+    jn = errcodes(i,3)
+    cmessage = ' frpx array index > jpfrpx'
+    WRITE(umMessage,'(A)') cmessage
+    CALL umPrint(umMessage,src='asad_sparse_vars')
+    WRITE(umMessage,'(A,I4,A,I4)')'irj: ',irj,' nfrpx(irj): ',nfrpx(irj)
+    CALL umPrint(umMessage,src='asad_sparse_vars')
+    WRITE(umMessage,'(A,I4,A,I4)') 'i: ',i,' jn: ',jn
+    CALL umPrint(umMessage,src='asad_sparse_vars')
+    CALL ereport('SETUP_SPFULJAC',errcode,cmessage)
+  END IF
+END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
