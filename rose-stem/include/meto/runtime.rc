@@ -1,22 +1,6 @@
 ###############################################################################
 ## Families for Met Office Linux systems
 ###############################################################################
-# Family for Met Office Linux jobs
-    [[METO_LINUX]]
-        inherit = None, LINUX
-        pre-script = """
-                     module swap ifort ifort/16.0_64
-                     module switch nagfor nagfor/6.2.0_64
-                     module unload libraries/gcc
-                     module list 2>&1
-                     """
-        [[[job]]]
-            batch system = slurm
-            execution time limit = PT2M
-        [[[directives]]]
-            --export = NONE
-            --partition = rhel7
-
 
 # Family for Meto Azspice
     [[METO_AZSPICE]]
@@ -26,37 +10,11 @@
             execution time limit = PT2M
 
 
-# Meto HPC shared queue for basic, serial jobs
-    [[METO_XC40_SHARED_BASIC]]
-        [[[job]]]
-            batch system = pbs
-        [[[remote]]]
-            host = $(rose host-select {{ METO_HPC_GROUP }})
-        [[[directives]]]
-            -q = shared
-            -S = /bin/bash
-            {% if TRUSTZONE == 'research' %}
-                -P = foundation
-            {% else %}
-                {% if PROJECT is defined %}
-                    -P = {{ PROJECT }}
-                {% endif %}
-                # if PROJECT is not defined, use user default project by not setting -P
-            {% endif %}
-
-
 # Redefine site-independent SCRIPTS group
 # (normally found in runtime-common.rc, Done to enforce loading of
 # scitools  when running on MONSooN ; Python 3 is req'd by UMDP3 checker)
     [[SCRIPTS]]
-{% if SITE_VARS.LAUNCH_PLATFORM == 'xc40' %}
-        inherit = None, METO_XC40_SHARED_BASIC
-        env-script = "module load scitools/default-current"
-{% elif SITE_VARS.LAUNCH_PLATFORM == 'spice' %}
-        inherit = None, METO_LINUX
-{% else %}
         inherit = None, METO_AZSPICE
-{% endif %}
          [[[job]]]
              execution time limit = PT20M
 

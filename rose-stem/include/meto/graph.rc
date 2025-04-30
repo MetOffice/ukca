@@ -1,34 +1,8 @@
 ###############################################################################
 ## Determine TRUSTZONE and set METO_HPC_GROUP if not defined.
 ###############################################################################
-{% if 'TRUSTZONE' in environ %}
-  {%- set TRUSTZONE=environ['TRUSTZONE'] %}
-{%- else %}
-  {%- set TRUSTZONE='research' %}
-{%- endif %}
 
-{% if METO_HPC_GROUP is not defined %}
-  {%- if TRUSTZONE == 'collaboration' %}
-    {%- set METO_HPC_GROUP='xcs-c' %}
-  {% else %}
-    {%- set METO_HPC_GROUP='xc' %}
-  {%- endif %}
-{%- endif %}
-
-{# We need to check whether we're launching from azure spice or old spice #}
-{# while we support both platforms. We only want to run the scripts on the #}
-{# platform that we are launching from #}
-{% from "socket" import gethostname %}
-{% set hostname = gethostname() %}
-{% if hostname.startswith("caz") %}
-  {% do SITE_VARS.update({"LAUNCH_PLATFORM": "azspice"}) %}
-{% elif TRUSTZONE != "collaboration" %}
-  {% do SITE_VARS.update({"LAUNCH_PLATFORM": "spice"}) %}
-{% else %}
-  {% do SITE_VARS.update({"LAUNCH_PLATFORM": "xc40"}) %}
-{% endif %}
-
-
+{% do SITE_VARS.update({"LAUNCH_PLATFORM": "azspice"}) %}
 
 ###############################################################################
 ## Imports
