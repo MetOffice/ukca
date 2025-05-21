@@ -5,6 +5,7 @@ NAME				INSTITUTION
 Nathan Luke Abraham		National Centre for Atmospheric Science and
                                 University of Cambridge
 Joseph Abram                    Met Office
+Thomas Bendall                  Met Office
 Yusuf Bhatti                    University of Canterbury
 Ian Boutle                      Met Office
 Vivien Bright                   Met Office

@@ -198,6 +198,7 @@ REAL :: zsm(kbdim,klev,nmodes)      ! critical supersaturation for activating
 !                                   ! particles with the mode No. median radius
 
 REAL :: zcdnc(kbdim,klev,nwbins)    ! CDNC calculated at each increment of w
+REAL :: zcdnc_tmp(nwbins)           ! Temporary array for CDNC
 REAL :: zcdncm                      ! CDNC calculated at each increment of w
 !                                         ! by mode
 REAL :: psmax2(kbdim,klev)          ! max supersaturation [fraction]
@@ -660,7 +661,8 @@ END DO ! jk
 
 DO jk=1, klev
   DO jl=1, kbdim
-    CALL activclosest(zcdnc(jl,jk, :), nwbins, pcdncact(jl,jk),                &
+    zcdnc_tmp(:) = zcdnc(jl,jk, :)
+    CALL activclosest(zcdnc_tmp, nwbins, pcdncact(jl,jk),                      &
                         zcls, zclsloc)
     pwchar(jl,jk) = pwarr(jl,jk,zclsloc)
   END DO ! jl
