@@ -219,7 +219,11 @@ END DO
 !==============================================================================
 ! Initialise arrays
 
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(imode,loop,icp)                           &
+!$OMP SHARED(n_points,mdt,nd,mask,glomap_variables_local,md)
+
 ! Initialise mdt(:,:) and nd(:,:) to zero everywhere
+!$OMP DO SCHEDULE(STATIC)
 DO imode = 1, nmodes
   DO loop = 1, n_points
     mdt(loop,imode)  = 0.0
@@ -227,8 +231,10 @@ DO imode = 1, nmodes
     mask(loop,imode) = .FALSE.
   END DO
 END DO
+!$OMP END DO NOWAIT
 
 ! Initialise md(:,:,:) to zero everywhere
+!$OMP DO SCHEDULE(STATIC)
 DO icp = 1, glomap_variables_local%ncp
   DO imode = 1, nmodes
     DO loop = 1, n_points
@@ -236,6 +242,9 @@ DO icp = 1, glomap_variables_local%ncp
     END DO
   END DO
 END DO
+!$OMP END DO
+
+!$OMP END PARALLEL
 
 !==============================================================================
 ! Calculate nd

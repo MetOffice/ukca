@@ -70,10 +70,14 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 boltzmann_times_million = boltzmann * 1000000.0
 
 ! The density of dry air is calculated using the ideal gas law
+!$OMP PARALLEL DO SCHEDULE(STATIC) DEFAULT(NONE) PRIVATE(loop)                 &
+!$OMP SHARED(n_points,aird,p_theta_levels_1d,t_theta_levels_1d,                &
+!$OMP boltzmann_times_million)
 DO loop = 1, n_points
   aird(loop) = p_theta_levels_1d(loop) /                                       &
                ( t_theta_levels_1d(loop) * boltzmann_times_million )
 END DO
+!$OMP END PARALLEL DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
