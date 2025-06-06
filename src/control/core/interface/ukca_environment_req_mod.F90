@@ -199,7 +199,10 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_lscat_zhang,                                                         &
   fldname_grid_area_fullht,                                                    &
   fldname_grid_volume,                                                         &
-  fldname_grid_airmass
+  fldname_grid_airmass,                                                        &
+  fldname_rel_humid_frac,                                                      &
+  fldname_rel_humid_frac_clr,                                                  &
+  fldname_qsvp
 
 USE ukca_environment_fields_mod, ONLY: environ_field_info, environ_field_ptrs, &
                                        l_environ_field_available,              &
@@ -407,7 +410,7 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 
 ! Field counts
-INTEGER, PARAMETER :: n_max = 148  ! Maximum number of environment fields
+INTEGER, PARAMETER :: n_max = 151  ! Maximum number of environment fields
 INTEGER :: n                       ! Count of environment fields selected
 INTEGER :: i                       ! Counter for loops
 
@@ -1264,8 +1267,33 @@ ELSE IF ((ukca_config%l_ukca_trop .OR. ukca_config%l_ukca_raq .OR.             &
   END IF
 END IF
 
-! Cloud liquid fraction is always required if GLOMAP-mode is on
-IF (ukca_config%l_ukca_mode) THEN
+! Additional humidity fields may be required if option to use external
+! relative humidity fields is selected
+IF (ukca_config%l_environ_rel_humid) THEN
+  ! Relative humidity is required for chemistry or for GLOMAP-mode if
+  ! nucleation is active or the Plumeria scheme for volcanic emissions is used
+  IF (ukca_config%l_ukca_chem .OR. glomap_config%l_mode_bhn_on .OR.            &
+      ukca_config%l_ukca_so2ems_plumeria) THEN
+    n = n + 1
+    IF (n <= n_max) fld_names(n) = fldname_rel_humid_frac
+  END IF
+  ! Clear-sky relative humidity is required if GLOMAP-mode is on
+  IF (ukca_config%l_ukca_mode) THEN
+    n = n + 1
+    IF (n <= n_max) fld_names(n) = fldname_rel_humid_frac_clr
+  END IF
+  ! Saturation vapour pressure is required if the Activate scheme is used
+  IF (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) THEN
+    n = n + 1
+    IF (n <= n_max) fld_names(n) = fldname_qsvp
+  END IF
+END IF
+
+! Cloud liquid fraction is required if relative humidity fields are calculated
+! internally and GLOMAP-mode is on. Also, it is always required if nucleation
+! scavenging is on in GLOMAP-mode.
+IF (((.NOT. ukca_config%l_environ_rel_humid) .AND. ukca_config%l_ukca_mode)    &
+    .OR. glomap_config%l_rainout) THEN
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_cloud_liq_frac
 END IF

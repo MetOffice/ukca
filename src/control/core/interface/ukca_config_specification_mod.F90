@@ -334,6 +334,10 @@ TYPE :: ukca_config_spec_type
                                        ! required for the stratospheric
                                        ! chemistry schemes and for UM
                                        ! diagnostics.)
+  LOGICAL :: l_environ_rel_humid       ! True if using external fields for
+                                       ! relative humidity, clear-sky
+                                       ! relative humidity and/or
+                                       ! saturation vapour pressure
   LOGICAL :: l_environ_z_top           ! True if using an external value for
                                        ! height at top of model (for bit-
                                        ! comparability with previous results
@@ -926,6 +930,7 @@ ukca_config%l_use_classic_biogenic = .FALSE.
 ukca_config%l_use_classic_seasalt = .FALSE.
 ukca_config%l_use_gridbox_volume = .FALSE.
 ukca_config%l_use_gridbox_mass = .FALSE.
+ukca_config%l_environ_rel_humid = .FALSE.
 ukca_config%l_environ_z_top = .FALSE.
 ukca_config%env_log_step = imdi
 
@@ -1156,6 +1161,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_use_classic_biogenic, l_use_classic_seasalt,                              &
    l_use_gridbox_volume,                                                       &
    l_use_gridbox_mass,                                                         &
+   l_environ_rel_humid,                                                        &
    l_environ_z_top,                                                            &
    l_fix_ukca_cloud_frac,                                                      &
    l_fix_improve_drydep,                                                       &
@@ -1369,6 +1375,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_classic_biogenic
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_classic_seasalt
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_gridbox_volume
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_use_gridbox_mass
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_environ_rel_humid
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_environ_z_top
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_cloud_frac
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_improve_drydep
@@ -1640,6 +1647,8 @@ IF (PRESENT(l_use_classic_biogenic))                                           &
   l_use_classic_biogenic = ukca_config%l_use_classic_biogenic
 IF (PRESENT(l_use_classic_seasalt))                                            &
   l_use_classic_seasalt = ukca_config%l_use_classic_seasalt
+IF (PRESENT(l_environ_rel_humid))                                              &
+  l_environ_rel_humid = ukca_config%l_environ_rel_humid
 IF (PRESENT(l_environ_z_top)) l_environ_z_top = ukca_config%l_environ_z_top
 IF (PRESENT(l_use_gridbox_volume))                                             &
   l_use_gridbox_volume = ukca_config%l_use_gridbox_volume

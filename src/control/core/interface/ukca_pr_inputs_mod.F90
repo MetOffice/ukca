@@ -111,7 +111,8 @@ IF (PrintStatus >= PrStatus_Oper .AND.                                         &
     END DO
   END IF
 
-  IF (ALLOCATED(rel_humid_frac)) THEN
+  IF ((.NOT. ukca_config%l_environ_rel_humid) .AND.                            &
+      ALLOCATED(rel_humid_frac)) THEN
     DO k = 1, ukca_config%model_levels
       WRITE(umMessage,'(A,I6)') 'WET LEVEL: ',k
       CALL umPrint(umMessage,src=RoutineName)

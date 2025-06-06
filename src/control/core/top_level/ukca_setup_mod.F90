@@ -198,6 +198,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_use_classic_seasalt,                                   &
                       l_use_gridbox_volume,                                    &
                       l_use_gridbox_mass,                                      &
+                      l_environ_rel_humid,                                     &
                       l_environ_z_top,                                         &
                       l_fix_ukca_cloud_frac,                                   &
                       l_fix_improve_drydep,                                    &
@@ -527,6 +528,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_use_classic_biogenic
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_classic_seasalt
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_gridbox_volume
 LOGICAL, OPTIONAL, INTENT(IN) :: l_use_gridbox_mass
+LOGICAL, OPTIONAL, INTENT(IN) :: l_environ_rel_humid
 LOGICAL, OPTIONAL, INTENT(IN) :: l_environ_z_top
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_cloud_frac
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_improve_drydep
@@ -1144,6 +1146,9 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
        ukca_config%l_use_gridbox_mass = l_use_gridbox_mass
   END IF
 
+  IF (PRESENT(l_environ_rel_humid))                                            &
+    ukca_config%l_environ_rel_humid = l_environ_rel_humid
+
 END IF
 
 IF (PRESENT(l_environ_z_top))                                                  &
@@ -1561,6 +1566,9 @@ IF (ukca_config%l_ukca_mode) THEN
     ukca_config%l_fix_ukca_cloud_frac = .TRUE.
     IF (PRESENT(l_fix_ukca_cloud_frac))                                        &
       ukca_config%l_fix_ukca_cloud_frac = l_fix_ukca_cloud_frac
+
+    IF (PRESENT(l_environ_rel_humid))                                          &
+      ukca_config%l_environ_rel_humid = l_environ_rel_humid
 
     IF (ukca_config%l_ukca_scale_ppe) THEN
 

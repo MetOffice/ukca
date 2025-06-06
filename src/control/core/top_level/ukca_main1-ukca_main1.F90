@@ -106,7 +106,8 @@ USE ukca_environment_fields_mod, ONLY:                                         &
     dust_div4,              dust_div5,            dust_div6,                   &
     interf_z,               grid_surf_area,       grid_area_fullht,            &
     grid_volume,            photol_rates,         ext_cg_flash,                &
-    ext_ic_flash,           co2_interactive,      grid_airmass
+    ext_ic_flash,           co2_interactive,      grid_airmass,                &
+    rel_humid_frac,         rel_humid_frac_clr,   qsvp
 
 USE ukca_pr_inputs_mod, ONLY: ukca_pr_inputs
 
@@ -133,7 +134,6 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     autotune_stop_region,                                                      &
     rh_z_top_theta, a_realhd,                                                  &
     delta_lambda, delta_phi,                                                   &
-    l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
     rad_ait, rad_acc, chi, sigma,                                              &
     stashwork34, stashwork38, stashwork50,                                     &
     copydiag, copydiag_3d, stashcode_glomap_sec, len_stlist, stindex,          &
@@ -150,7 +150,6 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
 #else
 USE ukca_um_legacy_mod, ONLY:                                                  &
     delta_lambda, delta_phi,                                                   &
-    l_um_atmos_ukca_humidity, atmos_ukca_humidity, rhcrit, lsp_qclear,         &
     rad_ait, rad_acc, chi, sigma,                                              &
     stashwork34, stashwork38, stashwork50,                                     &
     copydiag, copydiag_3d, stashcode_glomap_sec, len_stlist, stindex,          &
@@ -363,20 +362,6 @@ INTEGER :: ik,lb        ! local loop iterators
 INTEGER, ALLOCATABLE :: tile_index(:,:)    ! Indices of active tiles
 INTEGER, ALLOCATABLE :: tile_pts(:)        ! No of tiles of each type
 
-! Fields for humidity calculations when using UM routines
-REAL, ALLOCATABLE :: qsatmr_ice_wat(:,:,:) ! qsat mixing ratio w.r.t. ice/water
-REAL, ALLOCATABLE :: qsatmr_wat(:,:,:)     ! qsat mixing ratio w.r.t. water
-REAL, ALLOCATABLE :: q1d(:)
-REAL, ALLOCATABLE :: qsatmr_ice_wat1d(:)
-REAL, ALLOCATABLE :: qsatmr_wat1d(:)
-REAL, ALLOCATABLE :: qcf1d(:)
-REAL, ALLOCATABLE :: cloud_liq_frac1d(:)
-REAL, ALLOCATABLE :: cloud_frac1d(:)
-REAL, ALLOCATABLE :: rhcrit1d(:)
-REAL, ALLOCATABLE :: q_clr1d(:)
-REAL, ALLOCATABLE :: rel_humid_frac_clr1d(:)
-
-REAL, ALLOCATABLE :: rel_humid_frac_clr(:,:,:)
 REAL, ALLOCATABLE :: ls_ppn3d(:,:,:)
 REAL, ALLOCATABLE :: conv_ppn3d(:,:,:)
 REAL, ALLOCATABLE :: delso2_wet_h2o2(:,:,:)
@@ -392,16 +377,12 @@ REAL, ALLOCATABLE :: trmol_post_atmstep(:,:,:,:)
 REAL, ALLOCATABLE :: mode_diags(:,:,:,:)
 REAL, ALLOCATABLE :: strat_fluxdiags(:,:,:,:)
 REAL, ALLOCATABLE :: totnodens(:,:,:)  ! density in molecs/m^3
-REAL, ALLOCATABLE :: rel_humid_frac(:,:,:)
 REAL, ALLOCATABLE :: water_vapour_mr_sat(:,:,:)
                               ! Water vapour saturation mixing ratio (kg/kg)
 REAL, ALLOCATABLE :: water_vapour_mr(:,:,:)
                               ! Water vapour mixing ratio (kg/kg)
 REAL, ALLOCATABLE :: water_vapour_mr_clr(:,:,:)
                               ! Clear sky water vapour mixing ratio (kg/kg)
-
-! sat vap pressure with respect to liquid water irrespective of temperature
-REAL, ALLOCATABLE :: qsvp(:,:,:)
 
 REAL, SAVE, ALLOCATABLE :: z_half(:,:,:)
 REAL, SAVE, ALLOCATABLE :: z_half_alllevs(:,:,:)
@@ -572,12 +553,6 @@ REAL, PARAMETER :: rh_max = 1.0  ! RH upper limit
 LOGICAL :: l_using_rh      ! True if using relative humidity
 LOGICAL :: l_using_rh_clr  ! True if using clear sky relative humidity
 LOGICAL :: l_using_svp     ! True if using saturation vapour pressure of water
-
-! Flags to track what humidity-related fields need to be calculated
-LOGICAL :: l_calc_rh       ! True to calculate relative humidity
-LOGICAL :: l_calc_rh_clr   ! True to calculate clear sky relative humidity
-LOGICAL :: l_calc_svp      ! True to calculate saturation vapour pressure of
-                           ! water
 
 ! Mask to limit formation of Nat below specified height
 LOGICAL, SAVE, ALLOCATABLE  :: have_nat3d(:,:,:)
@@ -1552,206 +1527,51 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
   ! Calculate relative humidity (expressed as a fraction) if not provided.
   ! For GLOMAP-mode, also calculate clear sky relative humidity if not
   ! provided and saturation vapour pressure if needed for Activate.
+  ! Note that these fields are all provided as environmental drivers if
+  ! the UKCA configuration setting 'l_environ_rel_humid' is true.
   !-----------------------------------------------------------------------
 
-  ! Set flags to indicate which fields are required depending on the
-  ! science configuration and whether this is a chemistry time step.
-  l_using_rh = do_chemistry .OR. do_aerosol
-  ! If ukca_volcanic_so2 with plumeria call is TRUE, rel_humid_frac is required
-  ! on UKCA timesteps
-  IF (ukca_config%l_ukca_so2ems_expvolc .AND.                                  &
-      ukca_config%l_ukca_so2ems_plumeria) THEN
-    l_using_rh = ukca_config%l_ukca_mode
-  END IF
-  l_using_rh_clr = do_aerosol .OR. (ukca_config%l_ukca_mode .AND.              &
-                   (glomap_config%l_ukca_fine_no3_prod .OR.                    &
-                    glomap_config%l_ukca_coarse_no3_prod))
-  l_using_svp = do_aerosol .AND.                                               &
-               (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg)
+  IF (.NOT. ukca_config%l_environ_rel_humid) THEN
 
-  ! Allocate fields as necessary if not already available.
+    ! Set flags to indicate which fields are required depending on the
+    ! science configuration and whether this is a chemistry time step.
 
-  ! rel_humid_frac must always be allocated on chemistry time steps for the
-  ! chemistry and aerosol calls, and for ukca_volcanic_so2 subroutine
-  ! with plumeria call
-  IF (.NOT. ALLOCATED(rel_humid_frac)) THEN
-    ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
-    rel_humid_frac = 0.0
-  END IF
-  ! rel_humid_frac_clr must always be allocated for the ukca_emiss_ctl call
-  IF (.NOT. ALLOCATED(rel_humid_frac_clr)) THEN
-    ALLOCATE(rel_humid_frac_clr(row_length, rows, model_levels))
-    rel_humid_frac_clr = 0.0
-  END IF
-  ! qsvp need only be allocated when used
-  IF (.NOT. ALLOCATED(qsvp) .AND. l_using_svp) THEN
-    ALLOCATE(qsvp(row_length, rows, model_levels))
-    qsvp = 0.0
-  END IF
-
-  IF (l_um_atmos_ukca_humidity) THEN
-
-    ! Using external UM humidity routines for RH, clear sky RH and SVP.
-
-    ! Use external UM atmos_ukca_humidity routine to calculate relative
-    ! humidity, saturation mixing ratios (for clear sky relative humidity
-    ! calculation) and saturation vapour pressure as required.
-    ! Possible combinations required are:
-    ! RH only, RH & sat MR, RH & sat MR & SVP (on chemistry time steps) or
-    ! sat MR only (on non-chemistry time steps)
-
-    IF (l_using_rh_clr) THEN
-      ALLOCATE(qsatmr_wat(row_length,rows,model_levels))
-      ALLOCATE(qsatmr_ice_wat(row_length,rows,model_levels))
+    IF (do_chemistry .OR. (do_aerosol .AND. glomap_config%l_mode_bhn_on)) THEN
+      l_using_rh = .TRUE.
+    ELSE
+      l_using_rh = ukca_config%l_ukca_so2ems_plumeria
     END IF
 
+    IF (do_aerosol) THEN
+      l_using_rh_clr = .TRUE.
+    ELSE
+      l_using_rh_clr = (glomap_config%l_ukca_fine_no3_prod .OR.                &
+                        glomap_config%l_ukca_coarse_no3_prod) .AND.            &
+                       .NOT. glomap_config%l_no3_prod_in_aero_step
+    END IF
+
+    l_using_svp = do_aerosol .AND.                                             &
+      (glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg)
+
+    ! Allocate space for the required fields
     IF (l_using_rh) THEN
-
-      IF (l_using_rh_clr) THEN
-        IF (l_using_svp) THEN
-          ! RH & sat MR (for clear-sky RH) & SVP
-          CALL atmos_ukca_humidity(row_length, rows, model_levels,             &
-                                   t_theta_levels, p_theta_levels,             &
-                                   q=q, rh=rel_humid_frac,                     &
-                                   qsatmr_wat=qsatmr_wat,                      &
-                                   qsatmr_ice_wat=qsatmr_ice_wat,              &
-                                   svp=qsvp)
-        ELSE
-          ! RH & sat MR (for clear-sky RH)
-          CALL atmos_ukca_humidity(row_length, rows, model_levels,             &
-                                   t_theta_levels, p_theta_levels,             &
-                                   q=q, rh=rel_humid_frac,                     &
-                                   qsatmr_wat=qsatmr_wat,                      &
-                                   qsatmr_ice_wat=qsatmr_ice_wat)
-
-        END IF
-      ELSE
-        ! RH only
-        CALL atmos_ukca_humidity(row_length, rows, model_levels,               &
-                                 t_theta_levels, p_theta_levels,               &
-                                 q=q, rh=rel_humid_frac)
-      END IF
-
-      ! Cap relative humidity values: 0.0 <= RH < 1.0
-      !!!! Note that values of 1.0 or greater will be capped to 0.999 but
-      !!!! values between 0.999 and 1.0 will not be modified. This lack of
-      !!!! consistency is undesirable. It is noted but left unchanged at
-      !!!! present to preserve bit-comparability of results.
-      DO k = 1, model_levels
-        DO j = 1, rows
-          DO i = 1, row_length
-            IF (rel_humid_frac(i,j,k) < 0.0) THEN
-              rel_humid_frac(i,j,k) = 0.0
-            ELSE IF (rel_humid_frac(i,j,k) >= 1.0) THEN
-              rel_humid_frac(i,j,k) = 0.999
-            END IF
-          END DO
-        END DO
-      END DO
-
-    ELSE IF (l_using_rh_clr) THEN
-
-      ! sat MR (for clear-sky RH) only
-      CALL atmos_ukca_humidity(row_length, rows, model_levels,                 &
-                               t_theta_levels, p_theta_levels,                 &
-                               qsatmr_wat=qsatmr_wat,                          &
-                               qsatmr_ice_wat=qsatmr_ice_wat)
-
+      ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
+      rel_humid_frac = rmdi
     END IF
-
-    ! Calculate clear sky RH using external UM lsp_qclear routine
-
     IF (l_using_rh_clr) THEN
-
-      ALLOCATE(q1d(row_length*rows))
-      ALLOCATE(qsatmr_ice_wat1d(row_length*rows))
-      ALLOCATE(qsatmr_wat1d(row_length*rows))
-      ALLOCATE(qcf1d(row_length*rows))
-      ALLOCATE(cloud_liq_frac1d(row_length*rows))
-      ALLOCATE(cloud_frac1d(row_length*rows))
-      ALLOCATE(rhcrit1d(row_length*rows))
-      ALLOCATE(q_clr1d(row_length*rows))
-      ALLOCATE(rel_humid_frac_clr1d(row_length*rows))
-
-      DO k = 1, model_levels
-
-        q1d              = RESHAPE(q(:,:,k), [row_length * rows])
-        qsatmr_ice_wat1d = RESHAPE(qsatmr_ice_wat(:,:,k), [row_length * rows])
-        qsatmr_wat1d     = RESHAPE(qsatmr_wat(:,:,k), [row_length * rows])
-        qcf1d            = RESHAPE(qcf(:,:,k), [row_length * rows])
-        cloud_liq_frac1d = RESHAPE(cloud_liq_frac(:,:,k), [row_length * rows])
-        cloud_frac1d     = RESHAPE(cloud_frac(:,:,k), [row_length * rows])
-
-        rhcrit1d(:)      = rhcrit(k)
-
-        !!!! NOTE - CORRECTION NEEDED: q_clr1d should be a mixing ratio for
-        !!!! calculating RH which means that the qsp_clear input variables q1d,
-        !!!! and qcf1d should be mixing ratios but they are are currently
-        !!!! specific to moist air mass. This should be corrected
-        !!!! at the same time as related issues noted in subroutine
-        !!!! atmos_ukca_humidity. That routine currently returns a
-        !!!! saturation specific humidity for qsatmr_ice_wat1d which should
-        !!!! likewise be a mixing ratio.
-        CALL lsp_qclear(q1d, qsatmr_ice_wat1d, qsatmr_wat1d,                   &
-             qcf1d, cloud_liq_frac1d, cloud_frac1d,                            &
-             rhcrit1d, q_clr1d, SIZE(q1d))
-
-        rel_humid_frac_clr1d(:) = q_clr1d(:) / qsatmr_wat1d(:)
-
-        rel_humid_frac_clr(:,:,k) = RESHAPE(rel_humid_frac_clr1d,              &
-                                            [row_length, rows])
-
-        ! Cap relative humidity values: 0.0 <= RH < 1.0
-        !!!! Note that values of 1.0 or greater will be capped to 0.999 but
-        !!!! values between 0.999 and 1.0 will not be modified. This lack of
-        !!!! consistency is undesirable. It is noted but left unchanged at
-        !!!! present to preserve bit-comparability of results.
-        DO j = 1, rows
-          DO i = 1, row_length
-            IF (rel_humid_frac_clr(i,j,k) < 0.0) THEN
-              rel_humid_frac_clr(i,j,k) = 0.0
-            ELSE IF (rel_humid_frac_clr(i,j,k) >= 1.0) THEN
-              rel_humid_frac_clr(i,j,k) = 0.999
-            END IF
-          END DO
-        END DO
-
-      END DO
-
-      IF (ALLOCATED(rel_humid_frac_clr1d)) DEALLOCATE(rel_humid_frac_clr1d)
-      IF (ALLOCATED(q_clr1d)) DEALLOCATE(q_clr1d)
-      IF (ALLOCATED(rhcrit1d)) DEALLOCATE(rhcrit1d)
-      IF (ALLOCATED(cloud_frac1d)) DEALLOCATE(cloud_frac1d)
-      IF (ALLOCATED(cloud_liq_frac1d)) DEALLOCATE(cloud_liq_frac1d)
-      IF (ALLOCATED(qcf1d)) DEALLOCATE(qcf1d)
-      IF (ALLOCATED(qsatmr_wat1d)) DEALLOCATE(qsatmr_wat1d)
-      IF (ALLOCATED(qsatmr_ice_wat1d)) DEALLOCATE(qsatmr_ice_wat1d)
-      IF (ALLOCATED(q1d)) DEALLOCATE(q1d)
-      IF (ALLOCATED(qsatmr_ice_wat)) DEALLOCATE(qsatmr_ice_wat)
-      IF (ALLOCATED(qsatmr_wat)) DEALLOCATE(qsatmr_wat)
-
-    END IF ! l_using_rh_clr
-
-  ELSE
-
-    ! Using UKCA humidity calculations for RH, clear sky RH and SVP.
-
-    ! Set flags to indicate which fields need calculating. Currently, all of
-    ! the used fields are calculated here pending the addition of functionality
-    ! to supply any/all of the fields as environmental drivers, so the
-    ! 'calc' flags just duplicate the 'using' flags. Subsequently,
-    ! the used fields will only need to be calculated if not already supplied
-    ! and the flags should be modified accordingly.
-
-    l_calc_rh = l_using_rh
-    l_calc_rh_clr = l_using_rh_clr
-    l_calc_svp = l_using_svp
+      ALLOCATE(rel_humid_frac_clr(row_length, rows, model_levels))
+      rel_humid_frac_clr = rmdi
+    END IF
+    IF (l_using_svp) THEN
+      ALLOCATE(qsvp(row_length, rows, model_levels))
+      qsvp = rmdi
+    END IF
 
     ! Calculate saturation mixing ratio and/or saturation vapour pressure
     ! (with respect to liquid) as required
-    IF (l_calc_rh .OR. l_calc_rh_clr) THEN
+    IF (l_using_rh .OR. l_using_rh_clr) THEN
       ALLOCATE(water_vapour_mr_sat(row_length, rows, model_levels))
-      IF (l_calc_svp) THEN
+      IF (l_using_svp) THEN
         ! sat MR & SVP
         CALL ukca_vmrsat_liq(row_length, rows, model_levels, t_theta_levels,   &
                              pres=p_theta_levels, vmr_sat=water_vapour_mr_sat, &
@@ -1761,7 +1581,7 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
         CALL ukca_vmrsat_liq(row_length, rows, model_levels, t_theta_levels,   &
                              pres=p_theta_levels, vmr_sat=water_vapour_mr_sat)
       END IF
-    ELSE IF (l_calc_svp) THEN
+    ELSE IF (l_using_svp) THEN
       ! SVP only
       CALL ukca_vmrsat_liq(row_length, rows, model_levels, t_theta_levels,     &
                            svp=qsvp)
@@ -1770,21 +1590,21 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
     ! Calculate water vapour mixing ratio for RH calculations.
     ! Determine mixing ratio from specific humidity taking into account
     ! mass fraction of cloud liquid and frozen water for the air parcel.
-    IF (l_calc_rh .OR. l_calc_rh_clr) THEN
+    IF (l_using_rh .OR. l_using_rh_clr) THEN
       ALLOCATE(water_vapour_mr(row_length, rows, model_levels))
       water_vapour_mr(:,:,:) = q(:,:,:) /                                      &
                                (1.0 - q(:,:,:) - qcl(:,:,:) - qcf(:,:,:))
     END IF
 
     ! Calculate RH if required
-    IF (l_calc_rh) THEN
+    IF (l_using_rh) THEN
       rel_humid_frac(:,:,:) = MAX(MIN(                                         &
         water_vapour_mr(:,:,:) / water_vapour_mr_sat(:,:,:),                   &
         rh_max), rh_min)
     END IF
 
     ! Calculate clear sky RH if required
-    IF (l_calc_rh_clr) THEN
+    IF (l_using_rh_clr) THEN
       ALLOCATE(water_vapour_mr_clr(row_length, rows, model_levels))
       water_vapour_mr_clr = ukca_vmr_clear_sky(row_length, rows, model_levels, &
                             water_vapour_mr, water_vapour_mr_sat,              &
@@ -1798,7 +1618,7 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
     IF (ALLOCATED(water_vapour_mr)) DEALLOCATE(water_vapour_mr)
     IF (ALLOCATED(water_vapour_mr_sat)) DEALLOCATE(water_vapour_mr_sat)
 
-  END IF  ! l_um_atmos_ukca_humidity
+  END IF  ! .NOT. ukca_config%l_environ_rel_humid
 
   !-----------------------------------------------------------------------
 
@@ -2175,6 +1995,10 @@ IF (ukca_config%l_ukca_chem .OR. ukca_config%l_ukca_mode) THEN
       ALLOCATE(cos_zenith_angle(row_length, rows))
     IF (.NOT. ALLOCATED(int_zenith_angle))                                     &
       ALLOCATE(int_zenith_angle(row_length, rows))
+    IF (.NOT. ALLOCATED(rel_humid_frac))                                       &
+      ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
+    IF (.NOT. ALLOCATED(rel_humid_frac_clr))                                   &
+      ALLOCATE(rel_humid_frac_clr(row_length, rows, model_levels))
 
     ! Read emission fields and calculate online emissions, fill in
     ! the emissions structure, inject emissions, do tracer mixing and
@@ -2352,7 +2176,9 @@ IF (ukca_config%l_ukca_chem) THEN
       WRITE(umMessage,'(A)') 'Finished Interactive Cloud pH routine'
       CALL umPrint(umMessage,src=RoutineName)
     END IF
-    ! now pass H_plus array to routines that use it in chem ctl
+
+    IF (.NOT. ALLOCATED(rel_humid_frac))                                       &
+      ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
 
     ! Prepare to run ASAD
     CALL ukca_chemistry_setup(                                                 &
@@ -2795,6 +2621,11 @@ IF (do_aerosol) THEN
     wetox_in_aer = 0
   END IF
 
+  IF (.NOT. ALLOCATED(rel_humid_frac))                                         &
+    ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
+  IF (.NOT. ALLOCATED(rel_humid_frac_clr))                                     &
+    ALLOCATE(rel_humid_frac_clr(row_length, rows, model_levels))
+
   !!!! In the call below, note that cloud_frac field may have lower bound of 0
   !!!! hence the subrange 1:model_levels is specified. This relates to a
   !!!! bug controlled by the temporary logical l_fix_ukca_cloud_frac and can be
@@ -2853,6 +2684,8 @@ IF (do_aerosol) THEN
 
   ! Call activation scheme if switched on
   IF ( glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg ) THEN
+
+    IF (.NOT. ALLOCATED(qsvp)) ALLOCATE(qsvp(row_length, rows, model_levels))
 
     CALL ukca_activate(                                                        &
         row_length, rows,                                                      &
@@ -3163,6 +2996,8 @@ IF (ukca_config%l_blankout_invalid_diags) THEN
 END IF
 
 ! Reset/deallocate environmental driver fields
+! This includes fields which are potentially supplied as drivers but may be
+! calculated internally depending on the UKCA configuration
 CALL clear_environment_fields()
 
 ! NB: have_nat3d is only allocated if chemistry is on and should be
@@ -3190,11 +3025,6 @@ IF (ukca_config%l_ukca_persist_off) THEN
 END IF
 
 ! Deallocate variables local to ukca_main
-
-IF (ALLOCATED(qsvp)) DEALLOCATE(qsvp)
-IF (ALLOCATED(rel_humid_frac_clr)) DEALLOCATE(rel_humid_frac_clr)
-IF (ALLOCATED(rel_humid_frac)) DEALLOCATE(rel_humid_frac)
-
 IF (ALLOCATED(totnodens)) DEALLOCATE(totnodens)
 IF (ALLOCATED(strat_fluxdiags)) DEALLOCATE(strat_fluxdiags)
 IF (ALLOCATED(mode_diags)) DEALLOCATE(mode_diags)

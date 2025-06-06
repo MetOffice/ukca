@@ -127,7 +127,10 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_photol_rates,                                                        &
   fldname_grid_area_fullht,                                                    &
   fldname_grid_volume,                                                         &
-  fldname_grid_airmass
+  fldname_grid_airmass,                                                        &
+  fldname_rel_humid_frac,                                                      &
+  fldname_rel_humid_frac_clr,                                                  &
+  fldname_qsvp
 
 USE ukca_environment_fields_mod, ONLY:                                         &
   environ_field_info,                                                          &
@@ -227,7 +230,10 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   photol_rates,                                                                &
   grid_area_fullht,                                                            &
   grid_volume,                                                                 &
-  grid_airmass
+  grid_airmass,                                                                &
+  rel_humid_frac,                                                              &
+  rel_humid_frac_clr,                                                          &
+  qsvp
 
 USE ukca_error_mod,  ONLY: errcode_env_field_unknown,                          &
                            errcode_env_field_mismatch
@@ -776,6 +782,15 @@ CASE (fldname_grid_volume)
 CASE (fldname_grid_airmass)
   CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
                                  grid_airmass)
+CASE (fldname_rel_humid_frac)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 rel_humid_frac)
+CASE (fldname_rel_humid_frac_clr)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 rel_humid_frac_clr)
+CASE (fldname_qsvp)
+  CALL set_field_3d_from_1d_real(i_field, i1, i2, j1, j2, k1, k2, field_data,  &
+                                 qsvp)
 CASE DEFAULT
   ! Error: Not a recognised field
   error_code = errcode_env_field_unknown

@@ -372,6 +372,12 @@ REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_volume(:,:,:)
   ! Grid cell volume (m^3) - theta levels
 REAL, ALLOCATABLE, SAVE, PUBLIC :: grid_airmass(:,:,:)
   ! Grid cell air mass (kg) - theta levels
+REAL, ALLOCATABLE, SAVE, PUBLIC :: rel_humid_frac(:,:,:)
+  ! relative_humidity [CF]
+REAL, ALLOCATABLE, SAVE, PUBLIC :: rel_humid_frac_clr(:,:,:)
+  ! Clear-sky relative humidity
+REAL, ALLOCATABLE, SAVE, PUBLIC :: qsvp(:,:,:)
+  ! Saturation vapour pressure of water (Pa)
 
 ! --- Oxidant species for Offline Oxidants chemistry - 3-D of type Real ---
 ! Note: These fields can also be used for other chemistry schemes if needed
