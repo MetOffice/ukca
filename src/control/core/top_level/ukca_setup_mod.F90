@@ -209,7 +209,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_mode_bhn_on,                                           &
                       l_mode_bln_on,                                           &
                       l_ddepaer,                                               &
-                      l_rainout,                                               &
+                      l_aero_rainout,                                          &
                       l_cv_rainout,                                            &
                       l_impc_scav,                                             &
                       l_dust_slinn_impc_scav,                                  &
@@ -539,7 +539,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2so4_ystore
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bhn_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bln_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ddepaer
-LOGICAL, OPTIONAL, INTENT(IN) :: l_rainout
+LOGICAL, OPTIONAL, INTENT(IN) :: l_aero_rainout
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cv_rainout
 LOGICAL, OPTIONAL, INTENT(IN) :: l_impc_scav
 LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_slinn_impc_scav
@@ -1324,25 +1324,20 @@ IF (ukca_config%l_ukca_mode) THEN
 
     IF (.NOT. (ukca_config%l_ukca_wetdep_off)) THEN
 
-      glomap_config%l_rainout = .TRUE.
+      glomap_config%l_aero_rainout = .TRUE.
       glomap_config%l_impc_scav = .TRUE.
 
       IF (PRESENT(mode_incld_so2_rfrac))                                       &
         glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
-      IF (PRESENT(l_rainout)) glomap_config%l_rainout = l_rainout
+      IF (PRESENT(l_aero_rainout)) glomap_config%l_aero_rainout = l_aero_rainout
       IF (PRESENT(l_impc_scav)) glomap_config%l_impc_scav = l_impc_scav
 
       ! Nucleation scavenging options
-      IF (glomap_config%l_rainout) THEN
+      glomap_config%i_mode_nucscav = 3
+      glomap_config%l_cv_rainout = .TRUE.
 
-        glomap_config%i_mode_nucscav = 3
-        glomap_config%l_cv_rainout = .TRUE.
-
-        IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
-        IF (PRESENT(i_mode_nucscav))                                           &
-          glomap_config%i_mode_nucscav = i_mode_nucscav
-
-      END IF
+      IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
+      IF (PRESENT(i_mode_nucscav)) glomap_config%i_mode_nucscav = i_mode_nucscav
 
       ! Impaction scavenging options
       IF (glomap_config%l_impc_scav) THEN
@@ -1601,20 +1596,17 @@ IF (ukca_config%l_ukca_mode) THEN
       IF (PRESENT(l_ddepaer)) glomap_config%l_ddepaer = l_ddepaer
     END IF
     IF (.NOT. (ukca_config%l_ukca_wetdep_off)) THEN
-      glomap_config%l_rainout = .TRUE.
+      glomap_config%l_aero_rainout = .TRUE.
       glomap_config%l_impc_scav = .TRUE.
       IF (PRESENT(mode_incld_so2_rfrac))                                       &
         glomap_config%mode_incld_so2_rfrac = mode_incld_so2_rfrac
-      IF (PRESENT(l_rainout)) glomap_config%l_rainout = l_rainout
+      IF (PRESENT(l_aero_rainout)) glomap_config%l_aero_rainout = l_aero_rainout
       IF (PRESENT(l_impc_scav)) glomap_config%l_impc_scav = l_impc_scav
       ! Nucleation scavenging options
-      IF (glomap_config%l_rainout) THEN
-        glomap_config%i_mode_nucscav = 3
-        glomap_config%l_cv_rainout = .TRUE.
-        IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
-        IF (PRESENT(i_mode_nucscav))                                           &
-          glomap_config%i_mode_nucscav = i_mode_nucscav
-      END IF
+      glomap_config%i_mode_nucscav = 3
+      glomap_config%l_cv_rainout = .TRUE.
+      IF (PRESENT(l_cv_rainout)) glomap_config%l_cv_rainout = l_cv_rainout
+      IF (PRESENT(i_mode_nucscav)) glomap_config%i_mode_nucscav = i_mode_nucscav
       ! Impaction scavenging options
       IF (glomap_config%l_impc_scav) THEN
         glomap_config%l_dust_slinn_impc_scav = .TRUE.

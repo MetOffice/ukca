@@ -811,7 +811,7 @@ END IF
 
 ! Set whether or not wet deposition (nucleation and impaction scavenging) of
 ! aerosols is on
-IF (glomap_config%l_rainout) THEN
+IF (glomap_config%l_aero_rainout) THEN
   rainout_on = 1
 ELSE
   rainout_on = 0
@@ -822,8 +822,8 @@ ELSE
   imscav_on = 0
 END IF
 IF (firstcall .AND. verbose > 0) THEN
-  WRITE(umMessage, '(A22,L6,I5)') 'L_RAINOUT,RAINOUT_ON=',                     &
-                                 glomap_config%l_rainout, rainout_on
+  WRITE(umMessage, '(A27,L6,I5)') 'L_AERO_RAINOUT,RAINOUT_ON=',                &
+                                 glomap_config%l_aero_rainout, rainout_on
   CALL umPrint(umMessage, src='ukca_aero_ctl')
   WRITE(umMessage, '(A24,L6,I5)') 'L_IMPC_SCAV,IMSCAV_ON=',                    &
                                  glomap_config%l_impc_scav, imscav_on

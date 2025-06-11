@@ -445,7 +445,7 @@ TYPE :: glomap_config_spec_type
   LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
   REAL :: mode_incld_so2_rfrac         ! Fraction of in-cloud oxidised SO2
                                        ! removed by precipitation
-  LOGICAL :: l_rainout                 ! True for turning on nucleation
+  LOGICAL :: l_aero_rainout            ! True for turning on nucleation
                                        ! scavenging (rainout)
   INTEGER :: i_mode_nucscav            ! Choice of nucl. scavenging co-effs:
                                        ! 1=original, 2=ECHAM5-HAM
@@ -992,7 +992,7 @@ glomap_config%acc_cor_scav_scaling = rmdi
 ! -- GLOMAP deposition configuration options --
 glomap_config%l_ddepaer = .FALSE.
 glomap_config%mode_incld_so2_rfrac = rmdi
-glomap_config%l_rainout = .FALSE.
+glomap_config%l_aero_rainout = .FALSE.
 glomap_config%l_cv_rainout = .FALSE.
 glomap_config%i_mode_nucscav = imdi
 glomap_config%l_impc_scav = .FALSE.
@@ -1184,7 +1184,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_chem_environ_o2_scalar,                                                   &
    l_mode_bhn_on, l_mode_bln_on,                                               &
    l_ddepaer,                                                                  &
-   l_rainout, l_cv_rainout,                                                    &
+   l_aero_rainout, l_cv_rainout,                                               &
    l_impc_scav, l_dust_slinn_impc_scav,                                        &
    l_ukca_primss, l_ukca_primsu, l_ukca_primdu, l_ukca_primbcoc,               &
    l_ukca_prim_moc, l_bcoc_bf, l_bcoc_bm, l_bcoc_ff,                           &
@@ -1409,7 +1409,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_chem_environ_o2_scalar
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_mode_bhn_on
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_mode_bln_on
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ddepaer
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_rainout
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_aero_rainout
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_cv_rainout
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_impc_scav
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_slinn_impc_scav
@@ -1731,7 +1731,7 @@ IF (PRESENT(l_ddepaer))                                                        &
   l_ddepaer = glomap_config%l_ddepaer
 IF (PRESENT(mode_incld_so2_rfrac))                                             &
   mode_incld_so2_rfrac = glomap_config%mode_incld_so2_rfrac
-IF (PRESENT(l_rainout)) l_rainout = glomap_config%l_rainout
+IF (PRESENT(l_aero_rainout)) l_aero_rainout = glomap_config%l_aero_rainout
 IF (PRESENT(l_cv_rainout)) l_cv_rainout = glomap_config%l_cv_rainout
 IF (PRESENT(i_mode_nucscav)) i_mode_nucscav = glomap_config%i_mode_nucscav
 IF (PRESENT(l_impc_scav)) l_impc_scav = glomap_config%l_impc_scav

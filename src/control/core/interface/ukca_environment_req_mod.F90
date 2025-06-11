@@ -1293,14 +1293,14 @@ END IF
 ! internally and GLOMAP-mode is on. Also, it is always required if nucleation
 ! scavenging is on in GLOMAP-mode.
 IF (((.NOT. ukca_config%l_environ_rel_humid) .AND. ukca_config%l_ukca_mode)    &
-    .OR. glomap_config%l_rainout) THEN
+    .OR. glomap_config%l_aero_rainout) THEN
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_cloud_liq_frac
 END IF
 
 ! Autoconversion, accretion and riming rates are required if
 ! nucleation scavenging is on in GLOMAP-mode
-IF (glomap_config%l_rainout) THEN
+IF (glomap_config%l_aero_rainout) THEN
   n = n + 1
   IF (n <= n_max) fld_names(n) = fldname_autoconv
   n = n + 1
