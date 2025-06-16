@@ -32,3 +32,5 @@ Marc Stringer                   National Centre for Atmospheric Science and
                                 University of Reading
 Joseph Wallwork                 University of Cambridge
 James Weber                     University of Sheffield
+Joao Teixeira                   Met Office
+Amy Peace                       Met Office

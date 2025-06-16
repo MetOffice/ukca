@@ -196,6 +196,13 @@ USE ukca_fieldname_mod,  ONLY: maxlen_fieldname,                               &
   fldname_inferno_nox,                                                         &
   fldname_inferno_oc,                                                          &
   fldname_inferno_so2,                                                         &
+  fldname_inferno_c2h4,                                                        &
+  fldname_inferno_c2h6,                                                        &
+  fldname_inferno_c3h8,                                                        &
+  fldname_inferno_hcho,                                                        &
+  fldname_inferno_mecho,                                                       &
+  fldname_inferno_nh3,                                                         &
+  fldname_inferno_dms,                                                         &
   fldname_lscat_zhang,                                                         &
   fldname_grid_area_fullht,                                                    &
   fldname_grid_volume,                                                         &
@@ -1573,6 +1580,48 @@ IF (.NOT. ukca_config%l_ukca_emissions_off) THEN
       IF (ukca_config%l_ukca_inferno) THEN
         l_req_emiss = .TRUE.
         use_fldname = fldname_inferno_so2
+      END IF
+
+    CASE ('C2H4')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_c2h4
+      END IF
+
+    CASE ('C2H6')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_c2h6
+      END IF
+
+    CASE ('C3H8')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_c3h8
+      END IF
+
+    CASE ('HCHO')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_hcho
+      END IF
+
+    CASE ('MeCHO')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_mecho
+      END IF
+
+    CASE ('NH3')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_nh3
+      END IF
+
+    CASE ('DMS')
+      IF (ukca_config%l_ukca_inferno) THEN
+        l_req_emiss = .TRUE.
+        use_fldname = fldname_inferno_dms
       END IF
     END SELECT
 

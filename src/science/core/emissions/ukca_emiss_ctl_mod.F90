@@ -68,6 +68,10 @@ USE ukca_emiss_mod,       ONLY: num_em_flds, num_cdf_em_flds, emissions,       &
                                 ico_inferno, ich4_inferno,                     &
                                 inox_inferno, iso2_inferno,                    &
                                 ioc_inferno, ibc_inferno,                      &
+                                ic2h4_inferno, ic2h6_inferno,                  &
+                                ic3h8_inferno, ihcho_inferno,                  &
+                                imecho_inferno,                                &
+                                inh3_inferno, idms_inferno,                    &
                                 ukca_emiss_update_mode, ukca_emiss_mode_map,   &
                                 idms_seaflux, iseasalt_first,                  &
                                 ipmoc_first, idust_first,                      &
@@ -97,7 +101,10 @@ USE ukca_prim_du_mod,     ONLY: ukca_prim_du
 USE ukca_environment_fields_mod, ONLY: ibvoc_isoprene,  ibvoc_terpene,         &
                                  ibvoc_methanol, ibvoc_acetone,                &
                                  inferno_bc, inferno_ch4, inferno_co,          &
-                                 inferno_nox, inferno_oc, inferno_so2
+                                 inferno_nox, inferno_oc, inferno_so2,         &
+                                 inferno_c2h4, inferno_c2h6, inferno_c3h8,     &
+                                 inferno_hcho, inferno_mecho,                  &
+                                 inferno_nh3, inferno_dms
 USE ukca_constants,       ONLY: m_c, m_ch4, m_dms,                             &
                                 m_n, m_no, m_no2, m_s, m_c5h8, m_monoterp,     &
                                 m_ch3oh, m_me2co
@@ -686,6 +693,55 @@ IF (ukca_config%l_ukca_inferno) THEN
     CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
                       inferno_nox, land_fraction,                              &
                       emissions(inox_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (ic2h4_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_c2h4, land_fraction,                             &
+                      emissions(ic2h4_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (ic2h6_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_c2h6, land_fraction,                             &
+                      emissions(ic2h6_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (ic3h8_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_c3h8, land_fraction,                             &
+                      emissions(ic3h8_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (ihcho_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_hcho, land_fraction,                             &
+                      emissions(ihcho_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (imecho_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_mecho, land_fraction,                            &
+                      emissions(imecho_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (inh3_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_nh3, land_fraction,                              &
+                      emissions(inh3_inferno)%values (:,:,1))  ! surface emiss
+
+  END IF
+
+  IF (idms_inferno > 0) THEN
+    CALL regrid_jules_emi(row_length, rows, land_points, land_index,           &
+                      inferno_dms, land_fraction,                              &
+                      emissions(idms_inferno)%values (:,:,1))  ! surface emiss
 
   END IF
 

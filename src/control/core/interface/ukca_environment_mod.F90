@@ -185,6 +185,13 @@ USE ukca_fieldname_mod,  ONLY:                                                 &
   fldname_inferno_nox,                                                         &
   fldname_inferno_oc,                                                          &
   fldname_inferno_so2,                                                         &
+  fldname_inferno_c2h4,                                                        &
+  fldname_inferno_c2h6,                                                        &
+  fldname_inferno_c3h8,                                                        &
+  fldname_inferno_hcho,                                                        &
+  fldname_inferno_mecho,                                                       &
+  fldname_inferno_nh3,                                                         &
+  fldname_inferno_dms,                                                         &
   fldname_lscat_zhang,                                                         &
   fldname_grid_area_fullht,                                                    &
   fldname_grid_volume,                                                         &
@@ -339,6 +346,13 @@ USE ukca_environment_fields_mod, ONLY:                                         &
   inferno_nox,                                                                 &
   inferno_oc,                                                                  &
   inferno_so2,                                                                 &
+  inferno_c2h4,                                                                &
+  inferno_c2h6,                                                                &
+  inferno_c3h8,                                                                &
+  inferno_hcho,                                                                &
+  inferno_mecho,                                                               &
+  inferno_nh3,                                                                 &
+  inferno_dms,                                                                 &
   lscat_zhang,                                                                 &
   grid_area_fullht,                                                            &
   grid_volume,                                                                 &
@@ -880,6 +894,20 @@ CASE (fldname_inferno_oc)
   CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_oc)
 CASE (fldname_inferno_so2)
   CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_so2)
+CASE (fldname_inferno_c2h4)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_c2h4)
+CASE (fldname_inferno_c2h6)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_c2h6)
+CASE (fldname_inferno_c3h8)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_c3h8)
+CASE (fldname_inferno_hcho)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_hcho)
+CASE (fldname_inferno_mecho)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_mecho)
+CASE (fldname_inferno_nh3)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_nh3)
+CASE (fldname_inferno_dms)
+  CALL set_field_1d_real(i_field, i1, i2, field_data, inferno_dms)
 CASE DEFAULT
   ! Field not a recognised 1-D (or 3-D) field
   IF ( .NOT. (ANY(fldnames_3d_real == varname)) ) THEN

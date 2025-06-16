@@ -369,12 +369,19 @@ CHARACTER(LEN=*), PARAMETER :: fldname_ibvoc_methanol = 'ibvoc_methanol'
 CHARACTER(LEN=*), PARAMETER :: fldname_ibvoc_acetone  = 'ibvoc_acetone'
 
 ! Interactive fire emissions
-CHARACTER(LEN=*), PARAMETER :: fldname_inferno_bc  = 'inferno_bc'
-CHARACTER(LEN=*), PARAMETER :: fldname_inferno_ch4 = 'inferno_ch4'
-CHARACTER(LEN=*), PARAMETER :: fldname_inferno_co  = 'inferno_co'
-CHARACTER(LEN=*), PARAMETER :: fldname_inferno_nox = 'inferno_nox'
-CHARACTER(LEN=*), PARAMETER :: fldname_inferno_oc  = 'inferno_oc'
-CHARACTER(LEN=*), PARAMETER :: fldname_inferno_so2 = 'inferno_so2'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_bc    = 'inferno_bc'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_ch4   = 'inferno_ch4'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_co    = 'inferno_co'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_nox   = 'inferno_nox'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_oc    = 'inferno_oc'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_so2   = 'inferno_so2'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_c2h4  = 'inferno_c2h4'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_c2h6  = 'inferno_c2h6'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_c3h8  = 'inferno_c3h8'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_hcho  = 'inferno_hcho'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_mecho = 'inferno_mecho'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_nh3   = 'inferno_nh3'
+CHARACTER(LEN=*), PARAMETER :: fldname_inferno_dms   = 'inferno_dms'
 
 
 ! --- 2D fields of type integer ---

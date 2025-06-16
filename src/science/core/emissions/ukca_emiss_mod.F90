@@ -98,6 +98,13 @@ INTEGER, PUBLIC :: inox_inferno        ! Index for INFERNO emiss of NOx
 INTEGER, PUBLIC :: iso2_inferno        ! Index for INFERNO emiss of SO2
 INTEGER, PUBLIC :: ioc_inferno         ! Index for INFERNO emiss of OC
 INTEGER, PUBLIC :: ibc_inferno         ! Index for INFERNO emiss of BC
+INTEGER, PUBLIC :: ic2h4_inferno       ! Index for INFERNO emiss of C2H4
+INTEGER, PUBLIC :: ic2h6_inferno       ! Index for INFERNO emiss of C2H6
+INTEGER, PUBLIC :: ic3h8_inferno       ! Index for INFERNO emiss of C3H8
+INTEGER, PUBLIC :: ihcho_inferno       ! Index for INFERNO emiss of HCHO
+INTEGER, PUBLIC :: imecho_inferno      ! Index for INFERNO emiss of MeCHO
+INTEGER, PUBLIC :: inh3_inferno        ! Index for INFERNO emiss of NH3
+INTEGER, PUBLIC :: idms_inferno        ! Index for INFERNO emiss of DMS
 
 ! Name for online emissions of OC
 CHARACTER(LEN=30), PUBLIC :: marine_oc_online =                                &
@@ -195,6 +202,13 @@ inox_inferno    = -99
 iso2_inferno    = -99
 ioc_inferno     = -99
 ibc_inferno     = -99
+ic2h4_inferno   = -99
+ic2h6_inferno   = -99
+ic3h8_inferno   = -99
+ihcho_inferno   = -99
+imecho_inferno  = -99
+inh3_inferno    = -99
+idms_inferno    = -99
 
 ! -----------------------------------------------------------------------------
 ! The total nr of emission fields will be equal to the number of fields
@@ -371,6 +385,90 @@ IF (ukca_config%l_ukca_inferno) THEN
     ! because species not emitted in the chemistry scheme
     ierror      = -2
     cmessage    = 'INFERNO fire emissions of BC '         //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'C2H4      ')) THEN
+    ic2h4_inferno    = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of C2H4 '       //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'C2H6      ')) THEN
+    ic2h6_inferno    = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of C2H6 '       //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'C3H8      ')) THEN
+    ic3h8_inferno    = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of C3H8 '       //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'HCHO      ')) THEN
+    ihcho_inferno    = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of HCHO '       //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'MeCHO     ')) THEN
+    imecho_inferno   = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of MeCHO '      //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'NH3       ')) THEN
+    inh3_inferno     = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of NH3 '        //                   &
+                  'ignored for this chemistry scheme'
+    CALL ereport(RoutineName, ierror, cmessage)
+  END IF
+
+  IF (ANY (em_chem_spec == 'DMS       ')) THEN
+    idms_inferno     = num_cdf_em_flds  + num_onln_em_flds + 1
+    num_onln_em_flds = num_onln_em_flds + 1
+  ELSE
+    ! Report a warning to indicate that it will not be used
+    ! because species not emitted in the chemistry scheme
+    ierror      = -2
+    cmessage    = 'INFERNO fire emissions of DMS '        //                   &
                   'ignored for this chemistry scheme'
     CALL ereport(RoutineName, ierror, cmessage)
   END IF
@@ -728,6 +826,167 @@ IF (ukca_config%l_ukca_inferno) THEN
     ALLOCATE (emissions(inox_inferno)%diags (row_length, rows, 1))
     emissions(inox_inferno)%values(:,:,:) = 0.0
     emissions(inox_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ic2h4_inferno > 0) THEN
+    emissions(ic2h4_inferno)%var_name    = 'inferno_C2H4'
+    emissions(ic2h4_inferno)%tracer_name = 'C2H4     '
+    emissions(ic2h4_inferno)%l_online    = .TRUE.
+    emissions(ic2h4_inferno)%units       = 'kg m-2 s-1'
+    emissions(ic2h4_inferno)%lng_name    =                                     &
+     'tendency of atmosphere mass content'                               //    &
+     ' of ethene due to emission from fires'
+
+    emissions(ic2h4_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(ic2h4_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(ic2h4_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(ic2h4_inferno)%three_dim   = .FALSE.
+    emissions(ic2h4_inferno)%lowest_lev  = 1
+    emissions(ic2h4_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(ic2h4_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ic2h4_inferno)%diags (row_length, rows, 1))
+    emissions(ic2h4_inferno)%values(:,:,:) = 0.0
+    emissions(ic2h4_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ic2h6_inferno > 0) THEN
+    emissions(ic2h6_inferno)%var_name    = 'inferno_C2H6'
+    emissions(ic2h6_inferno)%tracer_name = 'C2H6     '
+    emissions(ic2h6_inferno)%l_online    = .TRUE.
+    emissions(ic2h6_inferno)%units       = 'kg m-2 s-1'
+    emissions(ic2h6_inferno)%lng_name    =                                     &
+     'tendency of atmosphere mass content'                               //    &
+     ' of ethane due to emission from fires'
+
+    emissions(ic2h6_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(ic2h6_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(ic2h6_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(ic2h6_inferno)%three_dim   = .FALSE.
+    emissions(ic2h6_inferno)%lowest_lev  = 1
+    emissions(ic2h6_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(ic2h6_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ic2h6_inferno)%diags (row_length, rows, 1))
+    emissions(ic2h6_inferno)%values(:,:,:) = 0.0
+    emissions(ic2h6_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ic3h8_inferno > 0) THEN
+    emissions(ic3h8_inferno)%var_name    = 'inferno_C3H8'
+    emissions(ic3h8_inferno)%tracer_name = 'C3H8     '
+    emissions(ic3h8_inferno)%l_online    = .TRUE.
+    emissions(ic3h8_inferno)%units       = 'kg m-2 s-1'
+    emissions(ic3h8_inferno)%lng_name    =                                     &
+     'tendency of atmosphere mass content'                               //    &
+     ' of propane due to emission from fires'
+
+    emissions(ic3h8_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(ic3h8_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(ic3h8_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(ic3h8_inferno)%three_dim   = .FALSE.
+    emissions(ic3h8_inferno)%lowest_lev  = 1
+    emissions(ic3h8_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(ic3h8_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ic3h8_inferno)%diags (row_length, rows, 1))
+    emissions(ic3h8_inferno)%values(:,:,:) = 0.0
+    emissions(ic3h8_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ihcho_inferno > 0) THEN
+    emissions(ihcho_inferno)%var_name    = 'inferno_HCHO'
+    emissions(ihcho_inferno)%tracer_name = 'HCHO     '
+    emissions(ihcho_inferno)%l_online    = .TRUE.
+    emissions(ihcho_inferno)%units       = 'kg m-2 s-1'
+    emissions(ihcho_inferno)%lng_name    =                                     &
+     'tendency of atmosphere mass content'                               //    &
+     ' of formaldehyde due to emission from fires'
+
+    emissions(ihcho_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(ihcho_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(ihcho_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(ihcho_inferno)%three_dim   = .FALSE.
+    emissions(ihcho_inferno)%lowest_lev  = 1
+    emissions(ihcho_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(ihcho_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ihcho_inferno)%diags (row_length, rows, 1))
+    emissions(ihcho_inferno)%values(:,:,:) = 0.0
+    emissions(ihcho_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (imecho_inferno > 0) THEN
+    emissions(imecho_inferno)%var_name    = 'inferno_MeCHO'
+    emissions(imecho_inferno)%tracer_name = 'MeCHO   '
+    emissions(imecho_inferno)%l_online    = .TRUE.
+    emissions(imecho_inferno)%units       = 'kg m-2 s-1'
+    emissions(imecho_inferno)%lng_name    =                                    &
+     'tendency of atmosphere mass content'                               //    &
+     ' of acetaldehyde due to emission from fires'
+
+    emissions(imecho_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(imecho_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(imecho_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(imecho_inferno)%three_dim   = .FALSE.
+    emissions(imecho_inferno)%lowest_lev  = 1
+    emissions(imecho_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(imecho_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(imecho_inferno)%diags (row_length, rows, 1))
+    emissions(imecho_inferno)%values(:,:,:) = 0.0
+    emissions(imecho_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (inh3_inferno > 0) THEN
+    emissions(inh3_inferno)%var_name    = 'inferno_NH3'
+    emissions(inh3_inferno)%tracer_name = 'NH3      '
+    emissions(inh3_inferno)%l_online    = .TRUE.
+    emissions(inh3_inferno)%units       = 'kg m-2 s-1'
+    emissions(inh3_inferno)%lng_name    =                                      &
+     'tendency of atmosphere mass content'                               //    &
+     ' of ammonia due to emission from fires'
+
+    emissions(inh3_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(inh3_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(inh3_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(inh3_inferno)%three_dim   = .FALSE.
+    emissions(inh3_inferno)%lowest_lev  = 1
+    emissions(inh3_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(inh3_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(inh3_inferno)%diags (row_length, rows, 1))
+    emissions(inh3_inferno)%values(:,:,:) = 0.0
+    emissions(inh3_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (idms_inferno > 0) THEN
+    emissions(idms_inferno)%var_name    = 'inferno_DMS'
+    emissions(idms_inferno)%tracer_name = 'DMS      '
+    emissions(idms_inferno)%l_online    = .TRUE.
+    emissions(idms_inferno)%units       = 'kg m-2 s-1'
+    emissions(idms_inferno)%lng_name    =                                      &
+     'tendency of atmosphere mass content'                               //    &
+     ' of dimethyl sulfide due to emission from fires'
+
+    emissions(idms_inferno)%hourly_fact = 'none'      ! No need to apply
+    emissions(idms_inferno)%daily_fact  = 'none'      ! time profiles
+
+    emissions(idms_inferno)%vert_fact   = 'surface'   ! surface emissions
+    emissions(idms_inferno)%three_dim   = .FALSE.
+    emissions(idms_inferno)%lowest_lev  = 1
+    emissions(idms_inferno)%highest_lev = 1
+
+    ALLOCATE (emissions(idms_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(idms_inferno)%diags (row_length, rows, 1))
+    emissions(idms_inferno)%values(:,:,:) = 0.0
+    emissions(idms_inferno)%diags (:,:,:) = 0.0
   END IF
 
   IF (iso2_inferno > 0) THEN
@@ -1385,6 +1644,55 @@ IF (ukca_config%l_ukca_inferno) THEN
     ALLOCATE (emissions(inox_inferno)%diags (row_length, rows, 1))
     emissions(inox_inferno)%values(:,:,:) = 0.0
     emissions(inox_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ic2h4_inferno > 0) THEN
+    ALLOCATE (emissions(ic2h4_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ic2h4_inferno)%diags (row_length, rows, 1))
+    emissions(ic2h4_inferno)%values(:,:,:) = 0.0
+    emissions(ic2h4_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ic2h6_inferno > 0) THEN
+    ALLOCATE (emissions(ic2h6_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ic2h6_inferno)%diags (row_length, rows, 1))
+    emissions(ic2h6_inferno)%values(:,:,:) = 0.0
+    emissions(ic2h6_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ic3h8_inferno > 0) THEN
+    ALLOCATE (emissions(ic3h8_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ic3h8_inferno)%diags (row_length, rows, 1))
+    emissions(ic3h8_inferno)%values(:,:,:) = 0.0
+    emissions(ic3h8_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (ihcho_inferno > 0) THEN
+    ALLOCATE (emissions(ihcho_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(ihcho_inferno)%diags (row_length, rows, 1))
+    emissions(ihcho_inferno)%values(:,:,:) = 0.0
+    emissions(ihcho_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (imecho_inferno > 0) THEN
+    ALLOCATE (emissions(imecho_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(imecho_inferno)%diags (row_length, rows, 1))
+    emissions(imecho_inferno)%values(:,:,:) = 0.0
+    emissions(imecho_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (inh3_inferno > 0) THEN
+    ALLOCATE (emissions(inh3_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(inh3_inferno)%diags (row_length, rows, 1))
+    emissions(inh3_inferno)%values(:,:,:) = 0.0
+    emissions(inh3_inferno)%diags (:,:,:) = 0.0
+  END IF
+
+  IF (idms_inferno > 0) THEN
+    ALLOCATE (emissions(idms_inferno)%values(row_length, rows, 1))
+    ALLOCATE (emissions(idms_inferno)%diags (row_length, rows, 1))
+    emissions(idms_inferno)%values(:,:,:) = 0.0
+    emissions(idms_inferno)%diags (:,:,:) = 0.0
   END IF
 
   IF (iso2_inferno > 0) THEN
