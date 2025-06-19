@@ -14,7 +14,7 @@
 ! by The University of Cambridge, University of Leeds,
 ! University of Oxford and The Met. Office.  See www.ukca.ac.uk
 !
-! Code Owner: Please refer to UM file CodeOwners.txt
+! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: UKCA
 !
 ! Code Description:

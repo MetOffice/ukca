@@ -1381,7 +1381,7 @@ DO jprod=1,numprods ! cycle over number of products
 END DO
 
 j = 1
-DO
+search_reactants: DO
   jr = r_index(j)            ! loop over reactions
 
   ! ASSUME 2 REACTANTS HERE!!
@@ -1446,9 +1446,9 @@ DO
 
   j = j + 1
   IF ( j > nreacts ) THEN
-    EXIT
+    EXIT search_reactants
   END IF
-END DO
+END DO search_reactants
 
 IF (ALLOCATED(prods)) DEALLOCATE( prods )
 IF (ALLOCATED(inprods)) DEALLOCATE( inprods )

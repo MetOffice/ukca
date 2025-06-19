@@ -370,7 +370,7 @@ END IF
 ! Warn if we have defined emissions as entering a mode which is not used for
 ! this component.
 IF (lwarn_mismatch_local) THEN
-  DO jmode = 1, nmodes
+  check_modes: DO jmode = 1, nmodes
     IF ((mode_frac(jmode) > 0.0) .AND. .NOT. component(jmode,icp)) THEN
       WRITE(umMessage,'(4A,8F6.3,A,8L2)') "Emissions for ", TRIM(tracer_name), &
          " defined as entering a mode which is not used for this component.",  &
@@ -381,9 +381,9 @@ IF (lwarn_mismatch_local) THEN
                  "Total mass emitted will not agree with mass in emission file."
       ierror = -icp
       CALL ereport('UKCA_DEF_MODE_EMISS', ierror, cmessage)
-      EXIT
+      EXIT check_modes
     END IF
-  END DO
+  END DO check_modes
 END IF
 
 IF (PRESENT(mode_frac_out)) mode_frac_out = mode_frac

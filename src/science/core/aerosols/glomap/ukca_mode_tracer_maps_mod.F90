@@ -229,12 +229,12 @@ IF (lhook) CALL dr_hook(modulename//':'//routinename,zhook_in,zhook_handle)
 ! Start with default value
 arrayloc = -99
 
-DO i = 1, SIZE (ch_arr)
+find_arrayloc : DO i = 1, SIZE (ch_arr)
   IF (TRIM(ADJUSTL(ch_arr(i))) == TRIM(ADJUSTL(ch_test))) THEN
     arrayloc = i
-    EXIT
+    EXIT find_arrayloc
   END IF
-END DO
+END DO find_arrayloc
 
 IF (lhook) CALL dr_hook(modulename//':'//routinename,zhook_out,zhook_handle)
 

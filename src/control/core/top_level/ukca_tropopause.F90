@@ -157,13 +157,13 @@ IF (model_levels > 1) THEN
   !!Calculate level corresponding to maximum tropopause height
   IF ( l_first ) THEN
     max_trop_level = model_levels-2        ! default
-    DO l = 2,model_levels
+    calculate_max_tropopause: DO l = 2,model_levels
       IF ((MINVAL(r_theta_levels(:,:,l)) - planet_radius) >                    &
          max_z_for_tropopause_height) THEN
         max_trop_level = l
-        EXIT
+        EXIT calculate_max_tropopause
       END IF
-    END DO
+    END DO calculate_max_tropopause
     l_first = .FALSE.
   END IF
 
@@ -194,14 +194,14 @@ IF (model_levels > 1) THEN
       !         Find theta levels which straddle tpt
 
       l_level_found = .FALSE.
-      DO l = max_trop_level,2,-1
+      find_theta_levels: DO l = max_trop_level,2,-1
         IF (wth(l) <= tpt .AND. wth(l+1) >= tpt) THEN
           jll = l
           jlu = l+1
           l_level_found = .TRUE.
-          EXIT
+          EXIT find_theta_levels
         END IF
-      END DO
+      END DO find_theta_levels
 
       !         Calculate pressure of theta tropopause
 
@@ -234,14 +234,14 @@ IF (model_levels > 1) THEN
       !         Find potential vorticity levels which straddle tpv
 
       l_level_found = .FALSE.
-      DO l = max_trop_level,2,-1
+      find_potential_vorticity: DO l = max_trop_level,2,-1
         IF (ABS(wpv(l)) <= tpv .AND. ABS(wpv(l+1)) >= tpv) THEN
           jll = l
           jlu = l+1
           l_level_found = .TRUE.
-          EXIT
+          EXIT find_potential_vorticity
         END IF
-      END DO
+      END DO find_potential_vorticity
 
       !         Calculate pressure of pv tropopause
 
@@ -292,14 +292,14 @@ IF (model_levels > 1) THEN
       !         Check for whole gridboxes below tropopause and find
       !         the model level which contains the tropopause
 
-      DO l=1,model_levels
+      check_below_tropopause: DO l=1,model_levels
         IF (pr_boundaries(i,j,l) >= p_tropopause(i,j)) THEN
           L_stratosphere(i,j,l)  = .FALSE.
         ELSE
           tropopause_level(i,j) = l
-          EXIT
+          EXIT check_below_tropopause
         END IF
-      END DO
+      END DO check_below_tropopause
 
     END DO
   END DO

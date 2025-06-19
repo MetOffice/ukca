@@ -244,7 +244,8 @@ IF (ukca_config%l_ukca_mode) THEN
       !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
         !!    CALL ukca_indices_orgv1_soto3
         !!    CALL ukca_indices_sussbcocdu_4mode
-    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN ! 10
+      !10
+    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN
       IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
         CALL ukca_indices_orgv1_soto3_no3
       ELSE
@@ -254,7 +255,8 @@ IF (ukca_config%l_ukca_mode) THEN
     ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
       CALL ukca_indices_orgv1_soto3_solinsol
       CALL ukca_indices_solinsol_6mode
-    ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN ! 12
+      !12
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN
       IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
         CALL ukca_indices_orgv1_soto3_no3
       ELSE

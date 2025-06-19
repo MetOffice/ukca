@@ -2303,14 +2303,19 @@ DO ik = 1, nseg
       END IF
       DO jl = 1, nbs
         jl2 = nbs_index(imode - 1) + jl
-        ! For CCN_4 take CCN for particles > 15nm dry radius, including insoluble
+
+        ! For CCN_4 take CCN for particles > 15nm dry radius,
+        ! including insoluble
+
         dp0 = 30.0e-9
         seg_erf_arg(jl) = LOG(dp0 / seg_drydp(jl2)) /                          &
                           (root2 * log_sigmag(imode))
         seg_erfterm(jl) = 0.5 * seg_nd(jl2) * (1.0 - umErf(seg_erf_arg(jl)))
         seg_ccn_4(jl) = seg_ccn_4(jl) + seg_erfterm(jl)
-        !
-        ! For CCN_5 take CCN for particles > 25nm dry radius, including insoluble
+
+        ! For CCN_5 take CCN for particles > 25nm dry radius,
+        ! including insoluble
+
         dp0 = 50.0e-9
         seg_erf_arg(jl) = LOG(dp0 / seg_drydp(jl2)) /                          &
                           (root2 * log_sigmag(imode))

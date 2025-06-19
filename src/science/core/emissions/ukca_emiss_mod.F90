@@ -2082,7 +2082,7 @@ DO imode = 1, nmodes
   IF (lmode_emiss(imode)) THEN
     DO imoment = moment_number, moment_mass, moment_step
       lfound = .FALSE.
-      DO l = 1, num_em_flds
+      find_mode_emissions: DO l = 1, num_em_flds
         ! Find the corresponding mode emissions structures for mass and number
         IF (emissions(l)%l_mode .AND.                                          &
             emissions(l)%mode == imode .AND.                                   &
@@ -2097,9 +2097,9 @@ DO imode = 1, nmodes
           END SELECT
 
           lfound = .TRUE.
-          EXIT
+          EXIT find_mode_emissions
         END IF  ! mode==imode and component==icp
-      END DO  ! num_em_flds
+      END DO find_mode_emissions ! num_em_flds
     END DO  ! imoment
 
     IF (.NOT. lfound) THEN

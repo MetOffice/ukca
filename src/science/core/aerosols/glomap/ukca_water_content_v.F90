@@ -267,8 +267,8 @@ IF (glomap_config%l_fix_ukca_water_content) THEN
     DO ia=-nanion,-1
       !If the water content bug is being fixed then copy the
       !original rh values into aw each loop since they may get erroneously
-      !overwritten each time around the loop. We want to apply a different min aw
-      !for each anion/cation pair:-
+      !overwritten each time around the loop.
+      !We want to apply a different min aw for each anion/cation pair:-
       aw(:m)=rh(idx(:m))
       !Prevent aw from going below rh_min (from Table B10 of Jacobson)
       !for the anion/cation pair

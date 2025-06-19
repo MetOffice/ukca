@@ -65,39 +65,45 @@ END INTERFACE ukca_step_control
 CONTAINS
 
 ! ----------------------------------------------------------------------
-SUBROUTINE ukca_step_control_1d_domain(timestep_number, current_time,          &
-                                       tracer_data, ntp_data,                  &
-                                       r_theta_levels, r_rho_levels,           &
-                                       error_code, previous_time, eta_theta_levels, &
-                                       ! Scalar environment field groups
-                                       envgroup_flat_integer,                  &
-                                       envgroup_scalar_real,                   &
-                                       envgroup_flat_real,                     &
-                                       emissions_flat,                         &
-                                       envgroup_flat_logical,                  &
-                                       ! 1D environment field groups
-                                       envgroup_flatpft_real,                  &
-                                       envgroup_fullht_real,                   &
-                                       envgroup_fullht0_real,                  &
-                                       envgroup_fullhtp1_real,                 &
-                                       envgroup_bllev_real,                    &
-                                       envgroup_entlev_real,                   &
-                                       envgroup_land_real,                     &
-                                       emissions_fullht,                       &
-                                       ! 2D environment field groups
-                                       envgroup_landtile_real,                 &
-                                       envgroup_landpft_real,                  &
-                                       envgroup_landtile_logical,              &
-                                       ! 2D environment fields
-                                       ! (spatial + photol species)
-                                       envgroup_fullhtphot_real,               &
-                                       ! Diagnostics output
-                                       diag_status_flat_real,                  &
-                                       diag_status_fullht_real,                &
-                                       diag_data_flat_real,                    &
-                                       diag_data_fullht_real,                  &
-                                       ! Error return info
-                                       error_message, error_routine)
+SUBROUTINE ukca_step_control_1d_domain(   timestep_number,                     &
+                                          current_time,                        &
+                                          tracer_data,                         &
+                                          ntp_data,                            &
+                                          r_theta_levels,                      &
+                                          r_rho_levels,                        &
+                                          error_code,                          &
+                                          previous_time,                       &
+                                          eta_theta_levels,                    &
+                                          ! Scalar environment field groups
+                                          envgroup_flat_integer,               &
+                                          envgroup_scalar_real,                &
+                                          envgroup_flat_real,                  &
+                                          emissions_flat,                      &
+                                          envgroup_flat_logical,               &
+                                          ! 1D environment field groups
+                                          envgroup_flatpft_real,               &
+                                          envgroup_fullht_real,                &
+                                          envgroup_fullht0_real,               &
+                                          envgroup_fullhtp1_real,              &
+                                          envgroup_bllev_real,                 &
+                                          envgroup_entlev_real,                &
+                                          envgroup_land_real,                  &
+                                          emissions_fullht,                    &
+                                          ! 2D environment field groups
+                                          envgroup_landtile_real,              &
+                                          envgroup_landpft_real,               &
+                                          envgroup_landtile_logical,           &
+                                          ! 2D environment fields
+                                          ! (spatial + photol species)
+                                          envgroup_fullhtphot_real,            &
+                                          ! Diagnostics output
+                                          diag_status_flat_real,               &
+                                          diag_status_fullht_real,             &
+                                          diag_data_flat_real,                 &
+                                          diag_data_fullht_real,               &
+                                          ! Error return info
+                                          error_message,                       &
+                                          error_routine )
 ! ----------------------------------------------------------------------
 ! Description:
 !   Obtains environmental driver and emission fields and performs

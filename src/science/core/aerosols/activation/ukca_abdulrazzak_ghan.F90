@@ -299,8 +299,9 @@ DO jmod=1, topmode
       !in ARG2000 and Ghan, 2011) is not required since this stems from the case
       !of a two-component insoluble core surrounded by soluble material (see
       !the Pruppacher and Klett Microphysics of Clouds and Precipitation
-      !textbook), whereas we have several (internally mixed) components here with
-      !varying solubilities that are taken into account through the no_ions array.
+      !textbook), whereas we have several (internally mixed)
+      !components here with varying solubilities that are
+      !taken into account through the no_ions array.
 
       DO jcp=1,ncp
         no_ions_div_mm(jcp)=no_ions(jcp)/mm(jcp)

@@ -92,12 +92,12 @@ IF (l_first_call) THEN
 
   ! Set n_age to the index of the Age-of-Air tracer in the UKCA tracer array
   n_age = 0
-  DO i = 1, n_tracers
+  set_n_age: DO i = 1, n_tracers
     IF (all_tracers_names(i) == fldname_age_of_air) THEN
       n_age = i
-      EXIT
+      EXIT set_n_age
     END IF
-  END DO
+  END DO set_n_age
   IF ( n_age == 0 ) THEN
     cmessage = ' Error setting index for Age-of-Air tracer.'
     errcode = 1

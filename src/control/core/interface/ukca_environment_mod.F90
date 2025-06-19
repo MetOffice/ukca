@@ -736,7 +736,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: field_index
 
 ! List of 3-D fields that can be populated from 1D real data arrays
 ! Have to use DATA statement as names are not of uniform length
-CHARACTER(LEN=maxlen_fieldname), DIMENSION(62) :: fldnames_3d_real
+CHARACTER(LEN=maxlen_fieldname) :: fldnames_3d_real(62)
 
 DATA fldnames_3d_real / fldname_stcon, fldname_theta, fldname_q, fldname_qcf,  &
   fldname_conv_cloud_amount, fldname_rho_r2, fldname_qcl,                      &
@@ -954,7 +954,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: field_index
 ! Local variables
 
 ! List of 4-D fields that can be populated from 2D real arrays
-CHARACTER(LEN=maxlen_fieldname), DIMENSION(1) :: fldnames_4d_real
+CHARACTER(LEN=maxlen_fieldname) :: fldnames_4d_real(1)
 DATA fldnames_4d_real / fldname_photol_rates /
 
 INTEGER :: i_field  ! Index of field in required fields array

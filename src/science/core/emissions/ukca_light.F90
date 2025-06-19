@@ -306,9 +306,9 @@ IF ( total_flash_rate > 0.0 ) THEN
 
   !         Work out which pressure is closest to 500 hPa
 
-  DO jniv = niv,1,-1
-    IF (ppress(jniv) >= 50000.0) EXIT
-  END DO
+  check_pressure: DO jniv = niv,1,-1
+    IF (ppress(jniv) >= 50000.0) EXIT check_pressure
+  END DO check_pressure
 
   !         3 from cloud base to 2 above top
   !         KLT is the level above cloud top

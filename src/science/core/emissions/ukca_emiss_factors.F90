@@ -1110,7 +1110,8 @@ DO k = 0, model_levels-1
         !  a4: Layer in ref. profile covers the whole model grid cell
         !
         IF (ref_lev1 >= cell_lev1 .AND. ref_lev1 < cell_lev2) THEN
-          ! Bottom of layer in ref. profile is within current model grid cell ...
+          ! Bottom of layer in ref. profile is within
+          ! current model grid cell
           IF (ref_lev2 < cell_lev2) THEN
             !and top of layer in ref. profile is also within model grid cell(a1)
             vert_scaling_3d (i,j,k+1) = vert_scaling_3d  (i,j,k+1) +           &

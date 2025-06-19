@@ -882,8 +882,6 @@ IF (glomap_config%l_fix_ukca_impscav) THEN
 
 ELSE ! l_fix_ukca_impscav
 
-  !...............................................................................
-
   ! The original buggy version of the code
 
 

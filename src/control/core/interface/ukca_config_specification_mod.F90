@@ -246,7 +246,8 @@ TYPE :: ukca_config_spec_type
   LOGICAL :: l_ukca_inferno_ch4        ! True for INFERNO CH4 fire emissions
   INTEGER :: i_inferno_emi             ! maximum INFERNO emission level
   LOGICAL :: l_ukca_so2ems_expvolc     ! True for interactive expvolc emissions
-  LOGICAL :: l_ukca_so2ems_plumeria    ! True for expvolc emissions with plumeria
+  LOGICAL :: l_ukca_so2ems_plumeria    ! True for expvolc emissions
+                                       ! with plumeria
   LOGICAL :: l_ukca_qch4inter          ! True for interactive wetland CH4
                                        ! emissions
   LOGICAL :: l_ukca_emsdrvn_ch4        ! True when running UKCA in
