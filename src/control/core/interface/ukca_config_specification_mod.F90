@@ -433,8 +433,8 @@ TYPE :: glomap_config_spec_type
                                        ! Metzer et al, PNAS, 2010) - required
                                        ! when 'l_mode_bhn_on' is true.
   REAL :: mode_activation_dryr         ! Activation dry radius (nm)
-  LOGICAL :: l_dust_ageing_on          ! True for dust being subjected
-                                       ! to nuc scav, conden, coag,
+  LOGICAL :: l_dust_mp_ageing          ! True for dust and microplastics being
+                                       ! subjected to nuc scav, conden, coag,
                                        ! ageing, and activation
   REAL :: dry_depvel_acc_scaling       ! Scaling factor for the dry deposition
                                        ! velocity for the accumulation mode
@@ -454,8 +454,9 @@ TYPE :: glomap_config_spec_type
   LOGICAL :: l_cv_rainout              ! True for convective rainout in UKCA
   LOGICAL :: l_impc_scav               ! True for turning on impaction
                                        ! scavenging
-  LOGICAL :: l_dust_slinn_impc_scav    ! True for turning on the Slinn
-                                       ! impaction scheme for dust
+  LOGICAL :: l_dust_mp_slinn_impc_scav ! True for turning on the Slinn
+                                       ! impaction scheme for dust and
+                                       ! microplastics
 
   ! -- GLOMAP emissions configuration options --
   LOGICAL :: l_ukca_primss             ! True for primary sea-salt emissions
@@ -478,6 +479,8 @@ TYPE :: glomap_config_spec_type
   LOGICAL :: l_ukca_fine_no3_prod      ! True for fine mode NO3/NH4 emissions
   LOGICAL :: l_ukca_coarse_no3_prod    ! True for coarse mode NO3 emissions
   LOGICAL :: l_no3_prod_in_aero_step   ! True for nitrate emissions in MODE
+  LOGICAL :: l_ukca_mp_fragment        ! True for mp fragment emissions
+  LOGICAL :: l_ukca_mp_fibre           ! True for mp fibre emissions
   REAL :: hno3_uptake_coeff            ! HNO3 uptake coefficient for nitrate
   REAL :: sea_salt_ems_scaling         ! Sea salt emission scaling factor
   REAL :: marine_pom_ems_scaling       ! Marine POM emission scaling factor
@@ -580,6 +583,7 @@ INTEGER, PARAMETER :: i_sussbcocdu_7mode        = 8
 INTEGER, PARAMETER :: i_sussbcocntnh_5mode_7cpt = 10
 INTEGER, PARAMETER :: i_solinsol_6mode          = 11
 INTEGER, PARAMETER :: i_sussbcocduntnh_8mode_8cpt = 12
+INTEGER, PARAMETER :: i_sussbcocdump_8mode      = 13
 
 ! Option codes for 'i_ageair_reset_method', controlling how the near-surface
 ! values of the age-of-air tracer are reset to zero
@@ -986,7 +990,7 @@ glomap_config%l_mode_bhn_on = .FALSE.
 glomap_config%l_mode_bln_on = .FALSE.
 glomap_config%i_mode_bln_param_method = imdi
 glomap_config%mode_activation_dryr = rmdi
-glomap_config%l_dust_ageing_on = .FALSE.
+glomap_config%l_dust_mp_ageing = .FALSE.
 glomap_config%dry_depvel_acc_scaling = rmdi
 glomap_config%acc_cor_scav_scaling = rmdi
 
@@ -997,7 +1001,7 @@ glomap_config%l_aero_rainout = .FALSE.
 glomap_config%l_cv_rainout = .FALSE.
 glomap_config%i_mode_nucscav = imdi
 glomap_config%l_impc_scav = .FALSE.
-glomap_config%l_dust_slinn_impc_scav = .FALSE.
+glomap_config%l_dust_mp_slinn_impc_scav = .FALSE.
 
 ! -- GLOMAP emissions configuration options --
 glomap_config%l_ukca_primss = .FALSE.
@@ -1019,6 +1023,8 @@ glomap_config%sea_salt_ems_scaling = rmdi
 glomap_config%l_ukca_scale_marine_pom_ems = .FALSE.
 glomap_config%marine_pom_ems_scaling = rmdi
 glomap_config%i_primss_method = imdi
+glomap_config%l_ukca_mp_fragment = .FALSE.
+glomap_config%l_ukca_mp_fibre = .FALSE.
 
 ! -- GLOMAP feedback configuration options --
 glomap_config%l_ukca_radaer = .FALSE.
@@ -1105,7 +1111,7 @@ SUBROUTINE ukca_get_config(                                                    &
    lightnox_scale_fac,                                                         &
    anth_so2_ems_scaling,                                                       &
    mode_activation_dryr,                                                       &
-   l_dust_ageing_on,                                                           &
+   l_dust_mp_ageing,                                                           &
    dry_depvel_acc_scaling,                                                     &
    acc_cor_scav_scaling,                                                       &
    mode_incld_so2_rfrac,                                                       &
@@ -1186,7 +1192,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_mode_bhn_on, l_mode_bln_on,                                               &
    l_ddepaer,                                                                  &
    l_aero_rainout, l_cv_rainout,                                               &
-   l_impc_scav, l_dust_slinn_impc_scav,                                        &
+   l_impc_scav, l_dust_mp_slinn_impc_scav,                                     &
    l_ukca_primss, l_ukca_primsu, l_ukca_primdu, l_ukca_primbcoc,               &
    l_ukca_prim_moc, l_bcoc_bf, l_bcoc_bm, l_bcoc_ff,                           &
    l_ukca_scale_biom_aer_ems,                                                  &
@@ -1195,6 +1201,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_no3_prod_in_aero_step,                                                    &
    l_ukca_scale_sea_salt_ems,                                                  &
    l_ukca_scale_marine_pom_ems,                                                &
+   l_ukca_mp_fragment, l_ukca_mp_fibre,                                        &
    l_ukca_radaer,                                                              &
    l_ntpreq_n_activ_sum,                                                       &
    l_ntpreq_dryd_nuc_sol,                                                      &
@@ -1413,7 +1420,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_ddepaer
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_aero_rainout
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_cv_rainout
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_impc_scav
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_slinn_impc_scav
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_mp_slinn_impc_scav
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_primss
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_primsu
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_primdu
@@ -1444,7 +1451,9 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_hygroscopicities
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_6bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_2bin_dust_no3
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_config_available
-LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_ageing_on
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_dust_mp_ageing
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_mp_fragment
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_mp_fibre
 
 ! -- Availability of a valid configuration --
 IF (PRESENT(l_config_available)) l_config_available = l_ukca_config_available
@@ -1720,8 +1729,8 @@ IF (PRESENT(i_mode_bln_param_method))                                          &
   i_mode_bln_param_method = glomap_config%i_mode_bln_param_method
 IF (PRESENT(mode_activation_dryr))                                             &
   mode_activation_dryr = glomap_config%mode_activation_dryr
-IF (PRESENT(l_dust_ageing_on))                                                 &
-  l_dust_ageing_on = glomap_config%l_dust_ageing_on
+IF (PRESENT(l_dust_mp_ageing))                                                 &
+  l_dust_mp_ageing = glomap_config%l_dust_mp_ageing
 IF (PRESENT(dry_depvel_acc_scaling))                                           &
   dry_depvel_acc_scaling = glomap_config%dry_depvel_acc_scaling
 IF (PRESENT(acc_cor_scav_scaling))                                             &
@@ -1736,8 +1745,8 @@ IF (PRESENT(l_aero_rainout)) l_aero_rainout = glomap_config%l_aero_rainout
 IF (PRESENT(l_cv_rainout)) l_cv_rainout = glomap_config%l_cv_rainout
 IF (PRESENT(i_mode_nucscav)) i_mode_nucscav = glomap_config%i_mode_nucscav
 IF (PRESENT(l_impc_scav)) l_impc_scav = glomap_config%l_impc_scav
-IF (PRESENT(l_dust_slinn_impc_scav))                                           &
-  l_dust_slinn_impc_scav = glomap_config%l_dust_slinn_impc_scav
+IF (PRESENT(l_dust_mp_slinn_impc_scav))                                        &
+  l_dust_mp_slinn_impc_scav = glomap_config%l_dust_mp_slinn_impc_scav
 
 ! -- GLOMAP emissions configuration options --
 IF (PRESENT(l_ukca_primss)) l_ukca_primss = glomap_config%l_ukca_primss
@@ -1770,6 +1779,10 @@ IF (PRESENT(marine_pom_ems_scaling))                                           &
   marine_pom_ems_scaling = glomap_config%marine_pom_ems_scaling
 IF (PRESENT(i_primss_method))                                                  &
   i_primss_method = glomap_config%i_primss_method
+IF (PRESENT(l_ukca_mp_fragment))                                               &
+   l_ukca_mp_fragment = glomap_config%l_ukca_mp_fragment
+IF (PRESENT(l_ukca_mp_fibre))                                                  &
+   l_ukca_mp_fibre = glomap_config%l_ukca_mp_fibre
 
 ! -- GLOMAP feedback configuration options --
 IF (PRESENT(l_ukca_radaer)) l_ukca_radaer = glomap_config%l_ukca_radaer

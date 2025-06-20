@@ -49,7 +49,8 @@ USE ukca_mode_setup,   ONLY: nmodes,                                           &
                              mode_sup_insol,                                   &
                              cp_su, cp_bc, cp_oc,                              &
                              cp_cl, cp_du, cp_so,                              &
-                             cp_no3, cp_nh4, cp_nn
+                             cp_no3, cp_nh4, cp_nn,                            &
+                             cp_mp
 
 USE errormessagelength_mod, ONLY: errormessagelength
 USE parkind1,          ONLY: jprb, jpim
@@ -290,6 +291,14 @@ IF (glomap_config%l_ukca_radaer) THEN
                                                     'pvol_nh4_ait_sol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_ait_sol     ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 727
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_ait_sol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
             CASE DEFAULT
               cmessage = ' Component not found in RADAER coupling CASE'//      &
                          ' statement'
@@ -301,7 +310,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_su)
               i = name2ntpindex('pvol_su_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 727
+                errcode = 728
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_su_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -309,7 +318,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_bc)
               i = name2ntpindex('pvol_bc_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 728
+                errcode = 729
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_bc_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -317,7 +326,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_oc)
               i = name2ntpindex('pvol_oc_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 729
+                errcode = 730
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_oc_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -325,7 +334,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_cl)
               i = name2ntpindex('pvol_ss_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 730
+                errcode = 731
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_ss_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -333,7 +342,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_du)
               i = name2ntpindex('pvol_du_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 731
+                errcode = 732
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_du_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -341,7 +350,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_so)
               i = name2ntpindex('pvol_so_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 732
+                errcode = 733
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_so_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -349,7 +358,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_no3)
               i = name2ntpindex('pvol_no3_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 733
+                errcode = 734
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_no3_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -357,7 +366,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_nh4)
               i = name2ntpindex('pvol_nh4_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 734
+                errcode = 735
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_nh4_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -365,9 +374,17 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_nn)
               i = name2ntpindex('pvol_nn_acc_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 735
+                errcode = 736
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_nn_acc_sol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_acc_sol     ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 737
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_acc_sol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
             CASE DEFAULT
@@ -381,7 +398,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_su)
               i = name2ntpindex('pvol_su_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 736
+                errcode = 738
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_su_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -389,7 +406,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_bc)
               i = name2ntpindex('pvol_bc_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 737
+                errcode = 739
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_bc_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -397,7 +414,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_oc)
               i = name2ntpindex('pvol_oc_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 738
+                errcode = 740
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_oc_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -405,7 +422,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_cl)
               i = name2ntpindex('pvol_ss_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 739
+                errcode = 741
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_ss_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -413,7 +430,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_du)
               i = name2ntpindex('pvol_du_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 740
+                errcode = 742
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_du_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -421,7 +438,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_so)
               i = name2ntpindex('pvol_so_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 741
+                errcode = 743
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_so_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -429,7 +446,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_no3)
               i = name2ntpindex('pvol_no3_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 742
+                errcode = 744
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_no3_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -437,7 +454,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_nh4)
               i = name2ntpindex('pvol_nh4_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 743
+                errcode = 745
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_nh4_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -445,9 +462,17 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_nn)
               i = name2ntpindex('pvol_nn_cor_sol     ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 744
+                errcode = 746
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_nn_cor_sol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_cor_sol     ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 747
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_cor_sol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
             CASE DEFAULT
@@ -461,7 +486,7 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_bc)
               i = name2ntpindex('pvol_bc_ait_insol   ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 745
+                errcode = 748
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_bc_ait_insol'
                 CALL umPrint(umMessage,src=RoutineName)
@@ -469,9 +494,17 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_oc)
               i = name2ntpindex('pvol_oc_ait_insol   ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 746
+                errcode = 749
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_oc_ait_insol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_ait_insol   ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 750
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_ait_insol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
             CASE DEFAULT
@@ -485,9 +518,17 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_du)
               i = name2ntpindex('pvol_du_acc_insol   ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 747
+                errcode = 751
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_du_acc_insol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_acc_insol   ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 752
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_ait_insol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
             CASE DEFAULT
@@ -501,9 +542,17 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_du)
               i = name2ntpindex('pvol_du_cor_insol   ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 748
+                errcode = 753
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_du_cor_insol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_cor_insol   ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 754
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_cor_insol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
             CASE DEFAULT
@@ -517,9 +566,17 @@ IF (glomap_config%l_ukca_radaer) THEN
             CASE (cp_du)
               i = name2ntpindex('pvol_du_sup_insol   ')
               IF (.NOT. all_ntp(i)%l_required) THEN
-                errcode = 749
+                errcode = 755
                 WRITE(umMessage,'(A40)') 'Error condition for '//              &
                                                     'pvol_du_sup_insol'
+                CALL umPrint(umMessage,src=RoutineName)
+              END IF
+            CASE (cp_mp)
+              i = name2ntpindex('pvol_mp_sup_insol   ')
+              IF (.NOT. all_ntp(i)%l_required) THEN
+                errcode = 756
+                WRITE(umMessage,'(A40)') 'Error condition for '//              &
+                                                    'pvol_mp_sup_insol'
                 CALL umPrint(umMessage,src=RoutineName)
               END IF
             CASE DEFAULT

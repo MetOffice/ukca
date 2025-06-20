@@ -145,6 +145,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     UKCA_diag_sect,                                                            &
     item1_nitrate_diags, item1_nitrate_noems, itemN_nitrate_diags,             &
     item1_dust3mode_diags, itemN_dust3mode_diags,                              &
+    item1_microplastic_diags, itemN_microplastic_diags,                        &
     mype,                                                                      &
     gg => g, planet_radius
 #else
@@ -161,6 +162,7 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
     UKCA_diag_sect,                                                            &
     item1_nitrate_diags, item1_nitrate_noems, itemN_nitrate_diags,             &
     item1_dust3mode_diags, itemN_dust3mode_diags,                              &
+    item1_microplastic_diags, itemN_microplastic_diags,                        &
     mype,                                                                      &
     gg => g, planet_radius
 #endif
@@ -330,6 +332,8 @@ INTEGER    :: nmax_diags_inc_nitr ! number of nitrate diagnostics
 INTEGER    :: n_nitrate_diags   ! number of nitrate diagnostics
 INTEGER    :: n_sup_dust_diags  ! Number of diagnostics for dust 3rd mode
 INTEGER    :: item1_nitrate     ! Actual first nitrate diagnostic
+INTEGER    :: n_mplastic_diags  ! number of microplastic diagnostics
+INTEGER    :: nmax_diags_inc_nt_du ! counter for of nitrate/dust diagnostics
 
 REAL       :: r_minute                  ! real equiv of i_minute
 REAL       :: secondssincemidnight      ! day time
@@ -2828,6 +2832,25 @@ IF (ukca_config%l_enable_diag_um .AND. ukca_config%l_ukca_mode) THEN
     END IF
   END DO       ! 1,n_sup_dust_diags
 
+  n_mplastic_diags = itemN_microplastic_diags -  item1_microplastic_diags + 1
+  nmax_diags_inc_nt_du = nmax_mode_diags + n_nitrate_diags + n_sup_dust_diags
+
+  DO l=1,n_mplastic_diags
+    IF (UkcaD1codes(imode_first+nmax_diags_inc_nt_du+l-1)%item /= imdi) THEN
+      icnt = icnt + 1
+      item = UkcaD1codes(imode_first+nmax_diags_inc_nt_du+l-1)%item
+      section = stashcode_glomap_sec
+      IF (sf(item,section) .AND. item >= item1_microplastic_diags  .AND.       &
+          item <= item1_microplastic_diags+40) THEN
+        CALL copydiag_3d (stashwork38(si(item,section,im_index):               &
+             si_last(item,section,im_index)),                                  &
+          mode_diags(:,:,:,icnt),                                              &
+          row_length,rows,model_levels,                                        &
+          stlist(:,stindex(1,item,section,im_index)),len_stlist,               &
+          stash_levels,num_stash_levels+1)
+      END IF
+    END IF
+  END DO       ! 1,n_mplastic_diags
 
   ! Copy CMIP6 diagnostics and/or PM diagnostics into STASHwork array
   IF (do_aerosol .AND. (l_ukca_cmip6_diags .OR. l_ukca_pm_diags)) THEN

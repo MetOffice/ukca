@@ -62,7 +62,7 @@ USE ukca_config_specification_mod, ONLY: glomap_variables
 
 USE ukca_mode_setup,           ONLY: nmodes, mode_names, cp_su, cp_cl,         &
                                      cp_bc, cp_oc, cp_du, cp_so, cp_nh4,       &
-                                     cp_no3, cp_nn
+                                     cp_no3, cp_nn, cp_mp
 
 USE ukca_um_legacy_mod,        ONLY: mype
 USE umprintmgr,                ONLY: umprint, ummessage, printstatus,          &
@@ -152,6 +152,8 @@ DO i=1,n_tracers
       icp = cp_no3
     CASE ('NN')
       icp = cp_nn
+    CASE ('MP')
+      icp = cp_mp
     CASE DEFAULT
       icode = 1
       cmessage = ' Unknown component in CASE statement'

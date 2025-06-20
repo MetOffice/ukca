@@ -152,7 +152,7 @@ USE ukca_config_specification_mod, ONLY: glomap_variables
 USE ukca_mode_setup,  ONLY: nmodes, nmodes_sol, nmodes_ins, coag_mode,         &
                             cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_so,          &
                             mode_nuc_sol, mode_ait_sol, mode_acc_sol,          &
-                            mode_cor_sol, cp_no3, cp_nh4, cp_nn,               &
+                            mode_cor_sol, cp_no3, cp_nh4, cp_nn, cp_mp,        &
                             mode_ait_insol, mode_acc_insol, mode_cor_insol,    &
                             mode_sup_insol
 
@@ -171,7 +171,9 @@ USE ukca_setup_indices, ONLY: nmascoagsuintr12,                                &
          nmascoagbcintr54, nmascoagocintr54, nmascoagduintr64,                 &
          nmascoagntintr23, nmascoagntintr24, nmascoagntintr34,                 &
          nmascoagnhintr23, nmascoagnhintr24, nmascoagnhintr34,                 &
-         nmascoagnnintr34,                                                     &
+         nmascoagnnintr34, nmascoagmpintr23, nmascoagmpintr24,                 &
+         nmascoagmpintr34, nmascoagmpintr53, nmascoagmpintr54,                 &
+         nmascoagmpintr64,                                                     &
          nmascoagsuintr18, nmascoagocintr18, nmascoagsointr18,                 &
          mh2so4
 
@@ -735,6 +737,11 @@ DO imode=1,nmodes
                   bud_aer_mas(:,nmascoagnhintr23)=                             &
                   bud_aer_mas(:,nmascoagnhintr23)+mtran(:,cp_nh4,imode,jmode)
               END IF
+              IF ((icp == cp_mp) .AND. (nmascoagmpintr23 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagmpintr23)=                             &
+                  bud_aer_mas(:,nmascoagmpintr23)+mtran(:,cp_mp,imode,jmode)
+              END IF
             END IF ! IF IMODE,JMODE=2,3 (from mode 2 to mode 3)
             IF ((imode == mode_ait_sol) .AND. (jmode == mode_cor_sol)) THEN
               IF ((icp == cp_su) .AND. (nmascoagsuintr24 > 0)) THEN
@@ -766,6 +773,11 @@ DO imode=1,nmodes
                 WHERE (mask3(:))                                               &
                   bud_aer_mas(:,nmascoagnhintr24)=                             &
                   bud_aer_mas(:,nmascoagnhintr24)+mtran(:,cp_nh4,imode,jmode)
+              END IF
+              IF ((icp == cp_mp) .AND. (nmascoagmpintr24 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagmpintr24)=                             &
+                  bud_aer_mas(:,nmascoagmpintr24)+mtran(:,cp_mp,imode,jmode)
               END IF
             END IF ! IF IMODE,JMODE=2,4 (from mode 2 to mode 4)
             IF ((imode == mode_acc_sol) .AND. (jmode == mode_cor_sol)) THEN
@@ -814,6 +826,11 @@ DO imode=1,nmodes
                   bud_aer_mas(:,nmascoagnnintr34)=                             &
                   bud_aer_mas(:,nmascoagnnintr34)+mtran(:,cp_nn,imode,jmode)
               END IF
+              IF ((icp == cp_mp) .AND. (nmascoagmpintr34 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagmpintr34)=                             &
+                  bud_aer_mas(:,nmascoagmpintr34)+mtran(:,cp_mp,imode,jmode)
+              END IF
             END IF ! IF IMODE,JMODE=3,4 (from mode 3 to mode 4)
             IF ((imode == mode_ait_insol) .AND. (jmode == mode_acc_sol)) THEN
               IF ((icp == cp_bc) .AND. (nmascoagbcintr53 > 0)) THEN
@@ -825,6 +842,11 @@ DO imode=1,nmodes
                 WHERE (mask3(:))                                               &
                   bud_aer_mas(:,nmascoagocintr53)=                             &
                   bud_aer_mas(:,nmascoagocintr53)+mtran(:,cp_oc,imode,jmode)
+              END IF
+              IF ((icp == cp_mp) .AND. (nmascoagmpintr53 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagmpintr53)=                             &
+                  bud_aer_mas(:,nmascoagmpintr53)+mtran(:,cp_mp,imode,jmode)
               END IF
             END IF ! IF IMODE,JMODE=5,3 (from mode 5 to mode 3)
             IF ((imode == mode_ait_insol) .AND. (jmode == mode_cor_sol)) THEN
@@ -838,12 +860,22 @@ DO imode=1,nmodes
                   bud_aer_mas(:,nmascoagocintr54)=                             &
                   bud_aer_mas(:,nmascoagocintr54)+mtran(:,cp_oc,imode,jmode)
               END IF
+              IF ((icp == cp_mp) .AND. (nmascoagmpintr54 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagmpintr54)=                             &
+                  bud_aer_mas(:,nmascoagmpintr54)+mtran(:,cp_mp,imode,jmode)
+              END IF
             END IF ! IF IMODE,JMODE=5,4 (from mode 5 to mode 4)
             IF ((imode == mode_acc_insol) .AND. (jmode == mode_cor_sol)) THEN
               IF ((icp == cp_du) .AND. (nmascoagduintr64 > 0)) THEN
                 WHERE (mask3(:))                                               &
                   bud_aer_mas(:,nmascoagduintr64)=                             &
                   bud_aer_mas(:,nmascoagduintr64)+mtran(:,cp_du,imode,jmode)
+              END IF
+              IF ((icp == cp_mp) .AND. (nmascoagmpintr64 > 0)) THEN
+                WHERE (mask3(:))                                               &
+                  bud_aer_mas(:,nmascoagmpintr64)=                             &
+                  bud_aer_mas(:,nmascoagmpintr64)+mtran(:,cp_mp,imode,jmode)
               END IF
             END IF ! IF IMODE,JMODE=6,4 (from mode 6 to mode 4)
           END IF ! IF MODE(JMODE)

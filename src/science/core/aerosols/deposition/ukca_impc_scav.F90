@@ -209,7 +209,7 @@ RETURN
 END SUBROUTINE ukca_mode_imscavcoff
 ! ----------------------------------------------------------------------
 SUBROUTINE ukca_impc_scav(nbox,nbudaer,nd,md,                                  &
- crain,drain,csnow,dsnow,wetdp,dtc,l_dust_slinn_impc_scav,bud_aer_mas)
+ crain,drain,csnow,dsnow,wetdp,dtc,l_dust_mp_slinn_impc_scav,bud_aer_mas)
 ! ----------------------------------------------------------------------
 !
 !     Subroutine to calculate impaction scavenging of aerosols
@@ -314,8 +314,8 @@ SUBROUTINE ukca_impc_scav(nbox,nbudaer,nd,md,                                  &
 !     dsnow       : Dynamic snowfall rate array (kgm^-2s^-1)
 !     WETDP       : Wet diameter corresponding to DRYDP (m)
 !     DTC         : Time step of process (s)
-!     L_DUST_SLINN_IMPC_SCAV : Flag for new impaction scavenging
-!                              scheme for dust
+!     L_DUST_MP_SLINN_IMPC_SCAV : Flag for new impaction scavenging
+!                                 scheme for dust and microplastics
 !
 !     Outputs
 !     -------
@@ -394,7 +394,7 @@ USE ukca_mode_setup,    ONLY:                                                  &
     cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_du, nmodes,                          &
     mode_nuc_sol, mode_ait_sol, mode_acc_sol, mode_cor_sol,                    &
     mode_ait_insol, mode_acc_insol, mode_cor_insol, mode_sup_insol,            &
-    cp_no3, cp_nh4, cp_nn
+    cp_no3, cp_nh4, cp_nn, cp_mp
 
 USE ukca_setup_indices, ONLY:                                                  &
     nmasimscbcaccsol, nmasimscbcaitins, nmasimscbcaitsol,                      &
@@ -407,7 +407,10 @@ USE ukca_setup_indices, ONLY:                                                  &
     nmasimscsucorsol, nmasimscsunucsol,                                        &
     nmasimscntaitsol, nmasimscntaccsol, nmasimscntcorsol,                      &
     nmasimscnhaitsol, nmasimscnhaccsol, nmasimscnhcorsol,                      &
-    nmasimscnnaccsol, nmasimscnncorsol, nmasimscdusupins
+    nmasimscnnaccsol, nmasimscnncorsol, nmasimscdusupins,                      &
+    nmasimscmpaitsol, nmasimscmpaccsol, nmasimscmpcorsol,                      &
+    nmasimscmpaitins, nmasimscmpaccins, nmasimscmpcorins,                      &
+    nmasimscmpsupins
 
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
@@ -425,7 +428,7 @@ REAL, INTENT(IN)    :: crain(nbox)
 REAL, INTENT(IN)    :: drain(nbox)
 REAL, INTENT(IN)    :: csnow(nbox)
 REAL, INTENT(IN)    :: dsnow(nbox)
-LOGICAL, INTENT(IN)  :: l_dust_slinn_impc_scav
+LOGICAL, INTENT(IN)  :: l_dust_mp_slinn_impc_scav
 REAL, INTENT(IN OUT) :: nd(nbox,nmodes)
 REAL, INTENT(IN OUT) :: bud_aer_mas(nbox,0:nbudaer)
 
@@ -518,7 +521,7 @@ num_eps     => glomap_variables%num_eps
 ! Below cloud scavenging for dust by rain for the accumulation/coarse
 ! insoluble modes can now be dealt with in a separate module. Snow is
 ! still accounted for in this routine though
-IF (l_dust_slinn_impc_scav) THEN
+IF (l_dust_mp_slinn_impc_scav) THEN
   topmode = mode_ait_insol
 ELSE
   topmode = nmodes
@@ -868,6 +871,29 @@ IF (glomap_config%l_fix_ukca_impscav) THEN
                     bud_aer_mas(jl,nmasimscnhcorsol)=                          &
                       bud_aer_mas(jl,nmasimscnhcorsol)+dm(icp)
                 END IF
+                IF (icp == cp_mp) THEN
+                  IF ((imode == mode_ait_sol) .AND. (nmasimscmpaitsol > 0))    &
+                    bud_aer_mas(jl,nmasimscmpaitsol)=                          &
+                      bud_aer_mas(jl,nmasimscmpaitsol)+dm(icp)
+                  IF ((imode == mode_acc_sol) .AND. (nmasimscmpaccsol > 0))    &
+                    bud_aer_mas(jl,nmasimscmpaccsol)=                          &
+                      bud_aer_mas(jl,nmasimscmpaccsol)+dm(icp)
+                  IF ((imode == mode_cor_sol) .AND. (nmasimscmpcorsol > 0))    &
+                    bud_aer_mas(jl,nmasimscmpcorsol)=                          &
+                      bud_aer_mas(jl,nmasimscmpcorsol)+dm(icp)
+                  IF ((imode == mode_ait_insol) .AND. (nmasimscmpaitins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpaitins)=                          &
+                      bud_aer_mas(jl,nmasimscmpaitins)+dm(icp)
+                  IF ((imode == mode_acc_insol) .AND. (nmasimscmpaccins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpaccins)=                          &
+                      bud_aer_mas(jl,nmasimscmpaccins)+dm(icp)
+                  IF ((imode == mode_cor_insol) .AND. (nmasimscmpcorins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpcorins)=                          &
+                      bud_aer_mas(jl,nmasimscmpcorins)+dm(icp)
+                  IF ((imode == mode_sup_insol) .AND. (nmasimscmpsupins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpsupins)=                          &
+                      bud_aer_mas(jl,nmasimscmpsupins)+dm(icp)
+                END IF
 
               END IF ! if component present
 
@@ -1212,6 +1238,29 @@ ELSE ! l_fix_ukca_impscav
                   IF ((imode == mode_cor_sol) .AND. (nmasimscnhcorsol > 0))    &
                     bud_aer_mas(jl,nmasimscnhcorsol)=                          &
                       bud_aer_mas(jl,nmasimscnhcorsol)+dm(icp)
+                END IF
+                IF (icp == cp_mp) THEN
+                  IF ((imode == mode_ait_sol) .AND. (nmasimscmpaitsol > 0))    &
+                    bud_aer_mas(jl,nmasimscmpaitsol)=                          &
+                      bud_aer_mas(jl,nmasimscmpaitsol)+dm(icp)
+                  IF ((imode == mode_acc_sol) .AND. (nmasimscmpaccsol > 0))    &
+                    bud_aer_mas(jl,nmasimscmpaccsol)=                          &
+                      bud_aer_mas(jl,nmasimscmpaccsol)+dm(icp)
+                  IF ((imode == mode_cor_sol) .AND. (nmasimscmpcorsol > 0))    &
+                    bud_aer_mas(jl,nmasimscmpcorsol)=                          &
+                      bud_aer_mas(jl,nmasimscmpcorsol)+dm(icp)
+                  IF ((imode == mode_ait_insol) .AND. (nmasimscmpaitins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpaitins)=                          &
+                      bud_aer_mas(jl,nmasimscmpaitins)+dm(icp)
+                  IF ((imode == mode_acc_insol) .AND. (nmasimscmpaccins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpaccins)=                          &
+                      bud_aer_mas(jl,nmasimscmpaccins)+dm(icp)
+                  IF ((imode == mode_cor_insol) .AND. (nmasimscmpcorins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpcorins)=                          &
+                      bud_aer_mas(jl,nmasimscmpcorins)+dm(icp)
+                  IF ((imode == mode_sup_insol) .AND. (nmasimscmpsupins > 0))  &
+                    bud_aer_mas(jl,nmasimscmpsupins)=                          &
+                      bud_aer_mas(jl,nmasimscmpsupins)+dm(icp)
                 END IF
 
               END IF ! if component present

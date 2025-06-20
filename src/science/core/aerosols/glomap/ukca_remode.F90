@@ -110,13 +110,15 @@ USE ukca_config_specification_mod, ONLY: glomap_variables
 
 USE ukca_mode_setup, ONLY: nmodes,                                             &
                            cp_su, cp_bc, cp_oc, cp_cl, cp_so, cp_no3, cp_nh4,  &
-                           cp_nn, mode_nuc_sol, mode_ait_sol, mode_acc_sol
+                           cp_nn, cp_mp,                                       &
+                           mode_nuc_sol, mode_ait_sol, mode_acc_sol
 
 USE ukca_setup_indices, ONLY: nmasmergbcintr23, nmasmergbcintr34,              &
     nmasmergocintr12, nmasmergocintr23, nmasmergocintr34, nmasmergsointr12,    &
     nmasmergsointr23, nmasmergsointr34, nmasmergssintr34, nmasmergsuintr12,    &
     nmasmergsuintr23, nmasmergsuintr34, nmasmergntintr23, nmasmergnhintr23,    &
-    nmasmergntintr34, nmasmergnhintr34, nmasmergnnintr34
+    nmasmergntintr34, nmasmergnhintr34, nmasmergnnintr34, nmasmergmpintr23,    &
+    nmasmergmpintr34
 
 USE yomhook,   ONLY: lhook, dr_hook
 USE parkind1,  ONLY: jprb, jpim
@@ -305,6 +307,9 @@ DO jl=1,nbox
                   IF ((icp == cp_nh4) .AND. (nmasmergnhintr23 > 0))            &
                          bud_aer_mas(jl,nmasmergnhintr23)=                     &
                          bud_aer_mas(jl,nmasmergnhintr23)+dm(icp)
+                  IF ((icp == cp_mp) .AND. (nmasmergmpintr23 > 0))             &
+                         bud_aer_mas(jl,nmasmergmpintr23)=                     &
+                         bud_aer_mas(jl,nmasmergmpintr23)+dm(icp)
                 END IF
 
                 IF (imode == mode_acc_sol) THEN
@@ -332,6 +337,9 @@ DO jl=1,nbox
                   IF ((icp == cp_nn) .AND. (nmasmergnnintr34 > 0))             &
                          bud_aer_mas(jl,nmasmergnnintr34)=                     &
                          bud_aer_mas(jl,nmasmergnnintr34)+dm(icp)
+                  IF ((icp == cp_mp) .AND. (nmasmergmpintr34 > 0))             &
+                         bud_aer_mas(jl,nmasmergmpintr34)=                     &
+                         bud_aer_mas(jl,nmasmergmpintr34)+dm(icp)
                 END IF
 
               ELSE

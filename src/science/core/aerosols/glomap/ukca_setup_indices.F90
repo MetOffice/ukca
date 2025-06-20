@@ -38,6 +38,7 @@
 !      UKCA_INDICES_SUSSBCOCDU_4MODE
 !      UKCA_INDICES_SUSSBCOCNTNH_5MODE
 !      UKCA_INDICES_SOLINSOL_6MODE
+!      UKCA_INDICES_SUSSBCOCDUMP_8MODE
 !    which define particular setups.
 !
 !  UKCA is a community model supported by The Met Office and
@@ -514,6 +515,46 @@ INTEGER :: nmasmergnhintr34 !* for NH4 mode-merging flux accsol->corsol
 INTEGER :: nmasmergnnintr34 !* for NaNO3 mode-merging flux accsol->corsol
 INTEGER :: nmasprocntintr23 !* for NO3 cloud-processing Aitsol->accsol
 INTEGER :: nmasprocnhintr23 !* for NH4 cloud-processing Aitsol->accsol
+
+!Microplastic scheme budgets
+INTEGER :: nmasprimmpaitins !for primary MP emissions to Aitins
+INTEGER :: nmasprimmpaccins !for primary MP emissions to Accins
+INTEGER :: nmasprimmpcorins !for primary MP emissions to corins
+INTEGER :: nmasprimmpsupins !for primary MP emissions to supins
+INTEGER :: nmasddepmpaitins !for drydep of MP from aitins
+INTEGER :: nmasddepmpaccins !for drydep of MP from accins
+INTEGER :: nmasddepmpcorins !for drydep of MP from corins
+INTEGER :: nmasddepmpaitsol !for drydep of MP from aitsol
+INTEGER :: nmasddepmpaccsol !for drydep of MP from accsol
+INTEGER :: nmasddepmpcorsol !for drydep of MP from corsol
+INTEGER :: nmasddepmpsupins !for drydep of MP from supins
+INTEGER :: nmasnuscmpaitins !for nuscav of MP from aitins
+INTEGER :: nmasnuscmpaccins !for nuscav of MP from accins
+INTEGER :: nmasnuscmpcorins !for nuscav of MP from corins
+INTEGER :: nmasnuscmpaitsol !for nuscav of MP from aitsol
+INTEGER :: nmasnuscmpaccsol !for nuscav of MP from accsol
+INTEGER :: nmasnuscmpcorsol !for nuscav of MP from corsol
+INTEGER :: nmasnuscmpsupins !for nuscav of MP from supins
+INTEGER :: nmasimscmpaitins !for imscav of MP from aitins
+INTEGER :: nmasimscmpaccins !for imscav of MP from accins
+INTEGER :: nmasimscmpcorins !for imscav of MP from corins
+INTEGER :: nmasimscmpaitsol !for imscav of MP from aitsol
+INTEGER :: nmasimscmpaccsol !for imscav of MP from accsol
+INTEGER :: nmasimscmpcorsol !for imscav of MP from corsol
+INTEGER :: nmasimscmpsupins !for imscav of MP from supins
+INTEGER :: nmasprocmpintr23 !for MP cloud-processing Aitsol->accsol
+INTEGER :: nmascoagmpintr23 !for inter-modal coag MP Aitsol->accsol
+INTEGER :: nmascoagmpintr24 !for inter-modal coag MP Aitsol->corsol
+INTEGER :: nmascoagmpintr34 !for inter-modal coag MP accsol->corsol
+INTEGER :: nmascoagmpintr53 !for inter-modal coag MP Aitins->accsol
+INTEGER :: nmascoagmpintr54 !for inter-modal coag MP Aitins->corsol
+INTEGER :: nmascoagmpintr64 !for inter-modal coag MP accins->corsol
+INTEGER :: nmasagedmpintr52 !for MP ageing flux Aitins->Aitsol
+INTEGER :: nmasagedmpintr63 !for MP ageing flux accins->accsol
+INTEGER :: nmasagedmpintr74 !for MP ageing flux corins->corsol
+INTEGER :: nmasagedmpintr84 !for MP ageing flux supins->corsol
+INTEGER :: nmasmergmpintr23 !for MP mode-merging flux Aitsol->accsol
+INTEGER :: nmasmergmpintr34 !for MP mode-merging flux accsol->corsol
 
 !
 ! .. (indices for additional diagnostics)
@@ -6943,4 +6984,329 @@ nmasmergduintr34=195
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE ukca_indices_sussbcocduntnh_8mode_8cpt
+
+! ######################################################################
+SUBROUTINE ukca_indices_sussbcocdump_8mode
+
+IMPLICIT NONE
+!---------------------------------------------------------------
+
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_INDICES_SUSSBCOCDUMP_8MODE'
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Main array lengths and switches
+!CGM - Adding new indices for MPs
+
+ntraer=33        ! # of aerosol advected tracers
+nbudaer=187      ! # of aerosol budget fields
+
+nmasprimsuaitsol= 1
+nmasprimsuaccsol= 2
+nmasprimsucorsol= 3
+nmasprimssaccsol= 4
+nmasprimsscorsol= 5
+nmasprimbcaitsol= 0 ! BC only emitted to insoluble
+nmasprimbcaitins= 6
+nmasprimocaitsol= 7
+nmasprimocaitins= 8
+nmasprimmpaitins= 9
+nmasprimmpaccins=10
+nmasprimmpcorins=11
+nmasprimmpsupins=12
+
+!
+nmasddepsunucsol=13
+nmasddepsuaitsol=14
+nmasddepsuaccsol=15
+nmasddepsucorsol=16
+nmasddepssaccsol=17
+nmasddepsscorsol=18
+nmasddepbcaitsol=19
+nmasddepbcaccsol=20
+nmasddepbccorsol=21
+nmasddepbcaitins=22
+nmasddepocnucsol=23
+nmasddepocaitsol=24
+nmasddepocaccsol=25
+nmasddepoccorsol=26
+nmasddepocaitins=27
+nmasddepsonucsol= 0 ! SO stored in OC cpt
+nmasddepsoaitsol= 0 ! SO stored in OC cpt
+nmasddepsoaccsol= 0 ! SO stored in OC cpt
+nmasddepsocorsol= 0 ! SO stored in OC cpt
+nmasddepmpaitins=28
+nmasddepmpaccins=29
+nmasddepmpcorins=30
+nmasddepmpaitsol=31
+nmasddepmpaccsol=32
+nmasddepmpcorsol=33
+nmasddepmpsupins=34
+
+!
+nmasnuscsunucsol=35
+nmasnuscsuaitsol=36
+nmasnuscsuaccsol=37
+nmasnuscsucorsol=38
+nmasnuscssaccsol=39
+nmasnuscsscorsol=40
+nmasnuscbcaitsol=41
+nmasnuscbcaccsol=42
+nmasnuscbccorsol=43
+nmasnuscbcaitins=44
+nmasnuscocnucsol=45
+nmasnuscocaitsol=46
+nmasnuscocaccsol=47
+nmasnuscoccorsol=48
+nmasnuscocaitins=49
+nmasnuscsonucsol= 0 ! SO stored in OC cpt
+nmasnuscsoaitsol= 0 ! SO stored in OC cpt
+nmasnuscsoaccsol= 0 ! SO stored in OC cpt
+nmasnuscsocorsol= 0 ! SO stored in OC cpt
+nmasnuscmpaitins=50
+nmasnuscmpaccins=51
+nmasnuscmpcorins=52
+nmasnuscmpaitsol=53
+nmasnuscmpaccsol=54
+nmasnuscmpcorsol=55
+nmasnuscmpsupins=56
+
+!
+nmasimscsunucsol=57
+nmasimscsuaitsol=58
+nmasimscsuaccsol=59
+nmasimscsucorsol=60
+nmasimscssaccsol=61
+nmasimscsscorsol=62
+nmasimscbcaitsol=63
+nmasimscbcaccsol=64
+nmasimscbccorsol=65
+nmasimscbcaitins=66
+nmasimscocnucsol=67
+nmasimscocaitsol=68
+nmasimscocaccsol=69
+nmasimscoccorsol=70
+nmasimscocaitins=71
+nmasimscsonucsol= 0 ! SO stored in OC cpt
+nmasimscsoaitsol= 0 ! SO stored in OC cpt
+nmasimscsoaccsol= 0 ! SO stored in OC cpt
+nmasimscsocorsol= 0 ! SO stored in OC cpt
+nmasimscmpaitins=72
+nmasimscmpaccins=73
+nmasimscmpcorins=74
+nmasimscmpaitsol=75
+nmasimscmpaccsol=76
+nmasimscmpcorsol=77
+nmasimscmpsupins=78
+
+!
+nmasclprsuaitsol1=79
+nmasclprsuaccsol1=80
+nmasclprsucorsol1=81
+nmasclprsuaitsol2=82
+nmasclprsuaccsol2=83
+nmasclprsucorsol2=84
+!
+nmascondsunucsol=85
+nmascondsuaitsol=86
+nmascondsuaccsol=87
+nmascondsucorsol=88
+nmascondsuaitins=89
+nmasnuclsunucsol=90
+nmascondocnucsol=91
+nmascondocaitsol=92
+nmascondocaccsol=93
+nmascondoccorsol=94
+nmascondocaitins=95
+nmascondsonucsol= 0 ! SO stored in OC cpt
+nmascondsoaitsol= 0 ! SO stored in OC cpt
+nmascondsoaccsol= 0 ! SO stored in OC cpt
+nmascondsocorsol= 0 ! SO stored in OC cpt
+nmascondsoaitins= 0 ! SO stored in OC cpt
+!
+nmascoagsuintr12=96
+nmascoagsuintr13=97
+nmascoagsuintr14=98
+nmascoagsuintr15=99
+nmascoagocintr12=100
+nmascoagocintr13=101
+nmascoagocintr14=102
+nmascoagocintr15=103
+nmascoagsointr12= 0 ! stored in NMASCOAGOCINTR12
+nmascoagsointr13= 0 ! stored in NMASCOAGOCINTR13
+nmascoagsointr14= 0 ! stored in NMASCOAGOCINTR14
+nmascoagsointr15= 0 ! stored in NMASCOAGOCINTR15
+nmascoagsuintr23=104
+nmascoagbcintr23=105
+nmascoagocintr23=106
+nmascoagsointr23= 0 ! stored in NMASCOAGOCINTR23
+nmascoagmpintr23=107
+nmascoagsuintr24=108
+nmascoagbcintr24=109
+nmascoagocintr24=110
+nmascoagsointr24= 0 ! stored in NMASCOAGOCINTR24
+nmascoagmpintr24=111
+nmascoagsuintr34=112
+nmascoagbcintr34=113
+nmascoagocintr34=114
+nmascoagssintr34=115
+nmascoagsointr34= 0 ! stored in NMASCOAGOCINTR34
+nmascoagmpintr34=116
+!
+nmascoagbcintr53=117
+nmascoagocintr53=118
+nmascoagbcintr54=119
+nmascoagocintr54=120
+nmascoagmpintr53=121
+nmascoagmpintr54=122
+nmascoagmpintr64=123
+!
+nmasagedsuintr52=124
+nmasagedbcintr52=125
+nmasagedocintr52=126
+nmasagedsointr52= 0 ! stored in NMASAGEDOCINTR52
+nmasagedmpintr52=127
+nmasagedmpintr63=128
+nmasagedmpintr74=129
+nmasagedmpintr84=130
+!
+nmasmergsuintr12=131
+nmasmergocintr12=132
+nmasmergsointr12= 0 ! stored in NMASMERGOCINTR12
+nmasmergsuintr23=133
+nmasmergbcintr23=134
+nmasmergocintr23=135
+nmasmergsointr23=  0 ! stored in NMASMERGOCINTR12
+nmasmergmpintr23=136
+nmasmergsuintr34=137
+nmasmergssintr34=138
+nmasmergbcintr34=139
+nmasmergocintr34=140
+nmasmergsointr34=  0 ! stored in NMASMERGOCINTR34
+nmasmergmpintr34=141
+nmasprocsuintr23=142
+nmasprocbcintr23=143
+nmasprococintr23=144
+nmasprocsointr23=  0 ! stored in NMASPROCOCINTR23
+nmasprocmpintr23=145
+!
+! .. below are new ones for dust & modes 6/7 to be integrated
+nmasprimduaccsol= 0 !DU only emitted to modes 6/7 here
+nmasprimducorsol= 0 !DU only emitted to modes 6/7 here
+nmasprimduaccins= 146
+nmasprimducorins= 147
+nmasddepduaccsol= 148
+nmasddepducorsol= 149
+nmasddepduaccins= 150
+nmasddepducorins= 151
+nmasnuscduaccsol= 152
+nmasnuscducorsol= 153
+nmasnuscduaccins= 154
+nmasnuscducorins= 155
+nmasimscduaccsol= 156
+nmasimscducorsol= 157
+nmasimscduaccins= 158
+nmasimscducorins= 159
+nmascondsuaccins= 160
+nmascondsucorins= 161
+nmascondocaccins= 162
+nmascondoccorins= 163
+nmascondsoaccins= 0  !SO in OC cpt in this setup
+nmascondsocorins= 0  !SO in OC cpt in this setup
+nmascoagsuintr16= 164
+nmascoagsuintr17= 165
+nmascoagocintr16= 166
+nmascoagocintr17= 167
+nmascoagsointr16= 0 !SO in OC cpt in this setup
+nmascoagsointr17= 0 !SO in OC cpt in this setup
+nmascoagduintr34= 168
+nmascoagduintr64= 169
+nmasagedsuintr63= 170
+nmasagedduintr63= 171
+nmasagedocintr63= 172
+nmasagedsointr63= 0 !SO in OC cpt in this setup
+nmasagedsuintr74= 173
+nmasagedduintr74= 174
+nmasagedocintr74= 175
+nmasagedsointr74= 0 !SO in OC cpt in this setup
+nmasmergduintr34= 176
+
+! .. below are new ones for no3, nh4, and nano3 to be integrated
+nmasprimntnucsol= 0
+nmasprimntaitsol= 0
+nmasprimntaccsol= 0
+nmasprimntcorsol= 0
+nmasprimnhnucsol= 0
+nmasprimnhaitsol= 0
+nmasprimnhaccsol= 0
+nmasprimnhcorsol= 0
+nmascondnnaccsol= 0
+nmascondnncorsol= 0
+nmasddepntaitsol= 0
+nmasddepntaccsol= 0
+nmasddepntcorsol= 0
+nmasddepnhaitsol= 0
+nmasddepnhaccsol= 0
+nmasddepnhcorsol= 0
+nmasddepnnaccsol= 0
+nmasddepnncorsol= 0
+nmasnuscntaitsol= 0
+nmasnuscntaccsol= 0
+nmasnuscntcorsol= 0
+nmasnuscnhaitsol= 0
+nmasnuscnhaccsol= 0
+nmasnuscnhcorsol= 0
+nmasnuscnnaccsol= 0
+nmasnuscnncorsol= 0
+nmasimscntaitsol= 0
+nmasimscntaccsol= 0
+nmasimscntcorsol= 0
+nmasimscnhaitsol= 0
+nmasimscnhaccsol= 0
+nmasimscnhcorsol= 0
+nmasimscnnaccsol= 0
+nmasimscnncorsol= 0
+nmascoagntintr23= 0
+nmascoagnhintr23= 0
+nmascoagntintr24= 0
+nmascoagnhintr24= 0
+nmascoagntintr34= 0
+nmascoagnhintr34= 0
+nmascoagnnintr34= 0
+nmasmergntintr23= 0
+nmasmergnhintr23= 0
+nmasmergntintr34= 0
+nmasmergnhintr34= 0
+nmasmergnnintr34= 0
+nmasprocntintr23= 0
+nmasprocnhintr23= 0
+nmasprocntintr23= 0
+nmasprocnhintr23= 0
+
+! 3rd insoluble mode dust
+nmasprimdusupins= 177
+nmasddepdusupins= 178
+nmasnuscdusupins= 179
+nmasimscdusupins= 180
+nmascondsusupins= 181
+nmascondocsupins= 182
+nmascondsosupins= 0 ! secondary organic in OC cpt in this setup
+nmascoagsuintr18= 183
+nmascoagocintr18= 184
+nmascoagsointr18= 0 ! secondary organic in OC cpt in this setup
+nmasagedsuintr84= 185
+nmasagedduintr84= 186
+nmasagedocintr84= 187
+nmasagedsointr84= 0 ! secondary organic in OC cpt in this setup
+
+
+!----------------------------------------------------------------
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE ukca_indices_sussbcocdump_8mode
 END MODULE ukca_setup_indices

@@ -50,7 +50,7 @@ USE ukca_constants,  ONLY: m_br, m_brcl, m_bro, m_brono2, m_c, m_c2h4,         &
                            m_nh3, m_no, m_no2, m_oclo, m_ocs, m_oxylene,       &
                            m_so2, m_so4, m_toluene, m_c2h2, m_tbut2ene,        &
                            m_benzene, m_etoh, m_etcho, m_mek, m_hcooh,         &
-                           m_meco2h, m_hoch2cho
+                           m_meco2h, m_hoch2cho, m_mp
 
 USE ereport_mod,     ONLY: ereport
 USE parkind1,        ONLY: jpim,  jprb     ! DrHook
@@ -89,7 +89,7 @@ CASE ('NO2       ', 'NOx       ')
   !  Fields reported in kg of NO2
   get_molmass = m_no2
 
-CASE ('NO        ')
+CASE ('NO        ', 'NO_aircrft')
   get_molmass = m_no
 
 CASE ('H2        ', 'no_H2     ')
@@ -104,6 +104,9 @@ CASE ('N2O       ', 'no_N2O    ')
 CASE ('BC_fossil ', 'BC_biofuel', 'BC_biomass',                                &
       'OM_fossil ', 'OM_biofuel', 'OM_biomass')
   get_molmass = m_c
+
+CASE ('MP_frgmnts', 'MP_fibres ') !microplastics
+  get_molmass = m_mp
 
   ! -----------------------------------------
   ! Sulphur containing

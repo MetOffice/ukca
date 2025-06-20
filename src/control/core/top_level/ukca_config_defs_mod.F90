@@ -52,6 +52,10 @@ INTEGER, SAVE   :: nr_phot               ! No. photolytic reactions
 
 ! Names for tracers which have surface emissions
 CHARACTER(LEN=10), ALLOCATABLE, SAVE :: em_chem_spec(:)
+
+! Names of microplastics species
+CHARACTER(LEN=10), SAVE :: microplastic_spec(2)
+
 ! Lower BCs for stratospheric species
 CHARACTER(LEN=10), SAVE :: lbc_spec(n_boundary_vals)  ! species names
 CHARACTER(LEN=10), SAVE :: cfc_lumped(n_cfc_lumped)  ! CFC species lumped
@@ -110,6 +114,10 @@ cfc_lumped = ['CF2ClCFCl2','CF2ClCF2Cl','CF2ClCF3  ','CCl4      ',             &
                'CF2ClBr   ','CF2Br2    ','CF3Br     ','CF2BrCF2Br',            &
                'MeCl      ']
 
+! Microplastics species
+microplastic_spec = ['MP_frgmnts','MP_fibres ']
+
+
 IF (ukca_config%l_ukca_trop) THEN
 
   ! Standard tropospheric chemistry for B-E solver
@@ -134,18 +142,31 @@ ELSE IF (ukca_config%l_ukca_tropisop .AND. ukca_config%l_ukca_achem) THEN
   n_3d_emissions = 4       ! SO2_nat, BC & OC biomass, aircraft NOX
   n_aero_tracers = 9       ! DMS, SO2... aerosol precursor species
   n_chem_tracers = 51
+
+  ! add extra allocation for microplastics
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    n_chem_emissions = n_chem_emissions + 2
+  END IF
+
   ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
   nr_therm       = 113
   nr_phot        = 37
   nmax_strat_fluxdiags = n_chem_tracers
   ! Table refers to emissions, more species are emitted using surrogates
-  em_chem_spec =                                                               &
+  em_chem_spec(1:23) =                                                         &
   ['NO        ','CH4       ','CO        ','HCHO      ',                        &
     'C2H6      ','C3H8      ','Me2CO     ','MeCHO     ',                       &
     'C5H8      ','BC_fossil ','BC_biofuel','OM_fossil ',                       &
     'OM_biofuel','Monoterp  ','MeOH      ','SO2_low   ',                       &
     'SO2_high  ','NH3       ','DMS       ','SO2_nat   ',                       &
     'BC_biomass','OM_biomass','NO_aircrft']
+
+  ! adding microplastics to em_chem_spec
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    em_chem_spec(24) = microplastic_spec(1)
+    em_chem_spec(25) = microplastic_spec(2)
+  END IF
+
 ELSE IF (ukca_config%l_ukca_tropisop .AND. .NOT. ukca_config%l_ukca_achem) THEN
 
   ! Std tropospheric chemistry with MIM isoprene scheme (N-R)
@@ -173,14 +194,27 @@ ELSE IF (ukca_config%l_ukca_aerchem) THEN
   nr_therm       = 137        ! thermal reactions
   nr_phot        = 27         ! photolytic ---"---
   nmax_strat_fluxdiags = n_chem_tracers
+
+  ! add extra allocation for microplastics
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    n_chem_emissions = n_chem_emissions + 2
+  END IF
+
   ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
-  em_chem_spec =                                                               &
+  em_chem_spec(1:22) =                                                         &
   ['NO        ','CH4       ','CO        ','HCHO      ',                        &
     'C2H6      ','C3H8      ','Me2CO     ','MeCHO     ',                       &
     'C5H8      ','BC_fossil ','BC_biofuel','OM_fossil ',                       &
     'Monoterp  ','MeOH      ','SO2_low   ','SO2_high  ',                       &
     'NH3       ','DMS       ','SO2_nat   ','BC_biomass',                       &
     'OM_biomass','NO_aircrft']
+
+  ! adding microplastics to em_chem_spec
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    em_chem_spec(23) = microplastic_spec(1)
+    em_chem_spec(24) = microplastic_spec(2)
+  END IF
+
 ELSE IF (ukca_config%l_ukca_raq) THEN
 
   ! Regional air quality chemistry (RAQ), based on STOCHEM
@@ -216,6 +250,11 @@ ELSE IF (ukca_config%l_ukca_raqaero) THEN
     n_chem_emissions = n_chem_emissions + 6
   END IF
 
+  ! add extra allocation for microplastics
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    n_chem_emissions = n_chem_emissions + 2
+  END IF
+
   ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
   em_chem_spec(1:21) =                                                         &
     ['NO        ','CH4       ','CO        ','HCHO      ',        & ! 4
@@ -234,25 +273,42 @@ ELSE IF (ukca_config%l_ukca_raqaero) THEN
     em_chem_spec(26:27) = [ 'OM_biomass', 'BC_biomass' ]
   END IF
 
+  ! adding microplastics to em_chem_spec
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    em_chem_spec(28) = microplastic_spec(1)
+    em_chem_spec(29) = microplastic_spec(2)
+  END IF
 
 ELSE IF (ukca_config%l_ukca_offline_be) THEN
 
   ! Offline oxidants scheme with aerosol chemistry
   ! ==============================================
-  n_chem_emissions = 8     ! 2D emission fields
+  n_chem_emissions = 8    ! 2D emission fields
   n_3d_emissions = 3       ! SO2_nat, BC & OC biomass
   n_aero_tracers = 7       ! DMS, SO2... aerosol precursor species
   n_chem_tracers = 0
+
+  ! add extra allocation for microplastics
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    n_chem_emissions = n_chem_emissions + 2
+  END IF
+
   ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
   nr_therm       = 11      ! ratb + ratt
   nr_phot        = 0
   nmax_strat_fluxdiags = n_chem_tracers
 
   ! Table refers to emissions, more species may be emitted using surrogates
-  em_chem_spec =                                                               &
+  em_chem_spec(1:11) =                                                         &
   ['BC_fossil ','BC_biofuel','OM_fossil ','OM_biofuel',                        &
     'Monoterp  ','SO2_low   ','SO2_high  ','DMS       ',                       &
     'SO2_nat   ','BC_biomass','OM_biomass']
+
+  ! adding microplastics to em_chem_spec
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    em_chem_spec(12) = microplastic_spec(1)
+    em_chem_spec(13) = microplastic_spec(2)
+  END IF
 
 ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
          ukca_config%l_ukca_stratcfc) THEN
@@ -313,8 +369,14 @@ ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
     ELSE  ! If using aerosol chemistry
       n_chem_emissions = 19      ! em_chem_spec below
       n_3d_emissions   = 4       ! BC, OC, volc SO2 & aircraft NOX
+
+      ! add extra allocation for microplastics (i_mode_setup 13)
+      IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+        n_chem_emissions = n_chem_emissions + 2
+      END IF
+
       ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
-      em_chem_spec =                                                           &
+      em_chem_spec(1:23) =                                                     &
           ['NO        ','CH4       ','CO        ','HCHO      ',                &
             'C2H6      ','C3H8      ','Me2CO     ','MeCHO     ',               &
             'C5H8      ','BC_fossil ','BC_biofuel','OM_fossil ',               &
@@ -334,6 +396,12 @@ ELSE IF (ukca_config%l_ukca_strat .OR. ukca_config%l_ukca_strattrop .OR.       &
         nr_therm     = 239        ! thermal reactions
       END IF
       nr_phot        = 59         ! photolytic (ATA)
+
+      ! adding microplastics to em_chem_spec
+      IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+        em_chem_spec(24) = microplastic_spec(1)
+        em_chem_spec(25) = microplastic_spec(2)
+      END IF
 
     END IF
 
@@ -357,18 +425,28 @@ ELSE IF (ukca_config%l_ukca_offline) THEN
   n_3d_emissions = 3       ! SO2_nat, BC & OC biomass
   n_aero_tracers = 7       ! DMS, SO2... aerosol precursor species
   n_chem_tracers = 0
+
+  ! add extra allocation for microplastics
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    n_chem_emissions = n_chem_emissions + 2
+  END IF
+
   ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
   nr_therm       = 11      ! ratb + ratt, unused ?
   nr_phot        = 0
   nmax_strat_fluxdiags = n_chem_tracers
 
   ! Table refers to emissions, more species may be emitted using surrogates
-  em_chem_spec =                                                               &
+  em_chem_spec(1:11) =                                                         &
   ['BC_fossil ','BC_biofuel','OM_fossil ','OM_biofuel',                        &
     'Monoterp  ','SO2_low   ','SO2_high  ','DMS       ',                       &
     'SO2_nat   ','BC_biomass','OM_biomass']
 
-
+  ! adding microplastics to em_chem_spec
+  IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+    em_chem_spec(12) = microplastic_spec(1)
+    em_chem_spec(13) = microplastic_spec(2)
+  END IF
 
   ! CRI-Strat and CRI-Strat 2 chemistry
   ! =======================
@@ -418,8 +496,14 @@ ELSE IF (ukca_config%l_ukca_cristrat) THEN
     END IF
     n_chem_emissions = 34      ! em_chem_spec below
     n_3d_emissions   = 4       ! BC, OC, volc SO2 & aircraft NOX
+
+    ! add extra allocation for microplastics
+    IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+      n_chem_emissions = n_chem_emissions + 2
+    END IF
+
     ALLOCATE(em_chem_spec(n_chem_emissions+n_3d_emissions))
-    em_chem_spec =                                                             &
+    em_chem_spec(1:38) =                                                       &
         ['NO        ','CH4       ','CO        ','C2H6      ',                  &
           'C3H8      ','C4H10     ','C2H4      ','C3H6      ',                 &
           'TBUT2ENE  ','C2H2      ','C5H8      ','APINENE   ',                 &
@@ -430,6 +514,13 @@ ELSE IF (ukca_config%l_ukca_cristrat) THEN
           'OM_fossil ','OM_biofuel','SO2_low   ','SO2_high  ',                 &
           'NH3       ','DMS       ','SO2_nat   ','BC_biomass',                 &
           'OM_biomass','NO_aircrft']
+
+    ! adding microplastics to em_chem_spec
+    IF (ukca_config%l_ukca_mode .AND. glomap_config%i_mode_setup == 13) THEN
+      em_chem_spec(39) = microplastic_spec(1)
+      em_chem_spec(40) = microplastic_spec(2)
+    END IF
+
   END IF
 ELSE
 

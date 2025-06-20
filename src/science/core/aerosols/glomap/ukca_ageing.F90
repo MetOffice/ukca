@@ -119,7 +119,8 @@ SUBROUTINE ukca_ageing(nbox,nchemg,nbudaer,nd,md,mdt,ageterm1,ageterm2,        &
 !--------------------------------------------------------------------
 
 USE ukca_config_specification_mod, ONLY:                                       &
-    glomap_variables
+    glomap_variables,                                                          &
+    glomap_config
 
 USE ukca_mode_setup,    ONLY:                                                  &
     nmodes,                                                                    &
@@ -130,6 +131,7 @@ USE ukca_mode_setup,    ONLY:                                                  &
     cp_oc,                                                                     &
     cp_du,                                                                     &
     cp_so,                                                                     &
+    cp_mp,                                                                     &
     mode_nuc_sol,                                                              &
     mode_cor_sol,                                                              &
     mode_ait_insol,                                                            &
@@ -143,7 +145,9 @@ USE ukca_setup_indices, ONLY: condensable,                                     &
         nmasagedsuintr63, nmasagedocintr63, nmasagedsointr63,                  &
         nmasagedduintr63, nmasagedsuintr74, nmasagedocintr74,                  &
         nmasagedsointr74, nmasagedduintr74, nmasagedsuintr84,                  &
-        nmasagedocintr84, nmasagedsointr84, nmasagedduintr84
+        nmasagedocintr84, nmasagedsointr84, nmasagedduintr84,                  &
+        nmasagedmpintr52, nmasagedmpintr63, nmasagedmpintr74,                  &
+        nmasagedmpintr84
 
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
@@ -333,7 +337,11 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
                     bud_aer_mas(jl,nmasagedocintr52)=                          &
                     bud_aer_mas(jl,nmasagedocintr52)+naged*md(jl,imode,icp)
                   END IF
-                  !! .. above 2 lines account for transfer of mass due to aged
+                  IF ((icp == cp_mp) .AND. (nmasagedmpintr52 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedmpintr52)=                          &
+                    bud_aer_mas(jl,nmasagedmpintr52)+naged*md(jl,imode,icp)
+                  END IF
+                  !! .. above 3 lines account for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is Aitken-insoluble
                 IF (imode == mode_acc_insol) THEN
@@ -357,7 +365,11 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
                     bud_aer_mas(jl,nmasagedduintr63)=                          &
                     bud_aer_mas(jl,nmasagedduintr63)+naged*md(jl,imode,icp)
                   END IF
-                  !! .. above 1 line accounts for transfer of mass due to aged
+                  IF ((icp == cp_mp) .AND. (nmasagedmpintr63 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedmpintr63)=                          &
+                    bud_aer_mas(jl,nmasagedmpintr63)+naged*md(jl,imode,icp)
+                  END IF
+                  !! .. above 2 lines account for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is accum.-insoluble
                 IF (imode == mode_cor_insol) THEN
@@ -381,7 +393,11 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
                     bud_aer_mas(jl,nmasagedduintr74)=                          &
                     bud_aer_mas(jl,nmasagedduintr74)+naged*md(jl,imode,icp)
                   END IF
-                  !! .. above 1 line accounts for transfer of mass due to aged
+                  IF ((icp == cp_mp) .AND. (nmasagedmpintr74 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedmpintr74)=                          &
+                    bud_aer_mas(jl,nmasagedmpintr74)+naged*md(jl,imode,icp)
+                  END IF
+                  !! .. above 2 lines account for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is coarse-insoluble
                 IF (imode == mode_sup_insol) THEN
@@ -405,7 +421,11 @@ DO imode=mode_ait_insol,topmode ! loop over insoluble modes
                     bud_aer_mas(jl,nmasagedduintr84)=                          &
                     bud_aer_mas(jl,nmasagedduintr84)+naged*md(jl,imode,icp)
                   END IF
-                  !! .. above 1 line accounts for transfer of mass due to aged
+                  IF ((icp == cp_mp) .AND. (nmasagedmpintr84 > 0)) THEN
+                    bud_aer_mas(jl,nmasagedmpintr84)=                          &
+                    bud_aer_mas(jl,nmasagedmpintr84)+naged*md(jl,imode,icp)
+                  END IF
+                  !! .. above 2 lines account for transfer of mass due to aged
                   !      aerosol
                 END IF ! if mode is super-coarse insoluble
 

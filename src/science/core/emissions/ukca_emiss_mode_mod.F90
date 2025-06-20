@@ -36,7 +36,7 @@
 !
 MODULE ukca_emiss_mode_mod
 
-USE ukca_mode_setup,     ONLY: nmodes, cp_bc, cp_oc, cp_su
+USE ukca_mode_setup,     ONLY: nmodes, cp_bc, cp_oc, cp_su, cp_mp
 
 USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables,      &
                                          i_suss_4mode,                         &
@@ -48,7 +48,8 @@ USE ukca_config_specification_mod, ONLY: glomap_config, glomap_variables,      &
                                          i_sussbcocdu_7mode,                   &
                                          i_sussbcocntnh_5mode_7cpt,            &
                                          i_solinsol_6mode,                     &
-                                         i_sussbcocduntnh_8mode_8cpt
+                                         i_sussbcocduntnh_8mode_8cpt,          &
+                                         i_sussbcocdump_8mode
 USE ukca_constants,      ONLY: m_s, m_so2
 
 USE ereport_mod,         ONLY: ereport
@@ -64,7 +65,7 @@ IMPLICIT NONE
 
 ! List of all allowable offline emissions for testing if a given emission
 ! in a netCDF file is an aerosol emission field.
-CHARACTER(LEN=10), PARAMETER :: aero_ems_species(9) = ["BC_biomass",           &
+CHARACTER(LEN=10), PARAMETER :: aero_ems_species(11) = ["BC_biomass",          &
                                                         "OM_biomass",          &
                                                         "BC_fossil ",          &
                                                         "OM_fossil ",          &
@@ -72,7 +73,9 @@ CHARACTER(LEN=10), PARAMETER :: aero_ems_species(9) = ["BC_biomass",           &
                                                         "OM_biofuel",          &
                                                         "SO2_low   ",          &
                                                         "SO2_high  ",          &
-                                                        "SO2_nat   "   ]
+                                                        "SO2_nat   ",          &
+                                                        "MP_frgmnts",          &
+                                                        "MP_fibres "           ]
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_EMISS_MODE_MOD'
 
@@ -180,6 +183,11 @@ LOGICAL :: l_emfile_bcoc_bf
 LOGICAL :: l_emfile_bcoc_bm
 LOGICAL :: l_emfile_bcoc_ff
 
+! Indicators for whether emissions contain microplastic fragments or
+! fibres, for comparison with namelists switches l_ukca_mp_fragment etc.
+LOGICAL :: l_emfile_mp_fragment
+LOGICAL :: l_emfile_mp_fibre
+
 INTEGER :: iso2ems        ! determines emission assumptions (see below)
 INTEGER :: jmode          ! loop index
 
@@ -249,11 +257,17 @@ IF (glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt) iso2ems=3
 IF (glomap_config%i_mode_setup == i_solinsol_6mode) iso2ems=3
 ! SUSSBCOCNTNHDU_8mode
 IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) iso2ems=3
+! SUSSBCOCDUMP_8MODE
+IF (glomap_config%i_mode_setup == i_sussbcocdump_8mode) iso2ems=3
 
 ! Initialise bcoc indicators
 l_emfile_bcoc_bf = .FALSE.
 l_emfile_bcoc_bm = .FALSE.
 l_emfile_bcoc_ff = .FALSE.
+
+! Initialise microplastic indicators
+l_emfile_mp_fragment = .FALSE.
+l_emfile_mp_fibre = .FALSE.
 
 ! If the soluble/insoluble version of GLOMAP is used, then carbonaceous aerosols
 ! are emitted into the soluble component hosted by sulfate.
@@ -312,6 +326,19 @@ CASE (3)
     END IF
     mode_diam(:) = 160.0
     mode_stdev(:) = 2.0
+  CASE ('MP_frgmnts')
+    icp = cp_mp
+    l_emfile_mp_fragment = .TRUE.
+    mode_frac(:) = [ 0.0, 0.0, 0.0, 0.0, 0.00000009, 0.00001308, 0.00059630,   &
+                     0.99939053]
+    mode_diam(:) = [rmdi,rmdi,rmdi,rmdi,16.0,158.0,1118.0,25000.0]
+    mode_stdev(:) = [rmdi,rmdi,rmdi,rmdi,1.59,1.59,1.59,1.8]
+  CASE ('MP_fibres')
+    icp = cp_mp
+    l_emfile_mp_fibre = .TRUE.
+    mode_frac(:) = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.000229, 0.999771]
+    mode_diam(:) = [rmdi,rmdi,rmdi,rmdi,rmdi,rmdi,1118.0,13427.0]
+    mode_stdev(:) = [rmdi,rmdi,rmdi,rmdi,rmdi,rmdi,1.59,1.8]
   CASE DEFAULT
     cmessage = 'No emission information coded for ' // TRIM(tracer_name)
     CALL ereport ('UKCA_DEF_MODE_EMISS', iso2ems, cmessage)
@@ -355,7 +382,9 @@ IF ((icp == cp_su .AND. .NOT. glomap_config%l_ukca_primsu) .OR.                &
     (icp == this_cp_oc .AND. .NOT. glomap_config%l_ukca_primbcoc) .OR.         &
     (l_emfile_bcoc_bf .AND. .NOT. glomap_config%l_bcoc_bf) .OR.                &
     (l_emfile_bcoc_bm .AND. .NOT. glomap_config%l_bcoc_bm) .OR.                &
-    (l_emfile_bcoc_ff .AND. .NOT. glomap_config%l_bcoc_ff) ) THEN
+    (l_emfile_bcoc_ff .AND. .NOT. glomap_config%l_bcoc_ff) .OR.                &
+    (l_emfile_mp_fragment .AND. .NOT. glomap_config%l_ukca_mp_fragment) .OR.   &
+    (l_emfile_mp_fibre .AND. .NOT. glomap_config%l_ukca_mp_fibre) ) THEN
 
   lmode_emiss(:) = .FALSE.
 

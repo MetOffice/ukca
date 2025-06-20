@@ -211,7 +211,7 @@ USE ukca_mode_setup,         ONLY: nmodes,                                     &
                                    mode_nuc_sol, mode_ait_sol, mode_acc_sol,   &
                                    mode_cor_sol, mode_ait_insol,               &
                                    mode_acc_insol, mode_cor_insol,             &
-                                   cp_no3, cp_nh4, cp_nn,                      &
+                                   cp_no3, cp_nh4, cp_nn, cp_mp,               &
                                    mode_sup_insol
 
 USE ukca_setup_indices,      ONLY: nmasddepbcaccsol,                           &
@@ -230,7 +230,10 @@ USE ukca_setup_indices,      ONLY: nmasddepbcaccsol,                           &
                                    nmasddepntcorsol, nmasddepnhaitsol,         &
                                    nmasddepnhaccsol, nmasddepnhcorsol,         &
                                    nmasddepnnaccsol, nmasddepnncorsol,         &
-                                   nmasddepdusupins
+                                   nmasddepmpaitsol, nmasddepmpaccsol,         &
+                                   nmasddepmpcorsol, nmasddepmpaitins,         &
+                                   nmasddepmpaccins, nmasddepmpcorins,         &
+                                   nmasddepdusupins, nmasddepmpsupins
 USE ukca_ddepaer_coeff_mod,  ONLY: alpha, cr, yr, ls_ice, ls_ocean, ls_soil,   &
                                    ls_water
 
@@ -621,6 +624,43 @@ DO imode=1,nmodes
             WHERE (mask4(:))                                                   &
              bud_aer_mas(:,nmasddepnncorsol)=                                  &
              bud_aer_mas(:,nmasddepnncorsol)+delmddep(:)
+          END IF
+        END IF
+        IF (icp == cp_mp) THEN
+          IF ((imode == mode_ait_sol) .AND. (nmasddepmpaitsol > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpaitsol)=                                  &
+             bud_aer_mas(:,nmasddepmpaitsol)+delmddep(:)
+          END IF
+          IF ((imode == mode_acc_sol) .AND. (nmasddepmpaccsol > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpaccsol)=                                  &
+             bud_aer_mas(:,nmasddepmpaccsol)+delmddep(:)
+          END IF
+          IF ((imode == mode_cor_sol) .AND. (nmasddepmpcorsol > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpcorsol)=                                  &
+             bud_aer_mas(:,nmasddepmpcorsol)+delmddep(:)
+          END IF
+          IF ((imode == mode_ait_insol) .AND. (nmasddepmpaitins > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpaitins)=                                  &
+             bud_aer_mas(:,nmasddepmpaitins)+delmddep(:)
+          END IF
+          IF ((imode == mode_acc_insol) .AND. (nmasddepmpaccins > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpaccins)=                                  &
+             bud_aer_mas(:,nmasddepmpaccins)+delmddep(:)
+          END IF
+          IF ((imode == mode_cor_insol) .AND. (nmasddepmpcorins > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpcorins)=                                  &
+             bud_aer_mas(:,nmasddepmpcorins)+delmddep(:)
+          END IF
+          IF ((imode == mode_sup_insol) .AND. (nmasddepmpsupins > 0)) THEN
+            WHERE (mask4(:))                                                   &
+             bud_aer_mas(:,nmasddepmpsupins)=                                  &
+             bud_aer_mas(:,nmasddepmpsupins)+delmddep(:)
           END IF
         END IF
       END IF ! if component present in mode

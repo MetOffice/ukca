@@ -51,7 +51,8 @@ USE ukca_config_specification_mod, ONLY:                                       &
                                  i_sussbcocdu_7mode,                           &
                                  i_sussbcocntnh_5mode_7cpt,                    &
                                  i_solinsol_6mode,                             &
-                                 i_sussbcocduntnh_8mode_8cpt
+                                 i_sussbcocduntnh_8mode_8cpt,                  &
+                                 i_sussbcocdump_8mode
 
 USE ukca_mode_setup_interface_mod, ONLY: ukca_mode_setup_interface
 
@@ -77,7 +78,8 @@ USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_orgv1_soto3_solinsol,            &
                                  ukca_indices_solinsol_6mode,                  &
                                  ukca_indices_sussbcocduntnh_8mode_8cpt,       &
-                                 ukca_indices_nochem
+                                 ukca_indices_nochem,                          &
+                                 ukca_indices_sussbcocdump_8mode
 
 USE umPrintMgr,            ONLY: umPrint, umMessage,                           &
                                  PrintStatus, PrStatus_Oper
@@ -263,6 +265,9 @@ IF (ukca_config%l_ukca_mode) THEN
         CALL ukca_indices_orgv1_soto3
       END IF
       CALL ukca_indices_sussbcocduntnh_8mode_8cpt
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocdump_8mode) THEN ! 13
+      CALL ukca_indices_orgv1_soto3
+      CALL ukca_indices_sussbcocdump_8mode
     ELSE
       cmessage=' i_mode_setup has unrecognised value'
       WRITE(umMessage,'(A,I4)') cmessage,glomap_config%i_mode_setup
@@ -277,7 +282,7 @@ IF (ukca_config%l_ukca_mode) THEN
                                    glomap_config%i_ukca_tune_bc,               &
                                    glomap_config%l_fix_nacl_density,           &
                                    glomap_config%l_fix_ukca_hygroscopicities,  &
-                                   glomap_config%l_dust_ageing_on )
+                                   glomap_config%l_dust_mp_ageing )
 
   ! Calculate number of aerosol tracers required for components and number
   n_reqd_tracers = 0
@@ -933,7 +938,7 @@ IF ( ukca_config%l_ukca_mode .AND.                                             &
     errcode = 54
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
-  IF ( glomap_config%l_dust_ageing_on ) THEN
+  IF ( glomap_config%l_dust_mp_ageing ) THEN
     cmessage='dust only setup does not work with dust ageing'
     errcode = 55
     CALL ereport(RoutineName,errcode,cmessage)

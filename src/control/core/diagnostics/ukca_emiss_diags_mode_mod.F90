@@ -47,9 +47,10 @@ TYPE :: type_mode_diag_struct
   CHARACTER(LEN=30) :: vname  ! name of variable in file
 END TYPE type_mode_diag_struct
 
-INTEGER, PARAMETER :: num_mode_diags = 24  ! 13 + 8 for nitrate scheme
+INTEGER, PARAMETER :: num_mode_diags = 28  ! 13 + 8 for nitrate scheme
                                            !    + 2 for marine OC
                                            !    + 1 for supins dust
+                                           !    + 4 for microplastics
 TYPE(type_mode_diag_struct) :: mode_diag(num_mode_diags)
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='UKCA_EMISS_DIAGS_MODE_MOD'
@@ -68,6 +69,7 @@ USE ukca_mode_setup,  ONLY:                                                    &
     cp_no3,                                                                    &
     cp_nh4,                                                                    &
     cp_nn,                                                                     &
+    cp_mp,                                                                     &
     mode_ait_sol,                                                              &
     mode_acc_sol,                                                              &
     mode_cor_sol,                                                              &
@@ -247,6 +249,30 @@ icount = icount + 1
 mode_diag(icount)%item = 583
 mode_diag(icount)%mode = mode_cor_sol
 mode_diag(icount)%component = cp_nn
+
+! microplastics to Aitken-ins
+icount = icount + 1
+mode_diag(icount)%item = 702
+mode_diag(icount)%mode = mode_ait_insol
+mode_diag(icount)%component = cp_mp
+
+! microplastics to accum-ins
+icount = icount + 1
+mode_diag(icount)%item = 703
+mode_diag(icount)%mode = mode_acc_insol
+mode_diag(icount)%component = cp_mp
+
+! microplastics to coarse-ins
+icount = icount + 1
+mode_diag(icount)%item = 704
+mode_diag(icount)%mode = mode_cor_insol
+mode_diag(icount)%component = cp_mp
+
+! microplastics to sup-ins
+icount = icount + 1
+mode_diag(icount)%item = 705
+mode_diag(icount)%mode = mode_sup_insol
+mode_diag(icount)%component = cp_mp
 
 ! check that number of diagnostics matches the length of the array
 IF (icount /= num_mode_diags) THEN

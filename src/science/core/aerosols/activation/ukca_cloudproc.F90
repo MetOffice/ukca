@@ -119,13 +119,14 @@ SUBROUTINE ukca_cloudproc(nbox,nbudaer,nd,md,mdt,drydp,                        &
 USE ukca_config_specification_mod, ONLY: glomap_variables
 
 USE ukca_mode_setup,    ONLY: nmodes,                                          &
-                              cp_su, cp_bc, cp_oc, cp_so,                      &
+                              cp_su, cp_bc, cp_oc, cp_so, cp_mp,               &
                               cp_no3, cp_nh4, mode_ait_sol, mode_acc_sol
 
 USE ukca_setup_indices, ONLY: nmasprocsuintr23,                                &
                               nmasprocbcintr23, nmasprococintr23,              &
                               nmasprocsointr23,                                &
-                              nmasprocntintr23, nmasprocnhintr23
+                              nmasprocntintr23, nmasprocnhintr23,              &
+                              nmasprocmpintr23
 USE yomhook,            ONLY: lhook, dr_hook
 USE parkind1,           ONLY: jprb, jpim
 USE ukca_um_legacy_mod, ONLY: umErf
@@ -244,6 +245,9 @@ IF (iactmethod == 1) THEN
               IF ((icp == cp_nh4) .AND. (nmasprocnhintr23 > 0))                &
                            bud_aer_mas(jl,nmasprocnhintr23)=                   &
                            bud_aer_mas(jl,nmasprocnhintr23)+dm(icp)
+              IF ((icp == cp_mp) .AND. (nmasprocmpintr23 > 0))                 &
+                           bud_aer_mas(jl,nmasprocmpintr23)=                   &
+                           bud_aer_mas(jl,nmasprocmpintr23)+dm(icp)
             END DO
             !
             ! .. first remove mass to be transferred from mode MODE_AIT_SOL

@@ -36,7 +36,7 @@ SUBROUTINE common_mode_setup_interface ( glomap_variables_local,               &
                                          i_tune_bc_in,                         &
                                          l_fix_nacl_density_in,                &
                                          l_fix_ukca_hygroscopicities_in,       &
-                                         l_dust_ageing_on)
+                                         l_dust_mp_ageing)
 
 USE ereport_mod,                     ONLY:                                     &
     ereport
@@ -59,6 +59,7 @@ USE ukca_mode_setup,                 ONLY:                                     &
     ukca_mode_sussbcocntnh_5mode_7cpt,                                         &
     ukca_mode_solinsol_6mode,                                                  &
     ukca_mode_sussbcocduntnh_8mode_8cpt,                                       &
+    ukca_mode_sussbcocdump_8mode,                                              &
     glomap_variables_type
 
 USE ukca_config_specification_mod,   ONLY:                                     &
@@ -71,7 +72,8 @@ USE ukca_config_specification_mod,   ONLY:                                     &
     i_sussbcocdu_7mode,                                                        &
     i_sussbcocntnh_5mode_7cpt,                                                 &
     i_solinsol_6mode,                                                          &
-    i_sussbcocduntnh_8mode_8cpt
+    i_sussbcocduntnh_8mode_8cpt,                                               &
+    i_sussbcocdump_8mode
 
 USE umPrintMgr,                      ONLY:                                     &
     umPrint,                                                                   &
@@ -91,7 +93,7 @@ LOGICAL, INTENT(IN) :: l_radaer_in
 INTEGER, INTENT(IN) :: i_tune_bc_in
 LOGICAL, INTENT(IN) :: l_fix_nacl_density_in
 LOGICAL, INTENT(IN) :: l_fix_ukca_hygroscopicities_in
-LOGICAL, INTENT(IN) :: l_dust_ageing_on
+LOGICAL, INTENT(IN) :: l_dust_mp_ageing
 
 ! Local variables
 
@@ -112,7 +114,7 @@ CASE (i_suss_4mode) ! 1
                              i_tune_bc_in,                                     &
                              l_fix_nacl_density_in,                            &
                              l_fix_ukca_hygroscopicities_in,                   &
-                             l_dust_ageing_on)
+                             l_dust_mp_ageing)
 
 CASE (i_sussbcoc_5mode) ! 2
   CALL ukca_mode_sussbcoc_5mode( glomap_variables_local,                       &
@@ -120,7 +122,7 @@ CASE (i_sussbcoc_5mode) ! 2
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
                                  l_fix_ukca_hygroscopicities_in,               &
-                                 l_dust_ageing_on)
+                                 l_dust_mp_ageing)
 
 CASE (i_sussbcoc_4mode) ! 3
   CALL ukca_mode_sussbcoc_4mode( glomap_variables_local,                       &
@@ -128,7 +130,7 @@ CASE (i_sussbcoc_4mode) ! 3
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
                                  l_fix_ukca_hygroscopicities_in,               &
-                                 l_dust_ageing_on )
+                                 l_dust_mp_ageing )
 
 CASE (i_sussbcocso_5mode) ! 4
   CALL ukca_mode_sussbcocso_5mode( glomap_variables_local,                     &
@@ -136,7 +138,7 @@ CASE (i_sussbcocso_5mode) ! 4
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
-                                   l_dust_ageing_on )
+                                   l_dust_mp_ageing )
 
 CASE (i_sussbcocso_4mode) ! 5
   CALL ukca_mode_sussbcocso_4mode( glomap_variables_local,                     &
@@ -144,7 +146,7 @@ CASE (i_sussbcocso_4mode) ! 5
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
-                                   l_dust_ageing_on )
+                                   l_dust_mp_ageing )
 
 CASE (i_du_2mode) ! 6
   CALL ukca_mode_duonly_2mode( glomap_variables_local,                         &
@@ -152,7 +154,7 @@ CASE (i_du_2mode) ! 6
                                i_tune_bc_in,                                   &
                                l_fix_nacl_density_in,                          &
                                l_fix_ukca_hygroscopicities_in,                 &
-                               l_dust_ageing_on )
+                               l_dust_mp_ageing )
 
 CASE (i_sussbcocdu_7mode) ! 8
   CALL ukca_mode_sussbcocdu_7mode( glomap_variables_local,                     &
@@ -160,7 +162,7 @@ CASE (i_sussbcocdu_7mode) ! 8
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
-                                   l_dust_ageing_on )
+                                   l_dust_mp_ageing )
 
 CASE (i_sussbcocntnh_5mode_7cpt) ! 10
   CALL ukca_mode_sussbcocntnh_5mode_7cpt( glomap_variables_local,              &
@@ -168,7 +170,7 @@ CASE (i_sussbcocntnh_5mode_7cpt) ! 10
                                           i_tune_bc_in,                        &
                                           l_fix_nacl_density_in,               &
                                           l_fix_ukca_hygroscopicities_in,      &
-                                          l_dust_ageing_on )
+                                          l_dust_mp_ageing )
 
 CASE (i_solinsol_6mode) ! 11
   CALL ukca_mode_solinsol_6mode( glomap_variables_local,                       &
@@ -176,7 +178,7 @@ CASE (i_solinsol_6mode) ! 11
                                  i_tune_bc_in,                                 &
                                  l_fix_nacl_density_in,                        &
                                  l_fix_ukca_hygroscopicities_in,               &
-                                 l_dust_ageing_on )
+                                 l_dust_mp_ageing )
 
 CASE (i_sussbcocduntnh_8mode_8cpt) ! 12
   CALL ukca_mode_sussbcocduntnh_8mode_8cpt( glomap_variables_local,            &
@@ -184,7 +186,15 @@ CASE (i_sussbcocduntnh_8mode_8cpt) ! 12
                                             i_tune_bc_in,                      &
                                             l_fix_nacl_density_in,             &
                                             l_fix_ukca_hygroscopicities_in,    &
-                                            l_dust_ageing_on )
+                                            l_dust_mp_ageing )
+
+CASE (i_sussbcocdump_8mode) ! 13
+  CALL ukca_mode_sussbcocdump_8mode( glomap_variables_local,                   &
+                                            l_radaer_in,                       &
+                                            i_tune_bc_in,                      &
+                                            l_fix_ukca_hygroscopicities_in,    &
+                                            l_fix_nacl_density_in,             &
+                                            l_dust_mp_ageing )
 
 CASE DEFAULT
   cmessage='i_mode_setup_in has unrecognised value'

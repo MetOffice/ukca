@@ -164,6 +164,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_fieldname, is_mode_ntp,                   &
   fldname_pvol_so_ait_sol,                                                     &
   fldname_pvol_no3_ait_sol,                                                    &
   fldname_pvol_nh4_ait_sol,                                                    &
+  fldname_pvol_mp_ait_sol,                                                     &
   fldname_pvol_h2o_ait_sol,                                                    &
   fldname_pvol_su_acc_sol,                                                     &
   fldname_pvol_bc_acc_sol,                                                     &
@@ -173,6 +174,7 @@ USE ukca_fieldname_mod, ONLY: maxlen_fieldname, is_mode_ntp,                   &
   fldname_pvol_nh4_acc_sol,                                                    &
   fldname_pvol_du_acc_sol,                                                     &
   fldname_pvol_so_acc_sol,                                                     &
+  fldname_pvol_mp_acc_sol,                                                     &
   fldname_pvol_h2o_acc_sol,                                                    &
   fldname_pvol_su_cor_sol,                                                     &
   fldname_pvol_bc_cor_sol,                                                     &
@@ -182,13 +184,18 @@ USE ukca_fieldname_mod, ONLY: maxlen_fieldname, is_mode_ntp,                   &
   fldname_pvol_nh4_cor_sol,                                                    &
   fldname_pvol_du_cor_sol,                                                     &
   fldname_pvol_so_cor_sol,                                                     &
+  fldname_pvol_mp_cor_sol,                                                     &
   fldname_pvol_h2o_cor_sol,                                                    &
   fldname_pvol_bc_ait_insol,                                                   &
   fldname_pvol_oc_ait_insol,                                                   &
+  fldname_pvol_mp_ait_insol,                                                   &
   fldname_pvol_du_acc_insol,                                                   &
+  fldname_pvol_mp_acc_insol,                                                   &
   fldname_pvol_du_cor_insol,                                                   &
+  fldname_pvol_mp_cor_insol,                                                   &
   fldname_pvol_nn_acc_sol,                                                     &
   fldname_pvol_nn_cor_sol,                                                     &
+  fldname_pvol_mp_sup_insol,                                                   &
   fldname_pvol_du_sup_insol
 
 IMPLICIT NONE
@@ -208,7 +215,7 @@ PUBLIC ntp_init, ukca_get_ntp_varlist, ntp_copy_in_1d, ntp_copy_in_3d,         &
 ! The size of the all_ntp array is defined here.
 ! If adding or removing entries remember to change
 ! the size of dim_ntp
-INTEGER, PARAMETER, PUBLIC :: dim_ntp = 130
+INTEGER, PARAMETER, PUBLIC :: dim_ntp = 137
 
 ! Type used to hold all information for each non-transported prognostic.
 ! data_3d, l_required, name
@@ -544,6 +551,7 @@ CALL add_ntp_item(varname=fldname_pvol_oc_ait_sol)
 CALL add_ntp_item(varname=fldname_pvol_so_ait_sol)
 CALL add_ntp_item(varname=fldname_pvol_no3_ait_sol)
 CALL add_ntp_item(varname=fldname_pvol_nh4_ait_sol)
+CALL add_ntp_item(varname=fldname_pvol_mp_ait_sol)
 CALL add_ntp_item(varname=fldname_pvol_h2o_ait_sol)
 CALL add_ntp_item(varname=fldname_pvol_su_acc_sol)
 CALL add_ntp_item(varname=fldname_pvol_bc_acc_sol)
@@ -554,6 +562,7 @@ CALL add_ntp_item(varname=fldname_pvol_nh4_acc_sol)
 CALL add_ntp_item(varname=fldname_pvol_nn_acc_sol)
 CALL add_ntp_item(varname=fldname_pvol_du_acc_sol)
 CALL add_ntp_item(varname=fldname_pvol_so_acc_sol)
+CALL add_ntp_item(varname=fldname_pvol_mp_acc_sol)
 CALL add_ntp_item(varname=fldname_pvol_h2o_acc_sol)
 CALL add_ntp_item(varname=fldname_pvol_su_cor_sol)
 CALL add_ntp_item(varname=fldname_pvol_bc_cor_sol)
@@ -564,11 +573,16 @@ CALL add_ntp_item(varname=fldname_pvol_nh4_cor_sol)
 CALL add_ntp_item(varname=fldname_pvol_nn_cor_sol)
 CALL add_ntp_item(varname=fldname_pvol_du_cor_sol)
 CALL add_ntp_item(varname=fldname_pvol_so_cor_sol)
+CALL add_ntp_item(varname=fldname_pvol_mp_cor_sol)
 CALL add_ntp_item(varname=fldname_pvol_h2o_cor_sol)
 CALL add_ntp_item(varname=fldname_pvol_bc_ait_insol)
 CALL add_ntp_item(varname=fldname_pvol_oc_ait_insol)
+CALL add_ntp_item(varname=fldname_pvol_mp_ait_insol)
 CALL add_ntp_item(varname=fldname_pvol_du_acc_insol)
+CALL add_ntp_item(varname=fldname_pvol_mp_acc_insol)
 CALL add_ntp_item(varname=fldname_pvol_du_cor_insol)
+CALL add_ntp_item(varname=fldname_pvol_mp_cor_insol)
+CALL add_ntp_item(varname=fldname_pvol_mp_sup_insol)
 CALL add_ntp_item(varname=fldname_pvol_du_sup_insol)
 
 ! Finally, check metadata for all entries is set
@@ -670,7 +684,7 @@ USE ukca_mode_setup,       ONLY: mode_nuc_sol, mode_ait_sol, mode_acc_sol,     &
                                  mode_cor_sol, mode_ait_insol, mode_acc_insol, &
                                  mode_cor_insol, mode_sup_insol, cp_su, cp_bc, &
                                  cp_oc, cp_cl, cp_no3, cp_du, cp_so, cp_nh4,   &
-                                 cp_nn
+                                 cp_nn, cp_mp
 
 IMPLICIT NONE
 
@@ -770,6 +784,9 @@ IF (is_mode_ntp(varname)) THEN
       IF (UBOUND(component,DIM=2) >= cp_nh4)                                   &
       ntp_req = component(mode_ait_sol,cp_nh4) .AND.                           &
                 glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_ait_sol)          ! Aitken-sol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_ait_sol,cp_mp) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_h2o_ait_sol)         ! Aitken-sol H2O
       ntp_req = mode(mode_ait_sol) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_su_acc_sol)          ! accumulation-sol sulphate
@@ -796,6 +813,9 @@ IF (is_mode_ntp(varname)) THEN
       ntp_req = component(mode_acc_sol,cp_du) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_so_acc_sol)          ! accumulation-sol 2ndy organic
       ntp_req = component(mode_acc_sol,cp_so) .AND. glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_acc_sol)          ! accumulation-sol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_acc_sol,cp_mp) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_h2o_acc_sol)         ! accumulation-sol H2O
       ntp_req = mode(mode_acc_sol) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_su_cor_sol)          ! coarse-sol sulphate
@@ -822,6 +842,9 @@ IF (is_mode_ntp(varname)) THEN
       ntp_req = component(mode_cor_sol,cp_du) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_so_cor_sol)          ! coarse-sol 2ndy organic
       ntp_req = component(mode_cor_sol,cp_so) .AND. glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_cor_sol)          ! coarse-sol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_cor_sol,cp_mp) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_h2o_cor_sol)         ! coarse-sol H2O
       ntp_req = mode(mode_cor_sol) .AND. glomap_config%l_ukca_radaer
     CASE (fldname_pvol_bc_ait_insol)        ! coarse-insol black carbon
@@ -830,11 +853,27 @@ IF (is_mode_ntp(varname)) THEN
     CASE (fldname_pvol_oc_ait_insol)        ! coarse-insol organic matter
       ntp_req = component(mode_ait_insol,cp_oc) .AND.                          &
                 glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_ait_insol)          ! Aitken-insol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_ait_insol,cp_mp) .AND.                          &
+                glomap_config%l_ukca_radaer
     CASE (fldname_pvol_du_acc_insol)        ! accumulation-insol dust
       ntp_req = component(mode_acc_insol,cp_du) .AND.                          &
                 glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_acc_insol)          ! accumulation-insol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_acc_insol,cp_mp) .AND.                          &
+                glomap_config%l_ukca_radaer
     CASE (fldname_pvol_du_cor_insol)        ! coarse-insol dust
       ntp_req = component(mode_cor_insol,cp_du) .AND.                          &
+                glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_cor_insol)          ! coarse-insol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_cor_insol,cp_mp) .AND.                          &
+                glomap_config%l_ukca_radaer
+    CASE (fldname_pvol_mp_sup_insol)        ! sup-insol microplastics
+      IF (UBOUND(component,DIM=2) >= cp_mp)                                    &
+      ntp_req = component(mode_sup_insol,cp_mp) .AND.                          &
                 glomap_config%l_ukca_radaer
     CASE (fldname_pvol_du_sup_insol)        ! sup-insol dust
       ntp_req = component(mode_sup_insol,cp_du) .AND.                          &

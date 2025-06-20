@@ -34,7 +34,7 @@ SUBROUTINE glomap_clim_mode_setup_interface ( i_mode_setup_in,                 &
                                               i_tune_bc_in,                    &
                                               l_fix_nacl_density_in,           &
                                               l_fix_ukca_hygroscopicities_in,  &
-                                              l_dust_ageing_on )
+                                              l_dust_mp_ageing )
 
 USE common_mode_setup_interface_mod, ONLY:                                     &
     common_mode_setup_interface
@@ -68,7 +68,7 @@ LOGICAL, INTENT(IN) :: l_radaer_in
 INTEGER, INTENT(IN) :: i_tune_bc_in
 LOGICAL, INTENT(IN) :: l_fix_nacl_density_in
 LOGICAL, INTENT(IN) :: l_fix_ukca_hygroscopicities_in
-LOGICAL, INTENT(IN) :: l_dust_ageing_on
+LOGICAL, INTENT(IN) :: l_dust_mp_ageing
 
 ! Local variables
 
@@ -96,7 +96,7 @@ CALL common_mode_setup_interface ( glomap_variables_climatology,               &
                                    i_tune_bc_in,                               &
                                    l_fix_nacl_density_in,                      &
                                    l_fix_ukca_hygroscopicities_in,             &
-                                   l_dust_ageing_on )
+                                   l_dust_mp_ageing )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 END SUBROUTINE glomap_clim_mode_setup_interface

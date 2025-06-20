@@ -212,7 +212,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_aero_rainout,                                          &
                       l_cv_rainout,                                            &
                       l_impc_scav,                                             &
-                      l_dust_slinn_impc_scav,                                  &
+                      l_dust_mp_slinn_impc_scav,                               &
                       l_ukca_primss,                                           &
                       l_ukca_primsu,                                           &
                       l_ukca_primdu,                                           &
@@ -227,6 +227,8 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_no3_prod_in_aero_step,                                 &
                       l_ukca_scale_sea_salt_ems,                               &
                       l_ukca_scale_marine_pom_ems,                             &
+                      l_ukca_mp_fragment,                                      &
+                      l_ukca_mp_fibre,                                         &
                       l_ukca_radaer,                                           &
                       l_ntpreq_n_activ_sum,                                    &
                       l_ntpreq_dryd_nuc_sol,                                   &
@@ -239,7 +241,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_activate_pdf,                                 &
                       l_fix_ukca_activate_vert_rep,                            &
                       l_bug_repro_tke_index,                                   &
-                      l_dust_ageing_on,                                        &
+                      l_dust_mp_ageing,                                        &
                       l_fix_ukca_hygroscopicities,                             &
                       l_skip_const_setup,                                      &
                       proc_bl_tracer_mix,                                      &
@@ -542,7 +544,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ddepaer
 LOGICAL, OPTIONAL, INTENT(IN) :: l_aero_rainout
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cv_rainout
 LOGICAL, OPTIONAL, INTENT(IN) :: l_impc_scav
-LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_slinn_impc_scav
+LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_mp_slinn_impc_scav
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_primss
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_primsu
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_primdu
@@ -557,6 +559,8 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_coarse_no3_prod
 LOGICAL, OPTIONAL, INTENT(IN) :: l_no3_prod_in_aero_step
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_sea_salt_ems
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_scale_marine_pom_ems
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_mp_fragment
+LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_mp_fibre
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ukca_radaer
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ntpreq_n_activ_sum
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ntpreq_dryd_nuc_sol
@@ -570,7 +574,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_pdf
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_activate_vert_rep
 LOGICAL, OPTIONAL, INTENT(IN) :: l_bug_repro_tke_index
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_hygroscopicities
-LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_ageing_on
+LOGICAL, OPTIONAL, INTENT(IN) :: l_dust_mp_ageing
 
 ! Control argument for skipping set up of constants if already done
 LOGICAL, OPTIONAL, INTENT(IN) :: l_skip_const_setup
@@ -1290,8 +1294,8 @@ IF (ukca_config%l_ukca_mode) THEN
     IF (PRESENT(l_mode_bhn_on)) glomap_config%l_mode_bhn_on = l_mode_bhn_on
     IF (PRESENT(mode_activation_dryr))                                         &
       glomap_config%mode_activation_dryr = mode_activation_dryr
-    IF (PRESENT(l_dust_ageing_on))                                             &
-      glomap_config%l_dust_ageing_on = l_dust_ageing_on
+    IF (PRESENT(l_dust_mp_ageing))                                             &
+      glomap_config%l_dust_mp_ageing = l_dust_mp_ageing
 
     IF (ukca_config%l_ukca_scale_ppe) THEN
 
@@ -1342,10 +1346,10 @@ IF (ukca_config%l_ukca_mode) THEN
       ! Impaction scavenging options
       IF (glomap_config%l_impc_scav) THEN
 
-        glomap_config%l_dust_slinn_impc_scav = .TRUE.
+        glomap_config%l_dust_mp_slinn_impc_scav = .TRUE.
 
-        IF (PRESENT(l_dust_slinn_impc_scav))                                   &
-          glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
+        IF (PRESENT(l_dust_mp_slinn_impc_scav))                                &
+          glomap_config%l_dust_mp_slinn_impc_scav = l_dust_mp_slinn_impc_scav
 
       END IF
 
@@ -1428,6 +1432,12 @@ IF (ukca_config%l_ukca_mode) THEN
       glomap_config%l_no3_prod_in_aero_step = l_no3_prod_in_aero_step
     IF (PRESENT(hno3_uptake_coeff))                                            &
       glomap_config%hno3_uptake_coeff = hno3_uptake_coeff
+
+    ! Microplastic emissions configuration
+    IF (PRESENT(l_ukca_mp_fragment))                                           &
+       glomap_config%l_ukca_mp_fragment = l_ukca_mp_fragment
+    IF (PRESENT(l_ukca_mp_fibre))                                              &
+       glomap_config%l_ukca_mp_fibre = l_ukca_mp_fibre
 
     ! -- GLOMAP feedback configuration options ---------------------------
 
@@ -1584,13 +1594,11 @@ IF (ukca_config%l_ukca_mode) THEN
     glomap_config%l_mode_bln_on = .FALSE.
     IF (PRESENT(i_mode_nzts)) glomap_config%i_mode_nzts = i_mode_nzts
 
-
-
     IF (PRESENT(ukca_mode_seg_size))                                           &
       glomap_config%ukca_mode_seg_size = ukca_mode_seg_size
     IF (PRESENT(i_mode_setup)) glomap_config%i_mode_setup = i_mode_setup
-    IF (PRESENT(l_dust_ageing_on))                                             &
-      glomap_config%l_dust_ageing_on = l_dust_ageing_on
+    IF (PRESENT(l_dust_mp_ageing))                                             &
+      glomap_config%l_dust_mp_ageing = l_dust_mp_ageing
     IF (.NOT. (ukca_config%l_ukca_drydep_off)) THEN
       glomap_config%l_ddepaer = .TRUE.
       IF (PRESENT(l_ddepaer)) glomap_config%l_ddepaer = l_ddepaer
@@ -1609,9 +1617,9 @@ IF (ukca_config%l_ukca_mode) THEN
       IF (PRESENT(i_mode_nucscav)) glomap_config%i_mode_nucscav = i_mode_nucscav
       ! Impaction scavenging options
       IF (glomap_config%l_impc_scav) THEN
-        glomap_config%l_dust_slinn_impc_scav = .TRUE.
-        IF (PRESENT(l_dust_slinn_impc_scav))                                   &
-          glomap_config%l_dust_slinn_impc_scav = l_dust_slinn_impc_scav
+        glomap_config%l_dust_mp_slinn_impc_scav = .TRUE.
+        IF (PRESENT(l_dust_mp_slinn_impc_scav))                                &
+          glomap_config%l_dust_mp_slinn_impc_scav = l_dust_mp_slinn_impc_scav
       END IF
     END IF
     IF (.NOT. ukca_config%l_ukca_emissions_off) THEN

@@ -132,7 +132,7 @@ USE ukca_mode_setup, ONLY:                                                     &
     mode_acc_insol,                                                            &
     mode_cor_insol,                                                            &
     mode_sup_insol,                                                            &
-    cp_no3, cp_nh4, cp_nn
+    cp_no3, cp_nh4, cp_nn, cp_mp
 
 USE ukca_setup_indices,  ONLY: nmasnuscsunucsol,                               &
                                nmasnuscsuaitsol, nmasnuscsuaccsol,             &
@@ -150,7 +150,10 @@ USE ukca_setup_indices,  ONLY: nmasnuscsunucsol,                               &
                                nmasnuscntcorsol, nmasnuscnhaitsol,             &
                                nmasnuscnhaccsol, nmasnuscnhcorsol,             &
                                nmasnuscnnaccsol, nmasnuscnncorsol,             &
-                               nmasnuscdusupins
+                               nmasnuscmpcorsol, nmasnuscmpaitsol,             &
+                               nmasnuscmpaccsol, nmasnuscmpcorins,             &
+                               nmasnuscmpaitins, nmasnuscmpaccins,             &
+                               nmasnuscdusupins, nmasnuscmpsupins
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -591,6 +594,29 @@ DO jl=1,nbox
                     IF ((imode == mode_cor_sol) .AND. (nmasnuscnncorsol > 0))  &
                       bud_aer_mas(jl,nmasnuscnncorsol)=                        &
                       bud_aer_mas(jl,nmasnuscnncorsol)+dm(icp)
+                  END IF
+                  IF (icp == cp_mp) THEN
+                    IF ((imode == mode_ait_sol) .AND. (nmasnuscmpaitsol > 0))  &
+                      bud_aer_mas(jl,nmasnuscmpaitsol)=                        &
+                      bud_aer_mas(jl,nmasnuscmpaitsol)+dm(icp)
+                    IF ((imode == mode_acc_sol) .AND. (nmasnuscmpaccsol > 0))  &
+                      bud_aer_mas(jl,nmasnuscmpaccsol)=                        &
+                      bud_aer_mas(jl,nmasnuscmpaccsol)+dm(icp)
+                    IF ((imode == mode_cor_sol) .AND. (nmasnuscmpcorsol > 0))  &
+                      bud_aer_mas(jl,nmasnuscmpcorsol)=                        &
+                      bud_aer_mas(jl,nmasnuscmpcorsol)+dm(icp)
+                    IF ((imode == mode_ait_insol) .AND. (nmasnuscmpaitins > 0))&
+                      bud_aer_mas(jl,nmasnuscmpaitins)=                        &
+                      bud_aer_mas(jl,nmasnuscmpaitins)+dm(icp)
+                    IF ((imode == mode_acc_insol) .AND. (nmasnuscmpaccins > 0))&
+                      bud_aer_mas(jl,nmasnuscmpaccins)=                        &
+                      bud_aer_mas(jl,nmasnuscmpaccins)+dm(icp)
+                    IF ((imode == mode_cor_insol) .AND. (nmasnuscmpcorins > 0))&
+                      bud_aer_mas(jl,nmasnuscmpcorins)=                        &
+                      bud_aer_mas(jl,nmasnuscmpcorins)+dm(icp)
+                    IF ((imode == mode_sup_insol) .AND. (nmasnuscmpsupins > 0))&
+                      bud_aer_mas(jl,nmasnuscmpsupins)=                        &
+                      bud_aer_mas(jl,nmasnuscmpsupins)+dm(icp)
                   END IF
 
                 END IF ! if component(imode,icp)

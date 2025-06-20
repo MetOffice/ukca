@@ -40,7 +40,7 @@ INTEGER, PARAMETER :: npd_ukca_spectrum = 2
 ! component number (typically, ip_ukca_water) defined in
 ! ukca_radaer_struct_mod.
 !
-INTEGER, PARAMETER :: npd_ukca_maxcomptype = 10
+INTEGER, PARAMETER :: npd_ukca_maxcomptype = 11
 
 !
 ! Maximum number of wavelengths for the aerosol optical depth

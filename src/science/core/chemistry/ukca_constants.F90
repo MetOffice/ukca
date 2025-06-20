@@ -173,6 +173,7 @@ REAL, PARAMETER :: c_hcooh      = 1.5878
 REAL, PARAMETER :: c_meco3h     = 2.6234
 REAL, PARAMETER :: c_meco2h     = 2.0711
 REAL, PARAMETER :: c_nh3        = 0.5879
+REAL, PARAMETER :: c_mp         = 0.4142
 REAL, PARAMETER :: c_monoterp   = 4.7034
 REAL, PARAMETER :: c_sec_org    = 5.1782    ! Molecular weight=150.
 REAL, PARAMETER :: c_sec_org_i  = 5.1782    ! Molecular weight=150.
@@ -387,6 +388,7 @@ REAL, PARAMETER :: m_isop    =  68.0
 REAL, PARAMETER :: m_no      =  30.0
 REAL, PARAMETER :: m_n       =  14.0
 REAL, PARAMETER :: m_c       =  12.0
+REAL, PARAMETER :: m_mp      =  12.0
 REAL, PARAMETER :: m_monoterp =  136.24
 
 !     molecular masses of stratospheric species, for which surface

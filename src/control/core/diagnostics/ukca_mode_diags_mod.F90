@@ -29,7 +29,7 @@ USE ukca_config_constants_mod, ONLY: avogadro, boltzmann
 USE ukca_constants,         ONLY: mmw, m_air
 USE ukca_mode_setup,        ONLY: nmodes, ncp_max,                             &
                                   cp_su, cp_bc, cp_oc, cp_cl, cp_du,           &
-                                  cp_no3, cp_nh4, cp_nn
+                                  cp_no3, cp_nh4, cp_nn, cp_mp
 USE ukca_config_specification_mod, ONLY: glomap_variables
 USE errormessagelength_mod, ONLY: errormessagelength
 USE ereport_mod,            ONLY: ereport
@@ -341,6 +341,13 @@ USE ukca_um_legacy_mod, ONLY:                                                  &
   stashcode_no3_acc_sol_load, stashcode_no3_cor_sol_load,                      &
   stashcode_nn_acc_sol_load , stashcode_nn_cor_sol_load ,                      &
   stashcode_nh4_total_load, stashcode_no3_total_load, stashcode_nn_total_load, &
+  stashcode_mp_ait_sol,   stashcode_mp_acc_sol,   stashcode_mp_cor_sol,        &
+  stashcode_mp_ait_insol, stashcode_mp_acc_insol, stashcode_mp_cor_insol,      &
+  stashcode_mp_sup_insol, stashcode_mp_sup_insol_load,                         &
+  stashcode_mp_ait_sol_load,   stashcode_mp_acc_sol_load,                      &
+  stashcode_mp_cor_sol_load,   stashcode_mp_ait_insol_load,                    &
+  stashcode_mp_acc_insol_load, stashcode_mp_cor_insol_load,                    &
+  stashcode_mp_total_load,                                                     &
   len_stlist, stindex, stlist, num_stash_levels, stash_levels, si, sf,         &
   si_last, stashcode_glomap_sec,                                               &
   copydiag, copydiag_3d
@@ -424,7 +431,11 @@ INTEGER, PARAMETER :: item_component_cmip6(nmodes,ncp_max) =                   &
 ! NH4
   -1,                    stashcode_nh4_ait_sol, stashcode_nh4_acc_sol,         &
   stashcode_nh4_cor_sol,                    -1,                    -1,         &
-  -1                   , -1                                                    &
+  -1                   , -1,                                                   &
+  ! Microplastics
+  -1,                    stashcode_mp_ait_sol,  stashcode_mp_acc_sol,          &
+  stashcode_mp_cor_sol,  stashcode_mp_ait_insol,stashcode_mp_acc_insol,        &
+  stashcode_mp_cor_insol,stashcode_mp_sup_insol                                &
   ], [nmodes, ncp_max])
 
 ! Table to locate STASH item numbers for mode and component loads
@@ -475,7 +486,12 @@ INTEGER, PARAMETER :: item_load_cmip6(nmodes,ncp_max) =                        &
   -1,                         stashcode_nh4_ait_sol_load,                      &
   stashcode_nh4_acc_sol_load, stashcode_nh4_cor_sol_load,                      &
   -1,                         -1,                                              &
-  -1,                         -1                                               &
+  -1,                         -1,                                              &
+! Microplastics
+  -1,                          stashcode_mp_ait_sol_load,                      &
+  stashcode_mp_acc_sol_load,   stashcode_mp_cor_sol_load,                      &
+  stashcode_mp_ait_insol_load, stashcode_mp_acc_insol_load,                    &
+  stashcode_mp_cor_insol_load, stashcode_mp_sup_insol_load                     &
   ], [nmodes, ncp_max])
 
 ! Table to locate STASH item numbers for aerosol water density
@@ -504,7 +520,8 @@ INTEGER, PARAMETER :: item_aerosol_load_cmip6(ncp_max+1) = [                   &
   stashcode_oc_total_load,  stashcode_ss_total_load,                           &
   stashcode_du_total_load,  -1,                                                &
   stashcode_no3_total_load, stashcode_nh4_total_load,                          &
-  stashcode_nn_total_load, stashcode_h2o_total_load  ]
+  stashcode_nn_total_load, stashcode_mp_total_load,                            &
+  stashcode_h2o_total_load  ]
 
 INTEGER :: n_soluble      ! No of soluble modes
 INTEGER :: section        ! stash section
@@ -872,6 +889,7 @@ USE ukca_um_legacy_mod,   ONLY: stashcode_glomap_sec,                          &
                                 stashcode_pm10_nh4, stashcode_pm2p5_nh4,       &
                                 stashcode_pm10_no3, stashcode_pm2p5_no3,       &
                                 stashcode_pm10_nn , stashcode_pm2p5_nn,        &
+                                stashcode_pm10_mp , stashcode_pm2p5_mp,        &
                                 len_stlist, stindex,                           &
                                 stlist, num_stash_levels,                      &
                                 stash_levels, si, sf, si_last,                 &
@@ -903,7 +921,7 @@ REAL, INTENT(IN OUT) :: stashwork38(len_stashwork38)
 ! Local variables
 
 INTEGER, PARAMETER :: n_size_cat = 2 ! Number of PM size categories
-INTEGER, PARAMETER :: ndiagcp = 8    ! Number of component diagnostics
+INTEGER, PARAMETER :: ndiagcp = 9    ! Number of component diagnostics
                                      ! available for each PM size category
 INTEGER :: im_index       ! Internal model index
 INTEGER :: section        ! Stash section
@@ -936,11 +954,12 @@ TYPE(pm_item_struct), PARAMETER :: pm_item = pm_item_struct(                   &
   [stashcode_pm10_wet, stashcode_pm2p5_wet],                                   &
   RESHAPE([stashcode_pm10_so4, stashcode_pm10_bc, stashcode_pm10_oc,           &
             stashcode_pm10_ss, stashcode_pm10_du, stashcode_pm10_no3,          &
-            stashcode_pm10_nn, stashcode_pm10_nh4,                             &
+            stashcode_pm10_nn, stashcode_pm10_nh4, stashcode_pm10_mp,          &
             stashcode_pm2p5_so4, stashcode_pm2p5_bc, stashcode_pm2p5_oc,       &
             stashcode_pm2p5_ss, stashcode_pm2p5_du, stashcode_pm2p5_no3,       &
-            stashcode_pm2p5_nn, stashcode_pm2p5_nh4], [ndiagcp,2]),            &
-  [cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_no3, cp_nn, cp_nh4])
+            stashcode_pm2p5_nn, stashcode_pm2p5_nh4, stashcode_pm2p5_mp],      &
+            [ndiagcp,2]),                                                      &
+  [cp_su, cp_bc, cp_oc, cp_cl, cp_du, cp_no3, cp_nn, cp_nh4, cp_mp])
 
 ! Request flags indicating the PM diagnostics to be calculated
 ! in 'ukca_pm_diags'

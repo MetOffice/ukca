@@ -137,12 +137,17 @@ DO k = 1, n_chem_emissions + n_3d_emissions
 
   ! Report error if no emission field found in emissions structure
   ! Exception is BC/organic matter which can be missing if l_ukca_primbcoc=false
+  ! Microplastics can also be missing if l_ukca_mp_fragment/fibre = false
   IF (n == -1) THEN
     IF (.NOT. (                                                                &
         ((em_chem_spec(k)(1:2) == 'BC') .AND.                                  &
          .NOT. glomap_config%l_ukca_primbcoc) .OR.                             &
         ((em_chem_spec(k)(1:2) == 'OM') .AND.                                  &
-         .NOT. glomap_config%l_ukca_primbcoc))) THEN
+         .NOT. glomap_config%l_ukca_primbcoc) .OR.                             &
+        ((em_chem_spec(k)(1:2) == 'MP') .AND.                                  &
+         .NOT. glomap_config%l_ukca_mp_fragment) .OR.                          &
+        ((em_chem_spec(k)(1:2) == 'MP') .AND.                                  &
+         .NOT. glomap_config%l_ukca_mp_fibre))) THEN
       icode    = -n
       cmessage = "Emission field " // TRIM (em_chem_spec (k)) //               &
                  " not found in emissions structure"
