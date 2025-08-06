@@ -67,7 +67,7 @@ export FCM_VERSION={{FCM_VERSION}}
 
         script = "rose task-run --verbose"
         [[[events]]]
-            mail events = retry, submission failed, submission timeout, timeout, execution timeout
+            mail events = retry, submission failed, submission timeout, execution timeout
             submission timeout = PT12H
             execution timeout  =  PT3H
 
