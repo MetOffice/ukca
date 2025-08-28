@@ -66,24 +66,34 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'FASTJX_SET_AER_MOD'
 
 CONTAINS
 
-SUBROUTINE fastjx_set_aer
+SUBROUTINE fastjx_set_aer(error_code_ptr, error_message, error_routine)
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
-USE ereport_mod, ONLY: ereport
+
+USE ukca_error_mod, ONLY: maxlen_message, maxlen_procname,                     &
+                          error_report, errcode_value_invalid
+USE photol_config_specification_mod, ONLY: photol_config
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper
 USE fastjx_data, ONLY: mx, miedx, naa
-USE errormessagelength_mod, ONLY: errormessagelength
+
 IMPLICIT NONE
 
+! error handling arguments
+INTEGER, POINTER, INTENT(IN) :: error_code_ptr
+CHARACTER(LEN=maxlen_message), OPTIONAL, INTENT(OUT) :: error_message
+                                                       ! Error return message
+CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
+                                         ! Routine in which error was trapped
+
+CHARACTER(LEN=maxlen_message) :: cmessage         ! Error message
 INTEGER                       :: i                ! Loop variable
+
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='FASTJX_SET_AER'
-CHARACTER(LEN=errormessagelength) :: cmessage   ! Error message
-
 
 ! ********************************
 ! EOH
@@ -108,11 +118,15 @@ DO i = 1,mx
   END IF
 
   IF (miedx(i) > naa .OR. miedx(i) <= 0) THEN
-    WRITE(umMessage,'(I0,A,I0)') miedx(i), ' ', naa
-    CALL umPrint(umMessage,src='fastjx_set_aer')
-    cmessage= 'MIEDX(i) is negative or less than naa'
-    CALL ereport('FASTJX_SET_AER',naa,cmessage)
-  END IF
+    error_code_ptr = errcode_value_invalid
+    WRITE(cmessage,'(2(A,I0))') 'MIEDX(i) is negative or less than naa: ',     &
+        miedx(i), ' ', naa
+    CALL error_report(photol_config%i_error_method, error_code_ptr, cmessage,  &
+            RoutineName, locn_out=error_routine, msg_out=error_message )
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out,           &
+                            zhook_handle)
+    RETURN
+  END IF   ! miedx range
 
 END DO
 

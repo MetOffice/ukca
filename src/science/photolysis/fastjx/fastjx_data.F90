@@ -65,6 +65,8 @@ USE yomhook,             ONLY: lhook, dr_hook
 USE parkind1,            ONLY: jprb, jpim
 
 USE ukca_parpho_mod,     ONLY: jpwav
+USE photol_config_specification_mod, ONLY: photol_config
+USE photol_fieldname_mod, ONLY: photol_jlabel_len
 
 IMPLICIT NONE
 PUBLIC
@@ -158,7 +160,10 @@ REAL,  ALLOCATABLE       :: jfacta(:)
 INTEGER, ALLOCATABLE     :: jind(:)
 
 ! Array containing labels for photolysed species  ! was len=10!
-CHARACTER(LEN=7), ALLOCATABLE  :: jlabel(:)
+CHARACTER(LEN=photol_jlabel_len), ALLOCATABLE  :: jlabel(:)
+
+! Array containing labels for photolysed species as read from file
+CHARACTER(LEN=photol_jlabel_len) :: titlej(x_)
 
 ! Array containing indices in domain (xy) arrays
 INTEGER, ALLOCATABLE     :: nsl(:,:)
@@ -387,12 +392,6 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='FASTJX_ALLOCATE_MEMORY'
 ! ***********************************************************************
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-! Allocate arrays that depend on number of species.
-! These hold data from files read only once at start so cannot be deallocated.
-IF (.NOT. ALLOCATED(jind)) ALLOCATE(jind(jppj))
-IF (.NOT. ALLOCATED(jlabel)) ALLOCATE(jlabel(jppj))
-IF (.NOT. ALLOCATED(jfacta)) ALLOCATE(jfacta(jppj))
-
 ! Allocate arrays that depend on GCM size
 IF (.NOT. ALLOCATED(amf2))                                                     &
   ALLOCATE(amf2      ((2*(lpar+1)+1), (2*(lpar+1)+1), kpcx))
@@ -511,6 +510,79 @@ IF (ALLOCATED(tz_block))    DEALLOCATE(tz_block)
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE fastjx_deallocate_memory
+
+! ######################################################################
+! Subroutine that transfers spectral and solar cycle values recived as
+! configuration data from parent, to local variables used in FastJX
+
+SUBROUTINE fastjx_set_data_from_config()
+
+IMPLICIT  NONE
+
+INTEGER :: n_species
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='FASTJX_SET_DATA_FROM_CONFIG'
+
+! ***********************************************************************
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Copy configuration data to local variables.
+! Wavelength number as selected by user.
+w_ = photol_config%fastjx_numwl
+
+! Values from cross-sections file (jvspec)
+njval = photol_config%njval
+nw1   = photol_config%nw1
+nw2   = photol_config%nw2
+fl(:) = photol_config%fl(:)
+q1d(:,:) = photol_config%q1d(:,:)
+qo2(:,:) = photol_config%qo2(:,:)
+qo3(:,:) = photol_config%qo3(:,:)
+qqq(:,:,:) = photol_config%qqq(:,:,:)
+qrayl(:) = photol_config%qrayl(:)
+tqq(:,:) = photol_config%tqq(:,:)
+wl(:) = photol_config%wl(:)
+
+! Values from (Mie) scattering file (jvscat)
+jtaumx = photol_config%jtaumx
+naa    = photol_config%naa
+atau   = photol_config%atau
+atau0   = photol_config%atau0
+daa(:) = photol_config%daa(:)
+paa(:,:,:) = photol_config%paa(:,:,:)
+qaa(:,:) = photol_config%qaa(:,:)
+raa(:) = photol_config%raa(:)
+saa(:,:) = photol_config%saa(:,:)
+waa(:,:) = photol_config%waa(:,:)
+
+! Solar cycle data
+IF ( photol_config%i_solcylc_type > 0 ) THEN
+  n_solcyc_ts = photol_config%n_solcyc_ts
+  solcyc_av(:) = photol_config%solcyc_av(:)
+  solcyc_quanta(:) = photol_config%solcyc_quanta(:)
+  IF ( .NOT. ALLOCATED(solcyc_ts)) ALLOCATE(solcyc_ts(n_solcyc_ts))
+  solcyc_ts(:) = photol_config%solcyc_ts(:)
+  solcyc_spec(:) = photol_config%solcyc_spec(:)
+END IF
+
+titlej(:) = photol_config%titlej(:)
+
+! These vectors need to be allocated first -size should be identical
+n_species = SIZE(photol_config%jfacta)
+
+IF (.NOT. ALLOCATED(jfacta)) ALLOCATE(jfacta(n_species))
+jfacta(:) = photol_config%jfacta(:)
+IF (.NOT. ALLOCATED(jlabel)) ALLOCATE(jlabel(n_species))
+jlabel(:) = photol_config%jlabel(:)
+IF (.NOT. ALLOCATED(jind)) ALLOCATE(jind(n_species))
+jind(:) = photol_config%jind(:)
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+RETURN
+END SUBROUTINE fastjx_set_data_from_config
 
 ! ######################################################################
 ! Function to do 3 point linear interpolation

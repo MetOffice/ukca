@@ -72,8 +72,7 @@ SUBROUTINE fastjx_jratet(ppj,ttj,fff, valjl)
 !
 ! #######################################################################
 USE fastjx_data, ONLY: lpar, jpcl, njval, q1d, qqq,                            &
-                       qo2, qo3, tqq, w_, x_
-USE fastjx_specs, ONLY: titlej
+                       qo2, qo3, tqq, w_, x_, titlej
 USE yomhook,      ONLY: lhook, dr_hook
 USE parkind1,     ONLY: jprb, jpim
 IMPLICIT NONE

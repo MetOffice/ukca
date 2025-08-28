@@ -26,12 +26,7 @@
 
 MODULE fastjx_read_ascii_mod
 
-USE fastjx_data, ONLY: a_, atau, atau0, daa, fl, jtaumx,                       &
-                       naa, njval, nw1, nw2,                                   &
-                       paa, q1d, qaa, qo2, qo3, qqq, qrayl, raa,               &
-                       saa, solcyc_av, solcyc_quanta, solcyc_spec,             &
-                       solcyc_ts, tqq,  w_, waa, wl, wx_, x_,                  &
-                       n_solcyc_ts, n_solcyc_av
+USE fastjx_data, ONLY: a_, wx_, x_, n_solcyc_av, sw_band_aer, sw_phases
 
 USE umPrintMgr, ONLY: umMessage, umPrint, PrintStatus, PrStatus_Oper,          &
                       PrStatus_Diag
@@ -49,17 +44,29 @@ PRIVATE
 PUBLIC :: fastjx_rd_mie_file, fastjx_rd_xxx_file, fastjx_rd_sol_file
 
 
+REAL, ALLOCATABLE, TARGET :: solcyc_ts_targ(:)
+
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='FASTJX_READ_ASCII_MOD'
 
 CONTAINS
 
-SUBROUTINE fastjx_rd_mie_file(nj1,namfil,aerosol_cloud_title)
+SUBROUTINE fastjx_rd_mie_file(nj1, namfil, jtaumx, naa, atau, atau0, daa, paa, &
+                              qaa, raa, saa, waa, aerosol_cloud_title)
 
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: nj1  ! Channel number for reading data file
 CHARACTER(LEN=*), INTENT(IN) :: namfil ! Name of scattering data file
                                        ! (e.g., FJX_scat.dat)
+INTEGER, INTENT(OUT) :: jtaumx, naa
+REAL, INTENT(OUT) :: atau, atau0
+REAL, INTENT(OUT) :: daa(a_)
+REAL, INTENT(OUT) :: paa(sw_phases, sw_band_aer, a_)
+REAL, INTENT(OUT) :: qaa(sw_band_aer, a_)
+REAL, INTENT(OUT) :: raa(a_)
+REAL, INTENT(OUT) :: saa(sw_band_aer, a_)
+REAL, INTENT(OUT) :: waa(sw_band_aer, a_)
+
 ! String containing cloud/aerosol scattering
 CHARACTER(LEN=7), INTENT(IN OUT)  ::  aerosol_cloud_title(a_)
 
@@ -140,12 +147,25 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE fastjx_rd_mie_file
 
-SUBROUTINE fastjx_rd_xxx_file(nj1,namfil,titlej)
+SUBROUTINE fastjx_rd_xxx_file(nj1, namfil, numwvl, njval, nw1, nw2, fl, q1d,   &
+                              qo2, qo3, qqq, qrayl, tqq, wl, titlej)
 IMPLICIT NONE
 
 INTEGER, INTENT(IN)       :: nj1 ! Channel number for reading data file
 CHARACTER(LEN=*), INTENT(IN)  :: namfil    ! Name of spectral data file
                                            ! (e.g. JX_spec.dat)
+INTEGER, INTENT(IN) :: numwvl   ! Num wavelengths as selected by user
+
+INTEGER, INTENT(OUT) :: njval, nw1, nw2
+REAL, INTENT(OUT) :: fl(wx_)
+REAL, INTENT(OUT) :: q1d(wx_,3)
+REAL, INTENT(OUT) :: qo2(wx_,3)
+REAL, INTENT(OUT) :: qo3(wx_,3)
+REAL, INTENT(OUT) :: qqq(wx_,2,x_)
+REAL, INTENT(OUT) :: qrayl(wx_+1)
+REAL, INTENT(OUT) :: tqq(3,x_)
+REAL, INTENT(OUT) :: wl(wx_)
+
 ! String containing species being photolysed
 CHARACTER(LEN=7), INTENT(IN OUT)  ::  titlej(x_)
 
@@ -156,8 +176,6 @@ CHARACTER(LEN=7)  ::  titlej2,titlej3
 CHARACTER(LEN=78) :: title0
 
 ! USEd variables from fastjx_data
-! w_ is the number of wavelength bins (can choose smaller for speed)
-!      - Set using RUN_UKCA namelist
 ! wx_ is the max number of wavelength bins
 ! x_ is the max no. of cross sections to be read
 
@@ -269,7 +287,7 @@ DO j = 4,n_xsections
       titlej2,  tqq(2,jj),(qqq(iw,2,jj),iw=1,n_wl_bins)
 
   !---include stratospheric J's (this also includes Cl and Br compounds!)
-  IF (w_ == 18 .OR. titlej2(7:7) /= 'x') THEN
+  IF (numwvl == 18 .OR. titlej2(7:7) /= 'x') THEN
     IF (printstatus >= prstatus_oper) THEN
       WRITE(umMessage,'(I6,A7,2E10.3)') jj,titlej(jj), (tqq(i,jj),i=1,2)
       CALL umPrint(umMessage,src='fastjx_read_ascii')
@@ -285,10 +303,10 @@ njval = njval + (n_xsections_read - n_xsections)
 CLOSE(nj1)
 
 !---truncate number of wavelengths to DO troposphere-only
-IF (w_ /= wx_) THEN
+IF (numwvl /= wx_) THEN
 
   !---TROP-ONLY
-  IF (w_ == 12) THEN
+  IF (numwvl == 12) THEN
     IF (printstatus >= prstatus_oper) THEN
       CALL umPrint(' >>>TROP-ONLY reduce wavelengths to 12,'//                 &
           ' drop strat X-sects',                                               &
@@ -332,7 +350,7 @@ IF (w_ /= wx_) THEN
     END DO
 
     !---TROP-QUICK  (must scale solar flux for W=5)
-  ELSE IF (w_ == 8) THEN
+  ELSE IF (numwvl == 8) THEN
     IF (printstatus >= prstatus_oper) THEN
       CALL umPrint(' >>>TROP-QUICK reduce wavelengths to 8, '//                &
           'drop strat X-sects',                                                &
@@ -385,13 +403,20 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE fastjx_rd_xxx_file
 
-SUBROUTINE fastjx_rd_sol_file(nj1,namfil)
+SUBROUTINE fastjx_rd_sol_file(nj1, namfil, n_solcyc_ts, solcyc_av,             &
+                              solcyc_quanta, solcyc_ts_ptr, solcyc_spec)
 
 USE ukca_parpho_mod, ONLY: jpwav
 IMPLICIT NONE
 
 INTEGER, INTENT(IN)       :: nj1 ! Channel number for reading data file
 CHARACTER(LEN=*), INTENT(IN)  :: namfil    ! Name of solar cycle data file
+
+INTEGER, INTENT(OUT) :: n_solcyc_ts
+REAL, INTENT(OUT) :: solcyc_av(n_solcyc_av)
+REAL, INTENT(OUT) :: solcyc_quanta(jpwav)
+REAL, POINTER, INTENT(OUT) :: solcyc_ts_ptr(:)
+REAL, INTENT(OUT) :: solcyc_spec(wx_)
 
 CHARACTER (LEN=errormessagelength) :: cmessage
                                       ! Contains string for error handling
@@ -437,12 +462,13 @@ END DO
 READ (UNIT=nj1,FMT='(50X,I4)') n
 n_solcyc_ts = n
 
+NULLIFY(solcyc_ts_ptr)
 ! Now allocate array to be the correct size
-IF (.NOT. ALLOCATED(solcyc_ts)) THEN
-  ALLOCATE(solcyc_ts(n_solcyc_ts))
+IF (.NOT. ALLOCATED(solcyc_ts_targ)) THEN
+  ALLOCATE(solcyc_ts_targ(n_solcyc_ts))
 ELSE
    ! already allocated, check size
-  IF (n_solcyc_ts /= SIZE(solcyc_ts)) THEN
+  IF (n_solcyc_ts /= SIZE(solcyc_ts_targ)) THEN
     cmessage = 'Incorrect number of times for full solar cycle'
     errcode = n
     CALL ereport(RoutineName,errcode,cmessage)
@@ -451,8 +477,10 @@ END IF
 
 DO i = 1,CEILING(REAL(n)/6.0)
   READ (UNIT=nj1,FMT='(6F9.5)')                                                &
-        (solcyc_ts(j+(i-1)*6),j=1,6)
+        (solcyc_ts_targ(j+(i-1)*6),j=1,6)
 END DO
+
+solcyc_ts_ptr => solcyc_ts_targ
 
 ! Read in the average solar cycle.
 READ (UNIT=nj1,FMT='(50X,I3)') n

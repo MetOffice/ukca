@@ -68,7 +68,7 @@ USE fastjx_data,    ONLY: fastjx_set_limits,                                   &
                           pz_3d, pz_all, tz_3d, sa_2d,                         &
                           dm_3d, o3_3d,                                        &
                           ods_3d, odw_3d, odi_3d,                              &
-                          solcyc_spec
+                          solcyc_spec, solcyc_av, solcyc_quanta, solcyc_ts
 
 USE photol_config_specification_mod, ONLY: photol_config
 USE photol_constants_mod,   ONLY: c_o3 => const_o3_mmr_vmr,                    &
@@ -85,7 +85,7 @@ USE umPrintMgr,              ONLY: umMessage, umPrint, PrintStatus,            &
 
 USE yomhook,                 ONLY: lhook, dr_hook
 USE parkind1,                ONLY: jprb, jpim
-USE fastjx_inphot_mod,       ONLY: fastjx_inphot
+USE fastjx_set_aer_mod,      ONLY: fastjx_set_aer
 USE fastjx_solar2_mod,       ONLY: fastjx_solar2
 USE fastjx_photoj_mod,       ONLY: fastjx_photoj
 USE photol_solflux_mod,      ONLY: photol_solflux
@@ -280,15 +280,18 @@ IF ( error_code_ptr > 0 ) THEN
 END IF
 CALL fastjx_allocate_memory
 
-! Read in data from files
-IF (first) THEN
-  CALL fastjx_inphot
-  first=.FALSE.
-END IF
-
 ! Initialise arrays for levels/units appropriate for fast-j
 ! Need to update to include aerosols
 CALL fastjx_set_arrays
+! Set aerosol/ cloud indices
+CALL fastjx_set_aer(error_code_ptr, error_message=error_message,               &
+                    error_routine=error_routine)
+
+IF ( error_code_ptr > 0 ) THEN
+  CALL fastjx_deallocate_memory
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
 
 ! Set variables concerning model time
 ! Convert timestep into hours

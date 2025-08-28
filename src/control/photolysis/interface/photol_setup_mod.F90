@@ -52,6 +52,14 @@ SUBROUTINE photol_setup(i_photol_scheme,                                       &
                       n_cca_lev,                                               &
                       solcylc_start_year,                                      &
                       i_error_method,                                          &
+                      n_phot_spc,                                              &
+                      njval,                                                   &
+                      nw1,                                                     &
+                      nw2,                                                     &
+                      jtaumx,                                                  &
+                      naa,                                                     &
+                      n_solcyc_ts,                                             &
+                      jind,                                                    &
                       l_cal360,                                                &
                       l_cloud_pc2,                                             &
                       l_3d_cca,                                                &
@@ -62,6 +70,29 @@ SUBROUTINE photol_setup(i_photol_scheme,                                       &
                       l_strat_chem,                                            &
                       fastjx_prescutoff,                                       &
                       timestep,                                                &
+                      atau,                                                    &
+                      atau0,                                                   &
+                      fl,                                                      &
+                      q1d,                                                     &
+                      qo2,                                                     &
+                      qo3,                                                     &
+                      qqq,                                                     &
+                      qrayl,                                                   &
+                      tqq,                                                     &
+                      wl,                                                      &
+                      jfacta,                                                  &
+                      daa,                                                     &
+                      paa,                                                     &
+                      qaa,                                                     &
+                      raa,                                                     &
+                      saa,                                                     &
+                      waa,                                                     &
+                      solcyc_av,                                               &
+                      solcyc_quanta,                                           &
+                      solcyc_ts,                                               &
+                      solcyc_spec,                                             &
+                      jlabel,                                                  &
+                      titlej,                                                  &
                       pi,                                                      &
                       o3_mmr_vmr,                                              &
                       molemass_sulp,                                           &
@@ -100,7 +131,7 @@ SUBROUTINE photol_setup(i_photol_scheme,                                       &
 USE photol_config_specification_mod, ONLY: photol_config,                      &
        l_photol_config_available, i_scheme_nophot, i_scheme_photol_strat,      &
        i_scheme_phot2d, i_scheme_fastjx, i_obs_solcylc, i_avg_solcylc,         &
-       init_photol_configuration
+       init_photol_configuration, copy_config_value
 
 USE photol_constants_mod,  ONLY: const_pi, const_pi_over_180,                  &
                               const_recip_pi_over_180,                         &
@@ -110,9 +141,13 @@ USE photol_constants_mod,  ONLY: const_pi, const_pi_over_180,                  &
 
 USE photol_environment_mod, ONLY: photol_init_environ_req
 
-USE ukca_error_mod,         ONLY: maxlen_message, maxlen_procname,             &
-                                  error_report, errcode_value_unknown,         &
-                                  errcode_value_invalid
+USE photol_fieldname_mod,  ONLY: photol_jlabel_len
+USE fastjx_data,           ONLY: fastjx_set_data_from_config
+
+USE ukca_error_mod,        ONLY: maxlen_message, maxlen_procname,              &
+                                 errcode_value_unknown, errcode_value_invalid, &
+                                 errcode_value_missing, error_report
+USE umPrintMgr,            ONLY: umMessage, umPrint
 
 USE parkind1,               ONLY: jpim, jprb      ! DrHook
 USE yomhook,                ONLY: lhook, dr_hook  ! DrHook
@@ -150,6 +185,14 @@ INTEGER, OPTIONAL, INTENT(IN) :: n_cca_lev
 INTEGER, OPTIONAL, INTENT(IN) :: solcylc_start_year
 INTEGER, OPTIONAL, INTENT(IN) :: i_error_method
 
+INTEGER, OPTIONAL, INTENT(IN) :: n_phot_spc
+INTEGER, OPTIONAL, INTENT(IN) :: njval
+INTEGER, OPTIONAL, INTENT(IN) :: nw1, nw2
+INTEGER, OPTIONAL, INTENT(IN) :: jtaumx
+INTEGER, OPTIONAL, INTENT(IN) :: naa
+INTEGER, OPTIONAL, INTENT(IN) :: n_solcyc_ts
+INTEGER, ALLOCATABLE, OPTIONAL, INTENT(IN) :: jind(:)
+
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cal360
 
 LOGICAL, OPTIONAL, INTENT(IN) :: l_cloud_pc2
@@ -163,6 +206,35 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_strat_chem
 
 REAL, OPTIONAL, INTENT(IN)    :: fastjx_prescutoff
 REAL, OPTIONAL, INTENT(IN)    :: timestep
+
+! Fast-JX spectral file data
+REAL, OPTIONAL, INTENT(IN) :: atau
+REAL, OPTIONAL, INTENT(IN) :: atau0
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: fl(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: q1d(:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: qo2(:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: qo3(:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: qqq(:,:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: qrayl(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: tqq(:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: wl(:)
+
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: jfacta(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: daa(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: paa(:,:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: qaa(:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: raa(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: saa(:,:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: waa(:,:)
+
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: solcyc_av(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: solcyc_quanta(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: solcyc_ts(:)
+REAL, ALLOCATABLE, OPTIONAL, INTENT(IN) :: solcyc_spec(:)
+
+CHARACTER(LEN=photol_jlabel_len), ALLOCATABLE, OPTIONAL, INTENT(IN) :: jlabel(:)
+CHARACTER(LEN=photol_jlabel_len), ALLOCATABLE, OPTIONAL, INTENT(IN) :: titlej(:)
+
 ! Configurable constants
 REAL, OPTIONAL, INTENT(IN)    :: pi
 REAL, OPTIONAL, INTENT(IN)    :: o3_mmr_vmr
@@ -177,6 +249,10 @@ CHARACTER(LEN=maxlen_procname), OPTIONAL, INTENT(OUT) :: error_routine
 ! Local variables
 INTEGER, POINTER :: error_code_ptr
 CHARACTER(LEN=maxlen_message) :: err_message
+
+CHARACTER(LEN=maxlen_message) :: var_missing
+LOGICAL :: l_missing
+INTEGER :: nvar_missing
 
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0  ! DrHook tracing entry
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1  ! DrHook tracing exit
@@ -253,6 +329,230 @@ IF (PRESENT(fastjx_prescutoff)) photol_config%fastjx_prescutoff                &
                                                       = fastjx_prescutoff
 IF (PRESENT(timestep))       photol_config%timestep   = timestep
 
+IF (PRESENT(n_phot_spc)) photol_config%n_phot_spc = n_phot_spc
+
+! Transfer spectral and solar cycle data if using Fast-JX scheme.
+! Variables that are vectors or arrays are copied using a bespoke function.
+IF ( i_photol_scheme == i_scheme_fastjx ) THEN
+
+  ! Check that all the spectral / solar cycle variables have been provided.
+  var_missing = 'FastJX variable missing:'
+  nvar_missing = 0
+  IF (.NOT. PRESENT(njval)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" njval"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(nw1)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" nw1"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(nw2)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" nw2"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(jtaumx)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" jtaumx"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(naa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" naa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(jind)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" jind"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(atau)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" atau"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(atau0)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" atau0"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(fl)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" fl"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(q1d)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" q1d"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(qo2)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" qo2"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(qo3)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" qo3"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(qqq)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" qqq"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(qrayl)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" qrayl"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(tqq)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" tqq"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(wl)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" wl"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(jfacta)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" jfacta"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(daa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" daa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(paa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" paa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(qaa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" qaa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(raa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" raa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(saa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" saa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(waa)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" waa"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(jlabel)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" jlabel"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (.NOT. PRESENT(titlej)) THEN
+    nvar_missing = nvar_missing + 1
+    WRITE(umMessage,'(A35)') TRIM(var_missing)//" titlej"
+    CALL umPrint(umMessage,src=RoutineName)
+  END IF
+  IF (nvar_missing>0) THEN
+    error_code = errcode_value_missing
+    WRITE(err_message, '(I3,A)') nvar_missing, ' required variable/s ' //      &
+                                     'missing from spectral file data'
+    CALL error_report(photol_config%i_error_method, error_code_ptr,            &
+                      err_message, RoutineName, msg_out=error_message,         &
+                      locn_out=error_routine)
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out,           &
+                            zhook_handle)
+    RETURN
+  END IF
+  ! Solar cylc data - if scheme chosen
+  l_missing = .FALSE.
+  var_missing = ''
+  IF ( photol_config%i_solcylc_type > 0 ) THEN
+    IF (.NOT. PRESENT(n_solcyc_ts)) THEN
+      l_missing = .TRUE.
+      var_missing = TRIM(var_missing)//",n_solcyc_ts"
+    END IF
+    IF (.NOT. PRESENT(solcyc_av)) THEN
+      l_missing = .TRUE.
+      var_missing = TRIM(var_missing)//",solcyc_av"
+    END IF
+    IF (.NOT. PRESENT(solcyc_quanta)) THEN
+      l_missing = .TRUE.
+      var_missing = TRIM(var_missing)//",solcyc_quanta"
+    END IF
+    IF (.NOT. PRESENT(solcyc_ts)) THEN
+      l_missing = .TRUE.
+      var_missing = TRIM(var_missing)//",solcyc_ts"
+    END IF
+    IF (.NOT. PRESENT(solcyc_spec)) THEN
+      l_missing = .TRUE.
+      var_missing = TRIM(var_missing)//",solcyc_spec"
+    END IF
+  END IF  ! solcyc variables
+  IF (l_missing) THEN
+    error_code = errcode_value_missing
+    WRITE(err_message, '(A,A)') 'Required solar cycle data missing: ',         &
+      TRIM(var_missing)
+    CALL error_report(photol_config%i_error_method, error_code_ptr,            &
+                      err_message, RoutineName, msg_out=error_message,         &
+                      locn_out=error_routine)
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out,           &
+                            zhook_handle)
+    RETURN
+  END IF
+  photol_config%njval = njval
+  photol_config%nw1 = nw1
+  photol_config%nw2 = nw2
+  photol_config%naa = naa
+  photol_config%jtaumx = jtaumx
+  photol_config%atau = atau
+  photol_config%atau0 = atau0
+
+  CALL copy_config_value(fl, photol_config%fl)
+  CALL copy_config_value(q1d, photol_config%q1d)
+  CALL copy_config_value(qo2, photol_config%qo2)
+  CALL copy_config_value(qo3, photol_config%qo3)
+  CALL copy_config_value(qqq, photol_config%qqq)
+  CALL copy_config_value(qrayl, photol_config%qrayl)
+  CALL copy_config_value(tqq, photol_config%tqq)
+  CALL copy_config_value(wl, photol_config%wl)
+  CALL copy_config_value(daa, photol_config%daa)
+  CALL copy_config_value(paa, photol_config%paa)
+  CALL copy_config_value(qaa, photol_config%qaa)
+  CALL copy_config_value(raa, photol_config%raa)
+  CALL copy_config_value(saa, photol_config%saa)
+  CALL copy_config_value(waa, photol_config%waa)
+
+  CALL copy_config_value(jind, photol_config%jind)
+  CALL copy_config_value(jfacta, photol_config%jfacta)
+  CALL copy_config_value(jlabel, photol_config%jlabel)
+  CALL copy_config_value(titlej, photol_config%titlej)
+
+  ! Transfer Solar Cycle data if to be read from file
+  IF ( photol_config%i_solcylc_type > 0 ) THEN
+    photol_config%n_solcyc_ts = n_solcyc_ts
+    CALL copy_config_value(solcyc_av, photol_config%solcyc_av)
+    CALL copy_config_value(solcyc_quanta, photol_config%solcyc_quanta)
+    CALL copy_config_value(solcyc_ts, photol_config%solcyc_ts)
+    CALL copy_config_value(solcyc_spec, photol_config%solcyc_spec)
+  END IF
+
+  ! Call routine to transfer spectral and solar data to internal variables
+  CALL fastjx_set_data_from_config()
+
+END IF   ! Fast-JX
+
+! Copy constant variables if passed in
 IF (PRESENT(pi)) THEN
   const_pi = pi
   const_pi_over_180      = const_pi / 180.0

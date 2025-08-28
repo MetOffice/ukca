@@ -37,6 +37,8 @@ PUBLIC
 
 INTEGER, PARAMETER :: fieldname_len = 20       ! Length of env field names and
 INTEGER, PARAMETER :: photol_varname_len = 10  ! names of photolysis species.
+INTEGER, PARAMETER :: photol_jlabel_len = 7    ! names of photolysis species
+                                               ! as defined in spectral files
 
 ! Photolysis environment fields (driving fields), arranged by type
 ! Scalar - real

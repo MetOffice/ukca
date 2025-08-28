@@ -9,7 +9,7 @@
 !   Module providing data structures to specify details of the active
 !   photolysis configuration:
 !     photol_config  - contains the configuration variables i.e. control/
-!                      scheme choices, static scalar values
+!                      scheme choices, static scalar as well as vector values
 !
 !   The module also provides the following procedure for the Photolysis_API
 !     photol_get_config - returns values for photolysis configuration variables.
@@ -18,6 +18,8 @@
 !     init_photol_config   - initialises/resets all configuration
 !                            data ready for a new photolysis configuration to
 !                            be set up
+!     copy_config_value    - generic procedure to transfer values of
+!                            non-scalar (1D,2D,3D) configuration variables
 !
 ! Part of the UKCA model, a community model supported by the
 ! Met Office and NCAS, with components provided initially
@@ -36,6 +38,8 @@
 MODULE photol_config_specification_mod
 
 USE missing_data_mod, ONLY: imdi, rmdi
+
+USE photol_fieldname_mod,  ONLY: photol_jlabel_len
 
 IMPLICIT NONE
 PUBLIC
@@ -95,6 +99,18 @@ TYPE :: photol_config_spec_type
                                      ! - Write error message and abort, or
                                      ! - Return to parent
                                      ! - Write error as warning and return
+
+  INTEGER :: n_phot_spc              ! No. of photolysed species
+
+  ! Integer items related to FastJX spctral data
+  INTEGER :: njval                   ! No of species to read x-sections for
+  INTEGER :: nw1                     ! Minimum value for wavelength bins in data
+  INTEGER :: nw2                     ! Total number of wavelength bins
+  INTEGER :: jtaumx                  ! Max number of cloud sub layers
+  INTEGER :: naa                     ! Number of aerosol/ cloud data types
+  INTEGER :: n_solcyc_ts             ! Total months in solar cycle data
+  INTEGER, ALLOCATABLE :: jind(:)    ! Index of species from files
+
   ! ----- -- Logical items ------------------------------
   LOGICAL :: l_cal360                ! True if using a 360-day calendar
 
@@ -126,6 +142,38 @@ TYPE :: photol_config_spec_type
                                      ! (an integer no of timesteps is
                                      !  expected in 1 hour)
 
+  ! Items and arrays to hold FastJX spectral data
+  REAL   :: atau                     ! Cloud sub-layer factor
+  REAL   :: atau0                    ! min dtau
+  REAL, ALLOCATABLE :: fl(:)         ! TOA solar flux
+  REAL, ALLOCATABLE :: q1d(:,:)      ! Photol rates for O(1D) at 3 temperatures
+  REAL, ALLOCATABLE :: qo2(:,:)      ! Photol rates for O2 at 3 temperatures
+  REAL, ALLOCATABLE :: qo3(:,:)      ! Photol rates for O3 at 3 temperatures
+  REAL, ALLOCATABLE :: qqq(:,:,:)    ! Photol rates for all other species
+  REAL, ALLOCATABLE :: qrayl(:)      ! Rayleigh parameters
+  REAL, ALLOCATABLE :: tqq(:,:)      ! Temperature values corresponding to rates
+  REAL, ALLOCATABLE :: wl(:)         ! Effective wavelengths
+
+  REAL, ALLOCATABLE :: daa(:)        ! Density of scattering type
+  REAL, ALLOCATABLE :: paa(:,:,:)    ! Phases of scattering types
+  REAL, ALLOCATABLE :: qaa(:,:)      ! Q of scattering types
+  REAL, ALLOCATABLE :: raa(:)        ! Effective radius of scattering type
+  REAL, ALLOCATABLE :: saa(:,:)     ! Single Scattering Albedos
+  REAL, ALLOCATABLE :: waa(:,:)      ! Wavelengths for scattering coefficients
+
+  REAL, ALLOCATABLE :: solcyc_av(:)  ! Average solar cycle
+  REAL, ALLOCATABLE :: solcyc_quanta(:) ! Quanta component of solar cycle
+  REAL, ALLOCATABLE :: solcyc_ts(:)  ! Obs. time series of solar cycle
+  REAL, ALLOCATABLE :: solcyc_spec(:)  ! Spectral component of solar cyle
+
+  REAL, ALLOCATABLE :: jfacta(:)      ! Quantum yields
+
+  ! ----- Character items -----------------------
+  CHARACTER(LEN=photol_jlabel_len), ALLOCATABLE :: jlabel(:)  ! Copy of species
+                                      ! names to match those from files
+  CHARACTER(LEN=photol_jlabel_len), ALLOCATABLE :: titlej(:)  ! List of species
+                                      ! names as read from jvspec file
+
 END TYPE photol_config_spec_type
 
 TYPE(photol_config_spec_type),   SAVE :: photol_config
@@ -154,6 +202,17 @@ INTEGER, PARAMETER :: i_obs_solcylc = 1         ! Use observed cycle for a
                                                 ! given range of years
 INTEGER, PARAMETER :: i_avg_solcylc = 2         ! Use an average cycle for
                                                 ! the whole run.
+
+! ---------------------------------------------------------------------------
+! -- Generic interface to transfer values from 1D/2D/3D config variables --
+! ---------------------------------------------------------------------------
+INTERFACE copy_config_value
+  MODULE PROCEDURE copy_config_value_1D_char
+  MODULE PROCEDURE copy_config_value_1D_int
+  MODULE PROCEDURE copy_config_value_1D_real
+  MODULE PROCEDURE copy_config_value_2D_real
+  MODULE PROCEDURE copy_config_value_3D_real
+END INTERFACE copy_config_value
 
 CONTAINS
 
@@ -199,6 +258,15 @@ photol_config%solcylc_start_year = imdi
 
 photol_config%i_error_method = i_error_method_abort
 
+photol_config%njval = imdi
+photol_config%nw1 = imdi
+photol_config%nw2 = imdi
+photol_config%jtaumx = imdi
+photol_config%naa = imdi
+photol_config%n_solcyc_ts = imdi
+
+IF (ALLOCATED(photol_config%jind)) DEALLOCATE(photol_config%jind)
+
 ! -- Set Logicals ---
 photol_config%l_cal360 = .FALSE.
 
@@ -218,8 +286,37 @@ photol_config%fastjx_prescutoff = rmdi
 
 photol_config%timestep = rmdi
 
-! -- Constants used by Photolysis --
-! Set to UM values by default.
+photol_config%atau = rmdi
+photol_config%atau0 = rmdi
+IF (ALLOCATED(photol_config%fl)) DEALLOCATE(photol_config%fl)
+IF (ALLOCATED(photol_config%q1d)) DEALLOCATE(photol_config%q1d)
+IF (ALLOCATED(photol_config%qo2)) DEALLOCATE(photol_config%qo2)
+IF (ALLOCATED(photol_config%qo3)) DEALLOCATE(photol_config%qo3)
+IF (ALLOCATED(photol_config%qqq)) DEALLOCATE(photol_config%qqq)
+IF (ALLOCATED(photol_config%qrayl)) DEALLOCATE(photol_config%qrayl)
+IF (ALLOCATED(photol_config%tqq)) DEALLOCATE(photol_config%tqq)
+IF (ALLOCATED(photol_config%wl)) DEALLOCATE(photol_config%wl)
+
+IF (ALLOCATED(photol_config%daa)) DEALLOCATE(photol_config%daa)
+IF (ALLOCATED(photol_config%paa)) DEALLOCATE(photol_config%paa)
+IF (ALLOCATED(photol_config%qaa)) DEALLOCATE(photol_config%qaa)
+IF (ALLOCATED(photol_config%raa)) DEALLOCATE(photol_config%raa)
+IF (ALLOCATED(photol_config%saa)) DEALLOCATE(photol_config%saa)
+IF (ALLOCATED(photol_config%waa)) DEALLOCATE(photol_config%waa)
+
+IF (ALLOCATED(photol_config%solcyc_av)) DEALLOCATE(photol_config%solcyc_av)
+IF (ALLOCATED(photol_config%solcyc_quanta))                                    &
+  DEALLOCATE(photol_config%solcyc_quanta)
+IF (ALLOCATED(photol_config%solcyc_ts)) DEALLOCATE(photol_config%solcyc_ts)
+IF (ALLOCATED(photol_config%solcyc_spec)) DEALLOCATE(photol_config%solcyc_spec)
+IF (ALLOCATED(photol_config%jfacta)) DEALLOCATE(photol_config%jfacta)
+
+!-- Set Character items
+IF (ALLOCATED(photol_config%jlabel)) DEALLOCATE(photol_config%jlabel)
+IF (ALLOCATED(photol_config%titlej)) DEALLOCATE(photol_config%titlej)
+
+! -- Configurable constants --
+!  Set to UM values by default, but can be overridden
 
 ! Configurable by parent
 const_pi = 3.14159265358979323846
@@ -304,5 +401,125 @@ IF (PRESENT(l_config_available)) l_config_available = l_photol_config_available
 
 RETURN
 END SUBROUTINE photol_get_config
+
+! ----------------------------------------------------------------------
+SUBROUTINE copy_config_value_1D_char(var_in, var_out)
+! ----------------------------------------------------------------------
+! Description:
+!   Returns a copy of a character 1D string configuration variable.
+!   String length (LEN=) should be identical for both var_in and var_out
+! ----------------------------------------------------------------------
+IMPLICIT NONE
+
+! Subroutine arguments
+CHARACTER(LEN=*), ALLOCATABLE, INTENT(IN) :: var_in(:)
+CHARACTER(LEN=*), ALLOCATABLE, INTENT(OUT) :: var_out(:)
+
+IF (ALLOCATED(var_out)) DEALLOCATE(var_out)
+
+IF (ALLOCATED(var_in)) THEN
+  ALLOCATE(var_out(SIZE(var_in)))
+  var_out(:) = var_in(:)
+END IF
+
+RETURN
+END SUBROUTINE copy_config_value_1D_char
+
+! ----------------------------------------------------------------------
+SUBROUTINE copy_config_value_1D_int(var_in, var_out)
+! ----------------------------------------------------------------------
+! Description:
+!   Returns a copy of an integer 1D vector configuration variable.
+! ----------------------------------------------------------------------
+IMPLICIT NONE
+
+! Subroutine arguments
+INTEGER, ALLOCATABLE, INTENT(IN) :: var_in(:)
+INTEGER, ALLOCATABLE, INTENT(OUT) :: var_out(:)
+
+IF (ALLOCATED(var_out)) DEALLOCATE(var_out)
+
+IF (ALLOCATED(var_in)) THEN
+  ALLOCATE(var_out(SIZE(var_in)))
+  var_out(:) = var_in(:)
+END IF
+
+RETURN
+END SUBROUTINE copy_config_value_1D_int
+
+! ----------------------------------------------------------------------
+SUBROUTINE copy_config_value_1D_real(var_in, var_out)
+! ----------------------------------------------------------------------
+! Description:
+!   Returns a copy of a real 1D vector configuration variable.
+! ----------------------------------------------------------------------
+IMPLICIT NONE
+
+! Subroutine arguments
+REAL, ALLOCATABLE, INTENT(IN) :: var_in(:)
+REAL, ALLOCATABLE, INTENT(OUT) :: var_out(:)
+
+IF (ALLOCATED(var_out)) DEALLOCATE(var_out)
+
+IF (ALLOCATED(var_in)) THEN
+  ALLOCATE(var_out(SIZE(var_in)))
+  var_out(:) = var_in(:)
+END IF
+
+RETURN
+END SUBROUTINE copy_config_value_1D_real
+
+! ----------------------------------------------------------------------
+SUBROUTINE copy_config_value_2D_real(var_in, var_out)
+! ----------------------------------------------------------------------
+! Description:
+!   Returns a copy of a real 2D array configuration variable.
+! ----------------------------------------------------------------------
+IMPLICIT NONE
+
+! Subroutine arguments
+REAL, ALLOCATABLE, INTENT(IN) :: var_in(:,:)
+REAL, ALLOCATABLE, INTENT(OUT) :: var_out(:,:)
+
+INTEGER :: d1, d2
+
+IF (ALLOCATED(var_out)) DEALLOCATE(var_out)
+
+IF (ALLOCATED(var_in)) THEN
+  d1 = SIZE(var_in, DIM=1)
+  d2 = SIZE(var_in, DIM=2)
+  ALLOCATE(var_out(d1,d2))
+  var_out(:,:) = var_in(:,:)
+END IF
+
+RETURN
+END SUBROUTINE copy_config_value_2D_real
+
+! ----------------------------------------------------------------------
+SUBROUTINE copy_config_value_3D_real(var_in, var_out)
+! ----------------------------------------------------------------------
+! Description:
+!   Returns a copy of a real 3D array configuration variable.
+! ----------------------------------------------------------------------
+IMPLICIT NONE
+
+! Subroutine arguments
+REAL, ALLOCATABLE, INTENT(IN) :: var_in(:,:,:)
+REAL, ALLOCATABLE, INTENT(OUT) :: var_out(:,:,:)
+
+INTEGER :: d1, d2, d3
+
+IF (ALLOCATED(var_out)) DEALLOCATE(var_out)
+
+IF (ALLOCATED(var_in)) THEN
+  d1 = SIZE(var_in, DIM=1)
+  d2 = SIZE(var_in, DIM=2)
+  d3 = SIZE(var_in, DIM=3)
+  ALLOCATE(var_out(d1,d2,d3))
+  var_out(:,:,:) = var_in(:,:,:)
+END IF
+
+RETURN
+END SUBROUTINE copy_config_value_3D_real
 
 END MODULE photol_config_specification_mod
