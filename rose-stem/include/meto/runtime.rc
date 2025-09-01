@@ -5,9 +5,8 @@
 # Family for Meto Azspice
     [[METO_AZSPICE]]
         inherit = None, LINUX
-        [[[job]]]
-            batch system = slurm
-            execution time limit = PT2M
+        platform = spice
+        execution time limit = PT2M
 
 
 # Redefine site-independent SCRIPTS group
@@ -15,8 +14,7 @@
 # scitools  when running on MONSooN ; Python 3 is req'd by UMDP3 checker)
     [[SCRIPTS]]
         inherit = None, METO_AZSPICE
-         [[[job]]]
-             execution time limit = PT20M
+        execution time limit = PT20M
 
 
 

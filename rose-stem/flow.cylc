@@ -12,12 +12,14 @@
 {#- Import variable definitions #}
 %include 'include/variables.rc'
 
-[cylc]
+[scheduler]
     UTC mode = True
+    install = include/
     [[events]]
-        timeout = {{ SUITE_TIMEOUT }}
-        shutdown handler = "suite_report.py"
-        stalled handler = "suite_report.py"
+        stall timeout = {{ SUITE_TIMEOUT }}
+ 	    abort on stall timeout = True
+ 	    shutdown handlers = "suite_report.py"
+ 	    stall handlers = "suite_report.py"
 
 {#- Import any Cylc task parameters #}
 %include 'include/parameters.rc'

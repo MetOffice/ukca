@@ -4,8 +4,7 @@
 
 # Family for all Linux jobs
     [[LINUX]]
-        [[[job]]]
-            batch system = background
+        platform = localhost
 
 # Family for extract jobs
     [[EXTRACT]]
