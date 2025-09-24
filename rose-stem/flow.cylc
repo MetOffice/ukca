@@ -1,10 +1,24 @@
 #!jinja2
+{% from "cylc.flow" import LOG %}
+{% from "utils" import get_site, get_git_ref %}
+{% from "read_sources" import read_sources  %}
 
-{% set KILL = False %}
+{% set SITE = get_site() %}
+{% do LOG.info("Site: " + SITE) %}
 
-{% if KILL %}
-    {{ "Error: No SITE in the rose.conf" / 0 }}
+{# Read the sources of dependencies from the dependencies.yaml file #}
+{% set dependencies = read_sources(UKCA_SOURCE, "ukca", USE_HEADS) %}
+
+{# Read in groups to run #}
+{% if group is defined %}
+    {% set RUN_NAMES = group %}
+{% elif g is defined %}
+    {% set RUN_NAMES = g %}
+{% else %}
+    {% set RUN_NAMES = ["developer"] %}
 {% endif %}
+{% do LOG.info("Running groups: "~RUN_NAMES|join('
+                   ')) %}
 
 {# Dictionary to store site variables #}
 {% set SITE_VARS = {} %}
@@ -18,8 +32,8 @@
     [[events]]
         stall timeout = {{ SUITE_TIMEOUT }}
  	    abort on stall timeout = True
- 	    shutdown handlers = "suite_report.py"
- 	    stall handlers = "suite_report.py"
+ 	    shutdown handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        stall handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
 
 {#- Import any Cylc task parameters #}
 %include 'include/parameters.rc'
@@ -33,8 +47,8 @@
 
     [[dependencies]]
         graph = """
-{# Hardcode export of Simsys_Scripts to always run #}
-export_simsys_scripts
+{# Hardcode extract of sources to always run #}
+extract_source
 {#- Recursively add dependencies from RUN_NAMES, replacing groups with subgroups/tasks #}
 {%- set name_graphs_out = [] %}
 {%- set graphs_out = [] %}
@@ -72,6 +86,15 @@ export FCM_VERSION={{FCM_VERSION}}
             mail events = retry, submission failed, submission timeout, execution timeout
             submission timeout = PT12H
             execution timeout  =  PT3H
+        [[[environment]]]
+            SOURCE_DIRECTORY = $CYLC_WORKFLOW_SHARE_DIR/source
+{% for dependency, values in dependencies.items() %}
+    {% set str = values["source"] %}
+    {% if values["ref"] %}
+        {% set str = str~"~"~values["ref"] %}
+    {% endif %}
+            {{dependency|upper}}_SOURCE_CODE = {{str}}
+{% endfor %}
 
 {#- Import family and job definitions #}
 %include 'include/runtime.rc'

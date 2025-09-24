@@ -6,14 +6,43 @@
     [[LINUX]]
         platform = localhost
 
+    [[SOURCE_EXTRACTION]]
+        post-script = """
+cp $SOURCE_DIRECTORY/ukca/dependencies.yaml $CYLC_WORKFLOW_RUN_DIR
+cp $SOURCE_DIRECTORY/SimSys_Scripts/suite_report_git/suite_report_git.py $CYLC_WORKFLOW_RUN_DIR/bin
+cp $SOURCE_DIRECTORY/SimSys_Scripts/suite_report_git/suite_data.py $CYLC_WORKFLOW_RUN_DIR/bin
+cp $SOURCE_DIRECTORY/SimSys_Scripts/bdiff/git_bdiff.py $CYLC_WORKFLOW_RUN_DIR/bin
+"""
+        [[[environment]]]
+            ROSE_TASK_APP=extract_source
+            DEPENDENCIES={{dependencies}}
+        {% if USE_MIRRORS %}
+            USE_MIRRORS = True
+            {% if "GIT_MIRROR_LOC" in SITE_VARS %}
+            GIT_MIRROR_LOC = {{SITE_VARS.GIT_MIRROR_LOC}}
+            {% else %}
+                {{ raise(
+                    "Trying to run with mirrors without setting a mirror location. "
+                    "Ensure 'GIT_MIRROR_LOC' is included in SITE_VARS."
+                    ) }}
+            {% endif %}
+        {% else %}
+            USE_MIRRORS = False
+        {% endif %}
+
+    [[SOURCE_SYNC]]
+        script = """
+hostname=$(rose host-select $host 2>/dev/null || echo $host)
+echo "rsyncing source to $hostname"
+RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
+ssh $hostname mkdir -p $RELATIVE_SOURCE_DIRECTORY
+rsync -avz --exclude=".*" $SOURCE_DIRECTORY/* $hostname:$RELATIVE_SOURCE_DIRECTORY/
+"""
+
 # Family for extract jobs
     [[EXTRACT]]
     script = "rose task-run --verbose --define='args=--ignore-lock'"
         [[[environment]]]
-            HOST_SOURCE_UKCA_BASE = {{ HOST_SOURCE_UKCA_BASE }}
-{%- if SITE == 'vm' %}
-            HOST_SOURCE_UKCA_BASE = {{ HOST_SOURCE_UKCA_BASE|replace(ROSE_ORIG_HOST+":","",1) }}
-{%- endif %}
 
 # Family for housekeeping jobs
 # Accepts the environment variable DIR1, the directory to delete
