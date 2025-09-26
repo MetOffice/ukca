@@ -65,6 +65,7 @@ USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_suss_4mode,                      &
                                  ukca_indices_orgv1_soto3,                     &
                                  ukca_indices_orgv1_soto3_no3,                 &
+                                 ukca_indices_orgv1_soto3_no3_isop,            &
                                  ukca_indices_orgv1_soto3_isop,                &
                                  ukca_indices_sussbcoc_5mode,                  &
                                  ukca_indices_sussbcoc_5mode_isop,             &
@@ -75,11 +76,13 @@ USE ukca_setup_indices,    ONLY: ukca_indices_sv1,                             &
                                  ukca_indices_duonly_2mode,                    &
                                  ukca_indices_sussbcocdu_7mode,                &
                                  ukca_indices_sussbcocntnh_5mode,              &
+                                 ukca_indices_sussbcocntnh_5mode_isop,         &
                                  ukca_indices_orgv1_soto3_solinsol,            &
                                  ukca_indices_solinsol_6mode,                  &
                                  ukca_indices_sussbcocduntnh_8mode_8cpt,       &
-                                 ukca_indices_nochem,                          &
-                                 ukca_indices_sussbcocdump_8mode
+                                 ukca_indices_sussbcocdump_8mode,              &
+                                 ukca_indices_sussbcocduntnh_8mode_8cpt_isop,  &
+                                 ukca_indices_nochem
 
 USE umPrintMgr,            ONLY: umPrint, umMessage,                           &
                                  PrintStatus, PrStatus_Oper
@@ -208,14 +211,28 @@ END IF
 
 IF (ukca_config%l_ukca_mode) THEN
   ! Call appropriate MODE setup routine
-  IF ( ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
+  IF (ukca_config%i_ukca_chem_version >= ichem_ver132) THEN
     IF (glomap_config%i_mode_setup == i_sussbcoc_5mode) THEN
       CALL ukca_indices_orgv1_soto3_isop
       CALL ukca_indices_sussbcoc_5mode_isop
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt) THEN !10
+      IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
+        CALL ukca_indices_orgv1_soto3_no3_isop
+      ELSE
+        CALL ukca_indices_orgv1_soto3_isop
+      END IF
+      CALL ukca_indices_sussbcocntnh_5mode_isop
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN !12
+      IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
+        CALL ukca_indices_orgv1_soto3_no3_isop
+      ELSE
+        CALL ukca_indices_orgv1_soto3_isop
+      END IF
+      CALL ukca_indices_sussbcocduntnh_8mode_8cpt_isop
     ELSE
       errcode     = 4
       cmessage    = 'Isoprene SOA (i_chem_version > 132)   '  //               &
-                   'only works with i_mode_setup=2 '
+                   'only works with i_mode_setup=2,10 and 12.'
       CALL ereport('UKCA_INIT', errcode, cmessage)
     END IF
   ELSE
@@ -246,8 +263,7 @@ IF (ukca_config%l_ukca_mode) THEN
       !!  ELSE IF ( glomap_config%i_mode_setup == 9 ) THEN
         !!    CALL ukca_indices_orgv1_soto3
         !!    CALL ukca_indices_sussbcocdu_4mode
-      !10
-    ELSE IF ( glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt ) THEN
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocntnh_5mode_7cpt) THEN !10
       IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
         CALL ukca_indices_orgv1_soto3_no3
       ELSE
@@ -257,8 +273,7 @@ IF (ukca_config%l_ukca_mode) THEN
     ELSE IF ( glomap_config%i_mode_setup == i_solinsol_6mode ) THEN ! 11
       CALL ukca_indices_orgv1_soto3_solinsol
       CALL ukca_indices_solinsol_6mode
-      !12
-    ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN
+    ELSE IF (glomap_config%i_mode_setup == i_sussbcocduntnh_8mode_8cpt) THEN !12
       IF ( glomap_config%l_no3_prod_in_aero_step ) THEN
         CALL ukca_indices_orgv1_soto3_no3
       ELSE
