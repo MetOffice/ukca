@@ -56,7 +56,7 @@ SUBROUTINE ukca_radaer_band_average(                                           &
       ! Logical to describe orientation
    ,  l_inverted                                                               &
       ! Logical for prescribed single scattering albedo array
-   ,  l_ukca_radaer_prescribe_ssa                                              &
+   ,  i_ukca_radaer_prescribe_ssa                                              &
       ! Model level of tropopause
    ,  trindxrad                                                                &
       ! Prescription of single-scattering albedo
@@ -100,6 +100,9 @@ USE ukca_radaer_struct_mod, ONLY:                                              &
 
 USE ukca_radaer_ri_calc_mod, ONLY:                                             &
     ukca_radaer_ri_calc
+
+USE ukca_option_mod,         ONLY:                                             &
+    do_not_prescribe
 
 IMPLICIT NONE
 
@@ -197,9 +200,9 @@ REAL, INTENT(IN) :: ukca_water_volume (npd_profile, npd_layer, n_ukca_mode)
 LOGICAL, INTENT(IN) :: l_inverted
 
 !
-! When true, use a prescribed single scattering albedo field
+! When > 0, use a prescribed single scattering albedo field
 !
-LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
+INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 
 !
 ! Model level of tropopause
@@ -307,6 +310,9 @@ INTEGER :: i_band, & ! loop on wavebands
         i_prof, & ! loop on horizontal dimension
         i_intg    ! loop on integration points and excluded bands
 
+! Index for SSA array
+INTEGER :: i_band_ssa
+
 !
 ! Thresholds on the modal mass-mixing ratio, volume, and modal number
 ! concentrations above which aerosol optical properties are to be
@@ -349,7 +355,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 ! If the single scattering albedo is prescribed then n_ni == 1
 ! and initialise loc_abs to zero
-IF (l_ukca_radaer_prescribe_ssa) THEN
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
   DO i_intg = 1, precalc%n_integ_pts
     n_ni(i_intg) = n_ni_fix
     loc_abs(i_intg) = 0.0
@@ -477,7 +483,7 @@ DO i_band = 1, n_band
                  l_in_stratosphere,                                            &
                  ! Logical control switches
                  i_ukca_tune_bc, i_glomap_clim_tune_bc,                        &
-                 l_ukca_radaer_prescribe_ssa,                                  &
+                 i_ukca_radaer_prescribe_ssa,                                  &
                  ! Output refractive index real and imag parts
                  re_m(i_intg), im_m(i_intg) )
 
@@ -485,7 +491,7 @@ DO i_band = 1, n_band
 
           ! Do not calculate the index of the imaginary component if
           ! SSA is prescribed
-          IF (.NOT. l_ukca_radaer_prescribe_ssa) THEN
+          IF (i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
             CALL ukca_radaer_get_lut_index(                                    &
                  nni, im_m, ni_min, ni_max, ni_c, n_ni,                        &
                  precalc%n_integ_pts, ni_c_power=ni_c_power)
@@ -554,9 +560,11 @@ DO i_band = 1, n_band
                          loc_vol *                                             &
                          precalc%wavelength( 1 , i_band, isolir) )
 
-              IF ( l_ukca_radaer_prescribe_ssa ) THEN
+              IF ( i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
-                this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band)
+                i_band_ssa = MIN(npd_band_ssa, i_band)
+
+                this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band_ssa)
 
                 ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,  &
                                      loc_sca(1) * factor * ( 1.0 - this_ssa ) )
@@ -575,7 +583,7 @@ DO i_band = 1, n_band
                 ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,  &
                                      loc_sca( 1 ) * factor )
 
-              END IF ! l_ukca_radaer_prescribe_ssa
+              END IF ! i_ukca_radaer_prescribe_ssa /= do_not_prescribe
 
               ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) =               &
                  MAX( minus1_plus_epsi1, MIN( one_minus_epsi1, loc_asy( 1 ) ) )
@@ -600,15 +608,16 @@ DO i_band = 1, n_band
 
               ! Option with prescribed SSA
 
-              IF (l_ukca_radaer_prescribe_ssa) THEN
+              IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
                 ! In this case the single-scattering albedo is
                 ! prescribed by distributing extinction (which is equal to
                 ! scattering in the non-absorbing case) to absorption and
                 ! scattering coefficients in the proportion indicated by the
                 ! prescription.
+                i_band_ssa = MIN(npd_band_ssa, i_band)
 
-                this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band)
+                this_ssa = ukca_radaer_presc_ssa(i_prof, i_layr, i_band_ssa)
                 loc_abs(i_intg) = loc_sca(i_intg) * factor * (1.0 - this_ssa)
                 loc_sca(i_intg) = loc_sca(i_intg) * factor * this_ssa
                 loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
@@ -628,7 +637,7 @@ DO i_band = 1, n_band
                 loc_sca(i_intg) = loc_sca(i_intg) * factor
                 loc_asy(i_intg) = loc_asy(i_intg) * loc_sca(i_intg)
 
-              END IF ! IF (l_ukca_radaer_prescribe_ssa)
+              END IF ! IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe)
 
             END SELECT
 

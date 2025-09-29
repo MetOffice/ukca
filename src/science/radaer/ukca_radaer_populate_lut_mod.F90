@@ -24,7 +24,8 @@ USE ukca_radaer_lut,         ONLY:                                             &
     ukca_lut
 
 USE ukca_option_mod,         ONLY:                                             &
-    l_ukca_radaer_prescribe_ssa
+    i_ukca_radaer_prescribe_ssa,                                               &
+    do_not_prescribe
 
 USE yomhook,                 ONLY:                                             &
     lhook,                                                                     &
@@ -145,7 +146,7 @@ ukca_lut(aerosol_band,wavelength_band)%stdev = stdev
 !
 n_x = n_x + 1
 n_nr = n_nr + 1
-IF (l_ukca_radaer_prescribe_ssa) THEN
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
   n_ni = 1
 ELSE
   n_ni = n_ni + 1
@@ -168,7 +169,7 @@ ELSE
   ukca_lut(aerosol_band,wavelength_band)%incr_nr = 0.0
 END IF
 
-IF (l_ukca_radaer_prescribe_ssa) THEN
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
   ukca_lut(aerosol_band,wavelength_band)%ni_min = 0.0
   ukca_lut(aerosol_band,wavelength_band)%ni_max = 0.0
   ukca_lut(aerosol_band,wavelength_band)%ni_c   = 0.0
@@ -179,7 +180,7 @@ ELSE
 END IF
 
 ! Allocate the dynamic arrays
-IF (l_ukca_radaer_prescribe_ssa) THEN
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
   ALLOCATE(ukca_lut(aerosol_band,wavelength_band)%ukca_absorption(1,1,1))
                                                ! Unused, so smallest allocation
@@ -203,7 +204,7 @@ END IF
 
 
 ! Populate the dynamic arrays
-IF (l_ukca_radaer_prescribe_ssa) THEN
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
   DO k = 1, n_nr
     DO j = 1, n_ni

@@ -58,8 +58,8 @@ SUBROUTINE ukca_radaer_3d_diags(                                               &
       ukca_modal_mmr,                                                          &
       ! Modal number concentrations
       ukca_modal_number,                                                       &
-      ! Logical for prescribed single scattering albedo array
-      l_ukca_radaer_prescribe_ssa,                                             &
+      ! Switch for prescribed single scattering albedo array
+      i_ukca_radaer_prescribe_ssa,                                             &
       ! Model level of the tropopause
       trindxrad,                                                               &
       ! Prescription of single-scattering albedo
@@ -105,7 +105,8 @@ USE ukca_radaer_ri_calc_mod, ONLY:                                             &
     ukca_radaer_ri_calc
 
 USE ukca_option_mod,         ONLY:                                             &
-    i_ukca_tune_bc
+    i_ukca_tune_bc,                                                            &
+    do_not_prescribe
 
 USE glomap_clim_option_mod,  ONLY:                                             &
     i_glomap_clim_tune_bc
@@ -162,9 +163,9 @@ REAL, INTENT(IN) ::                                                            &
      ukca_modal_number (nd_profile, nd_layer, n_ukca_mode)
 
 !
-! When true, use a prescribed single scattering albedo field
+! When >0, use a prescribed single scattering albedo field
 !
-LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
+INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 
 ! Model level of tropopause
 INTEGER, INTENT(IN) :: trindxrad (nd_profile)
@@ -193,6 +194,9 @@ REAL, INTENT(OUT) ::                                                           &
 INTEGER :: i_mode, & ! loop on aerosol modes
            i_layr, & ! loop on vertical dimension
            i_prof    ! loop on horizontal dimension
+
+! Wavelength to index the SSA array
+INTEGER :: i_wavel_ssa
 
 ! Mie parameter for the wet and dry diameters
 REAL    :: x, x_dry
@@ -260,6 +264,9 @@ ukca_aerosol_ext(:,:) = 0.0
 ukca_aerosol_abs(:,:) = 0.0
 ukca_aerosol_sca(:,:) = 0.0
 ukca_aerosol_gsca(:,:) = 0.0
+
+! Prescribe SSA index - either 1 or i_wavel, whichever is minimum
+i_wavel_ssa = MIN(nd_naod_ssa, i_wavel)
 
 ! Begin large loop over UKCA modes
 DO i_mode = 1, n_ukca_mode
@@ -370,7 +377,7 @@ DO i_mode = 1, n_ukca_mode
              l_in_stratosphere,                                                &
              ! Logical control switches
              i_ukca_tune_bc, i_glomap_clim_tune_bc,                            &
-             l_ukca_radaer_prescribe_ssa,                                      &
+             i_ukca_radaer_prescribe_ssa,                                      &
              ! Output refractive index real and imag parts
              re_m, im_m )
 
@@ -378,7 +385,7 @@ DO i_mode = 1, n_ukca_mode
         n_nr = MIN(nnr, MAX(1, n_nr))
 
         ! The extinction calculations depend on whether SSA is prescribed
-        IF (l_ukca_radaer_prescribe_ssa) THEN
+        IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
           ! Fix the imaginary index to 1 (no absorption) as absorptivity
           ! is prescribed
@@ -418,7 +425,7 @@ DO i_mode = 1, n_ukca_mode
           ! case) to absorption and scattering coefficients in the
           ! proportion indicated by the prescription.
           !
-          this_ssa = ukca_radaer_presc_ssa_aod(i_prof, i_layr, i_wavel)
+          this_ssa = ukca_radaer_presc_ssa_aod(i_prof, i_layr, i_wavel_ssa)
 
           !
           ! aerosol extinction profile
@@ -520,7 +527,7 @@ DO i_mode = 1, n_ukca_mode
                * air_density(i_prof, i_layr)                                   &
                * loc_gsca
 
-        END IF ! IF (l_ukca_radaer_prescribe_ssa)
+        END IF ! IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe)
       END IF ! mmr, number and volume thresholds
     END DO ! i_prof
   END DO ! i_layr
