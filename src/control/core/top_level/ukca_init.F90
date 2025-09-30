@@ -34,7 +34,8 @@ CONTAINS
 SUBROUTINE ukca_init
 
 USE ukca_constants,        ONLY: isec_per_day, isec_per_hour
-USE asad_mod,              ONLY: cdt, interval, ncsteps, tslimit
+USE asad_mod,              ONLY: cdt, cdt_diag, interval,                      &
+                                 ncsteps, ncsteps_factor, tslimit
 
 USE ukca_config_specification_mod, ONLY:                                       &
                                  ukca_config, glomap_config,                   &
@@ -137,61 +138,70 @@ ukca_config%timesteps_per_hour = isec_per_hour / timestep
 ! In that case, set values to default in case they are used elsewhere
 !$OMP PARALLEL
 IF ( ukca_config%i_ukca_chem == i_ukca_chem_off ) THEN
+
   IF (ukca_config%l_ukca_mode) THEN
     ! No UKCA chemistry - dust only
     interval = ukca_config%chem_timestep/timestep
     cdt = REAL(ukca_config%chem_timestep)
-    ncsteps = 1
   ELSE
     ! No UKCA chemistry
     interval = 1
     cdt = REAL(timestep)
-    ncsteps = 1
   END IF
-ELSE
-  ! Calculate interval depending on chemistry scheme
-  ukca_method_type:IF (ukca_config%ukca_int_method == int_method_nr) THEN
-    ! Newton-Raphson solver
-    interval = ukca_config%chem_timestep/timestep
-    cdt = REAL(ukca_config%chem_timestep)
-    ncsteps = 1
-  ELSE IF (ukca_config%ukca_int_method == int_method_impact) THEN
-    ! IMPACT solver use about 15 or 10 minutes, depending on dynamical timestep
-    IF (timestep < tslimit) THEN
-      cdt = REAL(timestep)
-      ncsteps = 1
-      interval = 1
-    ELSE
-      cdt = 0.5*REAL(timestep)
-      ncsteps = 2
-      interval = 1
-    END IF
-  ELSE IF (ukca_config%ukca_int_method == int_method_be_explicit) THEN
-    ! explicit Backward-Euler solver
-    ! solver interval derived from namelist value of chemical timestep
-    interval = ukca_config%chem_timestep/timestep
-    cdt = REAL(ukca_config%chem_timestep)
-    ncsteps = 1
+  cdt_diag = cdt
+  ncsteps = 1
+  ncsteps_factor = 1
+
+ELSE IF (ukca_config%ukca_int_method == int_method_nr) THEN
+
+  ! Newton-Raphson solver
+  interval = ukca_config%chem_timestep/timestep
+  ! Half the ASAD chemistry timestep as many times as are requested by the
+  ! i_chem_timestep_halvings parameter
+  ncsteps_factor = 2 ** ukca_config%i_chem_timestep_halvings
+  ncsteps = ncsteps_factor
+  cdt_diag = REAL(ukca_config%chem_timestep)
+  cdt = cdt_diag / REAL(ncsteps_factor)
+
+ELSE IF (ukca_config%ukca_int_method == int_method_impact) THEN
+
+  ! IMPACT solver use about 15 or 10 minutes, depending on dynamical timestep
+  IF (timestep < tslimit) THEN
+    ncsteps_factor = 1
   ELSE
-    ! Unknown solver type
-    WRITE(cmessage, '(A,I0,A)')                                                &
-      'Type of solver (ukca_int_method = ',ukca_config%ukca_int_method,        &
-      ') not recognised.'
-    errcode = 2
-    CALL ereport('UKCA_INIT',errcode,cmessage)
-  END IF ukca_method_type
+    ncsteps_factor = 2
+  END IF
+  interval = 1
+  ncsteps = ncsteps_factor
+  cdt = REAL(timestep) / REAL(ncsteps_factor)
+  cdt_diag = cdt
+
+ELSE IF (ukca_config%ukca_int_method == int_method_be_explicit) THEN
+
+  ! Explicit Backward-Euler solver
+  ! solver interval derived from namelist value of chemical timestep
+  interval = ukca_config%chem_timestep/timestep
+  cdt = REAL(ukca_config%chem_timestep)
+  cdt_diag = cdt
+  ncsteps = 1
+  ncsteps_factor = 1
+
+ELSE
+
+  ! Unknown solver type
+  WRITE(cmessage, '(A,I0,A)') 'Type of solver (ukca_int_method = ',            &
+    ukca_config%ukca_int_method,') not recognised.'
+  errcode = 2
+  CALL ereport('UKCA_INIT',errcode,cmessage)
 
 END IF
 
 IF (printstatus >= prstatus_oper) THEN
-  WRITE(umMessage,'(A40,I6)') 'Interval for chemical solver set to: ',         &
-                                                               interval
+  WRITE(umMessage,'(A40,I6)') 'Interval for chemical solver set to: ', interval
   CALL umPrint(umMessage,src='ukca_init')
-  WRITE(umMessage,'(A40,E12.4)') 'Timestep for chemical solver set to: ',      &
-                                                             cdt
+  WRITE(umMessage,'(A40,E12.4)') 'Timestep for chemical solver set to: ', cdt
   CALL umPrint(umMessage,src='ukca_init')
-  WRITE(umMessage,'(A40,I6)') 'No. steps for chemical solver set to: ',        &
-                                                             ncsteps
+  WRITE(umMessage,'(A40,I6)') 'No. steps for chemical solver set to: ', ncsteps
   CALL umPrint(umMessage,src='ukca_init')
 END IF
 
@@ -200,8 +210,7 @@ IF (ABS(cdt*ncsteps - REAL(timestep*interval)) > 1e-4) THEN
   cmessage=' chemical timestep does not fit dynamical timestep'
   WRITE(umMessage,'(A)') cmessage
   CALL umPrint(umMessage,src='ukca_init')
-  WRITE(umMessage,'(A,I6,A,I6)') ' timestep: ',timestep,                       &
-                                 ' interval: ',interval
+  WRITE(umMessage,'(A,I6,A,I6)') ' timestep: ',timestep,' interval: ',interval
   CALL umPrint(umMessage,src='ukca_init')
   errcode = ukca_config%chem_timestep
   CALL ereport('UKCA_INIT',errcode,cmessage)
@@ -565,6 +574,18 @@ IF ( ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                         &
       CALL ereport(RoutineName,errcode,cmessage)
     END IF
   END IF
+
+  ! Number of chemistry timestep halvings must be between 0 and 5
+  IF (ukca_config%i_chem_timestep_halvings < 0) THEN
+    cmessage = 'Number of timestep halvings must be non-negative'
+    errcode = 16
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
+  IF (ukca_config%i_chem_timestep_halvings > 5) THEN
+    cmessage = 'Number of timestep halvings must be at most five'
+    errcode = 17
+    CALL ereport(RoutineName,errcode,cmessage)
+  END IF
 END IF
 
 IF ( .NOT. (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                  &
@@ -574,7 +595,7 @@ IF ( .NOT. (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                  &
       ukca_config%i_ukca_chem == i_ukca_chem_cristrat)) THEN
   ! check settings in quasi-Newton step to ensure they are sensible
   IF (ukca_config%l_ukca_asad_columns) THEN
-    errcode = 16
+    errcode = 18
     WRITE(cmessage,'(A,L1)')                                                   &
          ' Column-call can only be for Newton-Raphson schemes: ',              &
          ukca_config%l_ukca_asad_columns
@@ -587,7 +608,7 @@ IF ( .NOT. (ukca_config%i_ukca_chem == i_ukca_chem_strat .OR.                  &
       ukca_config%i_ukca_chem == i_ukca_chem_offline .OR.                      &
       ukca_config%i_ukca_chem == i_ukca_chem_cristrat)) THEN
   IF (ukca_config%l_ukca_debug_asad) THEN
-    errcode = 17
+    errcode = 19
     WRITE(cmessage,'(A,L1)')                                                   &
          ' ASAD debugging can only be for Newton-Raphson schemes: ',           &
          ukca_config%l_ukca_debug_asad
@@ -604,7 +625,7 @@ IF ((ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                     &
        ' Incorrect value for i_ukca_topboundary ( ',                           &
        ukca_config%i_ukca_topboundary,                                         &
        ' ) - should be between 0 and 4'
-  errcode = 18
+  errcode = 20
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
@@ -612,7 +633,7 @@ IF ((.NOT. ukca_config%l_ukca_h2o_feedback) .AND.                              &
     (ukca_config%i_ukca_topboundary == i_top_BC_H2O)) THEN
   ! Cannot impose top boundary condition if H2O is not interactive.
   cmessage = 'Cannot impose top boundary for H2O if it is not interactive.'
-  errcode = 19
+  errcode = 21
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -621,7 +642,7 @@ IF ((ukca_config%i_ukca_topboundary == i_top_BC_H2O) .AND.                     &
     (ukca_config%i_ukca_chem /= i_ukca_chem_strattrop)) THEN
   ! Cannot conserve hydrogen because H, OH, or H2 don't exist
   cmessage='Cannot impose top boundary for H2O if H, OH, or H2 do not exist.'
-  errcode = 20
+  errcode = 22
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -632,7 +653,7 @@ IF ((ukca_config%i_ukca_topboundary >= i_top_BC) .AND.                         &
   ! Cannot impose top boundary condition for species
   cmessage='Can only impose top boundary for O3, NO and CO in' // newline //   &
            'schemes with stratospheric chemistry'
-  errcode = 21
+  errcode = 23
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -640,7 +661,7 @@ IF (ukca_config%l_ukca_inferno_ch4 .AND. ukca_config%l_ukca_prescribech4) THEN
   WRITE(cmessage,'(A,A,L1)')                                                   &
        ' l_ukca_inferno_ch4 is .true and l_ukca_prescribech4 is .true.',       &
        ' CH4 interactive fire emissions are not compatible with prescribed'
-  errcode = 22
+  errcode = 24
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
@@ -654,7 +675,7 @@ IF (ukca_config%l_ukca_ro2_ntp) THEN
   ELSE
     WRITE(cmessage,'(A)')                                                      &
       ' l_ukca_ro2_ntp can only be T with StratTrop or CRI-Strat chemistry'
-    errcode = 23
+    errcode = 25
     CALL ereport(routinename,errcode,cmessage)
   END IF
 ELSE
@@ -662,7 +683,7 @@ ELSE
   IF (ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
     WRITE(cmessage,'(A)')                                                      &
         ' l_ukca_ro2_ntp must be TRUE if running with CRI chemistry'
-    errcode = 24
+    errcode = 26
     CALL ereport(routinename,errcode,cmessage)
   END IF
 END IF
@@ -677,7 +698,7 @@ IF (ukca_config%l_ukca_ro2_perm) THEN
   ELSE
     WRITE(cmessage,'(A)')                                                      &
       ' l_ukca_ro2_perm can only be T with StratTrop or CRI-Strat chemistry'
-    errcode = 25
+    errcode = 27
     CALL ereport(routinename,errcode,cmessage)
   END IF
 ELSE
@@ -685,7 +706,7 @@ ELSE
   IF (ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
     WRITE(cmessage,'(A)')                                                      &
        ' l_ukca_ro2_perm must be TRUE if running with CRI chemistry'
-    errcode = 26
+    errcode = 28
     CALL ereport(routinename,errcode,cmessage)
   END IF
 END IF
@@ -693,7 +714,7 @@ END IF
 IF (ukca_config%l_ukca_ddepo3_ocean .AND. .NOT. ukca_config%l_ukca_intdd) THEN
   WRITE(cmessage,'(A)')                                                        &
        ' l_ukca_ddepo3_ocean is .true. but l_ukca_intdd is .false.'
-  errcode = 27
+  errcode = 29
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
@@ -701,7 +722,7 @@ END IF
 IF (ukca_config%l_deposition_jules .AND. .NOT. ukca_config%l_ukca_intdd) THEN
   WRITE(cmessage,'(A)')                                                        &
        ' l_deposition_jules is .true. but l_ukca_intdd is .false.'
-  errcode = 28
+  errcode = 30
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
@@ -709,7 +730,7 @@ IF ((glomap_config%i_ukca_activation_scheme == i_ukca_activation_arg) .AND.    &
     ((glomap_config%i_ukca_nwbins < 1) .OR.                                    &
      (glomap_config%i_ukca_nwbins > 20))) THEN
   cmessage = 'Cannot set i_ukca_nwbins less than one or greater than 20.'
-  errcode  = 29
+  errcode  = 31
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -722,7 +743,7 @@ IF ( ukca_config%i_ukca_chem == i_ukca_chem_strat      .OR.                    &
      ukca_config%i_ukca_chem == i_ukca_chem_cristrat ) THEN
   IF ( ukca_config%i_ukca_chem_version < 107 ) THEN
     cmessage = 'Value of i_ukca_chem_version cannot be less than 107.'
-    errcode  = 30
+    errcode  = 32
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -732,12 +753,12 @@ END IF
 IF (ukca_config%l_ukca_classic_hetchem .AND.                                   &
     ukca_config%i_ukca_chem /= i_ukca_chem_raq) THEN
   cmessage = 'Heterogeneous chemistry on CLASSIC aerosols requires RAQ'
-  errcode  = 31
+  errcode  = 33
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 IF (ukca_config%l_ukca_classic_hetchem .AND. ukca_config%l_ukca_chem_aero) THEN
   cmessage = 'Heterogeneous chemistry is not supported in RAQ-Aero'
-  errcode  = 32
+  errcode  = 34
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -748,7 +769,7 @@ IF (ukca_config%l_ukca_het_psc .AND.                                           &
     ukca_config%i_ukca_chem /= i_ukca_chem_cristrat) THEN
   cmessage = 'PSC heterogeneous chemistry requires a scheme with'              &
              // newline // 'stratospheric chemistry'
-  errcode  = 33
+  errcode  = 35
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -759,7 +780,7 @@ IF (ukca_config%l_ukca_trophet .AND.                                           &
     ukca_config%i_ukca_chem /= i_ukca_chem_cristrat) THEN
   cmessage = 'Tropospheric heterogeneous chemistry requires an N-R scheme with'&
              // newline // 'tropospheric chemistry'
-  errcode  = 34
+  errcode  = 36
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -770,7 +791,7 @@ IF (ukca_config%l_use_classic_so4 .AND.                                        &
           ukca_config%l_ukca_classic_hetchem)) THEN
   cmessage = 'CLASSIC SO4 can only be used with PSC heterogeneous chemistry'   &
              // newline // 'or heterogeneous chemistry on CLASSIC aerosols'
-  errcode  = 35
+  errcode  = 37
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 IF ((ukca_config%l_use_classic_soot .OR. ukca_config%l_use_classic_ocff .OR.   &
@@ -779,7 +800,7 @@ IF ((ukca_config%l_use_classic_soot .OR. ukca_config%l_use_classic_ocff .OR.   &
      .NOT. ukca_config%l_ukca_classic_hetchem) THEN
   cmessage = 'CLASSIC aerosols other than SO4 can only be used with'           &
              // newline // 'heterogeneous chemistry on CLASSIC aerosols'
-  errcode  = 36
+  errcode  = 38
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -796,7 +817,7 @@ IF ((.NOT. ukca_config%l_use_gridbox_mass) .AND.                               &
   cmessage = 'Cannot run without mass of air in grid box as it is needed'      &
              // newline // 'for UM diagnostics and/or a stratospheric'         &
              // newline // 'chemistry scheme'
-  errcode  = 37
+  errcode  = 39
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -808,21 +829,21 @@ IF (ukca_config%l_ukca_intph) THEN
   IF (ukca_config%ph_fit_coeff_a < -10.0 .OR.                                  &
       ukca_config%ph_fit_coeff_a > 10.0) THEN
     cmessage='Check ph_fit_coeff_a value as should be between -10.0 - 10.0'
-    errcode = 38
+    errcode = 40
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   ! Cloud pH Fitting parameter b
   IF (ukca_config%ph_fit_coeff_b < -10.0 .OR.                                  &
       ukca_config%ph_fit_coeff_b > 10.0) THEN
     cmessage='Check ph_fit_coeff_b value as should be between -10.0 - 10.0'
-    errcode = 39
+    errcode = 41
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   ! Cloud pH intercept
   IF (ukca_config%ph_fit_intercept < 0.0 .OR.                                  &
       ukca_config%ph_fit_intercept > 14.0) THEN
     cmessage='Check ph_fit_intercept as should be between 0.0 - 14.0'
-    errcode = 40
+    errcode = 42
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -832,17 +853,17 @@ IF (.NOT. l_um_infrastructure) THEN
   IF (ukca_config%i_ukca_light_param == i_light_param_pr .OR.                  &
       ukca_config%i_ukca_light_param == i_light_param_luhar) THEN
     cmessage = 'Lightning NOx parameterization is only supported for UM grids'
-    errcode  = 41
+    errcode  = 43
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF (ukca_config%l_enable_diag_um) THEN
     cmessage = 'No support for UM diagnostics outside the UM'
-    errcode  = 42
+    errcode  = 44
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF (ukca_config%l_environ_z_top) THEN
     cmessage = 'Override of top-of-model height is not allowed outside the UM'
-    errcode  = 44
+    errcode  = 45
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -854,7 +875,7 @@ IF ((.NOT. l_um_emissions_updates) .OR. (.NOT. ASSOCIATED(bl_tracer_mix))) THEN
       (.NOT. (ukca_config%l_ukca_emissions_off .OR.                            &
              ukca_config%l_suppress_ems))) THEN
     cmessage = 'No support code available for tracer updates from emissions'
-    errcode  = 45
+    errcode  = 46
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -863,7 +884,7 @@ IF ( (glomap_config%i_ukca_tune_bc < 0 .OR.                                    &
       glomap_config%i_ukca_tune_bc > 2)  .AND.                                 &
      glomap_config%l_ukca_radaer) THEN
   cmessage='i_ukca_tune_bc should be 0, 1 or 2'
-  errcode = 46
+  errcode = 47
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -872,7 +893,7 @@ IF (ukca_config%l_fix_tropopause_level) THEN
   IF (ukca_config%fixed_tropopause_level < 1 .OR.                              &
       ukca_config%fixed_tropopause_level > ukca_config%model_levels) THEN
     cmessage='fixed_tropopause_level is out of range 1 - model_levels'
-    errcode = 47
+    errcode = 48
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -884,14 +905,14 @@ IF ((.NOT. ukca_config%l_use_gridbox_volume) .AND.                             &
     ukca_config%l_enable_diag_um) THEN
   cmessage = 'Cannot run without grid box volume as it is needed'              &
              // newline // 'for UM diagnostics'
-  errcode  = 48
+  errcode  = 49
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
 IF (ukca_config%l_ukca_so2ems_plumeria .AND.                                   &
     .NOT. ukca_config%l_ukca_so2ems_expvolc) THEN
   cmessage='l_ukca_so2ems_plumeria is true but l_ukca_so2ems_expvolc is false'
-  errcode = 49
+  errcode = 50
   CALL ereport(routinename,errcode,cmessage)
 END IF
 
@@ -909,7 +930,7 @@ IF ( (ukca_config%anth_so2_ems_scaling < 0.0 .OR.                              &
       ukca_config%anth_so2_ems_scaling > 10.0) .AND.                           &
      ukca_config%l_ukca_scale_ppe ) THEN
   cmessage='anth_so2_ems_scaling should be between 0.0 - 10.0'
-  errcode = 50
+  errcode = 52
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -936,7 +957,7 @@ IF ( (glomap_config%sigma_updraught_scaling < 0.0 .OR.                         &
       glomap_config%sigma_updraught_scaling > 10.0) .AND.                      &
      ukca_config%l_ukca_scale_ppe ) THEN
   cmessage='sigma_updraught_scaling should be between 0.0 - 10.0'
-  errcode = 52
+  errcode = 55
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 
@@ -945,17 +966,17 @@ IF ( ukca_config%l_ukca_mode .AND.                                             &
      (glomap_config%i_mode_setup == i_du_2mode)) THEN
   IF (ukca_config%l_ukca_chem) THEN
     cmessage='dust only setup does not work with chemistry'
-    errcode = 53
+    errcode = 56
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF ( glomap_config%l_mode_bhn_on .OR. glomap_config%l_mode_bln_on ) THEN
     cmessage='nucleation not available for mode aerosol without chemistry'
-    errcode = 54
+    errcode = 57
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
   IF ( glomap_config%l_dust_mp_ageing ) THEN
     cmessage='dust only setup does not work with dust ageing'
-    errcode = 55
+    errcode = 58
     CALL ereport(RoutineName,errcode,cmessage)
   END IF
 END IF
@@ -968,7 +989,7 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off .AND.                           &
      (ukca_config%bl_levels == ukca_config%model_levels .AND.                  &
       ukca_config%model_levels > 1))) THEN
   cmessage='bl_levels is out of range 1 to max(1, model_levels - 1)'
-  errcode = 56
+  errcode = 59
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 

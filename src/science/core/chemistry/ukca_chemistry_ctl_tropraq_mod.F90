@@ -70,7 +70,7 @@ SUBROUTINE ukca_chemistry_ctl_tropraq(                                         &
                 )
 
 USE ukca_um_legacy_mod,   ONLY: rgas => r
-USE asad_mod,             ONLY: advt, cdt, jpctr, jpcspf, jpro2, jpdd, jpdw,   &
+USE asad_mod,             ONLY: advt, jpctr, jpcspf, jpro2, jpdd, jpdw,        &
                                 jpeq, jphk, jppj, jpspec, jpnr, jpspj, jpspt,  &
                                 jptk, ldepd, ldepw, nadvt, nnaf, nprkx, ntrkx, &
                                 speci, sph2o, spj, spt, spro2, ctype, y, nlnaro2
