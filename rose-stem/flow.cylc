@@ -6,8 +6,10 @@
 {% set SITE = get_site() %}
 {% do LOG.info("Site: " + SITE) %}
 
+{% set SOURCE_DIRECTORY = ROSE_ORIG_HOST~":"~CYLC_WORKFLOW_SRC_DIR~"/.." %}
+
 {# Read the sources of dependencies from the dependencies.yaml file #}
-{% set dependencies = read_sources(UKCA_SOURCE, "ukca", USE_HEADS) %}
+{% set dependencies = read_sources(SOURCE_DIRECTORY, "ukca", USE_HEADS) %}
 
 {# Read in groups to run #}
 {% if group is defined %}
