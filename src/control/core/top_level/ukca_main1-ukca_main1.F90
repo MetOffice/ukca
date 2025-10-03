@@ -2629,6 +2629,8 @@ IF (do_aerosol) THEN
     ALLOCATE(rel_humid_frac(row_length, rows, model_levels))
   IF (.NOT. ALLOCATED(rel_humid_frac_clr))                                     &
     ALLOCATE(rel_humid_frac_clr(row_length, rows, model_levels))
+  IF (.NOT. ALLOCATED(cloud_liq_frac))                                         &
+    ALLOCATE(cloud_liq_frac(row_length, rows, model_levels))
 
   !!!! In the call below, note that cloud_frac field may have lower bound of 0
   !!!! hence the subrange 1:model_levels is specified. This relates to a

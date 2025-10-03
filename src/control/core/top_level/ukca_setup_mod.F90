@@ -75,6 +75,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       i_ukca_chem_version,                                     &
                       nrsteps,                                                 &
                       chem_timestep,                                           &
+                      i_chem_timestep_halvings,                                &
                       dts0,                                                    &
                       nit,                                                     &
                       i_ukca_quasinewton_start,                                &
@@ -405,6 +406,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: i_error_method
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_chem_version
 INTEGER, OPTIONAL, INTENT(IN) :: nrsteps
 INTEGER, OPTIONAL, INTENT(IN) :: chem_timestep
+INTEGER, OPTIONAL, INTENT(IN) :: i_chem_timestep_halvings
 INTEGER, OPTIONAL, INTENT(IN) :: dts0
 INTEGER, OPTIONAL, INTENT(IN) :: nit
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_quasinewton_start
@@ -812,6 +814,10 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
       IF (PRESENT(i_ukca_quasinewton_end))                                     &
         ukca_config%i_ukca_quasinewton_end = i_ukca_quasinewton_end
     END IF
+
+    ukca_config%i_chem_timestep_halvings = 0
+    IF (PRESENT(i_chem_timestep_halvings))                                     &
+      ukca_config%i_chem_timestep_halvings = i_chem_timestep_halvings
 
   END IF
 

@@ -48,8 +48,8 @@ SUBROUTINE ukca_radaer_compute_aod(                                            &
       ukca_modal_number,                                                       &
       ! Type selection
       type_wanted, soluble_wanted,                                             &
-      ! Logical for if prescribed SSA is on
-      l_ukca_radaer_prescribe_ssa,                                             &
+      ! Switch for if prescribed SSA is on
+      i_ukca_radaer_prescribe_ssa,                                             &
       ! Model level of the tropopause
       trindxrad,                                                               &
       ! Prescription of single-scattering albedo
@@ -97,7 +97,8 @@ USE ukca_radaer_ri_calc_mod, ONLY:                                             &
     ukca_radaer_ri_calc
 
 USE ukca_option_mod,         ONLY:                                             &
-    i_ukca_tune_bc
+    i_ukca_tune_bc,                                                            &
+    do_not_prescribe
 
 USE glomap_clim_option_mod,  ONLY:                                             &
     i_glomap_clim_tune_bc
@@ -171,9 +172,9 @@ INTEGER, INTENT(IN) :: type_wanted
 LOGICAL, INTENT(IN) :: soluble_wanted
 
 !
-! When true, use a prescribed single scattering albedo field
+! When >0, use a prescribed single scattering albedo field
 !
-LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
+INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 
 ! Model level of the tropopause
 INTEGER, INTENT(IN) :: trindxrad(npd_profile)
@@ -198,6 +199,9 @@ INTEGER :: i_mode,                                                             &
         i_layr,                                                                &
         i_prof,                                                                &
         n
+
+! Index of AOD in prescSSA array
+INTEGER :: n_ssa
 
 !
 ! Values at the AOD wavelengths:
@@ -402,7 +406,7 @@ DO i_mode = 1, n_ukca_mode
               l_in_stratosphere,                                               &
               ! Logical control switches
               i_ukca_tune_bc, i_glomap_clim_tune_bc,                           &
-              l_ukca_radaer_prescribe_ssa,                                     &
+              i_ukca_radaer_prescribe_ssa,                                     &
               ! Output refractive index real and imag parts
               re_m, im_m )
 
@@ -410,7 +414,7 @@ DO i_mode = 1, n_ukca_mode
             n_nr = MIN(nnr, MAX(1, n_nr))
 
             ! The AOD calculations depend on whether SSA is prescribed
-            IF (l_ukca_radaer_prescribe_ssa) THEN
+            IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
               ! Fix the imaginary index to 1 (no absorption) as absorptivity
               ! is prescribed
@@ -433,7 +437,8 @@ DO i_mode = 1, n_ukca_mode
               ! case) to absorption and scattering coefficients in the
               ! proportion indicated by the prescription.
               !
-              this_ssa = ukca_radaer_presc_ssa_aod(i_prof, i_layr, n)
+              n_ssa = MIN(npd_naod_ssa, n)
+              this_ssa = ukca_radaer_presc_ssa_aod(i_prof, i_layr, n_ssa)
 
               !
               ! aerosol optical depth for extinction with prescribed SSA
@@ -512,7 +517,7 @@ DO i_mode = 1, n_ukca_mode
 
               END IF
 
-            END IF ! IF (l_ukca_radaer_prescribe_ssa)
+            END IF ! IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe)
 
           END DO ! n
 

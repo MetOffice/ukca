@@ -191,7 +191,7 @@ INTEGER, PARAMETER :: i_scheme_photol_strat = 1 ! stratospheric photolysis only
 INTEGER, PARAMETER :: i_scheme_phot2d = 2       ! offline 2D photolysis scheme
 INTEGER, PARAMETER :: i_scheme_fastjx = 3       ! Fast-JX
 
-! Oprion codes for 'fastjx_mode' method to use above prescutoff level
+! Option codes for 'fastjx_mode' method to use above prescutoff level
 INTEGER, PARAMETER :: fjx_mode_2Donly = 1  ! use only 2D/ lookup table approach
 INTEGER, PARAMETER :: fjx_mode_merged = 2  ! merge 2D and FastJX,
 INTEGER, PARAMETER :: fjx_mode_fastjx = 3  ! Use only FastJX

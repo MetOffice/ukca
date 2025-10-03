@@ -65,7 +65,7 @@ SUBROUTINE ukca_chemistry_ctl(                                                 &
                 L_stratosphere, firstcall                                      &
                 )
 
-USE asad_mod,             ONLY: advt, cdt, ctype,                              &
+USE asad_mod,             ONLY: advt, cdt_diag, ctype,                         &
                                 ihso3_h2o2, ihso3_o3, ih2so4_hv, iso2_oh,      &
                                 iso3_o3, jpctr, jpcspf, jpdd, jpdw, jpnr,      &
                                 jppj, jpro2, jpspec, nadvt, nlnaro2, nprkx,    &
@@ -445,15 +445,15 @@ DO k=1,model_levels
     ! Calculate chemical fluxes for MODE
     IF (ihso3_h2o2 > 0) THEN
       delSO2_wet_H2O2(kcs:kce) = delSO2_wet_H2O2(kcs:kce) +                    &
-        rk(:,ihso3_h2o2)*y(:,nn_so2)*y(:,nn_h2o2)*cdt
+        rk(:,ihso3_h2o2)*y(:,nn_so2)*y(:,nn_h2o2)*cdt_diag
     END IF
     IF (ihso3_o3 > 0) THEN
       delSO2_wet_O3(kcs:kce) = delSO2_wet_O3(kcs:kce) +                        &
-        rk(:,ihso3_o3)*y(:,nn_so2)*y(:,nn_o3)*cdt
+        rk(:,ihso3_o3)*y(:,nn_so2)*y(:,nn_o3)*cdt_diag
     END IF
     IF (iso3_o3 > 0) THEN
       delSO2_wet_O3(kcs:kce) = delSO2_wet_O3(kcs:kce) +                        &
-        rk(:,iso3_o3)*y(:,nn_so2)*y(:,nn_o3)*cdt
+        rk(:,iso3_o3)*y(:,nn_so2)*y(:,nn_o3)*cdt_diag
     END IF
     ! net H2SO4 production - note that this is affected by
     ! l_fix_ukca_h2so4_ystore above. Y value is concentration
@@ -461,20 +461,21 @@ DO k=1,model_levels
     IF (iso2_oh > 0 .AND. ih2so4_hv > 0) THEN
       delh2so4_chem(kcs:kce) = delh2so4_chem(kcs:kce) +                        &
        (rk(:,iso2_oh)*y(:,nn_so2)*y(:,nn_oh) -                                 &
-        rk(:,ih2so4_hv)*y(:,nn_h2so4))*cdt
+        rk(:,ih2so4_hv)*y(:,nn_h2so4))*cdt_diag
     ELSE IF (iso2_oh > 0) THEN
       delh2so4_chem(kcs:kce) = delh2so4_chem(kcs:kce) +                        &
-       rk(:,iso2_oh)*y(:,nn_so2)*y(:,nn_oh)*cdt
+       rk(:,iso2_oh)*y(:,nn_so2)*y(:,nn_oh)*cdt_diag
     END IF
 
     IF (uph2so4inaer == 1) THEN
-       ! Restore H2SO4 tracer as it will be updated in MODE
-       ! using delh2so4_chem
+      ! Restore H2SO4 tracer as it will be updated in MODE
+      ! using delh2so4_chem
       IF (ukca_config%l_fix_ukca_h2so4_ystore) THEN
-         ! calculate delh2so4_chem as the difference in H2SO4 over chemistry
-         ! zftr is already in VMR, so divide by CDT to give as vmr/s
-        delh2so4_chem(kcs:kce) = (zftr(:,istore_h2so4) - ystore(:)) / cdt
-         ! primary array passed is zftr, so copy back to this, NOT y
+        ! calculate delh2so4_chem as the difference in H2SO4 over chemistry
+        ! zftr is already in VMR, so divide by diagnostic chemistry timestep to
+        ! give as vmr/s
+        delh2so4_chem(kcs:kce) = (zftr(:,istore_h2so4) - ystore(:)) / cdt_diag
+        ! primary array passed is zftr, so copy back to this, NOT y
         zftr(:,istore_h2so4) = ystore(:)
       ELSE
         y(:,nn_h2so4) = ystore(:)
