@@ -196,7 +196,6 @@ REAL :: fpsc2_dummy(model_levels)
 REAL, ALLOCATABLE :: ystore(:)          ! array for H2SO4 when updated in MODE
 REAL :: zftr(theta_field_size,jpcspf)   ! 1-D array of chemically active species
                                         !   including RO2 species, in VMR
-REAL :: cdot(theta_field_size,jpcspf)   ! 1-D chem. tendency
 REAL :: zq(theta_field_size)            ! 1-D water vapour vmr
 REAL :: co2_1d(theta_field_size)        ! 1-D CO2
 REAL :: zprt1d(theta_field_size,jppj)   ! 1-D photolysis rates for ASAD
@@ -239,8 +238,8 @@ DO l = 1, dim_ntp
 END DO
 
 !$OMP PARALLEL DEFAULT(NONE)                                                   &
-!$OMP PRIVATE(cdot, ddmask, errcode, ierr, jna, jro2, js, jspf, jtr, k, kcs,   &
-!$OMP         kce, l, rc_het, ystore, zdryrt2, zftr, zprt1d, zq, co2_1d)       &
+!$OMP PRIVATE(ddmask, errcode, ierr, jna, jro2, js, jspf, jtr, k, kcs, kce, l, &
+!$OMP         rc_het, ystore, zdryrt2, zftr, zprt1d, zq, co2_1d)               &
 !$OMP SHARED(advt, atm_cf2cl2_mol, atm_cfcl3_mol, atm_ch4_mol,                 &
 !$OMP        atm_co_mol, atm_h2_mol, atm_mebr_mol, atm_n2o_mol, avogadro,      &
 !$OMP        c_species, c_na_species, cloud_frac, cmessage,                    &
@@ -413,8 +412,7 @@ DO k=1,model_levels
     END IF
   END IF
 
-  CALL asad_cdrive(cdot,                                                       &
-                   zftr,                                                       &
+  CALL asad_cdrive(zftr,                                                       &
                    pres(kcs:kce),                                              &
                    temp(kcs:kce),                                              &
                    zq,                                                         &

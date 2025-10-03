@@ -182,7 +182,6 @@ INTEGER       :: jl          ! Loop variable
 INTEGER       :: js          ! Loop variable
 INTEGER       :: ifam
 INTEGER       :: imaj
-INTEGER       :: nl
 INTEGER       :: istart
 INTEGER       :: iend
 INTEGER       :: iodd
@@ -190,11 +189,8 @@ INTEGER       :: itr
 INTEGER       :: icode       ! Error code
 INTEGER       :: iro2        ! Counter for RO2 species
 
-
 INTEGER, SAVE :: istmin
 INTEGER, SAVE :: ift
-!        INTEGER       :: ilstmin(jpspec)      ! Now in ASAD_MOD
-!        INTEGER       :: ilft(jpspec)         ! Now in ASAD_MOD
 
 CHARACTER (LEN=errormessagelength) :: cmessage     ! Error message
 INTEGER :: errcode          ! Variable passed to ereport
@@ -222,8 +218,8 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_FTOY'
 !       1.  Initialise.
 !           -----------
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                          &
-                        zhook_in,zhook_handle)
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
 ! OMP CRITICAL will only allow one thread through this code at a time,
 ! while the other threads are held until completion.
 !$OMP CRITICAL (asad_ftoy_init)
@@ -291,7 +287,7 @@ IF ( ukca_config%l_ukca_ro2_perm ) THEN
   DO j = 1, jpro2
 
     ! Get index location of each RO2 species and sum
-    iro2             = nlfro2(j)
+    iro2       = nlfro2(j)
     fro2(1:n_points) = fro2(1:n_points) + f(1:n_points, iro2)
 
   END DO   ! End iteration over RO2 species
@@ -311,22 +307,18 @@ IF ( ukca_config%l_ukca_ro2_perm ) THEN
   END IF
 
   ! Calculate the new concentration of RO2
-  y(1:n_points, jsro2) = fro2_old(1:n_points) +                                &
-      damp_ro2*(fro2(1:n_points) - fro2_old(1:n_points))
+  y(1:n_points, jsro2) = fro2_old(1:n_points) + damp_ro2*(fro2(1:n_points) - fro2_old(1:n_points))
 
 END IF
 
 !       1.2 If there are no family or steady species then exit
 
 IF ( nstst == 0) THEN
-  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                        &
-                          zhook_out,zhook_handle)
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF
 
 !       1.3 Initialise local variables and do sanity checks.
-
-nl = n_points
 
 DO j = 1, nstst
   js = nlstst(j)
@@ -354,8 +346,7 @@ IF ( ofirst ) CALL asad_fyself(n_points)
 
 IF (iter == 0) THEN
   CALL asad_fyfixr(n_points)
-  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                        &
-                          zhook_out,zhook_handle)
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF
 
@@ -373,10 +364,7 @@ DO jit = 1, iter
     DO j = 1, nstst
       js = nlstst(j)
       DO jl = 1, n_points
-        IF (ABS(y(jl,js)) < peps .AND.                                         &
-            prod(jl,js) > peps ) THEN
-          y(jl,js) = peps
-        END IF
+        IF (ABS(y(jl,js)) < peps .AND. prod(jl,js) > peps ) y(jl,js) = peps
       END DO
     END DO
   END IF
@@ -387,7 +375,7 @@ DO jit = 1, iter
   !             Regardless of whether the user has them turned on or not.
   !             See method above.
 
-  CALL asad_prls( nl, istmin, ilstmin, gdepem )
+  CALL asad_prls( n_points, istmin, ilstmin, gdepem )
 
   !         4.2 Initialise ratios
 
@@ -446,8 +434,7 @@ DO jit = 1, iter
     DO jl = 1, n_points
       IF ( y(jl,imaj) > peps ) THEN
         ratio(jl,js)   = y(jl,js) / y(jl,imaj)
-        ratio(jl,imaj) = ratio(jl,imaj) +                                      &
-                         iodd * ratio(jl,js)
+        ratio(jl,imaj) = ratio(jl,imaj) + iodd * ratio(jl,js)
       ELSE
         ratio(jl,js) = 0.0
       END IF
@@ -471,9 +458,8 @@ DO jit = 1, iter
         ELSE
           sl = 0.0
         END IF
-        linfam(jl,itr) = sl  >   zthresh
-        IF ( linfam(jl,itr) )                                                  &
-             f(jl,ifam) = f(jl,ifam) + iodd*f(jl,itr)
+        linfam(jl,itr) = sl > zthresh
+        IF ( linfam(jl,itr) ) f(jl,ifam) = f(jl,ifam) + iodd*f(jl,itr)
       END DO
     END IF
 
@@ -481,8 +467,7 @@ DO jit = 1, iter
       IF ( linfam(jl,itr) ) THEN
         IF ( y(jl,imaj)  >   peps ) THEN
           ratio(jl,js)   = y(jl,js) / y(jl,imaj)
-          ratio(jl,imaj) = ratio(jl,imaj) +                                    &
-                           iodd * ratio(jl,js)
+          ratio(jl,imaj) = ratio(jl,imaj) + iodd * ratio(jl,js)
         ELSE
           ratio(jl,js) = 0.0
         END IF
@@ -520,8 +505,7 @@ DO jit = 1, iter
     ELSE
       itr = madvtr(js)
       DO jl = 1, n_points
-        IF ( linfam(jl,itr) ) y(jl,js) =                                       &
-             y(jl,imaj) * ratio(jl,js)
+        IF ( linfam(jl,itr) ) y(jl,js) = y(jl,imaj) * ratio(jl,js)
       END DO
     END IF
   END DO
@@ -538,8 +522,7 @@ DO jit = 1, iter
     IF ( .NOT. gconv ) EXIT
   END DO
   IF (gconv) THEN
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                      &
-                            zhook_out,zhook_handle)
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     RETURN
   END IF
 
@@ -552,11 +535,10 @@ DO jit = 1, iter
 
 END DO    ! End of iterations
 
-
 !       9. Convergence achieved or max. iterations reached.
 
-IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,                          &
-                        zhook_out,zhook_handle)
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE asad_ftoy
+
 END MODULE asad_ftoy_mod

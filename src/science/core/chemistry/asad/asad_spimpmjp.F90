@@ -294,6 +294,8 @@ REAL :: ztmp
 ! The maximum concentration allowed was previously f_max = 1.0/f_min
 REAL, PARAMETER :: f_max = 1.0e30
 REAL :: f_min
+! Negative threshold to turn off filtering in quasi-Newton mode
+REAL, PARAMETER :: max_val = -1.0
 REAL :: RelTol_residual_error
 REAL :: RelTol_error
 REAL :: rafmin
@@ -557,7 +559,8 @@ DO iter=1,ukca_config%nrsteps
                     /DOT_PRODUCT(delta_G(jl,:),delta_G(jl,:))
         G_ftmp(jl,:) = G_f(jl,:)*(1.0 - coeff)
       END DO
-      CALL spresolv2(n_points,G_ftmp,f_incr,f_min,modified_map,spfj)
+
+      CALL spresolv2(n_points,G_ftmp,f_incr,f_min,modified_map,spfj,max_val)
 
       f = f + f_incr
       ! remove negative values. Does not need to be done in
