@@ -47,8 +47,8 @@
 {#- Import any queues #}
 %include 'include/queues.rc'
 
-    [[dependencies]]
-        graph = """
+    [[graph]]
+        R1 = """
 {# Hardcode extract of sources to always run #}
 extract_source
 {#- Recursively add dependencies from RUN_NAMES, replacing groups with subgroups/tasks #}
