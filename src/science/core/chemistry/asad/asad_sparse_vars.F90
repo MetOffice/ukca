@@ -142,16 +142,14 @@ INTEGER :: isx
 INTEGER :: kr
 INTEGER :: ikr
 INTEGER :: krj
-INTEGER :: ij1
+INTEGER :: ij
 INTEGER :: itemp1
-INTEGER :: ij(jpmsp)
 INTEGER :: activity(jpcspf)
 
 INTEGER, ALLOCATABLE :: permute(:,:)  ! permutation matrix
 INTEGER, ALLOCATABLE :: map(:,:)      ! a matrix of 1's indicating where the
                                       ! dense Jacobian A(i,j) has nonzero
                                       ! entries
-LOGICAL :: lj(jpmsp)
 
 CHARACTER(LEN=errormessagelength) :: cmessage
 
@@ -169,22 +167,20 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! ------------------------------------------------------------------------------
 
 IF (.NOT. ALLOCATED(map)) ALLOCATE(map(jpcspf, jpcspf))
+
 map(:,:) = 0
-DO i=1,jpcspf
+DO i = 1, jpcspf
   map(i,i) = 1
 END DO
 
 DO jc = 1, ntrf
   itrcr = nltrf(jc)
-  DO j3 = 1,nmzjac(itrcr)
+  DO j3 = 1, nmzjac(itrcr)
     irj = nzjac1(j3,itrcr)
     !
-    DO jn=1,jpmsp
-      ij(jn)=njcoth(irj,jn)
-      lj(jn)= (ij(jn) /= 0)
-    END DO
-    DO jn=1,jpmsp
-      IF (lj(jn)) map(ij(jn),itrcr) = 1
+    DO jn = 1, jpmsp
+      ij = njcoth(irj,jn)
+      IF (ij /= 0) map(ij,itrcr) = 1
     END DO
     !
     IF (npdfr(irj,1) /= 0) THEN
@@ -204,19 +200,11 @@ END DO
 !  required for the O3 loss rate.
 !
 DO jc = 1, nstst
-  DO j3 = 1,nmsjac(jc)
+  DO j3 = 1, nmsjac(jc)
     irj = nsjac1(j3,jc)
-    DO jn=1,jpmsp
-      ij(jn)=njcoth(irj,jn)
-      lj(jn)= (ij(jn) /= 0)
-    END DO
-    DO jn=1,jpmsp
-      IF (lj(jn)) THEN
-        map(ij(jn),ntro3 ) = 1
-        !              map(ij(jn),ntroh ) = 1
-        !              map(ij(jn),ntrho2) = 1
-        !              map(ij(jn),ntrno ) = 1
-      END IF
+    DO jn = 1, jpmsp
+      ij = njcoth(irj,jn)
+      IF (ij /= 0) map(ij,ntro3) = 1
     END DO
   END DO
 END DO
@@ -225,10 +213,10 @@ END DO
 !              Add deposition terms to Jacobian diagonal.
 !     -----------------------------------------------------------------
 !
-IF ( (ndepw  /=  0) .OR. (ndepd  /=  0) ) THEN
+IF ((ndepw /= 0) .OR. (ndepd /= 0) ) THEN
   DO js = 1, jpspec
     itrd = madvtr(js)
-    IF ( itrd /= 0 ) map(itrd,itrd) = 1
+    IF (itrd /= 0) map(itrd,itrd) = 1
   END DO
 END IF
 
@@ -239,10 +227,10 @@ IF (mype == 0 .AND. printstatus >= prstatus_oper) THEN
   CALL umPrint(umMessage,src='asad_sparse_vars')
 END IF
 
-isx=0
-nonzero_map(:,:)=0
-DO i=1,jpcspf
-  DO j=1,jpcspf
+isx = 0
+nonzero_map(:,:) = 0
+DO i = 1, jpcspf
+  DO j = 1, jpcspf
     ! calculate forward and backward pointers for sparse representation
     IF (map(i,j) == 1) THEN
       isx = isx + 1
@@ -253,10 +241,10 @@ DO i=1,jpcspf
 END DO
 
 base_tracer(:) = 0
-DO i=1,jpcspf
-  DO j=1,jpcspf
+DO i = 1, jpcspf
+  DO j = 1, jpcspf
     i1 = nonzero_map(j,i)
-    IF (i1 > 0) base_tracer(i1)=i
+    IF (i1 > 0) base_tracer(i1) = i
   END DO
 END DO
 
@@ -264,14 +252,14 @@ END DO
 ! Section 2: Create nonzero_map_unordered (index array for PAP')
 ! ------------------------------------------------------------------------------
 
-! Reorder species to minimize fill-in
-DO i=1,jpcspf
+! Reorder species by their reactivity to minimize fill-in
+DO i = 1, jpcspf
   activity(i) = SUM(map(:,i)) + SUM(map(i,:))
   reorder(i) = i
 END DO
 
-DO i=1,jpcspf-1
-  DO j=i+1,jpcspf
+DO i = 1, jpcspf-1
+  DO j = i+1, jpcspf
     IF (activity(i) > activity(j)) THEN
       ! exchange i and j tracers if i is more active than j.
       itemp1 = reorder(i)
@@ -284,7 +272,7 @@ DO i=1,jpcspf-1
   END DO
 END DO
 
-DO i=1,jpcspf
+DO i = 1, jpcspf
   IF (mype == 0 .AND. printstatus >= prstatus_oper) THEN
     WRITE(umMessage,'(A,I3,1X,I3,1X,A10,1X,I3)') 'IN ASAD SETUP_SPFULJAC: ',   &
          i, reorder(i), specf(reorder(i)), activity(i)
@@ -296,7 +284,7 @@ END DO
 IF (.NOT. ALLOCATED(permute)) ALLOCATE(permute(jpcspf,jpcspf))
 
 permute(:,:) = 0
-DO i=1,jpcspf
+DO i = 1, jpcspf
   permute(i,reorder(i)) = 1
 END DO
 
@@ -304,10 +292,10 @@ END DO
 ! spfj(nonzero_map_unordered(i,j)) = P*A*P'(i,j)
 ! where P is the permutation matrix and A is the dense Jacobian matrix
 ! with spfj the compressed storage (sparse) array for matrix A.
-nonzero_map_unordered = MATMUL(MATMUL(permute,nonzero_map),TRANSPOSE(permute))
+nonzero_map_unordered = MATMUL(MATMUL(permute, nonzero_map), TRANSPOSE(permute))
 
 IF (ALLOCATED(permute)) DEALLOCATE(permute)
-IF (ALLOCATED(map)) DEALLOCATE(map)
+IF (ALLOCATED(map))     DEALLOCATE(map)
 
 ! ------------------------------------------------------------------------------
 ! Section 3: Check the number of nonzero elements in LU factorization
@@ -317,17 +305,17 @@ IF (ALLOCATED(map)) DEALLOCATE(map)
 ! array PAP' and check that it is less than spfjsize_max.
 total1 = total
 modified_map(:,:) = nonzero_map_unordered(:,:)
-DO kr=1,jpcspf
-  DO i=kr+1,jpcspf
+DO kr = 1, jpcspf
+  DO i = kr+1, jpcspf
     ikr = modified_map(i,kr)
     IF (ikr > 0) THEN
-      DO j=kr+1,jpcspf
+      DO j = kr+1, jpcspf
         krj = modified_map(kr,j)
         IF (krj > 0) THEN
-          ij1 = modified_map(i,j)
+          ij = modified_map(i,j)
           ! Distinguish whether matrix element is zero or not. If not, proceed
           ! as in dense case. If it is, create new matrix element.
-          IF (ij1 <= 0) THEN
+          IF (ij <= 0) THEN
             total1 = total1 + 1
             modified_map(i,j) = total1
           END IF
@@ -375,54 +363,44 @@ errcodes(:,:) = 0
 DO jc = 1, ntrf
   itrcr = nltrf(jc)
   !
-  DO j3 = 1,nmzjac(itrcr)
+  DO j3 = 1, nmzjac(itrcr)
     irj = nzjac1(j3,itrcr)
     !
-    DO jn=1,jpmsp
-      ij(jn)=njcoth(irj,jn)
-      lj(jn)= (ij(jn) /= 0)
-    END DO
-    DO jn=1,2
-      IF (lj(jn)) THEN
-        i = nonzero_map(ij(jn),itrcr)
-        nnegterms(i) = nnegterms(i) + 1
-        IF (nnegterms(i) > maxterms) THEN
-          errcodes(i,1) = 1
-        ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
-          negterms(i,nnegterms(i)) = irj
+    DO jn = 1, jpmsp
+      ij = njcoth(irj,jn)
+      IF (ij /= 0) THEN
+        i = nonzero_map(ij,itrcr)
+        IF (jn < 3) THEN
+          nnegterms(i) = nnegterms(i) + 1
+          IF (nnegterms(i) > maxterms) THEN
+            errcodes(i,1) = 1
+          ELSE IF (ALL(errcodes(i,:) == 0)) THEN
+            negterms(i,nnegterms(i)) = irj
+          END IF
+        ELSE
+          IF (nfrpx(irj) == 0) THEN
+            nposterms(i) = nposterms(i) + 1
+            IF (nposterms(i) > maxterms) THEN
+              errcodes(i,1) = 2
+            ELSE IF (ALL(errcodes(i,:) == 0)) THEN
+              posterms(i,nposterms(i)) = irj
+            END IF
+          ELSE
+            nfracterms(i) = nfracterms(i) + 1
+            IF (nfracterms(i) > maxfterms) THEN
+              errcodes(i,1) = 3
+            END IF
+            IF (nfrpx(irj)+jn-3 > jpfrpx) THEN
+              errcodes(i,2) = i
+              errcodes(i,3) = jn
+            ELSE IF (ALL(errcodes(i,:) == 0)) THEN
+              fracterms(i,nfracterms(i)) = irj
+              ffrac(i,nfracterms(i))     = frpx(nfrpx(irj)+jn-3)
+            END IF
+          END IF
         END IF
       END IF
     END DO
-    IF (nfrpx(irj) == 0) THEN
-      DO jn=3,jpmsp
-        IF (lj(jn)) THEN
-          i = nonzero_map(ij(jn),itrcr)
-          nposterms(i) = nposterms(i) + 1
-          IF (nposterms(i) > maxterms) THEN
-            errcodes(i,1) = 2
-          ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
-            posterms(i,nposterms(i)) = irj
-          END IF
-        END IF
-      END DO
-    ELSE
-      DO jn=3,jpmsp
-        IF (lj(jn)) THEN
-          i = nonzero_map(ij(jn),itrcr)
-          nfracterms(i) = nfracterms(i) + 1
-          IF (nfracterms(i) > maxfterms) THEN
-            errcodes(i,1) = 3
-          END IF
-          IF (nfrpx(irj)+jn-3 > jpfrpx) THEN
-            errcodes(i,2) = i
-            errcodes(i,3) = jn
-          ELSE IF (.NOT. ANY(errcodes(i,:) /= 0)) THEN
-            fracterms(i,nfracterms(i)) = irj
-            ffrac(i,nfracterms(i))     = frpx(nfrpx(irj)+jn-3)
-          END IF
-        END IF
-      END DO
-    END IF
     !
     IF (npdfr(irj,1) /= 0) THEN
       i1 = npdfr(irj,1)
@@ -471,7 +449,7 @@ END SUBROUTINE setup_spfuljac
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE spfuljac(n_points,cdt,min_pivot,nonzero_map,spfj)
+SUBROUTINE spfuljac(n_points, cdt, min_pivot, nonzero_map, spfj)
 !
 !  Routine to calculate the Jacobian in sparse format
 !
@@ -507,9 +485,7 @@ INTEGER :: j3
 INTEGER :: jn
 INTEGER :: js
 INTEGER :: jl
-INTEGER :: ij(jpmsp)
-
-LOGICAL :: lj(jpmsp)
+INTEGER :: ij
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -521,21 +497,20 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! At the bottom of this routine we divide by f, so ensure that
 ! f is not too small.
-DO jl = 1, jpcspf
-  DO i = 1, n_points
-    IF (f(i, jl) < min_pivot) THEN
-      f(i, jl) = min_pivot
+DO i = 1, jpcspf
+  DO jl = 1, n_points
+    IF (f(jl, i) < min_pivot) THEN
+      f(jl, i) = min_pivot
     END IF
   END DO
 END DO
 
-deltt=1.0/cdt
-
-spfj(:,:) = 0.0
+deltt = 1.0 / cdt
 
 ! Calculate diagonal element of Jacobian
-DO i=1,jpcspf
-  spfj(:,nonzero_map(i,i))=-deltt*f(:,i)
+spfj(:,:) = 0.0
+DO i = 1, jpcspf
+  spfj(:,nonzero_map(i,i)) = -deltt*f(:,i)
 END DO
 !
 !
@@ -545,14 +520,14 @@ END DO
 !
 ! Sum up positive non-fractional, negative, and fractional terms
 
-DO p=1,total
-  DO i=nposterms(p),1,-1
+DO p = 1, total
+  DO i = nposterms(p), 1, -1
     spfj(:,p) = spfj(:,p) + prk(:,posterms(p,i))
   END DO
-  DO i=nnegterms(p),1,-1
+  DO i = nnegterms(p), 1, -1
     spfj(:,p) = spfj(:,p) - prk(:,negterms(p,i))
   END DO
-  DO i=nfracterms(p),1,-1
+  DO i = nfracterms(p), 1, -1
     spfj(:,p) = spfj(:,p) + ffrac(p,i)*prk(:,fracterms(p,i))
   END DO
 END DO
@@ -562,24 +537,17 @@ END DO
 !  required for the O3 loss rate.
 !
 DO jc = 1, nstst
-  DO j3 = 1,nmsjac(jc)
+  DO j3 = 1, nmsjac(jc)
     irj = nsjac1(j3,jc)
-    DO jn=1,jpmsp
-      ij(jn)=njcoth(irj,jn)
-      lj(jn)=ij(jn) /= 0
-    END DO
-    DO jn=1,2
-      IF (lj(jn)) THEN
-        p = nonzero_map(ij(jn),ntro3)
-        spfj(:,p) = spfj(:,p) -                                                &
-          prk(:,irj)*deriv(:,jc,1) ! *prkrat(jc)
-      END IF
-    END DO
-    DO jn=3,jpmsp
-      IF (lj(jn)) THEN
-        p = nonzero_map(ij(jn),ntro3)
-        spfj(:,p) = spfj(:,p) +                                                &
-          prk(:,irj)*deriv(:,jc,1) ! *prkrat(jc)
+    DO jn = 1, jpmsp
+      ij = njcoth(irj,jn)
+      IF (ij /= 0) THEN
+        p = nonzero_map(ij,ntro3)
+        IF (jn < 3) THEN
+          spfj(:,p) = spfj(:,p) - prk(:,irj)*deriv(:,jc,1)
+        ELSE
+          spfj(:,p) = spfj(:,p) + prk(:,irj)*deriv(:,jc,1)
+        END IF
       END IF
     END DO
   END DO
@@ -589,25 +557,23 @@ END DO
 !          4.  Add deposition terms to Jacobian diagonal.
 !              --- ---------- ----- -- -------- ---------
 !
-IF ( (ndepw  /=  0) .OR. (ndepd  /=  0) ) THEN
+IF ((ndepw /= 0) .OR. (ndepd /= 0)) THEN
   DO js = 1, jpspec
     ifamd = moffam(js)
     itrd = madvtr(js)
     ityped = ctype(js)
     !
-    IF ( ifamd /= 0 ) THEN
-      DO jl=1,n_points
-        IF ((ityped == jpfm) .OR. ((ityped == jpif) .AND.                      &
-        linfam(jl,itrd))) THEN
-          p = nonzero_map(ifamd,ifamd)
-          spfj(jl,p)=spfj(jl,p)                                                &
-          - nodd(js)*(dpd(jl,js)+dpw(jl,js))*y(jl,js)
+    IF (ifamd /= 0) THEN
+      p = nonzero_map(ifamd,ifamd)
+      DO jl = 1, n_points
+        IF ((ityped == jpfm) .OR. ((ityped == jpif) .AND. linfam(jl,itrd))) THEN
+          spfj(jl,p) = spfj(jl,p) - nodd(js)*(dpd(jl,js) + dpw(jl,js))*y(jl,js)
         END IF
       END DO
     END IF
-    IF ( itrd /= 0 ) THEN
+    IF (itrd /= 0) THEN
       p = nonzero_map(itrd,itrd)
-      spfj(:,p) = spfj(:,p) - (dpd(:,js)+dpw(:,js))*y(:,js)
+      spfj(:,p) = spfj(:,p) - (dpd(:,js) + dpw(:,js))*y(:,js)
     END IF
   END DO
 END IF
@@ -616,8 +582,8 @@ END IF
 !          5.  Jacobian elements in final form
 !              -------- -------- -- ----- ----
 !
-DO p=1,total
-  spfj(:,p)=spfj(:,p)/f(:,base_tracer(p))   ! filter f earlier!
+DO p = 1, total
+  spfj(:,p) = spfj(:,p) / f(:,base_tracer(p))   ! filter f earlier!
 END DO
 
 !
@@ -627,10 +593,10 @@ END SUBROUTINE spfuljac
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE splinslv2(n_points,bb,xx,min_pivot,max_val,                         &
-                        nonzero_map_unordered,modified_map,spfj)
+SUBROUTINE splinslv2(n_points, bb, xx, min_pivot, max_val,                     &
+                     nonzero_map_unordered, modified_map, spfj)
 
-USE asad_mod, ONLY: jpcspf, reorder, spfjsize_max, total
+USE asad_mod, ONLY: jpcspf, spfjsize_max, total
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 
@@ -670,6 +636,7 @@ REAL, INTENT(IN OUT)    :: spfj(1:n_points,1:spfjsize_max)
 ! Local variables
 INTEGER :: total1    ! total number of nonzero entries in Jacobian
 INTEGER :: kr
+INTEGER :: jl
 INTEGER :: i
 INTEGER :: j
 INTEGER :: ikr
@@ -693,16 +660,16 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! Filter sparse Jacobian
 #if defined(IBM_XL_FORTRAN)
 ! Version optimised for IBM by using the fsel IBM-only intrinsic
-DO j=1,total
-  DO i=1,n_points
-    tmp=fsel(spfj(i,j)+max_val,spfj(i,j),-max_val)
-    spfj(i,j)=fsel(tmp-max_val,max_val,tmp)
+DO j = 1, total
+  DO jl = 1, n_points
+    tmp = fsel(spfj(jl,j)+max_val, spfj(jl,j), -max_val)
+    spfj(jl,j) = fsel(tmp-max_val, max_val, tmp)
   END DO
 END DO
 #else
-DO j=1,total
-  DO i=1,n_points
-    spfj(i,j)=MIN(MAX(spfj(i,j),-max_val),max_val)
+DO j = 1, total
+  DO jl = 1, n_points
+    spfj(jl,j) = MIN(MAX(spfj(jl,j), -max_val), max_val)
   END DO
 END DO
 #endif
@@ -712,20 +679,20 @@ END DO
 ! The L U factors are overwritten onto the original sparse Jacobian array
 total1 = total
 modified_map(:,:) = nonzero_map_unordered(:,:)
-DO kr=1,jpcspf
-  pivot = spfj(:,modified_map(kr,kr))
+DO kr = 1, jpcspf
+  pivot(:) = spfj(:,modified_map(kr,kr))
   WHERE (ABS(pivot) > min_pivot)
-    pivot = 1.0/pivot
+    pivot(:) = 1.0 / pivot
   ELSE WHERE
-    pivot = max_val
+    pivot(:) = max_val
   END WHERE
   !        PIVOT = 1./spfj(:,modified_map(kr,kr))
-  DO i=kr+1,jpcspf
+  DO i = kr+1, jpcspf
     ikr = modified_map(i,kr)
     IF (ikr > 0) THEN
       kfact = spfj(:,ikr)*pivot
       spfj(:,ikr) = kfact
-      DO j=kr+1,jpcspf
+      DO j = kr+1, jpcspf
         krj = modified_map(kr,j)
         IF (krj > 0) THEN
           ij = modified_map(i,j)
@@ -747,57 +714,23 @@ END DO
 ! Filter sparse Jacobian
 #if defined(IBM_XL_FORTRAN)
 ! Version optimised for IBM by using the fsel IBM-only intrinsic
-DO j=1,total1
-  DO i=1,n_points
-    tmp=fsel(spfj(i,j)+max_val,spfj(i,j),-max_val)
-    spfj(i,j)=fsel(tmp-max_val,max_val,tmp)
+DO j = 1, total1
+  DO jl = 1, n_points
+    tmp = fsel(spfj(jl,j)+max_val, spfj(jl,j), -max_val)
+    spfj(jl,j) = fsel(tmp-max_val, max_val, tmp)
   END DO
 END DO
 #else
-DO j=1,total1
-  DO i=1,n_points
-    spfj(i,j)=MIN(MAX(spfj(i,j),-max_val),max_val)
+DO j = 1, total1
+  DO jl = 1, n_points
+    spfj(jl,j) = MIN(MAX(spfj(jl,j), -max_val), max_val)
   END DO
 END DO
 #endif
 
 
 ! Section 2: Solve P A P' z = P b with P'z = x using L U z = P b
-!
-! manual inlining of lu_solve()
-!
-! Part (a) calculate right-hand side P b
-DO i=1,jpcspf
-  bb1(:,i) = bb(:,reorder(i))
-END DO
-
-! Part (b) forward-substitution: find w where L w = P b
-DO kr=1,jpcspf-1
-  DO i=kr+1,jpcspf
-    ikr = modified_map(i,kr)
-    IF (ikr > 0)                                                               &
-      bb1(:,i) = bb1(:,i) - spfj(:,ikr) * bb1(:,kr)
-  END DO
-END DO
-
-! Part (c) back-substitution: find z where U z = w
-DO kr=jpcspf,1,-1
-  xx1(:,kr) = bb1(:,kr)
-  DO j=kr+1,jpcspf
-    krj = modified_map(kr,j)
-    IF (krj > 0)                                                               &
-      xx1(:,kr) = xx1(:,kr) - spfj(:,krj) * xx1(:,j)
-  END DO
-  pivot = spfj(:,modified_map(kr,kr))
-  WHERE (ABS(pivot) < min_pivot) pivot = min_pivot
-  xx1(:,kr) = MIN(MAX(xx1(:,kr),-max_val),max_val)/pivot
-END DO
-
-! Part (d) determine x, apply transpose(P) to z, P'z = x
-xx = 0.0
-DO j=1,jpcspf
-  xx(:,reorder(j)) = xx1(:,j)
-END DO
+CALL spresolv2(n_points, bb, xx, min_pivot, modified_map, spfj, max_val)
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -805,7 +738,7 @@ END SUBROUTINE splinslv2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE spresolv2(n_points,bb,xx,min_pivot,modified_map,spfj)
+SUBROUTINE spresolv2(n_points, bb, xx, min_pivot, modified_map, spfj, max_val)
 
 ! This subroutine determines x where L U z = P b with P' z = x
 ! The L U factors are supplied to this routine and contained with spfj array.
@@ -830,6 +763,9 @@ REAL,    INTENT(IN)  :: min_pivot
 INTEGER, INTENT(IN)  :: modified_map(jpcspf,jpcspf)
 REAL,    INTENT(IN)  :: spfj(n_points,spfjsize_max)
 
+! Maximum tolerated value for use in filtering step. Unused if negative
+REAL,    INTENT(IN)  :: max_val
+
 
 INTEGER :: kr
 INTEGER :: i
@@ -850,32 +786,37 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='SPRESOLV2'
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Part (a) calculate right-hand side P b
-DO i=1,jpcspf
+DO i = 1, jpcspf
   bb1(:,i) = bb(:,reorder(i))
 END DO
 
 ! Part (b) forward-substitution: find w where L w = P b
-DO kr=1,jpcspf-1
-  DO i=kr+1,jpcspf
+DO kr = 1, jpcspf-1
+  DO i = kr+1, jpcspf
     ikr = modified_map(i,kr)
     IF (ikr > 0) bb1(:,i) = bb1(:,i) - spfj(:,ikr)*bb1(:,kr)
   END DO
 END DO
 
 ! Part (c) back-substitution: find z where U z = w
-DO kr=jpcspf,1,-1
+DO kr = jpcspf, 1, -1
   xx1(:,kr) = bb1(:,kr)
-  DO j=kr+1,jpcspf
+  DO j = kr+1, jpcspf
     krj = modified_map(kr,j)
     IF (krj > 0) xx1(:,kr) = xx1(:,kr) - spfj(:,krj)*xx1(:,j)
   END DO
-  pivot = spfj(:,modified_map(kr,kr))
+  pivot(:) = spfj(:,modified_map(kr,kr))
   WHERE (ABS(pivot) < min_pivot) pivot = min_pivot
-  xx1(:,kr) = xx1(:,kr) / pivot
+  IF (max_val > 0) THEN
+    xx1(:,kr) = MIN(MAX(xx1(:,kr), -max_val), max_val) / pivot
+  ELSE
+    xx1(:,kr) = xx1(:,kr) / pivot
+  END IF
 END DO
 
-xx = 0.0
-DO i=1,jpcspf
+! Part (d) determine x, apply transpose(P) to z, P'z = x
+xx(:,:) = 0.0
+DO i = 1, jpcspf
   xx(:,reorder(i)) = xx1(:,i)
 END DO
 

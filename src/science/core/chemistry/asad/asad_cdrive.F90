@@ -33,7 +33,6 @@
 ! This file belongs in section: UKCA
 !
 !     Arguments:
-!        cdot        - Tracer tendencies due to chemistry.
 !        ftr         - Tracer concentrations.
 !        pp          - Pressure (Nm-2).
 !        pt          - Temperature (K).
@@ -90,11 +89,11 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'ASAD_CDRIVE_MOD'
 
 CONTAINS
 
-SUBROUTINE asad_cdrive(cdot, ftr, pp, pt, pq, co2_1d, cld_f, cld_l,            &
+SUBROUTINE asad_cdrive(ftr, pp, pt, pq, co2_1d, cld_f, cld_l,                  &
                        ix, jy, nlev, dryrt, wetrt, rc_het, prt,                &
                        n_points, have_nat, stratflag, H_plus_1d_arr)
 
-USE asad_mod,        ONLY: cdt, ctype, fdot, f,                                &
+USE asad_mod,        ONLY: ctype, fdot, f,                                     &
                            jpspec, jpcspf, jppj,                               &
                            jpdd, jpdw, jpif, jsubs,                            &
                            linfam, lvmr,                                       &
@@ -155,8 +154,6 @@ REAL, INTENT(IN) :: H_plus_1d_arr(n_points)
 ! rather than number of tracers
 REAL, INTENT(IN OUT) :: ftr(n_points,jpcspf)   ! Tracer concs
 
-REAL, INTENT(OUT)   :: cdot(n_points,jpcspf)  ! Tracer tendencies
-
 !       Local variables
 
 INTEGER :: errcode               ! Variable passed to ereport
@@ -187,24 +184,16 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_CDRIVE'
 
 !       1.  Initialise variables and arrays
 
-!       1.1   Clear tendencies to avoid contributions from levels
-!             on which no chemistry is performed
-
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-DO jtr = 1, jpcspf
-  DO jl = 1, n_points
-    cdot(jl,jtr) = 0.0
-  END DO
-END DO
 
-!       1.2  Copy pressure and temperature to asad_mod
+!       1.1  Copy pressure and temperature to asad_mod
 
 DO jl = 1, n_points
   p(jl) = pp(jl)
   t(jl) = pt(jl)
 END DO
 
-!       1.2.1 Copy water vapor and co2 to asad_mod
+!       1.1.1 Copy water vapor and co2 to asad_mod
 
 DO jl = 1, n_points
   wp(jl) = pq(jl)
@@ -359,8 +348,7 @@ DO js = 1, jpspec
     itr  = madvtr(js)
     iodd = nodd(js)
     DO jl = 1, n_points
-      IF ( linfam(jl,itr) ) f(jl,ifam) =                                       &
-                            f(jl,ifam) - iodd*f(jl,itr)
+      IF ( linfam(jl,itr) ) f(jl,ifam) = f(jl,ifam) - iodd*f(jl,itr)
     END DO
   END IF
 END DO
@@ -368,17 +356,9 @@ END DO
 !       7.2  Returned values of concentration and chemical tendency
 
 DO jtr = 1, jpcspf
-  IF ( method /= 0 ) THEN
-    DO jl = 1, n_points
-      cdot(jl,jtr) = ( f(jl,jtr)-ftr(jl,jtr)) / (cdt*ncsteps)
-      ftr(jl,jtr)  = f(jl,jtr)
-    END DO
-  ELSE
-    DO jl = 1, n_points
-      cdot(jl,jtr) = fdot(jl,jtr)
-      ftr(jl,jtr)  = f(jl,jtr)
-    END DO
-  END IF
+  DO jl = 1, n_points
+    ftr(jl,jtr) = f(jl,jtr)
+  END DO
 END DO
 
 
@@ -388,8 +368,7 @@ END DO
 IF ( lvmr ) THEN
   DO jtr = 1, jpcspf
     DO jl = 1, n_points
-      ftr(jl,jtr)  = ftr(jl,jtr)  / tnd(jl)
-      cdot(jl,jtr) = cdot(jl,jtr) / tnd(jl)
+      ftr(jl,jtr)  = ftr(jl,jtr) / tnd(jl)
     END DO
   END DO
 END IF
