@@ -489,6 +489,16 @@ DO k=1,model_levels
 
     IF (.NOT. ALLOCATED(BE_hrc))                                               &
       ALLOCATE (BE_hrc (theta_field_size, jphk))
+     ! Heterogeneous rate constants (hrc) are stored in the 'BE_hrc' array.
+     ! When hrc are derived using CLASSIC aerosols (l_ukca_classic_hetchem=T),
+     ! BE_hrc represents the following:
+     !   - BE_hrc(:,1) rate for N2O5 on all aerosol surfaces except sea salts
+     !   - BE_hrc(:,2) rate for N2O5 on sea_salt aerosol surfaces
+     !
+     ! When hrc are derived using GLOMAP aerosols, BE_hrc represents the 
+     ! following:
+     !   - BE_hrc(:,1) rate for N2O5 on all aerosol surfaces
+     !   - BE_hrc(:,2) rate for HO2  on all aerosol surfaces
 
     ! Fill in stratospheric flag indicator, which will be passed
     ! to UKCA_CHEMCO_RAQ in order to set tropospheric heterogeneous
@@ -502,6 +512,29 @@ DO k=1,model_levels
                          BE_ocff_fresh, BE_ocff_aged, BE_biogenic,             &
                          BE_sea_salt_film, BE_sea_salt_jet, stratflag,         &
                          BE_rc, BE_hrc, H_plus(kcs:kce))
+
+    IF (ukca_config%l_ukca_trophet) THEN
+      ! Tropospheric heterogeneous chemistry using GLOMAP aerosol surfaces.
+      ! When ukca_config%l_ukca_trophet is true, the heterogeneous chemical
+      ! rates are not derived inside 'ukca_chemco_raq', but are those
+      ! calculated in GLOMAP from previous time step as the aerosol
+      ! increment is calculated after the chemistry one.
+
+      ! N2O5
+      l = name2ntpindex('het_n2o5  ')
+      BE_hrc(:,1) = ntp_data(kcs:kce,l)
+
+      ! HO2+HO2
+      l = name2ntpindex('het_ho2   ')
+      BE_hrc(:,2) = ntp_data(kcs:kce,l)
+
+      ! Set the heterogeneous rates to small values in the stratosphere to
+      ! avoid model instability.
+      WHERE (stratflag) BE_hrc (:, 1)  = 1e-30
+      WHERE (stratflag) BE_hrc (:, 2)  = 1e-30
+
+    END IF    ! l_ukca_trophet = .TRUE.
+
   ELSE
 
     CALL ukca_chemco(nr_therm, theta_field_size, temp(kcs:kce), BE_tnd,        &
@@ -566,7 +599,7 @@ DO k=1,model_levels
     IF (uph2so4inaer == 1) ystore(:) = BE_y(:,nn_h2so4)
 
     CALL ukca_deriv_raqaero(nr_therm, n_be_calls, theta_field_size, dts,       &
-                            BE_rc, BE_wetrt, BE_dryrt,                         &
+                            BE_rc, BE_hrc, BE_wetrt, BE_dryrt,                 &
                             photol_rates(kcs:kce,:), BE_h2o, BE_y,             &
                             so2_wetox_H2O2, so2_wetox_O3, so2_dryox_OH)
 

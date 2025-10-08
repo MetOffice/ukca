@@ -757,7 +757,9 @@ IF (ukca_config%l_ukca_classic_hetchem .AND.                                   &
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
 IF (ukca_config%l_ukca_classic_hetchem .AND. ukca_config%l_ukca_chem_aero) THEN
-  cmessage = 'Heterogeneous chemistry is not supported in RAQ-Aero'
+  cmessage = 'Heterogeneous chemistry with CLASSIC aerosols is not supported'  &
+             // newline // 'in RAQ-Aero but is supported with GLOMAP aerosols' &
+             // newline // 'by setting l_ukca_trophet = T'
   errcode  = 34
   CALL ereport(RoutineName,errcode,cmessage)
 END IF
@@ -777,9 +779,10 @@ END IF
 IF (ukca_config%l_ukca_trophet .AND.                                           &
     ukca_config%i_ukca_chem /= i_ukca_chem_tropisop .AND.                      &
     ukca_config%i_ukca_chem /= i_ukca_chem_strattrop .AND.                     &
-    ukca_config%i_ukca_chem /= i_ukca_chem_cristrat) THEN
+    ukca_config%i_ukca_chem /= i_ukca_chem_cristrat .AND.                      &
+    ukca_config%i_ukca_chem /= i_ukca_chem_raq) THEN
   cmessage = 'Tropospheric heterogeneous chemistry requires an N-R scheme with'&
-             // newline // 'tropospheric chemistry'
+             // newline // 'tropospheric chemistry or the RAQ scheme'
   errcode  = 36
   CALL ereport(RoutineName,errcode,cmessage)
 END IF

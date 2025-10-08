@@ -36,3 +36,4 @@ James Weber                     University of Sheffield
 Joao Teixeira                   Met Office
 Amy Peace                       Met Office
 Pierre Siddall                  Met Office
+Florent Malavelle               Met Office
