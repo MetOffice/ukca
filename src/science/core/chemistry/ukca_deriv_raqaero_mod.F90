@@ -36,10 +36,12 @@ CONTAINS
 
 ! Subroutine Interface:
 SUBROUTINE ukca_deriv_raqaero(nr_therm, n_be_calls,                            &
-  n_pnts, dts, rc, dw, dd, dj,                                                 &
+  n_pnts, dts, rc, hrc, dw, dd, dj,                                            &
   h2o, y, delta_so2_wetox_h2o2, delta_so2_wetox_o3, delta_so2_dryox_oh)
 
-USE asad_mod, ONLY: jpspec, jppj
+USE ukca_trop_hetchem_mod, ONLY: ihet_n2o5, ihet_ho2_ho2
+
+USE asad_mod, ONLY: jpspec, jppj, jphk
 USE ukca_config_specification_mod, ONLY: ukca_config
 
 USE yomhook,             ONLY: lhook, dr_hook
@@ -55,6 +57,7 @@ INTEGER, INTENT(IN) :: n_pnts     ! Actual no. calculations
 
 REAL, INTENT(IN)    :: dts                 ! timestep (s)
 REAL, INTENT(IN)    :: rc(n_pnts,nr_therm) ! rxn rate coeffs (cm3 molec-1 s-1)
+REAL, INTENT(IN)    :: hrc(n_pnts,jphk)    ! heterog rxn rate coeffs (s-1)
 REAL, INTENT(IN)    :: dw(n_pnts,jpspec)   ! wet dep rates (s-1)
 REAL, INTENT(IN)    :: dd(n_pnts,jpspec)   ! dry dep rates (s-1)
 REAL, INTENT(IN)    :: dj(n_pnts,jppj)     ! photol rates (s-1)
@@ -265,6 +268,13 @@ DO n = 1, n_be_calls           ! loop over chemical timesteps
     l = 0.0                                                                    &
     +(dw(:,8)  )                                                               &
     +(rc(:,29) )        +(rc(:,195))        +(dj(:,16) )
+
+    ! Optionally add N2O5 loss by heterogeneous hydrolysis if this is on:
+    ! N2O5 + H2O (aerosols) --> 2 HNO3.
+    IF (ukca_config%l_ukca_trophet) THEN
+      l = l + hrc(:,ihet_n2o5)
+    END IF
+
     tmp2(:) = 1.0+dts*l(:)
     CALL oneover_v(n_pnts, tmp2, tmp1)
     y(:, 8) = (yp(:, 8)+dts*p)*tmp1
@@ -286,6 +296,14 @@ DO n = 1, n_be_calls           ! loop over chemical timesteps
     +(rc(:,67) *y(:,6 )*y(:,14))+(rc(:,151)*y(:,6 )*y(:,19))
     p = p                                                                      &
     +(rc(:,21) *y(:,7 )*y(:,3 ))+(rc(:,32) *y(:,6 )*y(:,15))
+
+    ! Optionally add formation of HNO3 by heterogeneous hydrolysis
+    ! of N2O5 if this is on:
+    ! N2O5 + H2O (aerosols) --> 2 HNO3
+    IF (ukca_config%l_ukca_trophet) THEN
+      p = p + hrc(:,ihet_n2o5) * y(:,8) * 2.0
+    END IF
+
     l = 0.0                                                                    &
     +(dd(:,10) )                                                               &
     +(rc(:,35) *y(:,3 ))+(dj(:,5)  )        +(dw(:,10) )
@@ -296,6 +314,14 @@ DO n = 1, n_be_calls           ! loop over chemical timesteps
     !          H2O2         y(11)
     p = 0.0                                                                    &
     +(rc(:,36) *y(:,15)*y(:,15))+(rc(:,196)*y(:,15)*y(:,15))
+
+    ! Optionally add H2O2 formation by heterogeneous hydrolysis of HO2
+    ! if this is on:
+    ! HO2 + HO2 (aerosols) --> H2O2 + O2
+    IF (ukca_config%l_ukca_trophet) THEN
+      p = p + hrc(:,ihet_ho2_ho2) * y(:,15) * 0.5
+    END IF
+
     l = 0.0                                                                    &
     +(dw(:,11) )        +(dd(:,11) )                                           &
     +(rc(:,31) *y(:,3 ))+(rc(:,191)*y(:,45))+(dj(:,4)  )
@@ -407,6 +433,13 @@ DO n = 1, n_be_calls           ! loop over chemical timesteps
     +(rc(:,36) *y(:,15))+(rc(:,36) *y(:,15))+(rc(:,65) *y(:,16))               &
     +(rc(:,30) *y(:,3 ))+(rc(:,32) *y(:,6 ))+(rc(:,34) *y(:,6 ))               &
     +(rc(:,14) *y(:,4 ))+(rc(:,17) *y(:,5 ))+(rc(:,22) *y(:,7 ))
+
+    ! Optionally add HO2 loss by heterogeneous hydrolysis if this is on:
+    ! HO2 + HO2 (aerosols) --> H2O2 + O2
+    IF (ukca_config%l_ukca_trophet) THEN
+      l = l + hrc(:,ihet_ho2_ho2)
+    END IF
+
     tmp2(:) = 1.0+dts*l(:)
     CALL oneover_v(n_pnts, tmp2, tmp1)
     y(:,15) = (yp(:,15)+dts*p)*tmp1
