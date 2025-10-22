@@ -15,10 +15,11 @@ cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/git_bdiff.py $CYLC_WORKFLOW_R
 cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/get_git_sources.py $CYLC_WORKFLOW_RUN_DIR/bin
 """
         [[[environment]]]
-            ROSE_TASK_APP=extract_source
-            DEPENDENCIES={{dependencies}}
+            ROSE_TASK_APP = extract_source
+            DEPENDENCIES = {{dependencies}}
+            USE_MIRRORS = {{USE_MIRRORS}}
+            USE_TOKENS = {{USE_TOKENS}}
         {% if USE_MIRRORS %}
-            USE_MIRRORS = True
             {% if "GIT_MIRROR_LOC" in SITE_VARS %}
             GIT_MIRROR_LOC = {{SITE_VARS.GIT_MIRROR_LOC}}
             {% else %}
@@ -27,8 +28,6 @@ cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/get_git_sources.py $CYLC_WORK
                     "Ensure 'GIT_MIRROR_LOC' is included in SITE_VARS."
                     ) }}
             {% endif %}
-        {% else %}
-            USE_MIRRORS = False
         {% endif %}
 
     [[SOURCE_SYNC]]
