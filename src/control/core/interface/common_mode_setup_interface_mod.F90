@@ -192,8 +192,8 @@ CASE (i_sussbcocdump_8mode) ! 13
   CALL ukca_mode_sussbcocdump_8mode( glomap_variables_local,                   &
                                             l_radaer_in,                       &
                                             i_tune_bc_in,                      &
-                                            l_fix_ukca_hygroscopicities_in,    &
                                             l_fix_nacl_density_in,             &
+                                            l_fix_ukca_hygroscopicities_in,    &
                                             l_dust_mp_ageing )
 
 CASE DEFAULT

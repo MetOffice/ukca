@@ -24,7 +24,7 @@
 !      UKCA_MODE_SUSSBCOCDU_4MODE
 !      UKCA_MODE_SUSSBCOCNTNH_5MODE_7CPT
 !      UKCA_MODE_SOLINSOL_6MODE
-!      UKCA_MODE_SUSSBOCODUMP_8MODE
+!      UKCA_MODE_SUSSBCOCDUMP_8MODE
 !    which define modes and components for different components/modes setup.
 !
 !  UKCA is a community model supported by The Met Office and

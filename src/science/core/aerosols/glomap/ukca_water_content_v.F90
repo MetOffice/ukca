@@ -129,9 +129,15 @@ REAL(KIND=jprb)               :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_WATER_CONTENT_V'
 
-
 DATA (z(i),i=-nanion,ncation)/1.0,1.0,2.0,1.0,0.0,1.0,1.0,1.0/
 !                                    Cl NO3 SO4 HSO4 H2O  H NH4  Na
+
+! As this subroutine is in an OMP parallel section,
+! the use of the DATA statements cause y to be shared between threads,
+! which creates issues when modifying the array outside of a DATA statement.
+! Setting it as threadprivate avoids that.
+
+!$OMP THREADPRIVATE(y)
 
 ! Set y coefficients for the calculations of solute molalities from
 ! Jacobson page 610 (Table B.10) for each electrolyte.
