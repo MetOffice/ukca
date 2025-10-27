@@ -190,6 +190,8 @@ CHARACTER(LEN=*), PARAMETER   :: RoutineName='CALC_RESIDUAL_ERROR'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+residual_error = 0.0
+
 !  Temporary prod+loss array used to test for convergence
 !  by calculating residual_error further down
 DO jtr=1,jpcspf
@@ -197,9 +199,8 @@ DO jtr=1,jpcspf
   tmprc(1:n_points,jtr) = prod(1:n_points,j) + slos(1:n_points,j)
 END DO
 
-residual_error = 0.0
-DO jl=1,n_points
-  DO jtr=1,jpcspf
+DO jtr=1,jpcspf
+  DO jl=1,n_points
     IF (ABS(tmprc(jl,jtr)) > f_min) THEN
       residual_error=MAX(residual_error,ABS(G_f(jl,jtr)/tmprc(jl,jtr)))
     END IF
@@ -438,10 +439,14 @@ DO iter=1,ukca_config%nrsteps
       IF (f(jl,jtr) > f_max) THEN
         ! Exit solver if chemical species is larger than f_max
         exit_code = 3
-        GO TO 9999
       END IF
     END DO
   END DO
+
+  ! moved outside of loop to allow parallelisation
+  IF (exit_code ==3) THEN
+    GO TO 9999
+  END IF
 
   CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
 

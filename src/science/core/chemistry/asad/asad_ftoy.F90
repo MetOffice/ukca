@@ -220,6 +220,21 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_FTOY'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+
+! initalise ints
+ifam = 0
+imaj = 0
+
+! initalise reals
+sl = 0.0
+zthresh = 2.0 / cdt
+
+! initialise arrays
+zy = 0.0
+zb = 0.0
+zc = 0.0
+zd = 0.0
+
 ! OMP CRITICAL will only allow one thread through this code at a time,
 ! while the other threads are held until completion.
 !$OMP CRITICAL (asad_ftoy_init)
@@ -320,21 +335,12 @@ END IF
 
 !       1.3 Initialise local variables and do sanity checks.
 
-DO j = 1, nstst
-  js = nlstst(j)
-  DO jl = 1, n_points
-    zy(jl,js) = 0.0
-  END DO
-END DO
-
 IF (ofirst .AND. iter < 5) THEN
   iter = 5
   icode = -1
   cmessage = 'iter too low on first call, resetting to 5'
   CALL ereport('ASAD_FTOY',icode,cmessage)
 END IF
-
-zthresh = 2.0 / cdt
 
 !       2.  Calculate self-reacting terms
 !           --------- ------------- -----

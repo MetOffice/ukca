@@ -495,7 +495,7 @@ DO k=1,model_levels
      !   - BE_hrc(:,1) rate for N2O5 on all aerosol surfaces except sea salts
      !   - BE_hrc(:,2) rate for N2O5 on sea_salt aerosol surfaces
      !
-     ! When hrc are derived using GLOMAP aerosols, BE_hrc represents the 
+     ! When hrc are derived using GLOMAP aerosols, BE_hrc represents the
      ! following:
      !   - BE_hrc(:,1) rate for N2O5 on all aerosol surfaces
      !   - BE_hrc(:,2) rate for HO2  on all aerosol surfaces
