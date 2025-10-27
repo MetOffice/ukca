@@ -1,8 +1,8 @@
 UKCA CONTRIBUTORS LIST
 
-NAME				INSTITUTION
+NAME                            INSTITUTION
 -------------------------------------------------------------------------------
-Nathan Luke Abraham		National Centre for Atmospheric Science and
+Nathan Luke Abraham             National Centre for Atmospheric Science and
                                 University of Cambridge
 Joseph Abram                    Met Office
 Thomas Bendall                  Met Office
@@ -22,18 +22,19 @@ Alan J Hewitt                   Met Office
 Jenny Hickson                   Met Office
 Ben Johnson                     Met Office
 Anthony Jones                   Met Office
+Florent Malavelle               Met Office
 Andy Malcolm                    Met Office
 Cameron McErlich                University of Canterbury
 Jane Mulcahy                    Met Office
 Charlotte Norris                Met Office
+Amy Peace                       Met Office
 Leighton Regayre                Met Office and University of Leeds
 John Rostron                    Met Office
+Pierre Siddall                  Met Office
 Roddy Sharp                     Met Office
 Marc Stringer                   National Centre for Atmospheric Science and
                                 University of Reading
-Joseph Wallwork                 University of Cambridge
-James Weber                     University of Sheffield
 Joao Teixeira                   Met Office
-Amy Peace                       Met Office
-Pierre Siddall                  Met Office
-Florent Malavelle               Met Office
+Joseph Wallwork                 University of Cambridge
+Robert Waters                   University of Cambridge
+James Weber                     University of Sheffield

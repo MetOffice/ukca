@@ -234,6 +234,9 @@ DO js = 1, jpspec
   nlmajmin(js)        = 0
   nldepd(js)          = 0
   nldepw(js)          = 0
+END DO
+
+DO js = 1, jpspec+6
   nldepx(js)          = 0
 END DO
 
