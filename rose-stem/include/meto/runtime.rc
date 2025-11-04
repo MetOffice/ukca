@@ -9,6 +9,12 @@
         execution time limit = PT2M
 
 
+    [[extract_source]]
+        inherit = SOURCE_EXTRACTION
+        platform = {{ROSE_ORIG_HOST}}
+        execution time limit = PT15M
+
+
 # Redefine site-independent SCRIPTS group
 # (normally found in runtime-common.rc, Done to enforce loading of
 # scitools  when running on MONSooN ; Python 3 is req'd by UMDP3 checker)
