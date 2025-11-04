@@ -1,7 +1,7 @@
 # Import site-specific queues
 
 {% if SITE == 'meto' %}
-%include 'include/meto/queues.rc'
+%include 'include/meto/queues.cylc'
 {% elif SITE == 'vm' %}
-%include 'include/vm/queues.rc'
+%include 'include/vm/queues.cylc'
 {% endif %}

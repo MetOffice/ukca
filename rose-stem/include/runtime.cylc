@@ -58,7 +58,7 @@ rsync -avz --exclude=".*" $SOURCE_DIRECTORY/* $hostname:$RELATIVE_SOURCE_DIRECTO
 ## Site-specific runtime definitions
 ###############################################################################
 {% if SITE == 'meto' %}
-%include 'include/meto/runtime.rc'
+%include 'include/meto/runtime.cylc'
 {% elif SITE == 'vm' %}
-%include 'include/vm/runtime.rc'
+%include 'include/vm/runtime.cylc'
 {% endif %}
