@@ -4,3 +4,8 @@
     [[SCRIPTS]]
         inherit = None, LINUX
         execution time limit = PT20M
+
+    [[extract_source]]
+        inherit = SOURCE_EXTRACTION
+        platform = localhost
+        execution time limit = PT15M

@@ -7,7 +7,7 @@
 ## Name graphs
 ###############################################################################
 {%- set name_graphs = {
-         "umdp3_check" : "umdp3_checker",
+         "umdp3_check" : "extract_source => umdp3_checker",
 } %}
 
 
