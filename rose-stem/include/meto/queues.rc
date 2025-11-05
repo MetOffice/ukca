@@ -2,7 +2,3 @@
 # In an attempt to limit the impact of rose stem on MONSooN we therefore limit
 # the number of script tasks.
 
-    [[queues]]
-        [[[linux_build]]]
-            limit = 2
-            members = METO_LINUX_BUILD
