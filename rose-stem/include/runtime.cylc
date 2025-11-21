@@ -8,11 +8,12 @@
 
     [[SOURCE_EXTRACTION]]
         post-script = """
+mkdir $CYLC_WORKFLOW_RUN_DIR/bin/
 cp $SOURCE_DIRECTORY/ukca/dependencies.yaml $CYLC_WORKFLOW_RUN_DIR
-cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/suite_report_git.py $CYLC_WORKFLOW_RUN_DIR/bin
-cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/suite_data.py $CYLC_WORKFLOW_RUN_DIR/bin
-cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/git_bdiff.py $CYLC_WORKFLOW_RUN_DIR/bin
-cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/get_git_sources.py $CYLC_WORKFLOW_RUN_DIR/bin
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/suite_report_git.py $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/suite_data.py $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/git_bdiff.py $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/get_git_sources.py $CYLC_WORKFLOW_RUN_DIR/bin/
 """
         [[[environment]]]
             ROSE_TASK_APP = extract_source
@@ -58,7 +59,7 @@ rsync -avz --exclude=".*" $SOURCE_DIRECTORY/* $hostname:$RELATIVE_SOURCE_DIRECTO
 ## Site-specific runtime definitions
 ###############################################################################
 {% if SITE == 'meto' %}
-%include 'include/meto/runtime.rc'
+%include 'include/meto/runtime.cylc'
 {% elif SITE == 'vm' %}
-%include 'include/vm/runtime.rc'
+%include 'include/vm/runtime.cylc'
 {% endif %}
