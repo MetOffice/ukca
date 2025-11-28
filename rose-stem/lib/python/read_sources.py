@@ -1,3 +1,9 @@
+##############################################################################
+# (c) Crown copyright 2025 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
 import yaml
 import tempfile
 import os
@@ -13,7 +19,7 @@ def get_dependencies_file(wc_loc):
     tempdir = tempfile.mkdtemp()
 
     try:
-        host, path = wc_loc.split(":")
+        host, path = wc_loc.split(":", 1)
         path = os.path.join(path, "dependencies.yaml")
         copy_command = f"scp -o StrictHostKeyChecking=no {host}:"
     except ValueError:
