@@ -1,5 +1,5 @@
 # Redefine site-independent SCRIPTS group
-# (normally found in runtime-common.rc)
+# (normally found in runtime-common.cylc)
 # Need to use python3 for this script
     [[SCRIPTS]]
         inherit = None, LINUX

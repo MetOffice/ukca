@@ -1,5 +1,4 @@
-UKCA
-====
+# UKCA
 
 UKCA (United Kingdom Chemistry and Aerosols Project) is a joint NCAS-Met Office
 programme part of the NERC-Met Office Joint Climate and Weather Research
