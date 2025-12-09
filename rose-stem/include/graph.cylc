@@ -5,7 +5,7 @@
 ###############################################################################
 
 {% if SITE == 'meto' %}
-%include 'include/meto/graph.rc'
+%include 'include/meto/graph.cylc'
 {% elif SITE == 'vm' %}
-%include 'include/vm/graph.rc'
+%include 'include/vm/graph.cylc'
 {% endif %}

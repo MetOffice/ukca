@@ -1,0 +1,65 @@
+###############################################################################
+## Common families
+###############################################################################
+
+# Family for all Linux jobs
+    [[LINUX]]
+        platform = localhost
+
+    [[SOURCE_EXTRACTION]]
+        post-script = """
+mkdir $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/ukca/dependencies.yaml $CYLC_WORKFLOW_RUN_DIR
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/suite_report_git.py $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/suite_data.py $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/git_bdiff.py $CYLC_WORKFLOW_RUN_DIR/bin/
+cp $SOURCE_DIRECTORY/SimSys_Scripts/github_scripts/get_git_sources.py $CYLC_WORKFLOW_RUN_DIR/bin/
+"""
+        [[[environment]]]
+            ROSE_TASK_APP = extract_source
+            DEPENDENCIES = {{dependencies}}
+            USE_MIRRORS = {{USE_MIRRORS}}
+            USE_TOKENS = {{USE_TOKENS}}
+        {% if USE_MIRRORS %}
+            {% if "GIT_MIRROR_LOC" in SITE_VARS %}
+            GIT_MIRROR_LOC = {{SITE_VARS.GIT_MIRROR_LOC}}
+            {% else %}
+                {{ raise(
+                    "Trying to run with mirrors without setting a mirror location. "
+                    "Ensure 'GIT_MIRROR_LOC' is included in SITE_VARS."
+                    ) }}
+            {% endif %}
+        {% endif %}
+
+    [[SOURCE_SYNC]]
+        script = """
+hostname=$(rose host-select $host 2>/dev/null || echo $host)
+echo "rsyncing source to $hostname"
+RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
+ssh $hostname mkdir -p $RELATIVE_SOURCE_DIRECTORY
+rsync -avz --exclude=".*" $SOURCE_DIRECTORY/* $hostname:$RELATIVE_SOURCE_DIRECTORY/
+"""
+
+# Family for extract jobs
+    [[EXTRACT]]
+    script = "rose task-run --verbose --define='args=--ignore-lock'"
+        [[[environment]]]
+
+# Family for housekeeping jobs
+# Accepts the environment variable DIR1, the directory to delete
+    [[HOUSEKEEPING]]
+{%- if HOUSEKEEPING == true %}
+        script = "rm -rf $DIR1"
+{%- else %}
+        script = "echo Housekeeping is off"
+{%- endif %}
+
+
+###############################################################################
+## Site-specific runtime definitions
+###############################################################################
+{% if SITE == 'meto' %}
+%include 'include/meto/runtime.cylc'
+{% elif SITE == 'vm' %}
+%include 'include/vm/runtime.cylc'
+{% endif %}

@@ -1,0 +1,11 @@
+# Redefine site-independent SCRIPTS group
+# (normally found in runtime-common.cylc)
+# Need to use python3 for this script
+    [[SCRIPTS]]
+        inherit = None, LINUX
+        execution time limit = PT20M
+
+    [[extract_source]]
+        inherit = SOURCE_EXTRACTION
+        platform = localhost
+        execution time limit = PT15M
