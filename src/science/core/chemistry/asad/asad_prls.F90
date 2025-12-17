@@ -219,8 +219,7 @@ DO jskip = 0, jpspec, jpspec
       i3 = nprdx3(3,j3,js)
 
       DO jl = 1, kl
-        pd(jl,js) = pd(jl,js)                                                  &
-                  + prk(jl,i1) + prk(jl,i2) + prk(jl,i3)
+        pd(jl,js) = pd(jl,js) + prk(jl,i1) + prk(jl,i2) + prk(jl,i3)
       END DO
     END DO
 
@@ -271,8 +270,7 @@ IF ( ldepem ) THEN
   DO j = istart, iend
     js = nldepx(j)
     DO  jl = 1, kl
-      slos(jl,js) = slos(jl,js) + ( dpd(jl,js) + dpw(jl,js) )                  &
-                                * y(jl,js)
+      slos(jl,js) = slos(jl,js) + ( dpd(jl,js) + dpw(jl,js) ) * y(jl,js)
     END DO
   END DO
 

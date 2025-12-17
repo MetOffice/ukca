@@ -189,7 +189,6 @@ LOGICAL :: ddmask(theta_field_size)           ! mask
 REAL, ALLOCATABLE :: ystore(:)    ! array for H2SO4 when updated in MODE
 REAL :: zftr(tot_n_pnts,jpcspf)   ! 1-D array of chemically active species
                                   !   including RO2 species, in VMR
-REAL :: cdot(tot_n_pnts,jpcspf)   ! 1-D chem. tendency
 REAL :: zq(tot_n_pnts)            ! 1-D water vapour vmr
 REAL :: co2_1d(tot_n_pnts)        ! 1-D CO2
 REAL :: zprt1d(tot_n_pnts,jppj)   ! 1-D photolysis rates for ASAD
@@ -374,8 +373,8 @@ END IF
 ! Note: unlike in the other chemistry_ctl variants, here we call asad_cdrive
 ! once, passing in all data points from the current MPI process.
 
-CALL asad_cdrive(cdot, zftr, pres, temp, zq, co2_1d, cloud_frac, qcl, ix, jy,  &
-                 k, zdryrt2, zwetrt, rc_het, zprt1d, tot_n_pnts, have_nat,     &
+CALL asad_cdrive(zftr, pres, temp, zq, co2_1d, cloud_frac, qcl, ix, jy, k,     &
+                 zdryrt2, zwetrt, rc_het, zprt1d, tot_n_pnts, have_nat,        &
                  stratflag, H_plus)
 
 IF (ukca_config%l_ukca_het_psc) THEN

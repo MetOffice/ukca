@@ -207,7 +207,6 @@ REAL :: zp  (model_levels)        ! 1-D pressure
 REAL :: zt  (model_levels)        ! 1-D temperature
 REAL :: zclw(model_levels)        ! 1-D cloud liquid water
 REAL :: zfcloud(model_levels)     ! 1-D cloud fraction
-REAL :: cdot(model_levels,jpcspf) ! 1-D chem. tendency
 REAL :: zq(model_levels)          ! 1-D water vapour vmr
 REAL :: co2_1d(model_levels)      ! 1-D CO2 vmr
 REAL :: zprt1d(model_levels,jppj) ! 1-D photolysis rates for ASAD
@@ -280,8 +279,7 @@ END IF
 
 ! Model levels loop
 !$OMP PARALLEL DEFAULT(NONE)                                                   &
-!$OMP PRIVATE(cdot, cmessage, errcode, i, ierr,                                &
-!$OMP         j, js, l, rc_het, stratflag,                                     &
+!$OMP PRIVATE(cmessage, errcode, i, ierr, j, js, l, rc_het, stratflag,         &
 !$OMP         ystore, zclw, zdryrt2, zfcloud, zftr, have_nat1d,                &
 !$OMP         zp, zprt1d, zq, zt, co2_1d, zwetrt2,                             &
 !$OMP         kcs, kce, chunk_size, dpd_full, dpw_full,                        &
@@ -495,8 +493,7 @@ DO i=1,rows
         END IF
 
         ! Call asad_cdrive with segmented arrays
-        CALL asad_cdrive(cdot(kcs:kce,:),                                      &
-                         zftr(kcs:kce,:),                                      &
+        CALL asad_cdrive(zftr(kcs:kce,:),                                      &
                          zp(kcs:kce),                                          &
                          zt(kcs:kce),                                          &
                          zq(kcs:kce),                                          &
