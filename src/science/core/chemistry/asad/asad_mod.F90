@@ -166,7 +166,6 @@ REAL, ALLOCATABLE :: frpj(:)         ! fractional product array (phot)
 REAL, ALLOCATABLE :: frph(:)         ! fractional product array (het)
 REAL, ALLOCATABLE :: frpx(:)         ! fractional product array (total)
 ! sparse algebra
-INTEGER, ALLOCATABLE :: nonzero_map_unordered(:,:)  ! Map of nonzero entries
 INTEGER, ALLOCATABLE :: modified_map(:,:) ! modified map (after decomposition)
 INTEGER, ALLOCATABLE :: nonzero_map(:,:)
                                     ! Map of nonzero entries, before reordering
@@ -542,8 +541,6 @@ nitfg   = 10            ! Max number of iterations in ftoy
 njcoth(:,:) = 0
 
 IF (method == int_method_NR) THEN
-  IF (.NOT. ALLOCATED(nonzero_map_unordered))                                  &
-      ALLOCATE(nonzero_map_unordered(jpcspf, jpcspf))
   IF (.NOT. ALLOCATED(modified_map))  ALLOCATE(modified_map(jpcspf, jpcspf))
   IF (.NOT. ALLOCATED(nonzero_map))  ALLOCATE(nonzero_map(jpcspf, jpcspf))
   IF (.NOT. ALLOCATED(reorder))  ALLOCATE(reorder(jpcspf))

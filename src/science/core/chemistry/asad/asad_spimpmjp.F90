@@ -255,8 +255,7 @@ SUBROUTINE asad_spimpmjp(exit_code, ix, jy, nlev, n_points, location,          &
                          solver_iter)
 
 USE asad_mod,           ONLY: ptol, peps, cdt, f, fdot, nitnr, nstst, y,       &
-                              fj, nonzero_map, ltrig, jpcspf, spfj,            &
-                              modified_map, nonzero_map_unordered
+                              fj, nonzero_map, ltrig, jpcspf, spfj
 USE asad_sparse_vars,   ONLY: setup_spfuljac, spfuljac, spresolv2, splinslv2
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE yomhook,            ONLY: lhook, dr_hook
@@ -375,7 +374,7 @@ IF (first_pass) THEN
 END IF
 !$OMP END CRITICAL (setup_jacobian_init)
 
-CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
+CALL spfuljac(n_points,cdt,f_min,spfj)
 
 ! Call forward Euler to make first guess, f_0 for f(t=n+1) (next timestep)
 CALL forward_euler(n_points, f, f_initial, f_min, nonzero_map, spfj)
@@ -443,7 +442,7 @@ DO iter=1,ukca_config%nrsteps
     END DO
   END DO
 
-  CALL spfuljac(n_points,cdt,f_min,nonzero_map,spfj)
+  CALL spfuljac(n_points,cdt,f_min,spfj)
 
   IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
     WRITE(umMessage,"('Iteration ',i4)") iter
@@ -465,8 +464,7 @@ DO iter=1,ukca_config%nrsteps
     END DO
   END IF
 
-  CALL splinslv2(n_points,G_f,f_incr,f_min,f_max,nonzero_map_unordered,        &
-                    modified_map,spfj)
+  CALL splinslv2(n_points,G_f,f_incr,f_min,f_max,spfj)
 
   IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
     DO jl=1,n_points
@@ -560,7 +558,7 @@ DO iter=1,ukca_config%nrsteps
         G_ftmp(jl,:) = G_f(jl,:)*(1.0 - coeff)
       END DO
 
-      CALL spresolv2(n_points,G_ftmp,f_incr,f_min,modified_map,spfj,max_val)
+      CALL spresolv2(n_points,G_ftmp,f_incr,f_min,spfj,max_val)
 
       f = f + f_incr
       ! remove negative values. Does not need to be done in

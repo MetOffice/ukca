@@ -117,6 +117,7 @@ USE ukca_um_legacy_mod,  ONLY: mype
 
 USE errormessagelength_mod, ONLY: errormessagelength
 
+! TODO: This import will become redundant
 USE asad_diffun_mod, ONLY: asad_diffun
 USE asad_spimpmjp_mod, ONLY: asad_spimpmjp
 USE asad_ftoy_mod, ONLY: asad_ftoy
