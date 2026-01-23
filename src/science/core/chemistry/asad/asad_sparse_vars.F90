@@ -281,6 +281,7 @@ DO i = 1, jpcspf
 END DO
 
 ! Determine permutation matrix P
+IF (.NOT. ALLOCATED(permute)) ALLOCATE(permute(jpcspf,jpcspf))
 permute(:,:) = 0
 DO i = 1, jpcspf
   permute(i,reorder(i)) = 1
@@ -323,7 +324,7 @@ DO kr = 1, jpcspf
   END DO
 END DO
 
-! ! Perform error check outside of the loop to better suit GPU runs
+! Perform error check outside of the loop to better suit GPU runs
 IF (total1 > spfjsize_max) THEN
   errcode = total1
   WRITE(umMessage,'(A,2I4)') 'Total1 exceeded spfjsize_max: ', total1,         &
@@ -455,7 +456,7 @@ USE asad_mod, ONLY: ctype, deriv, dpd, dpw, f, jpcspf, jpfm, jpif, jpmsp,      &
                     jpspec, linfam, madvtr, moffam, ndepd, ndepw, njcoth,      &
                     nmsjac, nodd, nsjac1, nstst, ntro3, prk, spfjsize_max,     &
                     nposterms, nnegterms, nfracterms, posterms, negterms,      &
-                    fracterms, base_tracer, ffrac, y, total, nonzero_map
+                    fracterms, base_tracer, ffrac, y, total
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 
@@ -757,7 +758,7 @@ SUBROUTINE spresolv2(n_points, bb, xx, min_pivot, modified_map, spfj, max_val)
 ! Part (c) back-substitution: find z where U z = w
 ! Part (d) determine x, apply transpose(P) to z, P'z = x
 
-USE asad_mod, ONLY: jpcspf, modified_map, reorder, spfjsize_max
+USE asad_mod, ONLY: jpcspf, reorder, spfjsize_max
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 
@@ -768,6 +769,7 @@ INTEGER, INTENT(IN)  :: n_points
 REAL,    INTENT(IN)  :: bb(n_points,jpcspf)
 REAL,    INTENT(OUT) :: xx(n_points,jpcspf)
 REAL,    INTENT(IN)  :: min_pivot
+INTEGER, INTENT(IN)  :: modified_map(jpcspf,jpcspf)
 REAL,    INTENT(IN)  :: spfj(n_points,spfjsize_max)
 
 ! Maximum tolerated value for use in filtering step. Unused if negative
