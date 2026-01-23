@@ -628,6 +628,8 @@ REAL, INTENT(IN OUT)    :: bb(n_points,jpcspf)
 REAL, INTENT(OUT)       :: xx(n_points,jpcspf)
 REAL, INTENT(IN)        :: min_pivot
 REAL, INTENT(IN)        :: max_val
+INTEGER, INTENT(IN)     :: permuted_nonzero_map(jpcspf,jpcspf)
+INTEGER, INTENT(IN OUT) :: modified_map(jpcspf,jpcspf)
 REAL, INTENT(IN OUT)    :: spfj(1:n_points,1:spfjsize_max)
 
 ! Local variables
