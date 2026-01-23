@@ -261,6 +261,7 @@ END DO
 DO i = 1, jpcspf-1
   DO j = i+1, jpcspf
     IF (activity(i) > activity(j)) THEN
+      ! exchange i and j tracers if i is more active than j.
       itemp1 = reorder(i)
       reorder(i) = reorder(j)
       reorder(j) = itemp1
@@ -322,6 +323,7 @@ DO kr = 1, jpcspf
   END DO
 END DO
 
+! ! Perform error check outside of the loop to better suit GPU runs
 IF (total1 > spfjsize_max) THEN
   errcode = total1
   WRITE(umMessage,'(A,2I4)') 'Total1 exceeded spfjsize_max: ', total1,         &
@@ -463,6 +465,7 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: n_points
 REAL, INTENT(IN)    :: cdt
 REAL, INTENT(IN)    :: min_pivot
+INTEGER, INTENT(IN) :: nonzero_map(jpcspf,jpcspf)
 REAL, INTENT(OUT)   :: spfj(n_points,spfjsize_max)
 
 ! Local variables
