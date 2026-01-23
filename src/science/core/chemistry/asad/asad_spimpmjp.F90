@@ -257,7 +257,7 @@ SUBROUTINE asad_spimpmjp(exit_code, ix, jy, nlev, n_points, location,          &
 
 USE asad_mod,           ONLY: ptol, peps, cdt, f, fdot, nitnr, nstst, y,       &
                               fj, nonzero_map, ltrig, jpcspf, spfj,            &
-                              modified_map, nonzero_map_unordered
+                              modified_map, permuted_nonzero_map
 USE asad_sparse_vars,   ONLY: setup_spfuljac, spfuljac, spresolv2, splinslv2
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE yomhook,            ONLY: lhook, dr_hook
@@ -470,8 +470,8 @@ DO iter=1,ukca_config%nrsteps
     END DO
   END IF
 
-  CALL splinslv2(n_points,G_f,f_incr,f_min,f_max,nonzero_map_unordered,        &
-                    modified_map,spfj)
+  CALL splinslv2(n_points,G_f,f_incr,f_min,f_max,permuted_nonzero_map,         &
+                 modified_map,spfj)
 
   IF (ltrig .AND. printstatus == PrStatus_Diag) THEN
     DO jl=1,n_points

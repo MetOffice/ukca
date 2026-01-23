@@ -81,20 +81,21 @@ SUBROUTINE setup_spfuljac()
 !
 ! 1. Create nonzero_map(1:jpcspf,1:jpcspf) and base_tracer(1:spfjsize_max)
 !
-!    nonzero_map(1:jpcspf,1:jpcspf) is an integer indexing array such that
-!    spfj(nonzero_map(i,j)) = A(i,j) where A is dense Jacobian matrix and
-!    spfj is the compressed (sparse) storage of the dense Jacobian matrix.
+!    nonzero_map(1:jpcspf,1:jpcspf) is an integer indexing array such that, for
+!    a given species index jl, spfj(jl,nonzero_map(i,j)) = A(i,j) where A is
+!    the dense Jacobian matrix for species jl and spfj is the compressed
+!    (sparse) storage of the dense Jacobian matrix.
 !
-! 2. Create nonzero_map_unordered(1:jpcspf,1:jpcspf)
+! 2. Create permuted_nonzero_map(1:jpcspf,1:jpcspf)
 !
-!    nonzero_map_unordered(1:jpcspf,1:jpcspf) is an integer indexing array such
-!    that spfj(nonzero_map_unordered(i,j)) = (PAP')(i,j) where (PAP')(i,j) is
+!    permuted_nonzero_map(1:jpcspf,1:jpcspf) is an integer indexing array such
+!    that spfj(jl,permuted_nonzero_map(i,j)) = (PAP')(i,j) where (PAP')(i,j) is
 !    the (i,j) entry of the matrix matmul(P,matmul(A,transpose(P))) where P is
 !    the permutation matrix and A is the dense Jacobian.
 !
 ! 3. Check number of nonzero entries in LU factorization of the dense Jacobian
 !
-!    Gaussian-elimination is used to solve a linear equation in splinslv2 and
+!    Gaussian elimination is used to solve a linear equation in splinslv2 and
 !    the array spfj is used to hold the LU factorization. This section checks
 !    that when this LU factorization is done the spfj array is sufficiently
 !    large enough to hold the nonzero entries of the LU factorization.
@@ -106,7 +107,7 @@ SUBROUTINE setup_spfuljac()
 
 USE asad_mod, ONLY: specf, frpx, jpcspf, jpfrpx, jpmsp, jpspec,                &
                     madvtr, modified_map, ndepd, ndepw, nfrpx, njcoth, nltrf,  &
-                    nmsjac, nmzjac, nonzero_map, nonzero_map_unordered,        &
+                    nmsjac, nmzjac, nonzero_map, permuted_nonzero_map,         &
                     npdfr, nsjac1, nstst, ntabpd, ntrf, ntro3, nzjac1,         &
                     reorder, spfjsize_max, maxterms, maxfterms,                &
                     nposterms, nnegterms, nfracterms, posterms, negterms,      &
@@ -183,10 +184,9 @@ DO jc = 1, ntrf
       IF (ij /= 0) map(ij,itrcr) = 1
     END DO
     !
-    IF (npdfr(irj,1) /= 0) THEN
-      i1 = npdfr(irj,1)
-      i2 = npdfr(irj,2)
-      DO jn = i1, i2
+    i1 = npdfr(irj,1)
+    IF (i1 /= 0) THEN
+      DO jn = i1, npdfr(irj,2)
         isx = ntabpd(jn,1)
         map(isx,itrcr) = 1
       END DO
@@ -241,15 +241,15 @@ DO i = 1, jpcspf
 END DO
 
 base_tracer(:) = 0
-DO i = 1, jpcspf
-  DO j = 1, jpcspf
-    i1 = nonzero_map(j,i)
-    IF (i1 > 0) base_tracer(i1) = i
+DO j = 1, jpcspf
+  DO i = 1, jpcspf
+    i1 = nonzero_map(i,j)
+    IF (i1 > 0) base_tracer(i1) = j
   END DO
 END DO
 
 ! ------------------------------------------------------------------------------
-! Section 2: Create nonzero_map_unordered (index array for PAP')
+! Section 2: Create permuted_nonzero_map (index array for PAP')
 ! ------------------------------------------------------------------------------
 
 ! Reorder species by their reactivity to minimize fill-in
@@ -280,19 +280,19 @@ DO i = 1, jpcspf
   END IF
 END DO
 
-! reorganize pointer variable to account for varying fill-in
+! Determine permutation matrix P
 IF (.NOT. ALLOCATED(permute)) ALLOCATE(permute(jpcspf,jpcspf))
-
 permute(:,:) = 0
 DO i = 1, jpcspf
   permute(i,reorder(i)) = 1
 END DO
 
-! Calculate the index array nonzero_map_unordered such that
-! spfj(nonzero_map_unordered(i,j)) = P*A*P'(i,j)
-! where P is the permutation matrix and A is the dense Jacobian matrix
-! with spfj the compressed storage (sparse) array for matrix A.
-nonzero_map_unordered = MATMUL(MATMUL(permute, nonzero_map), TRANSPOSE(permute))
+! Calculate the index array permuted_nonzero_map such that
+!   spfj(jl,permuted_nonzero_map(i,j)) = P*A*P'(i,j)
+! for each chemical species jl where P is the permutation matrix and A is the
+! dense Jacobian matrix with spfj the compressed storage (sparse) array for
+! matrix A.
+permuted_nonzero_map = MATMUL(MATMUL(permute, nonzero_map), TRANSPOSE(permute))
 
 IF (ALLOCATED(permute)) DEALLOCATE(permute)
 IF (ALLOCATED(map))     DEALLOCATE(map)
@@ -304,7 +304,7 @@ IF (ALLOCATED(map))     DEALLOCATE(map)
 ! Calculate the number of nonzero matrix elements in the LU factorization of the
 ! array PAP' and check that it is less than spfjsize_max.
 total1 = total
-modified_map(:,:) = nonzero_map_unordered(:,:)
+modified_map(:,:) = permuted_nonzero_map(:,:)
 DO kr = 1, jpcspf
   DO i = kr+1, jpcspf
     ikr = modified_map(i,kr)
@@ -313,8 +313,7 @@ DO kr = 1, jpcspf
         krj = modified_map(kr,j)
         IF (krj > 0) THEN
           ij = modified_map(i,j)
-          ! Distinguish whether matrix element is zero or not. If not, proceed
-          ! as in dense case. If it is, create new matrix element.
+          ! If the matrix entry is zero then create new matrix element.
           IF (ij <= 0) THEN
             total1 = total1 + 1
             modified_map(i,j) = total1
@@ -561,9 +560,9 @@ IF ((ndepw /= 0) .OR. (ndepd /= 0)) THEN
   DO js = 1, jpspec
     ifamd = moffam(js)
     itrd = madvtr(js)
-    ityped = ctype(js)
     !
     IF (ifamd /= 0) THEN
+      ityped = ctype(js)
       p = nonzero_map(ifamd,ifamd)
       DO jl = 1, n_points
         IF ((ityped == jpfm) .OR. ((ityped == jpif) .AND. linfam(jl,itrd))) THEN
@@ -594,7 +593,7 @@ END SUBROUTINE spfuljac
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 SUBROUTINE splinslv2(n_points, bb, xx, min_pivot, max_val,                     &
-                     nonzero_map_unordered, modified_map, spfj)
+                     permuted_nonzero_map, modified_map, spfj)
 
 USE asad_mod, ONLY: jpcspf, spfjsize_max, total
 USE parkind1, ONLY: jprb, jpim
@@ -629,12 +628,11 @@ REAL, INTENT(IN OUT)    :: bb(n_points,jpcspf)
 REAL, INTENT(OUT)       :: xx(n_points,jpcspf)
 REAL, INTENT(IN)        :: min_pivot
 REAL, INTENT(IN)        :: max_val
-INTEGER, INTENT(IN)     :: nonzero_map_unordered(jpcspf,jpcspf)
+INTEGER, INTENT(IN)     :: permuted_nonzero_map(jpcspf,jpcspf)
 INTEGER, INTENT(IN OUT) :: modified_map(jpcspf,jpcspf)
 REAL, INTENT(IN OUT)    :: spfj(1:n_points,1:spfjsize_max)
 
 ! Local variables
-INTEGER :: total1    ! total number of nonzero entries in Jacobian
 INTEGER :: kr
 INTEGER :: jl
 INTEGER :: i
@@ -643,11 +641,9 @@ INTEGER :: ikr
 INTEGER :: krj
 INTEGER :: ij
 
-REAL :: bb1(n_points,jpcspf)
-REAL :: xx1(n_points,jpcspf)
-
+REAL :: multiplier(n_points)
 REAL :: pivot(n_points)
-REAL :: kfact(n_points)
+REAL :: lower(n_points)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -656,6 +652,10 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='SPLINSLV2'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! NOTE: splinslv2 is always preceded by spfuljac, which computes spfj to be a
+!       sparse (compressed) representation of the Jacobian matrix for each
+!       species.
 
 ! Filter sparse Jacobian
 #if defined(IBM_XL_FORTRAN)
@@ -676,35 +676,46 @@ END DO
 
 
 ! Section 1: Determine L U factors such that L U = P A P'
-! The L U factors are overwritten onto the original sparse Jacobian array
-total1 = total
-modified_map(:,:) = nonzero_map_unordered(:,:)
+!
+! The L U factors are overwritten onto the original sparse Jacobian array. That
+! is, for each species index jl, the upper triangular part of the matrix
+! represented by spfj(jl,:) holds the U factor and the strictly lower triangular
+! part holds the L factor below its unit diagonal.
+
+! Loop over rows for pivoting
 DO kr = 1, jpcspf
-  pivot(:) = spfj(:,modified_map(kr,kr))
-  WHERE (ABS(pivot) > min_pivot)
-    pivot(:) = 1.0 / pivot
+
+  ! The multipliers are the diagonal entries for each species
+  multiplier(:) = spfj(:,modified_map(kr,kr))
+
+  ! Determine the pivot for each species using a threshold
+  WHERE (ABS(multiplier) > min_pivot)
+    pivot(:) = 1.0 / multiplier
   ELSE WHERE
     pivot(:) = max_val
   END WHERE
-  !        PIVOT = 1./spfj(:,modified_map(kr,kr))
+
+  ! Loop over non-zero entries in the lower-diagonal part of column kr
   DO i = kr+1, jpcspf
     ikr = modified_map(i,kr)
     IF (ikr > 0) THEN
-      kfact = spfj(:,ikr)*pivot
-      spfj(:,ikr) = kfact
+
+      ! Compute contribution to the lower diagonal part and store it in spfj
+      lower(:) = spfj(:,ikr)*pivot
+      spfj(:,ikr) = lower
+
+      ! Loop over non-zero entries in the upper-diagonal part of row kr
       DO j = kr+1, jpcspf
         krj = modified_map(kr,j)
         IF (krj > 0) THEN
+
+          ! Compute the contribution towards the upper triangular part and store
+          ! it in the upper-diagonal part of spfj
+          ! NOTE: We can rely on the entry being nonzero because the sparsity
+          ! pattern was pre-computed.
           ij = modified_map(i,j)
-          ! Distinguish whether matrix element is zero or not. If not, proceed
-          ! as in dense case. If it is, create new matrix element.
-          IF (ij > 0) THEN
-            spfj(:,ij) = spfj(:,ij) - kfact*spfj(:,krj)
-          ELSE
-            total1 = total1 + 1
-            modified_map(i,j) = total1
-            spfj(:,total1) = -kfact*spfj(:,krj)
-          END IF
+          spfj(:,ij) = spfj(:,ij) - lower*spfj(:,krj)
+
         END IF
       END DO
     END IF
@@ -714,14 +725,14 @@ END DO
 ! Filter sparse Jacobian
 #if defined(IBM_XL_FORTRAN)
 ! Version optimised for IBM by using the fsel IBM-only intrinsic
-DO j = 1, total1
+DO j = 1, total
   DO jl = 1, n_points
     tmp = fsel(spfj(jl,j)+max_val, spfj(jl,j), -max_val)
     spfj(jl,j) = fsel(tmp-max_val, max_val, tmp)
   END DO
 END DO
 #else
-DO j = 1, total1
+DO j = 1, total
   DO jl = 1, n_points
     spfj(jl,j) = MIN(MAX(spfj(jl,j), -max_val), max_val)
   END DO
