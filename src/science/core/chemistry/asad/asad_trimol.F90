@@ -112,6 +112,13 @@ in2o5   = 0
 ino2no3 = 0
 idmsoho2_a = 0
 idmsoho2_b = 0
+
+nf2 = 0.0
+zfc = 0.0
+zr =  0.0
+zi = 0.0
+zo = 0.0
+
 CALL oneover_v(n_points, t, inv_t)
 
 ! OMP CRITICAL will only allow one thread through this code at a time,

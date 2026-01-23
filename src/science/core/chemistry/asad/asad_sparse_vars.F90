@@ -147,9 +147,11 @@ INTEGER :: ij
 INTEGER :: itemp1
 INTEGER :: activity(jpcspf)
 
-INTEGER :: permute(jpcspf,jpcspf)               ! permutation matrix
-INTEGER :: map(jpcspf,jpcspf)                   ! sparsity pattern of Jacobian
 INTEGER :: permuted_nonzero_map(jpcspf,jpcspf)  ! permuted map of nonzeros
+INTEGER, ALLOCATABLE :: permute(:,:)  ! permutation matrix
+INTEGER, ALLOCATABLE :: map(:,:)      ! a matrix of 1's indicating where the
+                                      ! dense Jacobian A(i,j) has nonzero
+                                      ! entries
 
 CHARACTER(LEN=errormessagelength) :: cmessage
 
@@ -165,6 +167,8 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! Section 1: Create nonzero_map (index array for Jacobian matrix) and
 !            base_tracer
 ! ------------------------------------------------------------------------------
+
+IF (.NOT. ALLOCATED(map)) ALLOCATE(map(jpcspf, jpcspf))
 
 map(:,:) = 0
 DO i = 1, jpcspf
@@ -254,6 +258,7 @@ DO i = 1, jpcspf
   activity(i) = SUM(map(:,i)) + SUM(map(i,:))
   reorder(i) = i
 END DO
+
 DO i = 1, jpcspf-1
   DO j = i+1, jpcspf
     IF (activity(i) > activity(j)) THEN
@@ -287,6 +292,9 @@ END DO
 ! dense Jacobian matrix with spfj the compressed storage (sparse) array for
 ! matrix A.
 permuted_nonzero_map = MATMUL(MATMUL(permute, nonzero_map), TRANSPOSE(permute))
+
+IF (ALLOCATED(permute)) DEALLOCATE(permute)
+IF (ALLOCATED(map))     DEALLOCATE(map)
 
 ! ------------------------------------------------------------------------------
 ! Section 3: Check the number of nonzero elements in LU factorization
@@ -438,7 +446,7 @@ END SUBROUTINE setup_spfuljac
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE spfuljac(n_points, cdt, min_pivot, spfj)
+SUBROUTINE spfuljac(n_points, cdt, min_pivot, nonzero_map, spfj)
 !
 !  Routine to calculate the Jacobian in sparse format
 !
@@ -581,9 +589,10 @@ END SUBROUTINE spfuljac
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE splinslv2(n_points, bb, xx, min_pivot, max_val, spfj)
+SUBROUTINE splinslv2(n_points, bb, xx, min_pivot, max_val,                     &
+                     permuted_nonzero_map, modified_map, spfj)
 
-USE asad_mod, ONLY: jpcspf, modified_map, spfjsize_max, total
+USE asad_mod, ONLY: jpcspf, spfjsize_max, total
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
 
@@ -727,7 +736,7 @@ END DO
 
 
 ! Section 2: Solve P A P' z = P b with P'z = x using L U z = P b
-CALL spresolv2(n_points, bb, xx, min_pivot, spfj, max_val)
+CALL spresolv2(n_points, bb, xx, min_pivot, modified_map, spfj, max_val)
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
@@ -735,7 +744,7 @@ END SUBROUTINE splinslv2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-SUBROUTINE spresolv2(n_points, bb, xx, min_pivot, spfj, max_val)
+SUBROUTINE spresolv2(n_points, bb, xx, min_pivot, modified_map, spfj, max_val)
 
 ! This subroutine determines x where L U z = P b with P' z = x
 ! The L U factors are supplied to this routine and contained with spfj array.
@@ -761,6 +770,7 @@ REAL,    INTENT(IN)  :: spfj(n_points,spfjsize_max)
 
 ! Maximum tolerated value for use in filtering step. Unused if negative
 REAL,    INTENT(IN)  :: max_val
+
 
 INTEGER :: kr
 INTEGER :: i

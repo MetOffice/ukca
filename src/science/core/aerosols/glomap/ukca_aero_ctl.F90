@@ -398,7 +398,7 @@ REAL :: a3d_tmp(row_length, rows, model_levels) ! temporary 3D array re-used
 INTEGER, PARAMETER :: nhet = 2
 ! Number of heterogeneous reaction rates
 
-INTEGER, PARAMETER :: nmts = 1
+INTEGER :: nmts
 ! No. of microphysical sub-steps per DTC
 INTEGER :: nzts
 ! No. of condensation-nucleation competition sub-steps per DTM
@@ -890,6 +890,20 @@ IF (l_dust_mp_slinn_impc_scav) CALL ukca_impc_scav_dust_init(verbose)
 ! is called from UKCA_COAGWITHNUCL to check that mdt remains with upper and
 ! lower limits with nd and md reset to their defaults for exceptions.
 iextra_checks = 2
+! set NMTS depending on input settings
+nmts = 1
+#if defined(LFRIC)
+IF (glomap_config%i_mode_setup == 6 .AND.                                      &
+     .NOT. glomap_config%l_dust_mp_ageing) THEN
+  ! In principle, the microphysics is not required under these settings, so
+  ! setting nmts=0 excludes the microphysics loop in aero_step.
+  ! However, there are some checks applied as part of this loop. These checks
+  ! are not required in LFRic because they happen as part of the glomap_clim
+  ! interface, whereas they are required in the UM
+  nmts = 0
+END IF
+#endif
+
 ! set NZTS according to i_mode_nzts setting
 nzts = glomap_config%i_mode_nzts
 IF (firstcall .AND. verbose > 0) THEN
@@ -1003,7 +1017,7 @@ IF (firstcall .AND. verbose > 0) THEN
 END IF
 
 !
-dtm = dtc/REAL(nmts)
+dtm = dtc/MAX(REAL(nmts),1.0)
 dtz = dtm/REAL(nzts)
 field_size = row_length*rows
 field_size3d = field_size*model_levels
@@ -1348,7 +1362,7 @@ END IF
 !$OMP nmax_mode_diags,nmr_index,nucl_on, nseg,nukca_d1items,                   &
 !$OMP wetox_on, cond_on, coag_on,                                              &
 !$OMP fine_no3_prod_on, coarse_no3_prod_on, hno3_uptake_coeff,                 &
-!$OMP num_eps, nzts, p_bdrs, pres, q,                                          &
+!$OMP num_eps, nmts, nzts, p_bdrs, pres, q,                                    &
 !$OMP rainout_on, rgas, rh3d, rh3d_clr, root2, row_length, rows,               &
 !$OMP sea_ice_frac, scale_delso2, sigmag, stride_s, temp, u_s,                 &
 !$OMP ukca_config, ukcaD1codes, verbose, verbose_local,                        &
@@ -2355,6 +2369,9 @@ DO ik = 1, nseg
     END IF
   END DO
 
+#if !defined(LFRIC)
+  ! This code is not required in LFRic, because the jones cdnc is handled
+  ! as part of the glomap_clim interface
   !----------------------------------------------------
   CALL ukca_cdnc_jones(nbs, act, seg_drydp, seg_nd,                            &
                        glomap_variables, seg_ccn_1, seg_cdn)
@@ -2364,6 +2381,10 @@ DO ik = 1, nseg
   ! Update DRYDP and DVOL after AERO_STEP and updation of MD
   CALL ukca_calc_drydiam(nbs, glomap_variables,                                &
                          seg_nd, seg_md, seg_mdt, seg_drydp, seg_dvol)
+#else
+  seg_ccn_1 = 0.0
+  seg_cdn = 0.0
+#endif
 
   IF (verbose > 1) THEN
 

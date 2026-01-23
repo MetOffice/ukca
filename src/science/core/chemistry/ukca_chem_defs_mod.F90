@@ -253,13 +253,15 @@ TYPE(ratt_t1),  ALLOCATABLE, PUBLIC, SAVE :: ratt_defs_new(:)
 REAL,           ALLOCATABLE, PUBLIC, SAVE :: depvel_defs_new(:,:,:)
 REAL,           ALLOCATABLE, PUBLIC, SAVE :: henry_defs_new(:,:)
 
-! List of photolysis file/variable names required for the UKCA configuration
+! List of photolysis file/variable names and yield required for the
+! UKCA configuration
 CHARACTER(LEN=10), ALLOCATABLE, TARGET, SAVE :: ratj_varnames(:)
 CHARACTER(LEN=10), ALLOCATABLE, TARGET, SAVE :: ratj_data(:,:)
+REAL, ALLOCATABLE, TARGET, SAVE :: ratj_jfacta(:)
 
 CONTAINS
 
-SUBROUTINE ukca_get_photol_reaction_data(data_ptr, varnames_ptr)
+SUBROUTINE ukca_get_photol_reaction_data(data_ptr, varnames_ptr, jfacta_ptr)
 !
 ! Purpose: UKCA API subroutine, used to pass photolysis chemistry reaction
 ! data from ratj_defs to parent model
@@ -272,6 +274,9 @@ IMPLICIT NONE
 ! Subroutine arguments
 CHARACTER(LEN=10), POINTER, INTENT(OUT) :: data_ptr(:,:)
 CHARACTER(LEN=photol_varname_len), POINTER, INTENT(OUT) :: varnames_ptr(:)
+! Yield rates- optional for backward compatibility for parent models calling
+! this routine.
+REAL, POINTER, OPTIONAL, INTENT(OUT) :: jfacta_ptr(:)
 
 ! Local variables
 INTEGER :: i
@@ -298,9 +303,19 @@ IF (.NOT. ALLOCATED(ratj_varnames)) THEN
   END DO
 END IF
 
-! Assign pointers to the data list and variable list
+! Assign pointers to the data list, variable list and quantum yields (optional)
 data_ptr => ratj_data(:,:)
 varnames_ptr => ratj_varnames(:)
+
+IF (PRESENT(jfacta_ptr)) THEN
+  IF (.NOT. ALLOCATED(ratj_jfacta)) THEN
+    ALLOCATE(ratj_jfacta(jppj))
+    DO i = 1, jppj
+      ratj_jfacta(i) = ratj_defs(i)%jfacta
+    END DO
+  END IF
+  jfacta_ptr => ratj_jfacta(:)
+END IF
 
 RETURN
 END SUBROUTINE ukca_get_photol_reaction_data

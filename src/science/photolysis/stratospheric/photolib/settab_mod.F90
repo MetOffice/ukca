@@ -36,7 +36,7 @@ CONTAINS
 SUBROUTINE settab(alt,altc,do2c,do3c,tempc,                                    &
   drsc,tabs,tabang,albedo,lscat,                                               &
   tspo2,scs,ao2,ao2sr,ao3,dalt)
-USE planet_constants_mod, ONLY: planet_radius
+USE photol_constants_mod, ONLY: planet_radius => const_planet_radius
 USE ukca_parpho_mod, ONLY: jplevp1, jplev, jpchi, jps90, jpchin,               &
                            jpwav, jplo, jphi, jps90
 ! Module procedures

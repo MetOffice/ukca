@@ -41,7 +41,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName='ACSNO_MOD'
 
 CONTAINS
 SUBROUTINE acsno(angle,p,vc,ano)
-USE conversions_mod, ONLY: pi_over_180
+USE photol_constants_mod, ONLY: pi_over_180 => const_pi_over_180
 USE ukca_parpho_mod, ONLY: jpwav
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook

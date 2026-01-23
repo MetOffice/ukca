@@ -3,6 +3,7 @@
 ###############################################################################
 
 {% do SITE_VARS.update({"LAUNCH_PLATFORM": "azspice"}) %}
+{% do SITE_VARS.update({"GIT_MIRROR_LOC": "/data/users/gitassist/git_mirrors"}) %}
 
 ###############################################################################
 ## Imports
@@ -13,7 +14,7 @@
 ## Name graphs
 ###############################################################################
 {%- set name_graphs = {
-         "umdp3_check" : "umdp3_checker",
+         "umdp3_check" : "extract_source => umdp3_checker",
 } %}
 
 
@@ -21,6 +22,8 @@
 ## Group definitions
 ###############################################################################
 {%- set groups = {
+
+        "all"       : ["scripts"],
 
         "scripts"   : ["umdp3_check"],
 

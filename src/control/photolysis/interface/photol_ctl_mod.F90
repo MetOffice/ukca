@@ -69,7 +69,7 @@ USE photol_config_specification_mod,                                           &
 USE photol_constants_mod, ONLY: rhour_per_day => const_rhour_per_day,          &
                               pi => const_pi, c_o3 => const_o3_mmr_vmr,        &
                               planet_radius => const_planet_radius
-USE photol_solang_mod,  ONLY: photol_solang
+USE ukca_solang_mod, ONLY: photol_solang => ukca_solang
 
 USE ukca_um_strat_photol_mod,  ONLY: strat_photol
 USE ukca_um_dissoc_mod,        ONLY: strat_photol_init, strat_photol_dealloc

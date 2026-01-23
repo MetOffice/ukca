@@ -1,7 +1,0 @@
-# Redefine site-independent SCRIPTS group
-# (normally found in runtime-common.rc)
-# Need to use python3 for this script
-    [[SCRIPTS]]
-        inherit = None, LINUX
-         [[[job]]]
-             execution time limit = PT20M

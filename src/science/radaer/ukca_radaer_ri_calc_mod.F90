@@ -49,7 +49,7 @@ SUBROUTINE ukca_radaer_ri_calc(                                                &
      ! Stratospheric aerosol treated as sulphuric acid?
      l_in_stratosphere,                                                        &
      ! Integer control switches
-     i_ukca_tune_bc, i_glomap_clim_tune_bc, l_ukca_radaer_prescribe_ssa,       &
+     i_ukca_tune_bc, i_glomap_clim_tune_bc, i_ukca_radaer_prescribe_ssa,       &
      ! Output refractive index real and imag parts
      re_m, im_m )
 
@@ -62,6 +62,9 @@ USE ukca_radaer_struct_mod, ONLY:                                              &
 
 USE ukca_mode_setup,        ONLY:                                              &
      cp_su, cp_bc
+
+USE ukca_option_mod,       ONLY:                                               &
+     do_not_prescribe
 
 !
 ! Arguments
@@ -105,9 +108,9 @@ LOGICAL, INTENT(IN) :: l_in_stratosphere
 INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
 INTEGER, INTENT(IN) :: i_ukca_tune_bc
 !
-! When true, use a prescribed single scattering albedo field
+! When > 0, use a prescribed single scattering albedo field
 !
-LOGICAL, INTENT(IN) :: l_ukca_radaer_prescribe_ssa
+INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 
 REAL, INTENT(OUT) :: re_m
 REAL, INTENT(OUT) :: im_m
@@ -146,7 +149,7 @@ l_mg_mix = .FALSE.
 
 ! If single-scattering albedo is prescribed, then only calculate the
 ! real refractive index and do not account for MG mixing
-IF (l_ukca_radaer_prescribe_ssa) THEN
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
   DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
@@ -281,7 +284,7 @@ ELSE
     im_m = im_m / ukca_modal_volume
 
   END IF ! l_mg_mix
-END IF ! l_ukca_radaer_prescribe_ssa
+END IF ! i_ukca_radaer_prescribe_ssa /= do_not_prescribe
 
 RETURN
 END SUBROUTINE ukca_radaer_ri_calc

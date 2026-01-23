@@ -80,15 +80,15 @@
 !
 !     Local variables
 !     ---------------
-!     ncst    -  Stores number of basic chemical steps 'ncsteps'
-!     ctrd    -  Stores basic chemical time step length 'ctd'
-!     f_initial      -  Stores family concentrations at beginning of call
-!     exit_code  -  Error code from the integrator:
-!                   0 = successful return
-!                   1 = negatives encountered
-!                   2 = convergence failure after 'nrsteps' iterations
-!                   3 = convergence failure due to divergence - 'NaN's
-!                   4 = convergence failure (as '2') but set debugging
+!     ncsteps_initial -  Stores number of basic chemical steps 'ncsteps'
+!     cdt_initial     -  Stores basic chemical time step length 'ctd'
+!     f_initial       -  Stores family concentrations at beginning of call
+!     exit_code       -  Error code from the integrator:
+!                        0 = successful return
+!                        1 = negatives encountered
+!                        2 = convergence failure after 'nrsteps' iterations
+!                        3 = convergence failure due to divergence - 'NaN's
+!                        4 = convergence failure (as '2') but set debugging
 !
 !  Code Description:
 !    Language:  FORTRAN 90
@@ -103,10 +103,10 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'ASAD_SPMJPDRIV_MOD'
 
 CONTAINS
 
-SUBROUTINE asad_spmjpdriv(ix,jy,nlev,n_points,num_iter)
+SUBROUTINE asad_spmjpdriv(ix,jy,nlev,n_points)
 
 USE asad_mod, ONLY: cdt, f, jpcspf, jpspec, ltrig,                             &
-                    ncsteps, nitfg, speci, y
+                    ncsteps, ncsteps_factor, nitfg, speci, y
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE parkind1, ONLY: jprb, jpim
 USE yomhook, ONLY: lhook, dr_hook
@@ -125,30 +125,30 @@ USE asad_ftoy_mod, ONLY: asad_ftoy
 IMPLICIT NONE
 
 ! Subroutine interface
-INTEGER, INTENT(IN) :: n_points
-INTEGER, INTENT(IN) :: ix                    ! i counter
-INTEGER, INTENT(IN) :: jy                    ! j counter
-INTEGER, INTENT(IN) :: nlev
-INTEGER, INTENT(OUT) :: num_iter ! added iteration counter
+INTEGER, INTENT(IN) :: n_points     ! Number of points in chunk
+INTEGER, INTENT(IN) :: ix           ! i counter
+INTEGER, INTENT(IN) :: jy           ! j counter
+INTEGER, INTENT(IN) :: nlev         ! Number of model levels
 
 ! Local variables
-INTEGER, PARAMETER :: max_redo=128      ! Max times for halving TS, was 16
-INTEGER :: exit_code                        ! Convergence exit code
-INTEGER :: ncst
-INTEGER :: iredo
-INTEGER :: jl
-INTEGER :: iter
-INTEGER :: location
-INTEGER :: solver_iter
-INTEGER :: jit
+INTEGER, PARAMETER :: max_redo=128  ! Max times for halving TS, was 16
+INTEGER :: exit_code                ! Convergence exit code
+INTEGER :: ncsteps_initial          ! Initial number of chemistry steps
+INTEGER :: iredo                    ! Number of iterations for convergence
+INTEGER :: js                       ! Species counter
+INTEGER :: iter                     ! Timestep iteration for current window
+INTEGER :: location                 ! Array index for logging
+INTEGER :: solver_iter              ! Nonlinear solver iteration count
+INTEGER :: num_iter                 ! Total nonlinear solver iteration count
+INTEGER :: jit                      ! Iteration for asad_ftoy
 
-INTEGER :: errcode                ! Variable passed to ereport
+INTEGER :: errcode                  ! Variable passed to ereport
 LOGICAL :: not_first_call = .FALSE.
 
 CHARACTER(LEN=errormessagelength) :: cmessage
 
-REAL :: ctrd
-REAL :: f_initial(n_points,jpcspf) ! Saved f array from previous solver call
+REAL :: cdt_initial                 ! Initial chemistry timestep
+REAL :: f_initial(n_points,jpcspf)  ! Saved f array from previous solver call
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -156,23 +156,26 @@ REAL(KIND=jprb)               :: zhook_handle
 
 CHARACTER(LEN=*), PARAMETER :: RoutineName='ASAD_SPMJPDRIV'
 
-!
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-ncst = ncsteps
-ctrd = cdt
-ltrig=.FALSE.
-!
-CALL asad_diffun( n_points )
-!
-iredo = 1
+
+! Stash initial values
+ncsteps_initial = ncsteps
+cdt_initial = cdt
+iredo = ncsteps_factor
 f_initial(1:n_points,:)=f(1:n_points,:)
-!
-IF (ukca_config%l_ukca_asad_columns) THEN
-   ! mapping to theta_field
+
+ltrig=.FALSE.
+
+IF (ukca_config%l_ukca_asad_full) THEN
+  location = 1
+ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+  ! mapping to theta_field
   location = ix + ((jy - 1)*ukca_config%row_length)
 ELSE
   location = nlev
 END IF
+
 ! Start iterations here.
 num_iter = 0
 iter = 1
@@ -180,86 +183,98 @@ DO WHILE (iter <= iredo)
   CALL asad_spimpmjp(exit_code, ix, jy, nlev, n_points, location, solver_iter)
   num_iter = num_iter + solver_iter
 
-  !  Debug slow convergence systems - switch this on in 'spimpmjp'
-  IF (exit_code == 4) THEN
-    IF (ltrig) THEN
-      errcode=1
-      cmessage='Slow-converging system, Set printstatus for Jacobian debug'
-      DO jl=1,jpspec
-        WRITE(umMessage,'(a4,i6,a12,2e14.5,i12)') 'y: ',jl,speci(jl),          &
-            MAXVAL(y(:,jl)), MINVAL(y(:,jl)),SIZE(y(:,jl))
-        CALL umPrint(umMessage,src='asad_spmjpdriv')
-      END DO
-      CALL ereport('ASAD_SPMJPDRIV',errcode,cmessage)
-    END IF
-    ltrig=.TRUE.
-    f(1:n_points,:)=f_initial(1:n_points,:)
-    ! Call asad_ftoy with jit = 0 to reinitialise y array
-    jit = 0
-    CALL asad_ftoy( not_first_call, nitfg, jit, n_points, ix, jy, nlev )
-    CALL asad_diffun( n_points )
-    iter = 1
+  IF (exit_code == 0) THEN
+    ! Solver convergence
+    iter = iter + 1
   ELSE
-    !
-    !  Reset for failed convergence
-    IF (exit_code > 1) THEN
+    f(1:n_points,:)=f_initial(1:n_points,:)
+
+    IF (exit_code == 4) THEN
+      ! Debug slow convergence systems - switch this on in 'spimpmjp'
+      IF (ltrig) THEN
+        errcode=1
+        cmessage='Slow-converging system, Set printstatus for Jacobian debug'
+        DO js=1,jpspec
+          WRITE(umMessage,'(a4,i6,a12,2e14.5,i12)') 'y: ',js,speci(js),        &
+              MAXVAL(y(:,js)), MINVAL(y(:,js)),SIZE(y(:,js))
+          CALL umPrint(umMessage,src='asad_spmjpdriv')
+        END DO
+        CALL ereport('ASAD_SPMJPDRIV',errcode,cmessage)
+      END IF
+
+      ltrig=.TRUE.
+    ELSE
+
+      ! Reset for failed convergence
       ncsteps = ncsteps*2
       cdt = cdt/2.0
       iredo = iredo*2
+
       IF (ukca_config%l_ukca_debug_asad) THEN
         ! Added extra print statements here for verbosity
-        WRITE(umMessage,                                                       &
-             "('ASAD: failed to converge at location  = ',I0)") location
+        WRITE(umMessage,"('ASAD: failed to converge at location  = ',I0)")     &
+              location
         CALL umPrint(umMessage,src='asad_spmjpdriv')
         WRITE(umMessage,'(A,I0,A,I0,A,E18.8)')                                 &
               'ASAD: halving timestep: ncsteps = ', ncsteps,                   &
               ' iredo = ', iredo, ' cdt = ', cdt
         CALL umPrint(umMessage,src='asad_spmjpdriv')
       END IF
+
       IF (cdt < 1.0e-05) THEN
         errcode=2
         cmessage=' Time step now too short'
         CALL ereport('ASAD_SPMJPDRIV',errcode,cmessage)
       END IF
-      f(1:n_points,:)=f_initial(1:n_points,:)
-      ! Drop out at some point - if 3 successive halvings fail
+
+      ! Drop out if too many successive halvings fail
       IF (iredo >= max_redo) THEN
         IF (printstatus >= prstatus_oper) THEN
-          WRITE(umMessage,"(' Resetting array after',i4,' iterations')")       &
-              iredo
+          WRITE(umMessage,"(' Resetting array after',i4,' iterations')") iredo
           CALL umPrint(umMessage,src='asad_spmjpdriv')
           WRITE(umMessage,"('NO CONVERGENCE location: ',i4,' pe: ',i4)")       &
               location,mype
           CALL umPrint(umMessage,src='asad_spmjpdriv')
         END IF
-        ncsteps = ncst
-        cdt = ctrd
-        GO TO 9999
+        EXIT
       END IF
-      ! Call asad_ftoy with jit = 0 to reinitialise y array
-      jit = 0
-      CALL asad_ftoy( not_first_call, nitfg, jit, n_points, ix, jy, nlev )
-      CALL asad_diffun( n_points )
-      iter = 1
-    ELSE
-      iter = iter + 1
+
     END IF
+
+    ! Call asad_ftoy with jit = 0 to reinitialise y array
+    jit = 0
+    CALL asad_ftoy( not_first_call, nitfg, jit, n_points, ix, jy, nlev )
+    CALL asad_diffun( n_points )
+    iter = 1
+
   END IF
 END DO
 
-IF (iredo > 1) THEN
-  IF (iredo > 2) THEN
-    WRITE(umMessage,"('   No. iterations =',i2)") iredo
-    CALL umPrint(umMessage,src='asad_spmjpdriv')
-  END IF
-  ncsteps = ncst
-  cdt = ctrd
+IF (iredo > 2) THEN
+  WRITE(umMessage,"('   No. iterations =',i2)") iredo
+  CALL umPrint(umMessage,src='asad_spmjpdriv')
 END IF
 
-9999 CONTINUE
+IF (ukca_config%l_ukca_debug_asad) THEN
+  ! Select which print statement to write depending on how asad solver is called
+  IF (ukca_config%l_ukca_asad_full) THEN
+    WRITE(umMessage, "('Iterations in spmjpdriv = ',I0)") num_iter
+  ELSE IF (ukca_config%l_ukca_asad_columns) THEN
+    WRITE(umMessage,                                                           &
+    "('Iterations in spmjpdriv = ',I0,' ix = ',I0,' jy = ',I0)")               &
+    num_iter, ix, jy
+  ELSE
+    WRITE(umMessage,"('Iterations in spmjpdriv = ',I0,' k = ',I0)")            &
+    num_iter, nlev
+  END IF
+  CALL umPrint(umMessage,src='asad_spmjpdriv')
+END IF
+
+ncsteps = ncsteps_initial
+cdt = cdt_initial
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE asad_spmjpdriv
-
 
 END MODULE asad_spmjpdriv_mod

@@ -51,7 +51,7 @@ USE photol_config_specification_mod, ONLY:                                     &
   photol_2d => i_scheme_phot2d, photol_fastjx => i_scheme_fastjx
 
 USE photol_fieldname_mod,   ONLY:                                              &
-  photol_fieldname_len =>  fieldname_len,                                      &
+  photol_fieldname_len =>  fieldname_len, photol_jlabel_len,                   &
   photol_fldname_aod_sulph_aitk => fldname_aod_sulph_aitk,                     &
   photol_fldname_aod_sulph_accum => fldname_aod_sulph_accum,                   &
   photol_fldname_area_cloud_fraction => fldname_area_cloud_fraction,           &
@@ -92,6 +92,18 @@ USE photol_curve_mod,   ONLY: photol_curve
 
 USE photol_environment_mod, ONLY: photol_get_environ_varlist
 USE photol_step_control_mod, ONLY: photol_step_control
+
+! Fastjx data parameters needed to read spectral files
+USE fastjx_data,   ONLY:  photol_max_miesets => a_,                            &
+   photol_n_solcyc_av => n_solcyc_av, photol_sw_band_aer => sw_band_aer,       &
+   photol_sw_phases => sw_phases, photol_max_wvl => wx_,                       &
+   photol_max_crossec => x_
+USE ukca_parpho_mod, ONLY: photol_wvl_intervals => jpwav,                      &
+   photol_num_tvals => jptem
+! Routines reading the ASCII spectral/ solar data
+USE fastjx_read_ascii_mod, ONLY: photol_fjx_rd_mie_file => fastjx_rd_mie_file, &
+    photol_fjx_rd_xxx_file => fastjx_rd_xxx_file,                              &
+    photol_fjx_rd_sol_file => fastjx_rd_sol_file
 
 IMPLICIT NONE
 

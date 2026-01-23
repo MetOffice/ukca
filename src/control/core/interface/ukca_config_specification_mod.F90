@@ -157,6 +157,8 @@ TYPE :: ukca_config_spec_type
                                        ! time step is halved
   INTEGER :: chem_timestep             ! Chemical timestep in seconds for N-R
                                        ! and offline oxidant schemes
+  INTEGER :: i_chem_timestep_halvings  ! Integer number of times to half the
+                                       ! ASAD chemistry timestep
   INTEGER :: dts0                      ! Backward Euler timestep (seconds)
   LOGICAL :: l_ukca_asad_columns       ! True to pass columns to ASAD solver
                                        ! rather than horizontal slices
@@ -852,6 +854,7 @@ ukca_config%l_ukca_scale_ppe = .FALSE.
 ukca_config%i_ukca_chem_version = imdi
 ukca_config%nrsteps = imdi
 ukca_config%chem_timestep = imdi
+ukca_config%i_chem_timestep_halvings = imdi
 ukca_config%dts0 = imdi
 ukca_config%l_ukca_asad_columns = .FALSE.
 ukca_config%l_ukca_asad_full = .FALSE.
@@ -1076,7 +1079,7 @@ SUBROUTINE ukca_get_config(                                                    &
    fixed_tropopause_level,                                                     &
    i_ageair_reset_method, max_ageair_reset_level,                              &
    i_error_method,                                                             &
-   i_ukca_chem_version, nrsteps, chem_timestep,                                &
+   i_ukca_chem_version, nrsteps, chem_timestep, i_chem_timestep_halvings,      &
    dts0, nit,                                                                  &
    i_ukca_quasinewton_start, i_ukca_quasinewton_end,                           &
    ukca_chem_seg_size,                                                         &
@@ -1266,6 +1269,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: i_error_method
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_chem_version
 INTEGER, OPTIONAL, INTENT(OUT) :: nrsteps
 INTEGER, OPTIONAL, INTENT(OUT) :: chem_timestep
+INTEGER, OPTIONAL, INTENT(OUT) :: i_chem_timestep_halvings
 INTEGER, OPTIONAL, INTENT(OUT) :: dts0
 INTEGER, OPTIONAL, INTENT(OUT) :: nit
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_start
@@ -1531,6 +1535,8 @@ IF (PRESENT(i_ukca_chem_version))                                              &
   i_ukca_chem_version = ukca_config%i_ukca_chem_version
 IF (PRESENT(nrsteps)) nrsteps = ukca_config%nrsteps
 IF (PRESENT(chem_timestep)) chem_timestep = ukca_config%chem_timestep
+IF (PRESENT(i_chem_timestep_halvings))                                         &
+  i_chem_timestep_halvings = ukca_config%i_chem_timestep_halvings
 IF (PRESENT(dts0)) dts0 = ukca_config%dts0
 IF (PRESENT(l_ukca_asad_columns))                                              &
   l_ukca_asad_columns = ukca_config%l_ukca_asad_columns

@@ -68,7 +68,7 @@ USE fastjx_data,    ONLY: fastjx_set_limits,                                   &
                           pz_3d, pz_all, tz_3d, sa_2d,                         &
                           dm_3d, o3_3d,                                        &
                           ods_3d, odw_3d, odi_3d,                              &
-                          solcyc_spec
+                          solcyc_spec, solcyc_av, solcyc_quanta, solcyc_ts
 
 USE photol_config_specification_mod, ONLY: photol_config
 USE photol_constants_mod,   ONLY: c_o3 => const_o3_mmr_vmr,                    &
@@ -79,13 +79,15 @@ USE photol_constants_mod,   ONLY: c_o3 => const_o3_mmr_vmr,                    &
                                   avogadro => const_avogadro,                  &
                                   m_air => const_molemass_air
 USE ukca_error_mod,          ONLY: maxlen_message, maxlen_procname,            &
-                                   error_report, errcode_value_unknown
+                                   error_report, errcode_value_unknown,        &
+                                   errcode_value_invalid, errcode_value_missing
+USE ukca_missing_data_mod,   ONLY: imdi
 USE umPrintMgr,              ONLY: umMessage, umPrint, PrintStatus,            &
                                    PrStatus_Diag
 
 USE yomhook,                 ONLY: lhook, dr_hook
 USE parkind1,                ONLY: jprb, jpim
-USE fastjx_inphot_mod,       ONLY: fastjx_inphot
+USE fastjx_set_aer_mod,      ONLY: fastjx_set_aer
 USE fastjx_solar2_mod,       ONLY: fastjx_solar2
 USE fastjx_photoj_mod,       ONLY: fastjx_photoj
 USE photol_solflux_mod,      ONLY: photol_solflux
@@ -263,11 +265,12 @@ i_hour                = current_time(4)
 i_minute              = current_time(5)
 i_second              = current_time(6)
 
-! Set Blocking mode:          0) Column-by-column
-        !                     1) blocking 1 row
-        !                     2) blocking domain
-        !                     3) compressed  (not implemented)
-        !                     4) load balancing (not implemented)
+! Set Blocking mode:  0) point-by-point
+!                     1) row-by-row
+!                     2) full domain
+!                     3) compressed (not implemented)
+!                     4) load balancing (not implemented)
+! TODO: Make Blocking_Mode a configurable parameter rather than setting here
 Blocking_Mode = 2
 
 ! Allocate arrays etc.
@@ -278,26 +281,29 @@ IF ( error_code_ptr > 0 ) THEN
   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
   RETURN
 END IF
-CALL fastjx_allocate_memory
-
-! Read in data from files
-IF (first) THEN
-  CALL fastjx_inphot
-  first=.FALSE.
-END IF
+CALL fastjx_allocate_memory(row_length, rows)
 
 ! Initialise arrays for levels/units appropriate for fast-j
 ! Need to update to include aerosols
 CALL fastjx_set_arrays
+! Set aerosol/ cloud indices
+CALL fastjx_set_aer(error_code_ptr, error_message=error_message,               &
+                    error_routine=error_routine)
+
+IF ( error_code_ptr > 0 ) THEN
+  CALL fastjx_deallocate_memory
+  IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  RETURN
+END IF
 
 ! Set variables concerning model time
 ! Convert timestep into hours
 timej              = photol_config%timestep/3600.0
 
-  ! Day of the year
+! Day of the year
 daynumber          = i_day_number
 
-  ! Time in hours
+! Time in hours
 tau                = i_hour*1.0+i_minute/60.0+i_second/3600.0                  &
                      - timej*0.5
 
@@ -321,7 +327,8 @@ nslon = 1
 
 SELECT CASE (Blocking_Mode)
 
-  ! if blocking point by point
+  ! *********************************
+  ! If blocking point-by-point
 CASE (0)
 
   ! Loop over rows
@@ -352,7 +359,8 @@ CASE (0)
     END DO
   END DO
 
-  ! if blocking row by row
+  ! *********************************
+  ! If blocking row-by-row
 CASE (1)
 
   ! Loop over rows
@@ -386,7 +394,7 @@ CASE (1)
   END DO
 
   ! *********************************
-  ! If blocking whole domain
+  ! If blocking full domain
 CASE (2)
 
   ! initialise latitude counter to 1
@@ -423,11 +431,40 @@ CASE (2)
   CALL fastjx_photoj (photol_rates_fastjx)
 
   ! *********************************
-  ! No DEFAULT Case needed since Blocking_Mode is set in this routine itself
-  ! and already checked in fastjx_set_limits
+  ! If using compressed blocking
+CASE (3)
+
+  error_code_ptr = errcode_value_invalid
+  err_message = 'Compressed blocking mode not implemented'
+  CALL error_report(photol_config%i_error_method, error_code_ptr, err_message, &
+         RoutineName, msg_out= error_message, locn_out = error_routine)
+
+  ! *********************************
+  ! If using load balanced blocking
+CASE (4)
+
+  error_code_ptr = errcode_value_invalid
+  err_message = 'Load balanced blocking mode not implemented'
+  CALL error_report(photol_config%i_error_method, error_code_ptr, err_message, &
+         RoutineName, msg_out= error_message, locn_out = error_routine)
+
+CASE (imdi)
+
+  error_code_ptr = errcode_value_missing
+  err_message = 'Blocking mode unset'
+  CALL error_report(photol_config%i_error_method, error_code_ptr, err_message, &
+         RoutineName, msg_out= error_message, locn_out = error_routine)
+
+CASE DEFAULT
+
+  error_code_ptr = errcode_value_unknown
+  WRITE(err_message,'("Blocking mode ",I0," does not exist")') Blocking_Mode
+  CALL error_report(photol_config%i_error_method, error_code_ptr, err_message, &
+         RoutineName, msg_out= error_message, locn_out = error_routine)
+
 END SELECT
 
-  ! Tidy up at the end
+! Tidy up at the end
 CALL fastjx_deallocate_memory
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -456,7 +493,7 @@ REAL :: sulph_accu_local(1:row_length,1:rows,1:model_levels)
 ! Sulphate total, in accumulation and aitken modes
 REAL :: sulphur(1:row_length,1:rows,1:model_levels)
 
-  ! Cloud optical depths
+! Cloud optical depths
 REAL :: odi(1:row_length,1:rows,1:model_levels)
 REAL :: odw(1:row_length,1:rows,1:model_levels)
 REAL :: ods(1:row_length,1:rows,1:model_levels)
@@ -471,11 +508,11 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*), PARAMETER :: RoutineName='FASTJX_SET_ARRAYS'
 
 
-  ! *************************************************
-  ! EOH
+! *************************************************
+! EOH
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-  ! rz in cm
+! rz in cm
 rz_3d(:,:,1)              =                                                    &
     r_Theta_levels(1:row_length,1:rows,0)*100.0
 rz_3d(:,:,2:model_levels) =                                                    &
@@ -483,17 +520,16 @@ rz_3d(:,:,2:model_levels) =                                                    &
 rz_3d(:,:,model_levels+1) =                                                    &
     r_Theta_levels(1:row_length,1:rows,model_levels)*100.0
 
-  ! calculate pressure at box edges
-pz_3d(:,:,1)              = p_layer_boundaries(:,:,1)
-pz_3d(:,:,2:model_levels) = p_layer_boundaries(:,:,2:model_levels)
+! calculate pressure at box edges
+pz_3d(:,:,1:model_levels) = p_layer_boundaries(:,:,1:model_levels)
 pz_3d(:,:,model_levels+1) = 0.0
 
-  ! Calculate mass in box from pressure differences
-  ! using hydrostatic approximation
+! Calculate mass in box from pressure differences
+! using hydrostatic approximation
 d_mass = (pz_3d(:,:,1:model_levels)                                            &
        - pz_3d(:,:,2:model_levels+1))/gg
 
-  ! Calculate total mass within convective clouds
+! Calculate total mass within convective clouds
 total_mass = 0.0
 DO k = 1,model_levels
   WHERE ( k <= conv_cloud_top .AND. k >= conv_cloud_base)
