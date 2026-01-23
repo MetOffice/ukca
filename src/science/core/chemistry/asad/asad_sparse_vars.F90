@@ -107,7 +107,7 @@ SUBROUTINE setup_spfuljac()
 
 USE asad_mod, ONLY: specf, frpx, jpcspf, jpfrpx, jpmsp, jpspec,                &
                     madvtr, modified_map, ndepd, ndepw, nfrpx, njcoth, nltrf,  &
-                    nmsjac, nmzjac, nonzero_map,                               &
+                    nmsjac, nmzjac, nonzero_map, permuted_nonzero_map,         &
                     npdfr, nsjac1, nstst, ntabpd, ntrf, ntro3, nzjac1,         &
                     reorder, spfjsize_max, maxterms, maxfterms,                &
                     nposterms, nnegterms, nfracterms, posterms, negterms,      &
@@ -147,7 +147,6 @@ INTEGER :: ij
 INTEGER :: itemp1
 INTEGER :: activity(jpcspf)
 
-INTEGER :: permuted_nonzero_map(jpcspf,jpcspf)  ! permuted map of nonzeros
 INTEGER, ALLOCATABLE :: permute(:,:)  ! permutation matrix
 INTEGER, ALLOCATABLE :: map(:,:)      ! a matrix of 1's indicating where the
                                       ! dense Jacobian A(i,j) has nonzero
