@@ -1412,7 +1412,7 @@ search_reactants: DO
                                 zhook_handle)
         RETURN
       END IF
-      CYCLE
+      CYCLE search_reactants
     END IF
 
     ! Otherwise check the names of the products
