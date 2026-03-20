@@ -360,6 +360,7 @@ TYPE :: ukca_config_spec_type
                                        ! B-E Offline Oxidants scheme
   LOGICAL :: l_fix_ukca_h2so4_ystore   ! True to fix storage of H2SO4 in ASAD
                                        ! N-R schemes for updating in GLOMAP
+  LOGICAL :: l_fix_ukca_n2o5_h2o       ! True to filter N2O5+H2O to strat and trop only
 
   ! Settings for managing photolysis environmental driver
   ! requirements on behalf of external UKCA Photolysis code
@@ -949,6 +950,7 @@ ukca_config%l_fix_ukca_h2dd_x = .FALSE.
 ukca_config%l_fix_drydep_so2_water = .FALSE.
 ukca_config%l_fix_ukca_offox_h2o_fac = .FALSE.
 ukca_config%l_fix_ukca_h2so4_ystore = .FALSE.
+ukca_config%l_fix_ukca_n2o5_h2o = .FALSE.
 
 ! -- Settings for managing Photolysis driver requirements
 ukca_config%i_photol_scheme = imdi
@@ -1179,6 +1181,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_fix_drydep_so2_water,                                                     &
    l_fix_ukca_offox_h2o_fac,                                                   &
    l_fix_ukca_h2so4_ystore,                                                    &
+   l_fix_ukca_n2o5_h2o,                                                        &
    l_ukca_chem, l_ukca_trop, l_ukca_aerchem, l_ukca_raq, l_ukca_raqaero,       &
    l_ukca_offline_be, l_ukca_tropisop, l_ukca_strattrop, l_ukca_strat,         &
    l_ukca_offline, l_ukca_cristrat, l_ukca_stratcfc, l_ukca_achem,             &
@@ -1395,6 +1398,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_h2dd_x
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_drydep_so2_water
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_offox_h2o_fac
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_h2so4_ystore
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_n2o5_h2o
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_trop
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_aerchem
@@ -1685,6 +1689,8 @@ IF (PRESENT(l_fix_ukca_offox_h2o_fac))                                         &
   l_fix_ukca_offox_h2o_fac = ukca_config%l_fix_ukca_offox_h2o_fac
 IF (PRESENT(l_fix_ukca_h2so4_ystore))                                          &
   l_fix_ukca_h2so4_ystore = ukca_config%l_fix_ukca_h2so4_ystore
+IF (PRESENT(l_fix_ukca_n2o5_h2o))                                              &
+  l_fix_ukca_n2o5_h2o = ukca_config%l_fix_ukca_n2o5_h2o
 
 ! -- UKCA internal configuration variables
 IF (PRESENT(l_ukca_chem)) l_ukca_chem = ukca_config%l_ukca_chem
