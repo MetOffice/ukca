@@ -9327,7 +9327,7 @@ IF (ALLOCATED(aa_ch4_drydep))                                                  &
    n_chemical_fluxes = n_chemical_fluxes + SIZE(aa_ch4_drydep)
 IF (ALLOCATED(aa_ch4_ste))                                                     &
    n_chemical_fluxes = n_chemical_fluxes + SIZE(aa_ch4_ste)
-IF (ALLOCATED(aa_het_chem_n2o5_h2o))                                          &
+IF (ALLOCATED(aa_het_chem_n2o5_h2o))                                           &
    n_chemical_fluxes = n_chemical_fluxes + SIZE(aa_het_chem_n2o5_h2o)
 
 ALLOCATE(asad_chemical_fluxes(n_chemical_fluxes))

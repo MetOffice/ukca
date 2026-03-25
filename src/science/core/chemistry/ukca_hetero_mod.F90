@@ -490,7 +490,7 @@ IF (ukca_config%i_ukca_hetconfig == 0) THEN
     rk(:,n_hocl_hcl) = hk(:,3)
   END IF
 
-! Optionally filter N2O5+H2O by stratflag to prevent double-counting.
+  ! Optionally filter N2O5+H2O by stratflag to prevent double-counting.
   IF (n_n2o5_h2o > 0) THEN
     ! 4. N2O5 + H2O -> 2 HNO3
     IF (ukca_config%l_fix_ukca_n2o5_h2o) THEN

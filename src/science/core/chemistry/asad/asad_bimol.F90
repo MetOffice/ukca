@@ -175,7 +175,7 @@ ratioa2b(:) = 0.0
 ratiob2total(:) = 0.0
 
 ! set stratflag from optional argument - only True in the stratosphere
-stratflag(:) = .false.
+stratflag(:) = .FALSE.
 IF (PRESENT(stratflag_opt)) THEN
   stratflag = stratflag_opt
 END IF

@@ -1234,10 +1234,10 @@ IF (ukca_config%l_ukca_mode .AND. l_nr_scheme_selected) THEN
     ukca_config%l_fix_ukca_h2so4_ystore = l_fix_ukca_h2so4_ystore
 END IF
 
-IF (ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                       &
+IF (ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                      &
     ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
   ukca_config%l_fix_ukca_n2o5_h2o = .TRUE.
-  IF (PRESENT(l_fix_ukca_n2o5_h2o))                                             &
+  IF (PRESENT(l_fix_ukca_n2o5_h2o))                                            &
     ukca_config%l_fix_ukca_n2o5_h2o = l_fix_ukca_n2o5_h2o
 END IF
 
