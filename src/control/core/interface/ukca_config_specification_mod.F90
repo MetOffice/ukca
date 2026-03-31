@@ -443,7 +443,9 @@ TYPE :: glomap_config_spec_type
   REAL :: acc_cor_scav_scaling         ! Scaling factor for scavenging
                                        ! parameters for the accumulation and
                                        ! coarse modes
-
+  REAL :: solinsol_hygro_ratio(4)      ! SOL/INSOL hygroscopicity ratios
+    				       ! cp_su, cp_cl, cp_bc, cp_oc
+    				       
   ! -- GLOMAP deposition configuration options --
   LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
   REAL :: mode_incld_so2_rfrac         ! Fraction of in-cloud oxidised SO2
@@ -996,6 +998,7 @@ glomap_config%mode_activation_dryr = rmdi
 glomap_config%l_dust_mp_ageing = .FALSE.
 glomap_config%dry_depvel_acc_scaling = rmdi
 glomap_config%acc_cor_scav_scaling = rmdi
+glomap_config%solinsol_hygro_ratio(:) = rmdi
 
 ! -- GLOMAP deposition configuration options --
 glomap_config%l_ddepaer = .FALSE.
@@ -1122,6 +1125,7 @@ SUBROUTINE ukca_get_config(                                                    &
    hno3_uptake_coeff,                                                          &
    sigwmin,                                                                    &
    sigma_updraught_scaling,                                                    &
+   solinsol_hygro_ratio,                                                       &
    l_cal360,                                                                   &
    l_ukca_chem_aero,                                                           &
    l_ukca_mode,                                                                &
@@ -1324,6 +1328,7 @@ REAL, OPTIONAL, INTENT(OUT) :: ph_fit_coeff_a
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_coeff_b
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_intercept
 REAL, OPTIONAL, INTENT(OUT) :: hno3_uptake_coeff
+REAL, OPTIONAL, INTENT(OUT) :: solinsol_hygro_ratio(4)
 
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_cal360
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem_aero
@@ -1748,6 +1753,8 @@ IF (PRESENT(l_ddepaer))                                                        &
 IF (PRESENT(mode_incld_so2_rfrac))                                             &
   mode_incld_so2_rfrac = glomap_config%mode_incld_so2_rfrac
 IF (PRESENT(l_aero_rainout)) l_aero_rainout = glomap_config%l_aero_rainout
+IF (PRESENT(solinsol_hygro_ratio)) solinsol_hygro_ratio(:) =                   &
+  glomap_config%solinsol_hygro_ratio(:)
 IF (PRESENT(l_cv_rainout)) l_cv_rainout = glomap_config%l_cv_rainout
 IF (PRESENT(i_mode_nucscav)) i_mode_nucscav = glomap_config%i_mode_nucscav
 IF (PRESENT(l_impc_scav)) l_impc_scav = glomap_config%l_impc_scav
