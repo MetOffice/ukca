@@ -352,10 +352,14 @@ DO imode=1,nmodes
 
       ! If SOLINSOL then redistribute sulphate md into other species
       IF (glomap_config%i_mode_setup == 11) THEN
-        mdcopy(:,imode,cp_su) = glomap_config%solinsol_hygro_ratio(1)*(mdcopy(:,imode,cp_su))
-        mdcopy(:,imode,cp_cl) = glomap_config%solinsol_hygro_ratio(2)*(mdcopy(:,imode,cp_su))
-        mdcopy(:,imode,cp_bc) = glomap_config%solinsol_hygro_ratio(3)*(mdcopy(:,imode,cp_su))
-        mdcopy(:,imode,cp_oc) = glomap_config%solinsol_hygro_ratio(4)*(mdcopy(:,imode,cp_su))
+        mdcopy(:,imode,cp_su) = glomap_config%solinsol_hygro_ratio(1)*        &
+                                (mdcopy(:,imode,cp_su))
+        mdcopy(:,imode,cp_cl) = glomap_config%solinsol_hygro_ratio(2)*        &
+                                (mdcopy(:,imode,cp_su))
+        mdcopy(:,imode,cp_bc) = glomap_config%solinsol_hygro_ratio(3)*        &
+                                (mdcopy(:,imode,cp_su))
+        mdcopy(:,imode,cp_oc) = glomap_config%solinsol_hygro_ratio(4)*        &
+                                (mdcopy(:,imode,cp_su))
       END IF
 
       IF (component(imode,cp_su)) THEN ! assume all H2SO4 --> SO4
