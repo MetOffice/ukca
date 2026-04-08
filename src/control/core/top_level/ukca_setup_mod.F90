@@ -601,7 +601,7 @@ LOGICAL :: l_be_scheme_selected    ! True if B-E solver required for chemistry
 LOGICAL :: l_nr_scheme_selected    ! True if N-R solver required for chemistry
 LOGICAL :: l_strat_scheme_selected ! True if a Stratospheric scheme is
                                    ! selected for chemistry
-                                   
+
 REAL :: sum_solinsol_hygro_ratio   ! Sum of solinsol hygroscopicity ratios (=1)
 
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0  ! DrHook tracing entry
@@ -1316,9 +1316,9 @@ IF (ukca_config%l_ukca_mode) THEN
         glomap_config%acc_cor_scav_scaling = acc_cor_scav_scaling
 
     END IF
-    
+
     IF (PRESENT(solinsol_hygro_ratio))                                         &
-      glomap_config%solinsol_hygro_ratio(:) = solinsol_hygro_ratio(:)    
+      glomap_config%solinsol_hygro_ratio(:) = solinsol_hygro_ratio(:)
 
     ! -- GLOMAP deposition configuration options --
 
@@ -1742,7 +1742,7 @@ IF (ukca_config%l_ukca_mode .AND.                                              &
   ELSE
     glomap_config%solinsol_hygro_ratio(:) = [1.0, 0.0, 0.0, 0.0]
   END IF
-END IF   
+END IF
 
 ! Initialise chemical definition arrays
 CALL ukca_chem1_init()
