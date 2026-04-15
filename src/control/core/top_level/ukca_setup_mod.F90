@@ -129,6 +129,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       ph_fit_intercept,                                        &
                       sigwmin,                                                 &
                       sigma_updraught_scaling,                                 &
+                      solinsol_hygro_ratio,                                    &
                       const_rmol,                                              &
                       const_tfs,                                               &
                       const_rho_water,                                         &
@@ -461,6 +462,7 @@ REAL, OPTIONAL, INTENT(IN) :: ph_fit_intercept
 REAL, OPTIONAL, INTENT(IN) :: sigwmin
 REAL, OPTIONAL, INTENT(IN) :: hno3_uptake_coeff
 REAL, OPTIONAL, INTENT(IN) :: sigma_updraught_scaling
+REAL, OPTIONAL, INTENT(IN) :: solinsol_hygro_ratio(4)
 REAL, OPTIONAL, INTENT(IN) :: const_rmol
 REAL, OPTIONAL, INTENT(IN) :: const_tfs
 REAL, OPTIONAL, INTENT(IN) :: const_rho_water
@@ -599,6 +601,8 @@ LOGICAL :: l_be_scheme_selected    ! True if B-E solver required for chemistry
 LOGICAL :: l_nr_scheme_selected    ! True if N-R solver required for chemistry
 LOGICAL :: l_strat_scheme_selected ! True if a Stratospheric scheme is
                                    ! selected for chemistry
+
+REAL :: sum_solinsol_hygro_ratio   ! Sum of solinsol hygroscopicity ratios (=1)
 
 INTEGER (KIND=jpim), PARAMETER :: zhook_in  = 0  ! DrHook tracing entry
 INTEGER (KIND=jpim), PARAMETER :: zhook_out = 1  ! DrHook tracing exit
@@ -1313,6 +1317,9 @@ IF (ukca_config%l_ukca_mode) THEN
 
     END IF
 
+    IF (PRESENT(solinsol_hygro_ratio))                                         &
+      glomap_config%solinsol_hygro_ratio(:) = solinsol_hygro_ratio(:)
+
     ! -- GLOMAP deposition configuration options --
 
     ! Dry deposition
@@ -1719,6 +1726,22 @@ IF (ukca_config%l_ukca_mode .AND. .NOT. ukca_config%l_ukca_emissions_off) THEN
     glomap_config%i_dust_scheme=-1                     ! No dust
   END IF
 
+END IF
+
+! Ensure the sum of solinsol_hygro_ratio is 1
+IF (ukca_config%l_ukca_mode .AND.                                              &
+    glomap_config%i_mode_setup == 11) THEN
+  sum_solinsol_hygro_ratio = 0.0
+  DO i = 1,4
+    sum_solinsol_hygro_ratio = sum_solinsol_hygro_ratio +                      &
+                               glomap_config%solinsol_hygro_ratio(i)
+  END DO
+  IF (PRESENT(solinsol_hygro_ratio)) THEN
+    glomap_config%solinsol_hygro_ratio(:) =                                    &
+      glomap_config%solinsol_hygro_ratio(:) / sum_solinsol_hygro_ratio
+  ELSE
+    glomap_config%solinsol_hygro_ratio(:) = [1.0, 0.0, 0.0, 0.0]
+  END IF
 END IF
 
 ! Initialise chemical definition arrays

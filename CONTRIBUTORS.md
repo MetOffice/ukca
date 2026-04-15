@@ -6,3 +6,4 @@
 | andrewcoughtrie | Andrew Coughtrie | Met Office | 2026-02-10 |
 | jennyhickson | Jenny Hickson | Met Office | 2026-03-02 |
 | Pierre-siddall | Pierre Siddall | Met Office | 2026-03-13 |
+| JoeCartonKelly-MO | Joseph Carton-Kelly | Met Office | 2026-04-15 |
