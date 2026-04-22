@@ -156,8 +156,8 @@ USE ukca_constants,       ONLY: pi, mmw
 USE ukca_config_constants_mod, ONLY: rho_water, avogadro, rho_so4
 
 USE ukca_mode_setup,      ONLY: nmodes, nanion, ncation,                       &
-                                cp_su, cp_oc, cp_cl, cp_bc,                    &
-                                cp_so, cp_nh4, cp_no3, cp_nn
+                                cp_su, cp_oc, cp_cl, cp_so,                    &
+                                cp_nh4, cp_no3, cp_nn
 
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
@@ -351,15 +351,15 @@ DO imode=1,nmodes
       END DO
 
       ! If SOLINSOL then redistribute sulphate md into other species
+      ! hygro_ratio(3) is black carbon which is important to include
+      ! in the ratio but isn't used in this routine
       IF (glomap_config%i_mode_setup == 11) THEN
         mdcopy(:,imode,cp_su) = glomap_config%solinsol_hygro_ratio(1)*         &
-                                (mdcopy(:,imode,cp_su))
+                                (md(:,imode,cp_su))
         mdcopy(:,imode,cp_cl) = glomap_config%solinsol_hygro_ratio(2)*         &
-                                (mdcopy(:,imode,cp_su))
-        mdcopy(:,imode,cp_bc) = glomap_config%solinsol_hygro_ratio(3)*         &
-                                (mdcopy(:,imode,cp_su))
+                                (md(:,imode,cp_su))
         mdcopy(:,imode,cp_oc) = glomap_config%solinsol_hygro_ratio(4)*         &
-                                (mdcopy(:,imode,cp_su))
+                                (md(:,imode,cp_su))
       END IF
 
       IF (component(imode,cp_su)) THEN ! assume all H2SO4 --> SO4
