@@ -207,6 +207,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       l_fix_ukca_h2dd_x,                                       &
                       l_fix_ukca_offox_h2o_fac,                                &
                       l_fix_ukca_h2so4_ystore,                                 &
+                      l_fix_ukca_n2o5_h2o,                                     &
                       l_mode_bhn_on,                                           &
                       l_mode_bln_on,                                           &
                       l_ddepaer,                                               &
@@ -540,6 +541,7 @@ LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_drydep_so2_water
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2dd_x
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_offox_h2o_fac
 LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_h2so4_ystore
+LOGICAL, OPTIONAL, INTENT(IN) :: l_fix_ukca_n2o5_h2o
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bhn_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_mode_bln_on
 LOGICAL, OPTIONAL, INTENT(IN) :: l_ddepaer
@@ -1230,6 +1232,13 @@ IF (ukca_config%l_ukca_mode .AND. l_nr_scheme_selected) THEN
   ukca_config%l_fix_ukca_h2so4_ystore = .TRUE.
   IF (PRESENT(l_fix_ukca_h2so4_ystore))                                        &
     ukca_config%l_fix_ukca_h2so4_ystore = l_fix_ukca_h2so4_ystore
+END IF
+
+IF (ukca_config%i_ukca_chem == i_ukca_chem_strattrop .OR.                      &
+    ukca_config%i_ukca_chem == i_ukca_chem_cristrat) THEN
+  ukca_config%l_fix_ukca_n2o5_h2o = .TRUE.
+  IF (PRESENT(l_fix_ukca_n2o5_h2o))                                            &
+    ukca_config%l_fix_ukca_n2o5_h2o = l_fix_ukca_n2o5_h2o
 END IF
 
 ! Settings for managing photolysis environmental driver
