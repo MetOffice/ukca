@@ -367,7 +367,7 @@ DO imode=1,nmodes
       END IF
 
       IF (component(imode,cp_so)) THEN
-        cl(:,-2)=cl(:,-2)+(fhyg_aom/avogadro)*(md(:,imode,cp_so)/f_ao)
+        cl(:,-2)=cl(:,-2)+(fhyg_aom/avogadro)*(mdcopy(:,imode,cp_so)/f_ao)
         ! .. Increment concentration of SO4 ions to represent the
         ! .. presence of hygroscopic aged organic aerosol mass in CP_SO.
         ! .. Assume it has uptake behaviour at fraction FHYG_AOM of SO4.
@@ -399,17 +399,17 @@ DO imode=1,nmodes
       IF (UBOUND(component,DIM=2) >= cp_no3) THEN
 
         IF (component(imode,cp_nh4)) THEN ! assume complete dissociation
-          cl(:,2)=md(:,imode,cp_nh4)/avogadro ! [NH4] in moles per cc (air)
+          cl(:,2)=mdcopy(:,imode,cp_nh4)/avogadro ! [NH4] in moles per cc (air)
         END IF
 
         IF (component(imode,cp_no3)) THEN ! assume complete dissociation
-          cl(:,-3)=md(:,imode,cp_no3)/avogadro ! [NO3] in moles per cc (air)
+          cl(:,-3)=mdcopy(:,imode,cp_no3)/avogadro ! [NO3] in moles per cc (air)
         END IF
 
         IF (component(imode,cp_nn)) THEN ! assume complete dissociation
-          cl(:,3)=cl(:,3)+md(:,imode,cp_nn)/avogadro
+          cl(:,3)=cl(:,3)+mdcopy(:,imode,cp_nn)/avogadro
                     ! [Na] in moles per cc (air)
-          cl(:,-3)=cl(:,-3)+md(:,imode,cp_nn)/avogadro
+          cl(:,-3)=cl(:,-3)+mdcopy(:,imode,cp_nn)/avogadro
                     ! [NO3] in moles per cc (air)
         END IF
 
