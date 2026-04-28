@@ -445,6 +445,8 @@ TYPE :: glomap_config_spec_type
                                        ! coarse modes
   REAL :: solinsol_hygro_ratio(4)      ! SOL/INSOL hygroscopicity ratios
     				       ! cp_su, cp_cl, cp_bc, cp_oc
+    				       ! This ratio only affects the wet
+    				       ! part of the aerosol
 
   ! -- GLOMAP deposition configuration options --
   LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
