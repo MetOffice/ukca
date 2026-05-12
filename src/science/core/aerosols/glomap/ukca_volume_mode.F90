@@ -218,6 +218,7 @@ INTEGER :: jjl(1)
 INTEGER :: iimode
 INTEGER :: iicp
 INTEGER :: ierr(nbox)
+INTEGER :: dim_1_comp, dim_2_comp  ! dimensions to allocate for component_copy
 LOGICAL (KIND=log_small) :: mask(nbox)
 LOGICAL (KIND=log_small) :: mask_sol(nbox)
 LOGICAL (KIND=log_small) :: mask_nosol(nbox)
@@ -241,6 +242,7 @@ REAL    :: mmwrhow
 REAL    :: f_ao
 REAL    :: cl(nbox,-nanion:ncation) !ION CONCS (MOL/CC OF AIR)
 REAL    :: mdcopy(nbox,nmodes,glomap_variables_local%ncp) !Redistributes ions for solinsol
+LOGICAL, ALLOCATABLE :: component_copy(:,:)
 
 REAL    :: tmp1(nbox,nmodes)
 !
@@ -280,6 +282,14 @@ num_eps   => glomap_variables_local%num_eps
 rhocomp   => glomap_variables_local%rhocomp
 soluble   => glomap_variables_local%soluble
 x         => glomap_variables_local%x
+
+! Create component_copy which can be used for SOL/INSOL wet aerosol
+! growth. It copies the values of component but can be updated later
+! in the routine
+dim_1_comp = SIZE(component,1)
+dim_2_comp = SIZE(component,2)
+ALLOCATE(component_copy(dim_1_comp,dim_2_comp))
+component_copy(:,:) = component(:,:)
 
 !at this point in the code, the value of RP does not matter
 rp(:)=100.0e-9 ! dummy value
@@ -360,13 +370,15 @@ DO imode=1,nmodes
                                 (md(:,imode,cp_su))
         mdcopy(:,imode,cp_oc) = glomap_config%solinsol_hygro_ratio(4)*         &
                                 (md(:,imode,cp_su))
+        component_copy(imode, cp_cl) = .TRUE.        
+        component_copy(imode, cp_oc) = .TRUE.
       END IF
 
-      IF (component(imode,cp_su)) THEN ! assume all H2SO4 --> SO4
+      IF (component_copy(imode,cp_su)) THEN ! assume all H2SO4 --> SO4
         cl(:,-2)=mdcopy(:,imode,cp_su)/avogadro  ! [SO4] in moles/cc (air)
       END IF
 
-      IF (component(imode,cp_so)) THEN
+      IF (component_copy(imode,cp_so)) THEN
         cl(:,-2)=cl(:,-2)+(fhyg_aom/avogadro)*(mdcopy(:,imode,cp_so)/f_ao)
         ! .. Increment concentration of SO4 ions to represent the
         ! .. presence of hygroscopic aged organic aerosol mass in CP_SO.
@@ -375,7 +387,7 @@ DO imode=1,nmodes
         ! .. whereas CL needs to be in moles of aged organic (MM=0.15kg/mol).
       END IF
 
-      IF (component(imode,cp_oc)) THEN
+      IF (component_copy(imode,cp_oc)) THEN
         cl(:,-2)=cl(:,-2)+(fhyg_aom/avogadro)*(mdcopy(:,imode,cp_oc)/f_ao)
         ! .. Increment concentration of SO4 ions to represent the
         ! .. presence of hygroscopic aged organic aerosol mass in CP_OC.
@@ -390,23 +402,23 @@ DO imode=1,nmodes
         !
       END IF
 
-      IF (component(imode,cp_cl)) THEN ! assume complete dissociation
+      IF (component_copy(imode,cp_cl)) THEN ! assume complete dissociation
         cl(:,3)=mdcopy(:,imode,cp_cl)/avogadro ! [Na] in moles per cc (air)
         cl(:,-4)=mdcopy(:,imode,cp_cl)/avogadro ! [Cl] in moles per cc (air)
       END IF
 
       ! Nitrate scheme
-      IF (UBOUND(component,DIM=2) >= cp_no3) THEN
+      IF (UBOUND(component_copy,DIM=2) >= cp_no3) THEN
 
-        IF (component(imode,cp_nh4)) THEN ! assume complete dissociation
+        IF (component_copy(imode,cp_nh4)) THEN ! assume complete dissociation
           cl(:,2)=mdcopy(:,imode,cp_nh4)/avogadro ! [NH4] in moles per cc (air)
         END IF
 
-        IF (component(imode,cp_no3)) THEN ! assume complete dissociation
+        IF (component_copy(imode,cp_no3)) THEN ! assume complete dissociation
           cl(:,-3)=mdcopy(:,imode,cp_no3)/avogadro ! [NO3] in moles per cc (air)
         END IF
 
-        IF (component(imode,cp_nn)) THEN ! assume complete dissociation
+        IF (component_copy(imode,cp_nn)) THEN ! assume complete dissociation
           cl(:,3)=cl(:,3)+mdcopy(:,imode,cp_nn)/avogadro
                     ! [Na] in moles per cc (air)
           cl(:,-3)=cl(:,-3)+mdcopy(:,imode,cp_nn)/avogadro
@@ -893,6 +905,8 @@ IF (glomap_config%l_fix_neg_pvol_wat .OR. l_glomap_clim_radaer) THEN
     END IF
   END DO
 END IF
+
+DEALLOCATE(component_copy)
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
