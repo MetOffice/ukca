@@ -363,8 +363,8 @@ DO imode=1,nmodes
                                 (md(:,imode,cp_su))
       END IF
 
-      IF (component(imode,cp_su) .OR. (glomap_config%i_mode_setup == 11)) THEN 
-      ! assume all H2SO4 --> SO4
+      IF (component(imode,cp_su) .OR. (glomap_config%i_mode_setup == 11)) THEN
+        ! assume all H2SO4 --> SO4
         cl(:,-2)=mdcopy(:,imode,cp_su)/avogadro  ! [SO4] in moles/cc (air)
       END IF
 
@@ -392,8 +392,8 @@ DO imode=1,nmodes
         !
       END IF
 
-      IF (component(imode,cp_cl) .OR. (glomap_config%i_mode_setup == 11)) THEN 
-      ! assume complete dissociation
+      IF (component(imode,cp_cl) .OR. (glomap_config%i_mode_setup == 11)) THEN
+        ! assume complete dissociation
         cl(:,3)=mdcopy(:,imode,cp_cl)/avogadro ! [Na] in moles per cc (air)
         cl(:,-4)=mdcopy(:,imode,cp_cl)/avogadro ! [Cl] in moles per cc (air)
       END IF
