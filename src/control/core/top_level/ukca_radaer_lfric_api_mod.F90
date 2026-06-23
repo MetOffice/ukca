@@ -39,18 +39,6 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     ! Variables related to waveband exclusion
     l_exclude_lw,                                                              &
     l_exclude_sw,                                                              &
-    ! UKCA_RADAER structure (input)
-    nmodes,                                                                    &
-    ncp_max,                                                                   &
-    ncp_max_x_nmodes,                                                          &
-    i_cpnt_index,                                                              &
-    i_cpnt_type,                                                               &
-    i_mode_type,                                                               &
-    l_nitrate,                                                                 &
-    l_soluble,                                                                 &
-    l_sustrat,                                                                 &
-    l_cornarrow_ins,                                                           &
-    n_cpnt_in_mode,                                                            &
     ! Modal diameters from UKCA module (input)
     ukca_dry_diam_um,                                                          &
     ukca_wet_diam_um,                                                          &
@@ -113,7 +101,12 @@ USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              mode_acc_insol, mode_cor_insol,   &
                                              ip_ukca_mode_aitken,              &
                                              ip_ukca_mode_accum,               &
-                                             ip_ukca_mode_coarse
+                                             ip_ukca_mode_coarse,              &
+                                             i_ukca_bc_tuned,                  &
+                                             cp_su,  cp_bc, cp_oc,             &
+                                             cp_cl,  cp_du, cp_so,             &
+                                             cp_no3, cp_nn, cp_nh4,            &
+                                             nmodes, ncp_max
 
 USE ukca_radaer_band_average_mod,      ONLY: ukca_radaer_band_average
 
@@ -148,19 +141,6 @@ INTEGER, INTENT(IN) :: nd_prof_ssa, nd_layr_ssa, nd_band_ssa
 
 ! Variables related to waveband exclusion
 LOGICAL, INTENT(IN) :: l_exclude_lw, l_exclude_sw
-
-! From ukca_radaer Structure for UKCA/radiation interaction
-INTEGER, INTENT(IN) :: nmodes
-INTEGER, INTENT(IN) :: ncp_max
-INTEGER, INTENT(IN) :: ncp_max_x_nmodes
-INTEGER, INTENT(IN) :: i_cpnt_index( ncp_max, nmodes )
-INTEGER, INTENT(IN) :: i_cpnt_type( ncp_max_x_nmodes )
-INTEGER, INTENT(IN) :: i_mode_type( nmodes )
-LOGICAL, INTENT(IN) :: l_nitrate
-LOGICAL, INTENT(IN) :: l_soluble( nmodes )
-LOGICAL, INTENT(IN) :: l_sustrat
-LOGICAL, INTENT(IN) :: l_cornarrow_ins
-INTEGER, INTENT(IN) :: n_cpnt_in_mode( nmodes )
 
 ! Modal diameters from UKCA module (input)
 REAL, INTENT(IN) ::  ukca_dry_diam_um(npd_profile, npd_layer, n_ukca_mode)
@@ -266,12 +246,73 @@ REAL ::  aod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 REAL :: aaod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 REAL ::  sod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 
+! -----------------------------------------------------------------
+!Hard coded until develop initialisation
+REAL, PARAMETER ::  i_cpnt_type(nmodes * ncp_max) =                            &
+                                    (/ 1,  2,  3,  1,  2,  3,  4,  5,  1,      &
+                                       2,  3,  4,  5,  2,  3,  5,  5, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1 /)
+
+LOGICAL, PARAMETER ::  l_nitrate = .false. ! Make this a namelist option later
+LOGICAL, PARAMETER ::  l_sustrat = .true.  ! Make this a namelist option later
+                                           ! l_sustrat=.true. for ga9
+
+LOGICAL, PARAMETER :: l_cornarrow_ins = .false.
+                                           ! Make this a namelist option later
+
+INTEGER, PARAMETER :: i_ukca_tune_bc = i_ukca_bc_tuned
+INTEGER, PARAMETER :: i_glomap_clim_tune_bc = i_ukca_bc_tuned
+
+REAL :: i_cpnt_index( ncp_max, nmodes )
+
+REAL :: i_mode_type( nmodes )
+
+REAL :: n_cpnt_in_mode( nmodes )
+
+LOGICAL :: l_soluble( nmodes )
+
+! -----------------------------------------------------------------
+
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*),   PARAMETER :: RoutineName='UKCA_RADAER_LFRIC_INTERFACE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
+
+
+
+  !-----------------------------------------------------------------------
+
+
+  ! No nucleation mode
+  l_soluble(1:nmodes) =  (/.true., .true., .true., .false.,                    &
+                           .false.,.false.,.false.,.false./)
+
+  ! No nucleation mode
+  n_cpnt_in_mode(1:nmodes) = (/ 3, 5, 5, 2, 1, 1, -1, -1 /)
+
+  ! No nucleation mode
+  i_mode_type(1:nmodes)    = (/ 1, 2, 3, 1, 2, 3, -1, -1 /)
+
+  ! No nucleation mode
+  i_cpnt_index(cp_su, 1:nmodes)=(/  1,  4,  9, 14, 16, 17, -1, -1 /)
+  i_cpnt_index(cp_bc, 1:nmodes)=(/  2,  5, 10, 15, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_oc, 1:nmodes)=(/  3,  6, 11, -1, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_cl, 1:nmodes)=(/ -1,  7, 12, -1, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_du, 1:nmodes)=(/ -1,  8, 13, -1, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_so, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_no3,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_nn, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
+  i_cpnt_index(cp_nh4,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
+
+
+  !-----------------------------------------------------------------------
 
   CALL ukca_radaer_prepare(                                                    &
     ! Input Actual array dimensions
