@@ -26,9 +26,6 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     npd_exclude_lw,                                                            &
     npd_exclude_sw,                                                            &
     npd_ukca_aod_wavel,                                                        &
-    ! Spectral information (input)
-    ip_infra_red,                                                              &
-    ip_solar,                                                                  &
     ! Actual array dimensions (input)
     n_ukca_mode,                                                               &
     n_ukca_cpnt,                                                               &
@@ -63,11 +60,6 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     ukca_modal_nbr_um,                                                         &
     ! Input Pressure and temperature
     p_theta_levels, t_theta_levels,                                            &
-    ! Maxwell-Garnett mixing approach logical control switches
-    i_ukca_tune_bc, i_glomap_clim_tune_bc,                                     &
-    ! Type selection
-    soluble_wanted,                                                            &
-    soluble_unwanted,                                                          &
     ! Which aerosol optical depth diagnostics to calculate
     l_aod_ukca_ait_sol, l_aaod_ukca_ait_sol,                                   &
     l_aod_ukca_acc_sol, l_aaod_ukca_acc_sol,                                   &
@@ -130,9 +122,6 @@ INTEGER, INTENT(IN) :: npd_exclude_lw
 INTEGER, INTENT(IN) :: npd_exclude_sw
 INTEGER, INTENT(IN) :: npd_ukca_aod_wavel
 
-! Spectral information (input)
-INTEGER, INTENT(IN) :: ip_infra_red, ip_solar
-
 ! RADAER array dimensions (note that nucleation mode is excluded)
 INTEGER, INTENT(IN) :: n_ukca_mode, n_ukca_cpnt
 
@@ -184,14 +173,6 @@ REAL, INTENT(IN) :: p_theta_levels( npd_profile, npd_layer )
 ! temperature on theta levels
 REAL, INTENT(IN) :: t_theta_levels( npd_profile, npd_layer )
 
-! Maxwell-Garnett mixing approach logical control switches
-INTEGER, INTENT(IN) :: i_ukca_tune_bc
-INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
-
-! Type selection
-LOGICAL, INTENT(IN) :: soluble_wanted
-LOGICAL, INTENT(IN) :: soluble_unwanted
-
 ! Which aerosol optical depth diagnostics to calculate
 LOGICAL, INTENT(IN) :: l_aod_ukca_ait_sol, l_aaod_ukca_ait_sol,                &
                        l_aod_ukca_acc_sol, l_aaod_ukca_acc_sol,                &
@@ -205,7 +186,7 @@ REAL, INTENT(IN) :: d_mass_theta_levels_um( npd_profile, npd_layer )
 
 ! Modal mass-mixing ratios
 REAL, INTENT(IN OUT) ::  ukca_mode_mix_ratio_um( npd_profile, npd_layer,       &
-                                             n_radaer_mode )
+                                                 n_radaer_mode )
 
 ! Band-averaged modal optical properties
 REAL, INTENT(IN OUT) :: aer_lw_absorption_um( npd_profile, npd_layer,          &
@@ -246,6 +227,8 @@ REAL ::  aod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 REAL :: aaod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 REAL ::  sod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 
+
+
 ! -----------------------------------------------------------------
 !Hard coded until develop initialisation
 REAL, PARAMETER ::  i_cpnt_type(nmodes * ncp_max) =                            &
@@ -263,10 +246,22 @@ LOGICAL, PARAMETER ::  l_sustrat = .true.  ! Make this a namelist option later
                                            ! l_sustrat=.true. for ga9
 
 LOGICAL, PARAMETER :: l_cornarrow_ins = .false.
-                                           ! Make this a namelist option later
+! Make this a namelist option later
 
+
+
+! -----------------------------------------------------------------
+
+! Maxwell-Garnett mixing approach logical control switches
 INTEGER, PARAMETER :: i_ukca_tune_bc = i_ukca_bc_tuned
-INTEGER, PARAMETER :: i_glomap_clim_tune_bc = i_ukca_bc_tuned
+INTEGER, PARAMETER :: i_glomap_clim_tune_bc = .false.
+
+! Spectral information
+INTEGER, PARAMETER :: ip_infra_red = 2
+INTEGER, PARAMETER :: ip_solar = 1
+
+LOGICAL, PARAMETER :: soluble_wanted   = .true.
+LOGICAL, PARAMETER :: soluble_unwanted = .false.
 
 REAL :: i_cpnt_index( ncp_max, nmodes )
 
@@ -284,8 +279,6 @@ REAL(KIND=jprb)               :: zhook_handle
 CHARACTER(LEN=*),   PARAMETER :: RoutineName='UKCA_RADAER_LFRIC_INTERFACE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
-
-
 
   !-----------------------------------------------------------------------
 
