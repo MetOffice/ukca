@@ -143,7 +143,7 @@ REAL, INTENT(IN) :: photol_rates(row_length,rows,model_levels,jppj)
 
 ! must be allocatable as passed unallocated from main if l_chem_environ_co2_fld
 ! is false
-REAL, INTENT(IN), ALLOCATABLE :: co2_interactive(row_length,rows,model_levels)
+REAL, INTENT(IN), ALLOCATABLE :: co2_interactive(:,:,:)
 
 REAL, INTENT(OUT)    :: shno3_3d(row_length,rows,model_levels)
 REAL, INTENT(IN OUT) :: q(row_length,rows,model_levels)  ! water vapour
