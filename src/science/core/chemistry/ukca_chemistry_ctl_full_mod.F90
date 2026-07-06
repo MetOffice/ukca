@@ -62,7 +62,7 @@ SUBROUTINE ukca_chemistry_ctl_full(                                            &
                 atm_h2_mol,                                                    &
                 H_plus,                                                        &
                 zdryrt, zwetrt, nlev_with_ddep, L_stratosphere,                &
-                firstcall                                                      &
+                co2_interactive, firstcall                                     &
                 )
 
 USE asad_mod,             ONLY: advt, cdt_diag, ctype,                         &
@@ -89,7 +89,6 @@ USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_ntp_mod,         ONLY: ntp_type, dim_ntp, name2ntpindex
-USE ukca_environment_fields_mod, ONLY: co2_interactive
 
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
@@ -123,6 +122,11 @@ REAL, INTENT(IN) :: so4_sa(tot_n_pnts)              ! aerosol surface area
 REAL, INTENT(IN) :: zdryrt(theta_field_size,jpdd)   ! dry dep rate
 REAL, INTENT(IN) :: zwetrt(tot_n_pnts,jpdw)         ! wet dep rate
 REAL, INTENT(IN) :: photol_rates(tot_n_pnts,jppj)
+
+! must be allocatable as passed unallocated from main if l_chem_environ_co2_fld
+! is false
+REAL, INTENT(IN), ALLOCATABLE :: co2_interactive(row_length,rows,model_levels)
+
 REAL, INTENT(OUT) :: shno3(tot_n_pnts)
 REAL, INTENT(IN OUT) :: q(tot_n_pnts)               ! water vapour
 REAL, INTENT(IN OUT) :: tracer(tot_n_pnts,ntracers) ! tracer MMR
@@ -245,6 +249,7 @@ ELSE
   zprt1d(:,:) = photol_rates(:,:)
 END IF
 
+! CO2 as species
 IF (ANY(speci(:) == 'CO2       ')) THEN
   !  Copy the CO2 concentration into the asad module as VMR
   IF (ukca_config%l_chem_environ_co2_fld) THEN
@@ -260,7 +265,7 @@ IF (ANY(speci(:) == 'CO2       ')) THEN
   ELSE
     co2_1d(:) = rmdi
   END IF
-END IF       ! CO2 as species
+END IF
 
 ! Retrieve tropospheric heterogeneous rates from previous time step
 IF (ukca_config%l_ukca_trophet) THEN

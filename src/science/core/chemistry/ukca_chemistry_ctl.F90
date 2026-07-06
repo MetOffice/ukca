@@ -61,7 +61,7 @@ SUBROUTINE ukca_chemistry_ctl(                                                 &
                 atm_mebr_mol,                                                  &
                 atm_h2_mol,                                                    &
                 H_plus,                                                        &
-                zdryrt, zwetrt, nlev_with_ddep,                                &
+                zdryrt, zwetrt, nlev_with_ddep, co2_interactive,               &
                 L_stratosphere, firstcall                                      &
                 )
 
@@ -88,7 +88,7 @@ USE ukca_constants,       ONLY: c_h2o, c_hono2, c_o1d, c_o3p, c_co2
 USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 USE ukca_ntp_mod,         ONLY: ntp_type, dim_ntp, name2ntpindex
-USE ukca_environment_fields_mod, ONLY: co2_interactive
+
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
 USE ereport_mod,          ONLY: ereport
@@ -119,6 +119,11 @@ REAL, INTENT(IN) :: so4_sa(tot_n_pnts)              ! aerosol surface area
 REAL, INTENT(IN) :: zdryrt(theta_field_size,jpdd)   ! dry dep rate
 REAL, INTENT(IN) :: zwetrt(tot_n_pnts,jpdw)         ! wet dep rate
 REAL, INTENT(IN) :: photol_rates(tot_n_pnts,jppj)
+
+! must be allocatable as passed unallocated from main if l_chem_environ_co2_fld
+! is false
+REAL, INTENT(IN), ALLOCATABLE :: co2_interactive(row_length,rows,model_levels)
+
 REAL, INTENT(OUT) :: shno3_3d(tot_n_pnts)
 REAL, INTENT(IN OUT) :: q(tot_n_pnts)               ! water vapour
 REAL, INTENT(IN OUT) :: tracer(tot_n_pnts,ntracers) ! tracer MMR
@@ -302,6 +307,7 @@ DO k=1,model_levels
   ! Put tracer mmr into 1-D array for use in ASAD chemical solver
   zq(:) = q(kcs:kce)/c_h2o
 
+  ! CO2 as species
   IF (ANY(speci(:) == 'CO2       ')) THEN
     !  Copy the CO2 concentration into the asad module as VMR
     IF (ukca_config%l_chem_environ_co2_fld) THEN
@@ -309,7 +315,7 @@ DO k=1,model_levels
       ! co2_interactive should be allocated if config option on
       IF (.NOT. ALLOCATED(co2_interactive)) THEN
         errcode = 1
-        CALL ereport(ModuleName//':'//RoutineName, errcode,                  &
+        CALL ereport(ModuleName//':'//RoutineName, errcode,                    &
           'ERROR: co2_interactive array not allocated')
       END IF
 
@@ -318,7 +324,7 @@ DO k=1,model_levels
       co2_1d(:) = rmdi
     END IF
 
-  END IF       ! CO2 as species
+  END IF
 
   ! Convert mmr into vmr for tracers. Pass data from the tracer 3D array,
   ! unwrap it and pass into the 1D zftr array before calling ASAD_CDRIVE.

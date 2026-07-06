@@ -61,7 +61,7 @@ SUBROUTINE ukca_chemistry_ctl_col(                                             &
                 atm_mebr_mol,                                                  &
                 atm_h2_mol,                                                    &
                 H_plus_3d_arr,                                                 &
-                zdryrt, zwetrt, nlev_with_ddep                                 &
+                zdryrt, zwetrt, nlev_with_ddep, co2_interactive                &
                 )
 
 USE asad_mod,             ONLY: advt, cdt_diag, ctype,                         &
@@ -90,7 +90,6 @@ USE ukca_config_constants_mod, ONLY: avogadro
 USE ukca_config_specification_mod, ONLY: ukca_config
 
 USE ukca_ntp_mod,       ONLY: ntp_type, dim_ntp, name2ntpindex
-USE ukca_environment_fields_mod, ONLY: co2_interactive
 
 USE yomhook, ONLY: lhook, dr_hook
 USE parkind1, ONLY: jprb, jpim
@@ -141,6 +140,11 @@ REAL, INTENT(IN) :: so4_sa(row_length,rows,model_levels) ! aerosol surface area
 REAL, INTENT(IN) :: zdryrt(row_length,rows,jpdd)              ! dry dep rate
 REAL, INTENT(IN) :: zwetrt(row_length,rows,model_levels,jpdw) ! wet dep rate
 REAL, INTENT(IN) :: photol_rates(row_length,rows,model_levels,jppj)
+
+! must be allocatable as passed unallocated from main if l_chem_environ_co2_fld
+! is false
+REAL, INTENT(IN), ALLOCATABLE :: co2_interactive(row_length,rows,model_levels)
+
 REAL, INTENT(OUT)    :: shno3_3d(row_length,rows,model_levels)
 REAL, INTENT(IN OUT) :: q(row_length,rows,model_levels)  ! water vapour
 REAL, INTENT(IN OUT) :: tracer(row_length,rows,model_levels,                   &
