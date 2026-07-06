@@ -9,3 +9,4 @@
 | JoeCartonKelly-MO | Joseph Carton-Kelly | Met Office | 2026-04-15 |
 | yg460-cam | Yao Ge | University of Cambridge | 2026-04-17 |
 | theabro | Nathan Luke Abraham | NCAS & University of Cambridge | 2026-03-19 |
+| RobWatersMet | Rob Waters | NCAS & University of Cambridge | 2026-07-06 |
