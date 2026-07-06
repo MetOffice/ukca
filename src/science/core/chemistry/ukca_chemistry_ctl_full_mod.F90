@@ -429,7 +429,7 @@ END IF
 ! parameterised in all three dimensions (for maximum flexibility) and
 ! we do not resize ASAD arrays when the chunk size does not divide evenly
 ! into the full-domain size. Instead, we retract the starting point of the
-! final chunk in any dimension to obtain a full chunk's worth of data. This
+! final chunk in any dimension to obtain a full-chunk worth of data. This
 ! leads to some redundant computation (some grid points form part of two
 ! different chunks) but, for small chunk sizes, this has a neglible impact
 ! on performance. As different chunks can be processed in parallel, care is
