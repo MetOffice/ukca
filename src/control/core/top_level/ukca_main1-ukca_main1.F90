@@ -608,9 +608,9 @@ model_levels = ukca_config%model_levels
 full_chunk_x = ukca_config%ukca_chem_full_chunk_size(1)
 full_chunk_y = ukca_config%ukca_chem_full_chunk_size(2)
 full_chunk_z = ukca_config%ukca_chem_full_chunk_size(3)
-IF (full_chunk_x <= 0 .or. full_chunk_x > row_length) full_chunk_x = row_length
-IF (full_chunk_y <= 0 .or. full_chunk_y > rows) full_chunk_y = rows
-IF (full_chunk_z <= 0 .or. full_chunk_z > model_levels)                        &
+IF (full_chunk_x <= 0 .OR. full_chunk_x > row_length) full_chunk_x = row_length
+IF (full_chunk_y <= 0 .OR. full_chunk_y > rows) full_chunk_y = rows
+IF (full_chunk_z <= 0 .OR. full_chunk_z > model_levels)                        &
   full_chunk_z = model_levels
 
 theta_field_size = row_length * rows

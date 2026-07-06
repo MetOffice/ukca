@@ -418,9 +418,9 @@ IF (uph2so4inaer == 1) THEN
   IF (ukca_config%l_fix_ukca_h2so4_ystore) THEN
      ! primary array passed is zftr, so save this, NOT y
     ystore(:,:,:) = full_zftr(:,:,:,istore_h2so4)
-  ELSE IF (.not. chunking_enabled) THEN
+  ELSE IF (.NOT. chunking_enabled) THEN
     ! Preserve non-fixed behaviour when chunking is disabled
-    ystore(:,:,:) = reshape(y(:,nn_h2so4), [row_length,rows,model_levels])
+    ystore(:,:,:) = RESHAPE(y(:,nn_h2so4), [row_length,rows,model_levels])
   END IF
 END IF
 
@@ -451,23 +451,23 @@ DO zi = 1, model_levels, chunk_n_z
   DO yi = 1, rows, chunk_n_y
     DO xi = 1, row_length, chunk_n_x
       ! Chunk start, end, and offset in Z dimension
-      ze = min(model_levels, zi + (chunk_n_z - 1))
+      ze = MIN(model_levels, zi + (chunk_n_z - 1))
       zs = ze - chunk_n_z + 1
       zo = zi - zs + 1
 
       ! Chunk start, end, and offset in Y dimension
-      ye = min(rows, yi + (chunk_n_y - 1))
+      ye = MIN(rows, yi + (chunk_n_y - 1))
       ys = ye - chunk_n_y + 1
       yo = yi - ys + 1
 
       ! Chunk start, end, and offset in X dimension
-      xe = min(row_length, xi + (chunk_n_x - 1))
+      xe = MIN(row_length, xi + (chunk_n_x - 1))
       xs = xe - chunk_n_x + 1
       xo = xi - xs + 1
 
       ! Copy from full-domain arrays to ASAD module variables
-      sph2o(:) = reshape(full_sph2o(xs:xe,ys:ye,zs:ze), shape(sph2o))
-      za(:) = reshape(full_za(xs:xe,ys:ye,zs:ze), shape(za))
+      sph2o(:) = RESHAPE(full_sph2o(xs:xe,ys:ye,zs:ze), SHAPE(sph2o))
+      za(:) = RESHAPE(full_za(xs:xe,ys:ye,zs:ze), SHAPE(za))
       chunk_zftr(:,:,:,:) = full_zftr(xs:xe,ys:ye,zs:ze,:)
 
       CALL asad_cdrive(                                                        &
@@ -493,31 +493,31 @@ DO zi = 1, model_levels, chunk_n_z
       ! Copy from ASAD module variables to full-domain arrays
       zftr(xi:xe,yi:ye,zi:ze,:) = chunk_zftr(xo:,yo:,zo:,:)
 
-      chunk_dpd(:,:,:,:) = reshape(dpd, shape(chunk_dpd))
+      chunk_dpd(:,:,:,:) = RESHAPE(dpd, SHAPE(chunk_dpd))
       full_dpd(xi:xe,yi:ye,zi:ze,:) = chunk_dpd(xo:,yo:,zo:,:)
 
-      chunk_dpw(:,:,:,:) = reshape(dpw, shape(chunk_dpw))
+      chunk_dpw(:,:,:,:) = RESHAPE(dpw, SHAPE(chunk_dpw))
       full_dpw(xi:xe,yi:ye,zi:ze,:) = chunk_dpw(xo:,yo:,zo:,:)
 
-      chunk_fpsc1(:,:,:) = reshape(fpsc1, shape(chunk_fpsc1))
+      chunk_fpsc1(:,:,:) = RESHAPE(fpsc1, SHAPE(chunk_fpsc1))
       full_fpsc1(xi:xe,yi:ye,zi:ze) = chunk_fpsc1(xo:,yo:,zo:)
 
-      chunk_fpsc2(:,:,:) = reshape(fpsc2, shape(chunk_fpsc2))
+      chunk_fpsc2(:,:,:) = RESHAPE(fpsc2, SHAPE(chunk_fpsc2))
       full_fpsc2(xi:xe,yi:ye,zi:ze) = chunk_fpsc2(xo:,yo:,zo:)
 
-      chunk_prk(:,:,:,:) = reshape(prk, shape(chunk_prk))
+      chunk_prk(:,:,:,:) = RESHAPE(prk, SHAPE(chunk_prk))
       full_prk(xi:xe,yi:ye,zi:ze,:) = chunk_prk(xo:,yo:,zo:,:)
 
-      chunk_y(:,:,:,:) = reshape(y, shape(chunk_y))
+      chunk_y(:,:,:,:) = RESHAPE(y, SHAPE(chunk_y))
       full_y(xi:xe,yi:ye,zi:ze,:) = chunk_y(xo:,yo:,zo:,:)
 
-      chunk_sphno3(:,:,:) = reshape(sphno3, shape(chunk_sphno3))
+      chunk_sphno3(:,:,:) = RESHAPE(sphno3, SHAPE(chunk_sphno3))
       full_sphno3(xi:xe,yi:ye,zi:ze) = chunk_sphno3(xo:,yo:,zo:)
 
-      chunk_tnd(:,:,:) = reshape(tnd, shape(chunk_tnd))
+      chunk_tnd(:,:,:) = RESHAPE(tnd, SHAPE(chunk_tnd))
       full_tnd(xi:xe,yi:ye,zi:ze) = chunk_tnd(xo:,yo:,zo:)
 
-      chunk_rk(:,:,:,:) = reshape(rk, shape(chunk_rk))
+      chunk_rk(:,:,:,:) = RESHAPE(rk, SHAPE(chunk_rk))
       full_rk(xi:xe,yi:ye,zi:ze,:) = chunk_rk(xo:,yo:,zo:,:)
     END DO
   END DO
@@ -722,9 +722,9 @@ END DO
 !$OMP END PARALLEL
 
 ! Preserve non-fixed behaviour when chunking is disabled
-IF (.not. ukca_config%l_fix_ukca_h2so4_ystore .and.                            &
-    .not. chunking_enabled) THEN
-  y(:,:) = reshape(full_y, [tot_n_pnts,jpspec])
+IF (.NOT. ukca_config%l_fix_ukca_h2so4_ystore .AND.                            &
+    .NOT. chunking_enabled) THEN
+  y(:,:) = RESHAPE(full_y, [tot_n_pnts,jpspec])
 END IF
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
