@@ -342,6 +342,14 @@ DO i=1,rows
     IF (ANY(speci(:) == 'CO2       ')) THEN
       ! Copy the CO2 concentration into the asad module as VMR
       IF (ukca_config%l_chem_environ_co2_fld) THEN
+
+        ! co2_interactive should be allocated if config option on
+        IF (.NOT. ALLOCATED(co2_interactive)) THEN
+          errcode = 1
+          CALL ereport(ModuleName//':'//RoutineName, errcode,                  &
+            'ERROR: co2_interactive array not allocated')
+        END IF
+
         co2_1d(:) = co2_interactive(j,i,:)/c_co2
       ELSE
         co2_1d(:) = rmdi

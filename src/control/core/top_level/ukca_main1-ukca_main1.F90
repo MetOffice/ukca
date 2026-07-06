@@ -2368,7 +2368,7 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep, L_stratosphere, co2_interactive,    &
+           zdryrt, zwetrt, nlev_with_ddep, L_stratosphere,                     &
            l_firstchem                                                         &
            )
 
@@ -2442,7 +2442,7 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep, co2_interactive, L_stratosphere,    &
+           zdryrt, zwetrt, nlev_with_ddep,                  L_stratosphere,    &
            l_firstchem                                                         &
            )
     END IF
