@@ -18,7 +18,7 @@ IMPLICIT NONE
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'UKCA_RADAER_LFRIC_API_MOD'
 
 CONTAINS
-       
+
 SUBROUTINE ukca_radaer_lfric_interface(                                        &
     ! Fixed array dimensions (input)
     npd_profile,                                                               &
@@ -26,6 +26,7 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     npd_exclude_lw,                                                            &
     npd_exclude_sw,                                                            &
     npd_ukca_aod_wavel,                                                        &
+    ncp_max_x_nmodes,                                                          &
     ! Actual array dimensions (input)
     n_ukca_mode,                                                               &
     n_ukca_cpnt,                                                               &
@@ -121,6 +122,7 @@ INTEGER, INTENT(IN) :: npd_layer
 INTEGER, INTENT(IN) :: npd_exclude_lw
 INTEGER, INTENT(IN) :: npd_exclude_sw
 INTEGER, INTENT(IN) :: npd_ukca_aod_wavel
+INTEGER, INTENT(IN) :: ncp_max_x_nmodes
 
 ! RADAER array dimensions (note that nucleation mode is excluded)
 INTEGER, INTENT(IN) :: n_ukca_mode, n_ukca_cpnt
@@ -227,19 +229,7 @@ REAL ::  aod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 REAL :: aaod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 REAL ::  sod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 
-
-
 ! -----------------------------------------------------------------
-!Hard coded until develop initialisation
-INTEGER, PARAMETER ::  i_cpnt_type(nmodes * ncp_max) =                         &
-                                    (/ 1,  2,  3,  1,  2,  3,  4,  5,  1,      &
-                                       2,  3,  4,  5,  2,  3,  5,  5, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1 /)
 
 LOGICAL, PARAMETER ::  l_nitrate = .false. ! Make this a namelist option later
 LOGICAL, PARAMETER ::  l_sustrat = .true.  ! Make this a namelist option later
@@ -247,8 +237,6 @@ LOGICAL, PARAMETER ::  l_sustrat = .true.  ! Make this a namelist option later
 
 LOGICAL, PARAMETER :: l_cornarrow_ins = .false.
 ! Make this a namelist option later
-
-
 
 ! -----------------------------------------------------------------
 
@@ -271,7 +259,7 @@ INTEGER :: n_cpnt_in_mode( nmodes )
 
 LOGICAL :: l_soluble( nmodes )
 
-INTEGER :: ncp_max_x_nmodes
+INTEGER ::  i_cpnt_type( ncp_max_x_nmodes )
 
 ! -----------------------------------------------------------------
 
@@ -306,9 +294,15 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
   i_cpnt_index(cp_nn, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
   i_cpnt_index(cp_nh4,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
 
-  !-----------------------------------------------------------------------
-
-  ncp_max_x_nmodes = ncp_max * nmodes
+  i_cpnt_type(1:ncp_max_x_nmodes) =                                            &
+                                    (/ 1,  2,  3,  1,  2,  3,  4,  5,  1,      &
+                                       2,  3,  4,  5,  2,  3,  5,  5, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
+                                      -1, -1, -1, -1, -1, -1, -1, -1, -1 /)
 
   !----------------------------------------------------------------------
 
