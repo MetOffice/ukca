@@ -231,7 +231,7 @@ REAL ::  sod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 
 ! -----------------------------------------------------------------
 !Hard coded until develop initialisation
-REAL, PARAMETER ::  i_cpnt_type(nmodes * ncp_max) =                            &
+INTEGER, PARAMETER ::  i_cpnt_type(nmodes * ncp_max) =                         &
                                     (/ 1,  2,  3,  1,  2,  3,  4,  5,  1,      &
                                        2,  3,  4,  5,  2,  3,  5,  5, -1,      &
                                       -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
@@ -254,7 +254,7 @@ LOGICAL, PARAMETER :: l_cornarrow_ins = .false.
 
 ! Maxwell-Garnett mixing approach logical control switches
 INTEGER, PARAMETER :: i_ukca_tune_bc = i_ukca_bc_tuned
-INTEGER, PARAMETER :: i_glomap_clim_tune_bc = .false.
+INTEGER, PARAMETER :: i_glomap_clim_tune_bc = 0 ! No tuning
 
 ! Spectral information
 INTEGER, PARAMETER :: ip_infra_red = 2
@@ -263,13 +263,15 @@ INTEGER, PARAMETER :: ip_solar = 1
 LOGICAL, PARAMETER :: soluble_wanted   = .true.
 LOGICAL, PARAMETER :: soluble_unwanted = .false.
 
-REAL :: i_cpnt_index( ncp_max, nmodes )
+INTEGER :: i_cpnt_index( ncp_max, nmodes )
 
-REAL :: i_mode_type( nmodes )
+INTEGER :: i_mode_type( nmodes )
 
-REAL :: n_cpnt_in_mode( nmodes )
+INTEGER :: n_cpnt_in_mode( nmodes )
 
 LOGICAL :: l_soluble( nmodes )
+
+INTEGER :: ncp_max_x_nmodes
 
 ! -----------------------------------------------------------------
 
@@ -304,8 +306,11 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
   i_cpnt_index(cp_nn, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
   i_cpnt_index(cp_nh4,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
 
-
   !-----------------------------------------------------------------------
+
+  ncp_max_x_nmodes = ncp_max * nmodes
+
+  !----------------------------------------------------------------------
 
   CALL ukca_radaer_prepare(                                                    &
     ! Input Actual array dimensions
