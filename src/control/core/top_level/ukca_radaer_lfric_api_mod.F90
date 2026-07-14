@@ -231,11 +231,11 @@ REAL ::  sod_ukca_this_mode_um( npd_profile, npd_ukca_aod_wavel )
 
 ! -----------------------------------------------------------------
 
-LOGICAL, PARAMETER ::  l_nitrate = .false. ! Make this a namelist option later
-LOGICAL, PARAMETER ::  l_sustrat = .true.  ! Make this a namelist option later
+LOGICAL, PARAMETER ::  l_nitrate = .FALSE. ! Make this a namelist option later
+LOGICAL, PARAMETER ::  l_sustrat = .TRUE.  ! Make this a namelist option later
                                            ! l_sustrat=.true. for ga9
 
-LOGICAL, PARAMETER :: l_cornarrow_ins = .false.
+LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
 ! Make this a namelist option later
 
 ! -----------------------------------------------------------------
@@ -248,8 +248,8 @@ INTEGER, PARAMETER :: i_glomap_clim_tune_bc = 0 ! No tuning
 INTEGER, PARAMETER :: ip_infra_red = 2
 INTEGER, PARAMETER :: ip_solar = 1
 
-LOGICAL, PARAMETER :: soluble_wanted   = .true.
-LOGICAL, PARAMETER :: soluble_unwanted = .false.
+LOGICAL, PARAMETER :: soluble_wanted   = .TRUE.
+LOGICAL, PARAMETER :: soluble_unwanted = .FALSE.
 
 INTEGER :: i_cpnt_index( ncp_max, nmodes )
 
@@ -274,652 +274,652 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 
   ! No nucleation mode
-  l_soluble(1:nmodes) =  (/.true., .true., .true., .false.,                    &
-                           .false.,.false.,.false.,.false./)
+l_soluble(1:nmodes) =  [.TRUE., .TRUE., .TRUE., .FALSE.,                       &
+                         .FALSE.,.FALSE.,.FALSE.,.FALSE.]
 
-  ! No nucleation mode
-  n_cpnt_in_mode(1:nmodes) = (/ 3, 5, 5, 2, 1, 1, -1, -1 /)
+! No nucleation mode
+n_cpnt_in_mode(1:nmodes) = [ 3, 5, 5, 2, 1, 1, -1, -1 ]
 
-  ! No nucleation mode
-  i_mode_type(1:nmodes)    = (/ 1, 2, 3, 1, 2, 3, -1, -1 /)
+! No nucleation mode
+i_mode_type(1:nmodes)    = [ 1, 2, 3, 1, 2, 3, -1, -1 ]
 
-  ! No nucleation mode
-  i_cpnt_index(cp_su, 1:nmodes)=(/  1,  4,  9, 14, 16, 17, -1, -1 /)
-  i_cpnt_index(cp_bc, 1:nmodes)=(/  2,  5, 10, 15, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_oc, 1:nmodes)=(/  3,  6, 11, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_cl, 1:nmodes)=(/ -1,  7, 12, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_du, 1:nmodes)=(/ -1,  8, 13, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_so, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_no3,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_nn, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_nh4,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
+! No nucleation mode
+i_cpnt_index(cp_su, 1:nmodes)=[  1,  4,  9, 14, 16, 17, -1, -1 ]
+i_cpnt_index(cp_bc, 1:nmodes)=[  2,  5, 10, 15, -1, -1, -1, -1 ]
+i_cpnt_index(cp_oc, 1:nmodes)=[  3,  6, 11, -1, -1, -1, -1, -1 ]
+i_cpnt_index(cp_cl, 1:nmodes)=[ -1,  7, 12, -1, -1, -1, -1, -1 ]
+i_cpnt_index(cp_du, 1:nmodes)=[ -1,  8, 13, -1, -1, -1, -1, -1 ]
+i_cpnt_index(cp_so, 1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
+i_cpnt_index(cp_no3,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
+i_cpnt_index(cp_nn, 1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
+i_cpnt_index(cp_nh4,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
 
-  i_cpnt_type(1:ncp_max_x_nmodes) =                                            &
-                                    (/ 1,  2,  3,  1,  2,  3,  4,  5,  1,      &
-                                       2,  3,  4,  5,  2,  3,  5,  5, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1 /)
+i_cpnt_type(1:ncp_max_x_nmodes) =                                              &
+                                  [ 1,  2,  3,  1,  2,  3,  4,  5,  1,         &
+                                     2,  3,  4,  5,  2,  3,  5,  5, -1,        &
+                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
+                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
+                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
+                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
+                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
+                                    -1, -1, -1, -1, -1, -1, -1, -1, -1 ]
 
-  !----------------------------------------------------------------------
+!----------------------------------------------------------------------
 
-  CALL ukca_radaer_prepare(                                                    &
-    ! Input Actual array dimensions
-    npd_profile, npd_layer, n_ukca_mode, n_ukca_cpnt,                          &
-    ! Input Fixed array dimensions
-    npd_profile, npd_layer, n_radaer_mode,                                     &
-    ! Input from the UKCA_RADAER structure
-    nmodes, ncp_max, i_cpnt_index, n_cpnt_in_mode,                             &
-    ! Input Component mass-mixing ratios
-    ukca_mix_ratio_um,                                                         &
-    ! Input modal number concentrations
-    ukca_modal_nbr_um,                                                         &
-    ! Input Pressure and temperature
-    p_theta_levels, t_theta_levels,                                            &
-    ! Output Modal mass-mixing ratios
-    ukca_mode_mix_ratio_um,                                                    &
-    ! Output modal number concentrations
-    ukca_modal_number_um                                                       &
-    )
+CALL ukca_radaer_prepare(                                                      &
+  ! Input Actual array dimensions
+  npd_profile, npd_layer, n_ukca_mode, n_ukca_cpnt,                            &
+  ! Input Fixed array dimensions
+  npd_profile, npd_layer, n_radaer_mode,                                       &
+  ! Input from the UKCA_RADAER structure
+  nmodes, ncp_max, i_cpnt_index, n_cpnt_in_mode,                               &
+  ! Input Component mass-mixing ratios
+  ukca_mix_ratio_um,                                                           &
+  ! Input modal number concentrations
+  ukca_modal_nbr_um,                                                           &
+  ! Input Pressure and temperature
+  p_theta_levels, t_theta_levels,                                              &
+  ! Output Modal mass-mixing ratios
+  ukca_mode_mix_ratio_um,                                                      &
+  ! Output modal number concentrations
+  ukca_modal_number_um                                                         &
+  )
 
-  ! Long wave ( e.g. ip_infra_red )
+! Long wave ( e.g. ip_infra_red )
+CALL ukca_radaer_band_average(                                                 &
+  ! Fixed array dimensions (input)
+  npd_profile,                                                                 &
+  npd_layer,                                                                   &
+  n_radaer_mode,                                                               &
+  n_lw_band,                                                                   &
+  npd_exclude_lw,                                                              &
+  ! Spectral information (input)
+  n_lw_band,                                                                   &
+  ip_infra_red,                                                                &
+  l_exclude_lw,                                                                &
+  lw_n_band_exclude,                                                           &
+  lw_index_exclude,                                                            &
+  ! Actual array dimensions (input)
+  npd_profile,                                                                 &
+  npd_layer,                                                                   &
+  n_ukca_mode,                                                                 &
+  n_ukca_cpnt,                                                                 &
+  ! Prescribed SSA dimensions
+  nd_prof_ssa,                                                                 &
+  nd_layr_ssa,                                                                 &
+  nd_band_ssa,                                                                 &
+  ! UKCA_RADAER structure (input)
+  nmodes,                                                                      &
+  ncp_max,                                                                     &
+  ncp_max_x_nmodes,                                                            &
+  i_cpnt_index,                                                                &
+  i_cpnt_type,                                                                 &
+  i_mode_type,                                                                 &
+  l_nitrate,                                                                   &
+  l_soluble,                                                                   &
+  l_sustrat,                                                                   &
+  l_cornarrow_ins,                                                             &
+  n_cpnt_in_mode,                                                              &
+  ! Modal mass-mixing ratios (input)
+  ukca_mode_mix_ratio_um,                                                      &
+  ! Modal number concentrations (input)
+  ukca_modal_number_um,                                                        &
+  ! Modal diameters from UKCA module (input)
+  ukca_dry_diam_um,                                                            &
+  ukca_wet_diam_um,                                                            &
+  ! Other inputs from UKCA module (input)
+  ukca_comp_vol_um,                                                            &
+  ukca_modal_vol_um,                                                           &
+  ukca_modal_rho_um,                                                           &
+  ukca_modal_wtv_um,                                                           &
+  ! Logical to describe orientation
+  l_inverted,                                                                  &
+  ! Control option for prescribed single scattering albedo array
+  i_ukca_radaer_prescribe_ssa,                                                 &
+  ! Model level of the tropopause (input)
+  trindxrad_um,                                                                &
+  ! Prescription of single-scattering albedo
+  ukca_radaer_presc_ssa,                                                       &
+  ! Maxwell-Garnett mixing approach logical control switches
+  i_ukca_tune_bc, i_glomap_clim_tune_bc,                                       &
+  ! Band-averaged optical properties (output)
+  aer_lw_absorption_um,                                                        &
+  aer_lw_scattering_um,                                                        &
+  aer_lw_asymmetry_um                                                          &
+  )
+
+! Short wave (e.g. ip_solar ) - only calculate on lit points
+IF ( l_any_lit_points_um ) THEN
+
   CALL ukca_radaer_band_average(                                               &
-    ! Fixed array dimensions (input)
-    npd_profile,                                                               &
-    npd_layer,                                                                 &
-    n_radaer_mode,                                                             &
-    n_lw_band,                                                                 &
-    npd_exclude_lw,                                                            &
-    ! Spectral information (input)
-    n_lw_band,                                                                 &
-    ip_infra_red,                                                              &
-    l_exclude_lw,                                                              &
-    lw_n_band_exclude,                                                         &
-    lw_index_exclude,                                                          &
-    ! Actual array dimensions (input)
-    npd_profile,                                                               &
-    npd_layer,                                                                 &
-    n_ukca_mode,                                                               &
-    n_ukca_cpnt,                                                               &
-    ! Prescribed SSA dimensions
-    nd_prof_ssa,                                                               &
-    nd_layr_ssa,                                                               &
-    nd_band_ssa,                                                               &
-    ! UKCA_RADAER structure (input)
-    nmodes,                                                                    &
-    ncp_max,                                                                   &
-    ncp_max_x_nmodes,                                                          &
-    i_cpnt_index,                                                              &
-    i_cpnt_type,                                                               &
-    i_mode_type,                                                               &
-    l_nitrate,                                                                 &
-    l_soluble,                                                                 &
-    l_sustrat,                                                                 &
-    l_cornarrow_ins,                                                           &
-    n_cpnt_in_mode,                                                            &
-    ! Modal mass-mixing ratios (input)
-    ukca_mode_mix_ratio_um,                                                    &
-    ! Modal number concentrations (input)
-    ukca_modal_number_um,                                                      &
-    ! Modal diameters from UKCA module (input)
-    ukca_dry_diam_um,                                                          &
-    ukca_wet_diam_um,                                                          &
-    ! Other inputs from UKCA module (input)
-    ukca_comp_vol_um,                                                          &
-    ukca_modal_vol_um,                                                         &
-    ukca_modal_rho_um,                                                         &
-    ukca_modal_wtv_um,                                                         &
-    ! Logical to describe orientation
-    l_inverted,                                                                &
-    ! Control option for prescribed single scattering albedo array
-    i_ukca_radaer_prescribe_ssa,                                               &
-    ! Model level of the tropopause (input)
-    trindxrad_um,                                                              &
-    ! Prescription of single-scattering albedo
-    ukca_radaer_presc_ssa,                                                     &
-    ! Maxwell-Garnett mixing approach logical control switches
-    i_ukca_tune_bc, i_glomap_clim_tune_bc,                                     &
-    ! Band-averaged optical properties (output)
-    aer_lw_absorption_um,                                                      &
-    aer_lw_scattering_um,                                                      &
-    aer_lw_asymmetry_um                                                        &
-    )
+      ! Fixed array dimensions (input)
+      npd_profile,                                                             &
+      npd_layer,                                                               &
+      n_radaer_mode,                                                           &
+      n_sw_band,                                                               &
+      npd_exclude_sw,                                                          &
+      ! Spectral information (input)
+      n_sw_band,                                                               &
+      ip_solar,                                                                &
+      l_exclude_sw,                                                            &
+      sw_n_band_exclude,                                                       &
+      sw_index_exclude,                                                        &
+      ! Actual array dimensions (input)
+      npd_profile,                                                             &
+      npd_layer,                                                               &
+      n_ukca_mode,                                                             &
+      n_ukca_cpnt,                                                             &
+      ! Prescribed SSA dimensions
+      nd_prof_ssa,                                                             &
+      nd_layr_ssa,                                                             &
+      nd_band_ssa,                                                             &
+      ! UKCA_RADAER structure (input)
+      nmodes,                                                                  &
+      ncp_max,                                                                 &
+      ncp_max_x_nmodes,                                                        &
+      i_cpnt_index,                                                            &
+      i_cpnt_type,                                                             &
+      i_mode_type,                                                             &
+      l_nitrate,                                                               &
+      l_soluble,                                                               &
+      l_sustrat,                                                               &
+      l_cornarrow_ins,                                                         &
+      n_cpnt_in_mode,                                                          &
+      ! Modal mass-mixing ratios (input)
+      ukca_mode_mix_ratio_um,                                                  &
+      ! Modal number concentrations (input)
+      ukca_modal_number_um,                                                    &
+      ! Modal diameters from UKCA module (input)
+      ukca_dry_diam_um,                                                        &
+      ukca_wet_diam_um,                                                        &
+      ! Other inputs from UKCA module (input)
+      ukca_comp_vol_um,                                                        &
+      ukca_modal_vol_um,                                                       &
+      ukca_modal_rho_um,                                                       &
+      ukca_modal_wtv_um,                                                       &
+      ! Logical to describe orientation
+      l_inverted,                                                              &
+      ! Switch for prescribed single scattering albedo array
+      i_ukca_radaer_prescribe_ssa,                                             &
+      ! Model level of the tropopause (input)
+      trindxrad_um,                                                            &
+      ! Prescription of single-scattering albedo
+      ukca_radaer_presc_ssa,                                                   &
+      ! Maxwell-Garnett mixing approach logical control switches
+      i_ukca_tune_bc, i_glomap_clim_tune_bc,                                   &
+      ! Band-averaged optical properties (output)
+      aer_sw_absorption_um,                                                    &
+      aer_sw_scattering_um,                                                    &
+      aer_sw_asymmetry_um )
 
-  ! Short wave (e.g. ip_solar ) - only calculate on lit points
-  IF ( l_any_lit_points_um ) THEN
+END IF
 
-    CALL ukca_radaer_band_average(                                             &
-        ! Fixed array dimensions (input)
-        npd_profile,                                                           &
-        npd_layer,                                                             &
-        n_radaer_mode,                                                         &
-        n_sw_band,                                                             &
-        npd_exclude_sw,                                                        &
-        ! Spectral information (input)
-        n_sw_band,                                                             &
-        ip_solar,                                                              &
-        l_exclude_sw,                                                          &
-        sw_n_band_exclude,                                                     &
-        sw_index_exclude,                                                      &
-        ! Actual array dimensions (input)
-        npd_profile,                                                           &
-        npd_layer,                                                             &
-        n_ukca_mode,                                                           &
-        n_ukca_cpnt,                                                           &
-        ! Prescribed SSA dimensions
-        nd_prof_ssa,                                                           &
-        nd_layr_ssa,                                                           &
-        nd_band_ssa,                                                           &
-        ! UKCA_RADAER structure (input)
-        nmodes,                                                                &
-        ncp_max,                                                               &
-        ncp_max_x_nmodes,                                                      &
-        i_cpnt_index,                                                          &
-        i_cpnt_type,                                                           &
-        i_mode_type,                                                           &
-        l_nitrate,                                                             &
-        l_soluble,                                                             &
-        l_sustrat,                                                             &
-        l_cornarrow_ins,                                                       &
-        n_cpnt_in_mode,                                                        &
-        ! Modal mass-mixing ratios (input)
-        ukca_mode_mix_ratio_um,                                                &
-        ! Modal number concentrations (input)
-        ukca_modal_number_um,                                                  &
-        ! Modal diameters from UKCA module (input)
-        ukca_dry_diam_um,                                                      &
-        ukca_wet_diam_um,                                                      &
-        ! Other inputs from UKCA module (input)
-        ukca_comp_vol_um,                                                      &
-        ukca_modal_vol_um,                                                     &
-        ukca_modal_rho_um,                                                     &
-        ukca_modal_wtv_um,                                                     &
-        ! Logical to describe orientation
-        l_inverted,                                                            &
-        ! Switch for prescribed single scattering albedo array
-        i_ukca_radaer_prescribe_ssa,                                           &
-        ! Model level of the tropopause (input)
-        trindxrad_um,                                                          &
-        ! Prescription of single-scattering albedo
-        ukca_radaer_presc_ssa,                                                 &
-        ! Maxwell-Garnett mixing approach logical control switches
-        i_ukca_tune_bc, i_glomap_clim_tune_bc,                                 &
-        ! Band-averaged optical properties (output)
-        aer_sw_absorption_um,                                                  &
-        aer_sw_scattering_um,                                                  &
-        aer_sw_asymmetry_um )
+!------------------------------------------------
+! Now calculate aod and aaod for Aitken Soluble mode
 
-  END IF
+IF ( l_aod_ukca_ait_sol .OR. l_aaod_ukca_ait_sol ) THEN
 
-  !------------------------------------------------
-  ! Now calculate aod and aaod for Aitken Soluble mode
+  CALL ukca_radaer_compute_aod(                                                &
+       ! Fixed array dimensions (input)
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_ukca_mode,                                                            &
+       n_ukca_cpnt,                                                            &
+       npd_ukca_aod_wavel,                                                     &
+       ! Fixed array Prescribed ssa dimensions (input)
+       nd_prof_ssa,                                                            &
+       nd_layr_ssa,                                                            &
+       nd_band_ssa,                                                            &
+       ! UKCA_RADAER structure (input)
+       nmodes,                                                                 &
+       ncp_max,                                                                &
+       ncp_max_x_nmodes,                                                       &
+       i_cpnt_index,                                                           &
+       i_cpnt_type,                                                            &
+       n_cpnt_in_mode,                                                         &
+       l_nitrate,                                                              &
+       l_soluble,                                                              &
+       l_sustrat,                                                              &
+       i_mode_type,                                                            &
+       l_cornarrow_ins,                                                        &
+       ! Modal diameters from UKCA module
+       ukca_dry_diam_um,                                                       &
+       ukca_wet_diam_um,                                                       &
+       ! Mass thickness of layers
+       d_mass_theta_levels_um,                                                 &
+       ! Component volumes
+       ukca_comp_vol_um,                                                       &
+       ! Modal volumes, densities, and water content
+       ukca_modal_vol_um,                                                      &
+       ukca_modal_rho_um,                                                      &
+       ukca_modal_wtv_um,                                                      &
+       ! Modal mass-mixing ratios
+       ukca_mode_mix_ratio_um,                                                 &
+       ! Modal number concentrations
+       ukca_modal_number_um,                                                   &
+       ! Type selection
+       ip_ukca_mode_aitken,                                                    &
+       soluble_wanted,                                                         &
+       ! Switch for if prescribed SSA is on
+       i_ukca_radaer_prescribe_ssa,                                            &
+       ! Model level of the tropopause
+       trindxrad_um,                                                           &
+       ! Prescription of single-scattering albedo
+       ukca_radaer_presc_ssa,                                                  &
+       ! Modal extinction aerosol opt depth - column (output)
+       aod_ukca_this_mode_um,                                                  &
+       ! Modal extinction aerosol opt depth - stratosphere (output)
+       sod_ukca_this_mode_um,                                                  &
+       ! Modal absorption aerosol opt depth (output)
+       aaod_ukca_this_mode_um,                                                 &
+       ! Fixed array dimensions
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_radaer_mode,                                                          &
+       npd_ukca_aod_wavel )
 
-  IF ( l_aod_ukca_ait_sol .or. l_aaod_ukca_ait_sol ) THEN
-
-    CALL ukca_radaer_compute_aod(                                              &
-         ! Fixed array dimensions (input)
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_ukca_mode,                                                          &
-         n_ukca_cpnt,                                                          &
-         npd_ukca_aod_wavel,                                                   &
-         ! Fixed array Prescribed ssa dimensions (input)
-         nd_prof_ssa,                                                          &
-         nd_layr_ssa,                                                          &
-         nd_band_ssa,                                                          &
-         ! UKCA_RADAER structure (input)
-         nmodes,                                                               &
-         ncp_max,                                                              &
-         ncp_max_x_nmodes,                                                     &
-         i_cpnt_index,                                                         &
-         i_cpnt_type,                                                          &
-         n_cpnt_in_mode,                                                       &
-         l_nitrate,                                                            &
-         l_soluble,                                                            &
-         l_sustrat,                                                            &
-         i_mode_type,                                                          &
-         l_cornarrow_ins,                                                      &
-         ! Modal diameters from UKCA module
-         ukca_dry_diam_um,                                                     &
-         ukca_wet_diam_um,                                                     &
-         ! Mass thickness of layers
-         d_mass_theta_levels_um,                                               &
-         ! Component volumes
-         ukca_comp_vol_um,                                                     &
-         ! Modal volumes, densities, and water content
-         ukca_modal_vol_um,                                                    &
-         ukca_modal_rho_um,                                                    &
-         ukca_modal_wtv_um,                                                    &
-         ! Modal mass-mixing ratios
-         ukca_mode_mix_ratio_um,                                               &
-         ! Modal number concentrations
-         ukca_modal_number_um,                                                 &
-         ! Type selection
-         ip_ukca_mode_aitken,                                                  &
-         soluble_wanted,                                                       &
-         ! Switch for if prescribed SSA is on
-         i_ukca_radaer_prescribe_ssa,                                          &
-         ! Model level of the tropopause
-         trindxrad_um,                                                         &
-         ! Prescription of single-scattering albedo
-         ukca_radaer_presc_ssa,                                                &
-         ! Modal extinction aerosol opt depth - column (output)
-         aod_ukca_this_mode_um,                                                &
-         ! Modal extinction aerosol opt depth - stratosphere (output)
-         sod_ukca_this_mode_um,                                                &
-         ! Modal absorption aerosol opt depth (output)
-         aaod_ukca_this_mode_um,                                               &
-         ! Fixed array dimensions
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_radaer_mode,                                                        &
-         npd_ukca_aod_wavel )
-
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aod_ukca_all_modes_um(i,k,mode_ait_sol-1) = aod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aod_ukca_all_modes_um(i,k,mode_ait_sol-1) = aod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aaod_ukca_all_modes_um(i,k,mode_ait_sol-1) = aaod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aaod_ukca_all_modes_um(i,k,mode_ait_sol-1) = aaod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-  END IF ! Calculate AOD Aitken Soluble mode
+END IF ! Calculate AOD Aitken Soluble mode
 
-  !------------------------------------------------
-  ! Now calculate aod and aaod for Accumulation Soluble mode
+!------------------------------------------------
+! Now calculate aod and aaod for Accumulation Soluble mode
 
-  IF ( l_aod_ukca_acc_sol .OR. l_aaod_ukca_acc_sol ) THEN
+IF ( l_aod_ukca_acc_sol .OR. l_aaod_ukca_acc_sol ) THEN
 
-    CALL ukca_radaer_compute_aod(                                              &
-         ! Fixed array dimensions (input)
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_ukca_mode,                                                          &
-         n_ukca_cpnt,                                                          &
-         npd_ukca_aod_wavel,                                                   &
-         ! Fixed array Prescribed ssa dimensions (input)
-         nd_prof_ssa,                                                          &
-         nd_layr_ssa,                                                          &
-         nd_band_ssa,                                                          &
-         ! UKCA_RADAER structure (input)
-         nmodes,                                                               &
-         ncp_max,                                                              &
-         ncp_max_x_nmodes,                                                     &
-         i_cpnt_index,                                                         &
-         i_cpnt_type,                                                          &
-         n_cpnt_in_mode,                                                       &
-         l_nitrate,                                                            &
-         l_soluble,                                                            &
-         l_sustrat,                                                            &
-         i_mode_type,                                                          &
-         l_cornarrow_ins,                                                      &
-         ! Modal diameters from UKCA module
-         ukca_dry_diam_um,                                                     &
-         ukca_wet_diam_um,                                                     &
-         ! Mass thickness of layers
-         d_mass_theta_levels_um,                                               &
-         ! Component volumes
-         ukca_comp_vol_um,                                                     &
-         ! Modal volumes, densities, and water content
-         ukca_modal_vol_um,                                                    &
-         ukca_modal_rho_um,                                                    &
-         ukca_modal_wtv_um,                                                    &
-         ! Modal mass-mixing ratios
-         ukca_mode_mix_ratio_um,                                               &
-         ! Modal number concentrations
-         ukca_modal_number_um,                                                 &
-         ! Type selection
-         ip_ukca_mode_accum,                                                   &
-         soluble_wanted,                                                       &
-         ! Switch for if prescribed SSA is on
-         i_ukca_radaer_prescribe_ssa,                                          &
-         ! Model level of the tropopause
-         trindxrad_um,                                                         &
-         ! Prescription of single-scattering albedo
-         ukca_radaer_presc_ssa,                                                &
-         ! Modal extinction aerosol opt depth - column (output)
-         aod_ukca_this_mode_um,                                                &
-         ! Modal extinction aerosol opt depth - stratosphere (output)
-         sod_ukca_this_mode_um,                                                &
-         ! Modal absorption aerosol opt depth (output)
-         aaod_ukca_this_mode_um,                                               &
-         ! Fixed array dimensions
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_radaer_mode,                                                        &
-         npd_ukca_aod_wavel )
+  CALL ukca_radaer_compute_aod(                                                &
+       ! Fixed array dimensions (input)
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_ukca_mode,                                                            &
+       n_ukca_cpnt,                                                            &
+       npd_ukca_aod_wavel,                                                     &
+       ! Fixed array Prescribed ssa dimensions (input)
+       nd_prof_ssa,                                                            &
+       nd_layr_ssa,                                                            &
+       nd_band_ssa,                                                            &
+       ! UKCA_RADAER structure (input)
+       nmodes,                                                                 &
+       ncp_max,                                                                &
+       ncp_max_x_nmodes,                                                       &
+       i_cpnt_index,                                                           &
+       i_cpnt_type,                                                            &
+       n_cpnt_in_mode,                                                         &
+       l_nitrate,                                                              &
+       l_soluble,                                                              &
+       l_sustrat,                                                              &
+       i_mode_type,                                                            &
+       l_cornarrow_ins,                                                        &
+       ! Modal diameters from UKCA module
+       ukca_dry_diam_um,                                                       &
+       ukca_wet_diam_um,                                                       &
+       ! Mass thickness of layers
+       d_mass_theta_levels_um,                                                 &
+       ! Component volumes
+       ukca_comp_vol_um,                                                       &
+       ! Modal volumes, densities, and water content
+       ukca_modal_vol_um,                                                      &
+       ukca_modal_rho_um,                                                      &
+       ukca_modal_wtv_um,                                                      &
+       ! Modal mass-mixing ratios
+       ukca_mode_mix_ratio_um,                                                 &
+       ! Modal number concentrations
+       ukca_modal_number_um,                                                   &
+       ! Type selection
+       ip_ukca_mode_accum,                                                     &
+       soluble_wanted,                                                         &
+       ! Switch for if prescribed SSA is on
+       i_ukca_radaer_prescribe_ssa,                                            &
+       ! Model level of the tropopause
+       trindxrad_um,                                                           &
+       ! Prescription of single-scattering albedo
+       ukca_radaer_presc_ssa,                                                  &
+       ! Modal extinction aerosol opt depth - column (output)
+       aod_ukca_this_mode_um,                                                  &
+       ! Modal extinction aerosol opt depth - stratosphere (output)
+       sod_ukca_this_mode_um,                                                  &
+       ! Modal absorption aerosol opt depth (output)
+       aaod_ukca_this_mode_um,                                                 &
+       ! Fixed array dimensions
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_radaer_mode,                                                          &
+       npd_ukca_aod_wavel )
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aod_ukca_all_modes_um(i,k,mode_acc_sol-1) = aod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aod_ukca_all_modes_um(i,k,mode_acc_sol-1) = aod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aaod_ukca_all_modes_um(i,k,mode_acc_sol-1) = aaod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aaod_ukca_all_modes_um(i,k,mode_acc_sol-1) = aaod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-  END IF ! Calculate AOD Accumulation Soluble mode
+END IF ! Calculate AOD Accumulation Soluble mode
 
-  !------------------------------------------------
-  ! Now calculate aod and aaod for Coarse Soluble mode
+!------------------------------------------------
+! Now calculate aod and aaod for Coarse Soluble mode
 
-  IF ( l_aod_ukca_cor_sol .OR. l_aaod_ukca_cor_sol ) THEN
+IF ( l_aod_ukca_cor_sol .OR. l_aaod_ukca_cor_sol ) THEN
 
-    CALL ukca_radaer_compute_aod(                                              &
-         ! Fixed array dimensions (input)
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_ukca_mode,                                                          &
-         n_ukca_cpnt,                                                          &
-         npd_ukca_aod_wavel,                                                   &
-         ! Fixed array Prescribed ssa dimensions (input)
-         nd_prof_ssa,                                                          &
-         nd_layr_ssa,                                                          &
-         nd_band_ssa,                                                          &
-         ! UKCA_RADAER structure (input)
-         nmodes,                                                               &
-         ncp_max,                                                              &
-         ncp_max_x_nmodes,                                                     &
-         i_cpnt_index,                                                         &
-         i_cpnt_type,                                                          &
-         n_cpnt_in_mode,                                                       &
-         l_nitrate,                                                            &
-         l_soluble,                                                            &
-         l_sustrat,                                                            &
-         i_mode_type,                                                          &
-         l_cornarrow_ins,                                                      &
-         ! Modal diameters from UKCA module
-         ukca_dry_diam_um,                                                     &
-         ukca_wet_diam_um,                                                     &
-         ! Mass thickness of layers
-         d_mass_theta_levels_um,                                               &
-         ! Component volumes
-         ukca_comp_vol_um,                                                     &
-         ! Modal volumes, densities, and water content
-         ukca_modal_vol_um,                                                    &
-         ukca_modal_rho_um,                                                    &
-         ukca_modal_wtv_um,                                                    &
-         ! Modal mass-mixing ratios
-         ukca_mode_mix_ratio_um,                                               &
-         ! Modal number concentrations
-         ukca_modal_number_um,                                                 &
-         ! Type selection
-         ip_ukca_mode_coarse,                                                  &
-         soluble_wanted,                                                       &
-         ! Switch for if prescribed SSA is on
-         i_ukca_radaer_prescribe_ssa,                                          &
-         ! Model level of the tropopause
-         trindxrad_um,                                                         &
-         ! Prescription of single-scattering albedo
-         ukca_radaer_presc_ssa,                                                &
-         ! Modal extinction aerosol opt depth - column (output)
-         aod_ukca_this_mode_um,                                                &
-         ! Modal extinction aerosol opt depth - stratosphere (output)
-         sod_ukca_this_mode_um,                                                &
-         ! Modal absorption aerosol opt depth (output)
-         aaod_ukca_this_mode_um,                                               &
-         ! Fixed array dimensions
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_radaer_mode,                                                        &
-         npd_ukca_aod_wavel )
+  CALL ukca_radaer_compute_aod(                                                &
+       ! Fixed array dimensions (input)
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_ukca_mode,                                                            &
+       n_ukca_cpnt,                                                            &
+       npd_ukca_aod_wavel,                                                     &
+       ! Fixed array Prescribed ssa dimensions (input)
+       nd_prof_ssa,                                                            &
+       nd_layr_ssa,                                                            &
+       nd_band_ssa,                                                            &
+       ! UKCA_RADAER structure (input)
+       nmodes,                                                                 &
+       ncp_max,                                                                &
+       ncp_max_x_nmodes,                                                       &
+       i_cpnt_index,                                                           &
+       i_cpnt_type,                                                            &
+       n_cpnt_in_mode,                                                         &
+       l_nitrate,                                                              &
+       l_soluble,                                                              &
+       l_sustrat,                                                              &
+       i_mode_type,                                                            &
+       l_cornarrow_ins,                                                        &
+       ! Modal diameters from UKCA module
+       ukca_dry_diam_um,                                                       &
+       ukca_wet_diam_um,                                                       &
+       ! Mass thickness of layers
+       d_mass_theta_levels_um,                                                 &
+       ! Component volumes
+       ukca_comp_vol_um,                                                       &
+       ! Modal volumes, densities, and water content
+       ukca_modal_vol_um,                                                      &
+       ukca_modal_rho_um,                                                      &
+       ukca_modal_wtv_um,                                                      &
+       ! Modal mass-mixing ratios
+       ukca_mode_mix_ratio_um,                                                 &
+       ! Modal number concentrations
+       ukca_modal_number_um,                                                   &
+       ! Type selection
+       ip_ukca_mode_coarse,                                                    &
+       soluble_wanted,                                                         &
+       ! Switch for if prescribed SSA is on
+       i_ukca_radaer_prescribe_ssa,                                            &
+       ! Model level of the tropopause
+       trindxrad_um,                                                           &
+       ! Prescription of single-scattering albedo
+       ukca_radaer_presc_ssa,                                                  &
+       ! Modal extinction aerosol opt depth - column (output)
+       aod_ukca_this_mode_um,                                                  &
+       ! Modal extinction aerosol opt depth - stratosphere (output)
+       sod_ukca_this_mode_um,                                                  &
+       ! Modal absorption aerosol opt depth (output)
+       aaod_ukca_this_mode_um,                                                 &
+       ! Fixed array dimensions
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_radaer_mode,                                                          &
+       npd_ukca_aod_wavel )
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aod_ukca_all_modes_um(i,k,mode_cor_sol-1) = aod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aod_ukca_all_modes_um(i,k,mode_cor_sol-1) = aod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aaod_ukca_all_modes_um(i,k,mode_cor_sol-1) = aaod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aaod_ukca_all_modes_um(i,k,mode_cor_sol-1) = aaod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-  END IF ! Calculate AOD Coarse Soluble mode
+END IF ! Calculate AOD Coarse Soluble mode
 
-  !------------------------------------------------
-  ! Now calculate aod and aaod for Aitken Insoluble mode
- 
-  IF ( l_aod_ukca_ait_ins .OR. l_aaod_ukca_ait_ins ) THEN
+!------------------------------------------------
+! Now calculate aod and aaod for Aitken Insoluble mode
 
-    CALL ukca_radaer_compute_aod(                                              &
-         ! Fixed array dimensions (input)
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_ukca_mode,                                                          &
-         n_ukca_cpnt,                                                          &
-         npd_ukca_aod_wavel,                                                   &
-         ! Fixed array Prescribed ssa dimensions (input)
-         nd_prof_ssa,                                                          &
-         nd_layr_ssa,                                                          &
-         nd_band_ssa,                                                          &
-         ! UKCA_RADAER structure (input)
-         nmodes,                                                               &
-         ncp_max,                                                              &
-         ncp_max_x_nmodes,                                                     &
-         i_cpnt_index,                                                         &
-         i_cpnt_type,                                                          &
-         n_cpnt_in_mode,                                                       &
-         l_nitrate,                                                            &
-         l_soluble,                                                            &
-         l_sustrat,                                                            &
-         i_mode_type,                                                          &
-         l_cornarrow_ins,                                                      &
-         ! Modal diameters from UKCA module
-         ukca_dry_diam_um,                                                     &
-         ukca_wet_diam_um,                                                     &
-         ! Mass thickness of layers
-         d_mass_theta_levels_um,                                               &
-         ! Component volumes
-         ukca_comp_vol_um,                                                     &
-         ! Modal volumes, densities, and water content
-         ukca_modal_vol_um,                                                    &
-         ukca_modal_rho_um,                                                    &
-         ukca_modal_wtv_um,                                                    &
-         ! Modal mass-mixing ratios
-         ukca_mode_mix_ratio_um,                                               &
-         ! Modal number concentrations
-         ukca_modal_number_um,                                                 &
-         ! Type selection
-         ip_ukca_mode_aitken,                                                  &
-         soluble_unwanted,                                                     &
-         ! Switch for if prescribed SSA is on
-         i_ukca_radaer_prescribe_ssa,                                          &
-         ! Model level of the tropopause
-         trindxrad_um,                                                         &
-         ! Prescription of single-scattering albedo
-         ukca_radaer_presc_ssa,                                                &
-         ! Modal extinction aerosol opt depth - column (output)
-         aod_ukca_this_mode_um,                                                &
-         ! Modal extinction aerosol opt depth - stratosphere (output)
-         sod_ukca_this_mode_um,                                                &
-         ! Modal absorption aerosol opt depth (output)
-         aaod_ukca_this_mode_um,                                               &
-         ! Fixed array dimensions
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_radaer_mode,                                                        &
-         npd_ukca_aod_wavel )
+IF ( l_aod_ukca_ait_ins .OR. l_aaod_ukca_ait_ins ) THEN
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aod_ukca_all_modes_um(i,k,mode_ait_insol-1) = aod_ukca_this_mode_um(i,k)
-      END DO
+  CALL ukca_radaer_compute_aod(                                                &
+       ! Fixed array dimensions (input)
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_ukca_mode,                                                            &
+       n_ukca_cpnt,                                                            &
+       npd_ukca_aod_wavel,                                                     &
+       ! Fixed array Prescribed ssa dimensions (input)
+       nd_prof_ssa,                                                            &
+       nd_layr_ssa,                                                            &
+       nd_band_ssa,                                                            &
+       ! UKCA_RADAER structure (input)
+       nmodes,                                                                 &
+       ncp_max,                                                                &
+       ncp_max_x_nmodes,                                                       &
+       i_cpnt_index,                                                           &
+       i_cpnt_type,                                                            &
+       n_cpnt_in_mode,                                                         &
+       l_nitrate,                                                              &
+       l_soluble,                                                              &
+       l_sustrat,                                                              &
+       i_mode_type,                                                            &
+       l_cornarrow_ins,                                                        &
+       ! Modal diameters from UKCA module
+       ukca_dry_diam_um,                                                       &
+       ukca_wet_diam_um,                                                       &
+       ! Mass thickness of layers
+       d_mass_theta_levels_um,                                                 &
+       ! Component volumes
+       ukca_comp_vol_um,                                                       &
+       ! Modal volumes, densities, and water content
+       ukca_modal_vol_um,                                                      &
+       ukca_modal_rho_um,                                                      &
+       ukca_modal_wtv_um,                                                      &
+       ! Modal mass-mixing ratios
+       ukca_mode_mix_ratio_um,                                                 &
+       ! Modal number concentrations
+       ukca_modal_number_um,                                                   &
+       ! Type selection
+       ip_ukca_mode_aitken,                                                    &
+       soluble_unwanted,                                                       &
+       ! Switch for if prescribed SSA is on
+       i_ukca_radaer_prescribe_ssa,                                            &
+       ! Model level of the tropopause
+       trindxrad_um,                                                           &
+       ! Prescription of single-scattering albedo
+       ukca_radaer_presc_ssa,                                                  &
+       ! Modal extinction aerosol opt depth - column (output)
+       aod_ukca_this_mode_um,                                                  &
+       ! Modal extinction aerosol opt depth - stratosphere (output)
+       sod_ukca_this_mode_um,                                                  &
+       ! Modal absorption aerosol opt depth (output)
+       aaod_ukca_this_mode_um,                                                 &
+       ! Fixed array dimensions
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_radaer_mode,                                                          &
+       npd_ukca_aod_wavel )
+
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aod_ukca_all_modes_um(i,k,mode_ait_insol-1) = aod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aaod_ukca_all_modes_um(i,k,mode_ait_insol-1)=aaod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aaod_ukca_all_modes_um(i,k,mode_ait_insol-1)=aaod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-  END IF ! Calculate AOD Aitkin Insoluble mode
+END IF ! Calculate AOD Aitkin Insoluble mode
 
-  !------------------------------------------------
-  ! Now calculate aod and aaod for Accumulation Insoluble mode
+!------------------------------------------------
+! Now calculate aod and aaod for Accumulation Insoluble mode
 
-  IF ( l_aod_ukca_acc_ins .OR. l_aaod_ukca_acc_ins ) THEN
+IF ( l_aod_ukca_acc_ins .OR. l_aaod_ukca_acc_ins ) THEN
 
-    call ukca_radaer_compute_aod(                                              &
-         ! Fixed array dimensions (input)
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_ukca_mode,                                                          &
-         n_ukca_cpnt,                                                          &
-         npd_ukca_aod_wavel,                                                   &
-         ! Fixed array Prescribed ssa dimensions (input)
-         nd_prof_ssa,                                                          &
-         nd_layr_ssa,                                                          &
-         nd_band_ssa,                                                          &
-         ! UKCA_RADAER structure (input)
-         nmodes,                                                               &
-         ncp_max,                                                              &
-         ncp_max_x_nmodes,                                                     &
-         i_cpnt_index,                                                         &
-         i_cpnt_type,                                                          &
-         n_cpnt_in_mode,                                                       &
-         l_nitrate,                                                            &
-         l_soluble,                                                            &
-         l_sustrat,                                                            &
-         i_mode_type,                                                          &
-         l_cornarrow_ins,                                                      &
-         ! Modal diameters from UKCA module
-         ukca_dry_diam_um,                                                     &
-         ukca_wet_diam_um,                                                     &
-         ! Mass thickness of layers
-         d_mass_theta_levels_um,                                               &
-         ! Component volumes
-         ukca_comp_vol_um,                                                     &
-         ! Modal volumes, densities, and water content
-         ukca_modal_vol_um,                                                    &
-         ukca_modal_rho_um,                                                    &
-         ukca_modal_wtv_um,                                                    &
-         ! Modal mass-mixing ratios
-         ukca_mode_mix_ratio_um,                                               &
-         ! Modal number concentrations
-         ukca_modal_number_um,                                                 &
-         ! Type selection
-         ip_ukca_mode_accum,                                                   &
-         soluble_unwanted,                                                     &
-         ! Switch for if prescribed SSA is on
-         i_ukca_radaer_prescribe_ssa,                                          &
-         ! Model level of the tropopause
-         trindxrad_um,                                                         &
-         ! Prescription of single-scattering albedo
-         ukca_radaer_presc_ssa,                                                &
-         ! Modal extinction aerosol opt depth - column (output)
-         aod_ukca_this_mode_um,                                                &
-         ! Modal extinction aerosol opt depth - stratosphere (output)
-         sod_ukca_this_mode_um,                                                &
-         ! Modal absorption aerosol opt depth (output)
-         aaod_ukca_this_mode_um,                                               &
-         ! Fixed array dimensions
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_radaer_mode,                                                        &
-         npd_ukca_aod_wavel )
+  CALL ukca_radaer_compute_aod(                                                &
+       ! Fixed array dimensions (input)
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_ukca_mode,                                                            &
+       n_ukca_cpnt,                                                            &
+       npd_ukca_aod_wavel,                                                     &
+       ! Fixed array Prescribed ssa dimensions (input)
+       nd_prof_ssa,                                                            &
+       nd_layr_ssa,                                                            &
+       nd_band_ssa,                                                            &
+       ! UKCA_RADAER structure (input)
+       nmodes,                                                                 &
+       ncp_max,                                                                &
+       ncp_max_x_nmodes,                                                       &
+       i_cpnt_index,                                                           &
+       i_cpnt_type,                                                            &
+       n_cpnt_in_mode,                                                         &
+       l_nitrate,                                                              &
+       l_soluble,                                                              &
+       l_sustrat,                                                              &
+       i_mode_type,                                                            &
+       l_cornarrow_ins,                                                        &
+       ! Modal diameters from UKCA module
+       ukca_dry_diam_um,                                                       &
+       ukca_wet_diam_um,                                                       &
+       ! Mass thickness of layers
+       d_mass_theta_levels_um,                                                 &
+       ! Component volumes
+       ukca_comp_vol_um,                                                       &
+       ! Modal volumes, densities, and water content
+       ukca_modal_vol_um,                                                      &
+       ukca_modal_rho_um,                                                      &
+       ukca_modal_wtv_um,                                                      &
+       ! Modal mass-mixing ratios
+       ukca_mode_mix_ratio_um,                                                 &
+       ! Modal number concentrations
+       ukca_modal_number_um,                                                   &
+       ! Type selection
+       ip_ukca_mode_accum,                                                     &
+       soluble_unwanted,                                                       &
+       ! Switch for if prescribed SSA is on
+       i_ukca_radaer_prescribe_ssa,                                            &
+       ! Model level of the tropopause
+       trindxrad_um,                                                           &
+       ! Prescription of single-scattering albedo
+       ukca_radaer_presc_ssa,                                                  &
+       ! Modal extinction aerosol opt depth - column (output)
+       aod_ukca_this_mode_um,                                                  &
+       ! Modal extinction aerosol opt depth - stratosphere (output)
+       sod_ukca_this_mode_um,                                                  &
+       ! Modal absorption aerosol opt depth (output)
+       aaod_ukca_this_mode_um,                                                 &
+       ! Fixed array dimensions
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_radaer_mode,                                                          &
+       npd_ukca_aod_wavel )
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aod_ukca_all_modes_um(i,k,mode_acc_insol-1) = aod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aod_ukca_all_modes_um(i,k,mode_acc_insol-1) = aod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aaod_ukca_all_modes_um(i,k,mode_acc_insol-1)=aaod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aaod_ukca_all_modes_um(i,k,mode_acc_insol-1)=aaod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-  END IF ! Calculate AOD Accumulation Insoluble mode
+END IF ! Calculate AOD Accumulation Insoluble mode
 
-  !------------------------------------------------
-  ! Now calculate aod and aaod for Coarse Insoluble mode
-  IF ( l_aod_ukca_cor_ins .OR. l_aaod_ukca_cor_ins ) THEN
+!------------------------------------------------
+! Now calculate aod and aaod for Coarse Insoluble mode
+IF ( l_aod_ukca_cor_ins .OR. l_aaod_ukca_cor_ins ) THEN
 
-    call ukca_radaer_compute_aod(                                              &
-         ! Fixed array dimensions (input)
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_ukca_mode,                                                          &
-         n_ukca_cpnt,                                                          &
-         npd_ukca_aod_wavel,                                                   &
-         ! Fixed array Prescribed ssa dimensions (input)
-         nd_prof_ssa,                                                          &
-         nd_layr_ssa,                                                          &
-         nd_band_ssa,                                                          &
-         ! UKCA_RADAER structure (input)
-         nmodes,                                                               &
-         ncp_max,                                                              &
-         ncp_max_x_nmodes,                                                     &
-         i_cpnt_index,                                                         &
-         i_cpnt_type,                                                          &
-         n_cpnt_in_mode,                                                       &
-         l_nitrate,                                                            &
-         l_soluble,                                                            &
-         l_sustrat,                                                            &
-         i_mode_type,                                                          &
-         l_cornarrow_ins,                                                      &
-         ! Modal diameters from UKCA module
-         ukca_dry_diam_um,                                                     &
-         ukca_wet_diam_um,                                                     &
-         ! Mass thickness of layers
-         d_mass_theta_levels_um,                                               &
-         ! Component volumes
-         ukca_comp_vol_um,                                                     &
-         ! Modal volumes, densities, and water content
-         ukca_modal_vol_um,                                                    &
-         ukca_modal_rho_um,                                                    &
-         ukca_modal_wtv_um,                                                    &
-         ! Modal mass-mixing ratios
-         ukca_mode_mix_ratio_um,                                               &
-         ! Modal number concentrations
-         ukca_modal_number_um,                                                 &
-         ! Type selection
-         ip_ukca_mode_coarse,                                                  &
-         soluble_unwanted,                                                     &
-         ! Switch for if prescribed SSA is on
-         i_ukca_radaer_prescribe_ssa,                                          &
-         ! Model level of the tropopause
-         trindxrad_um,                                                         &
-         ! Prescription of single-scattering albedo
-         ukca_radaer_presc_ssa,                                                &
-         ! Modal extinction aerosol opt depth - column (output)
-         aod_ukca_this_mode_um,                                                &
-         ! Modal extinction aerosol opt depth - stratosphere (output)
-         sod_ukca_this_mode_um,                                                &
-         ! Modal absorption aerosol opt depth (output)
-         aaod_ukca_this_mode_um,                                               &
-         ! Fixed array dimensions
-         npd_profile,                                                          &
-         npd_layer,                                                            &
-         n_radaer_mode,                                                        &
-         npd_ukca_aod_wavel )
+  CALL ukca_radaer_compute_aod(                                                &
+       ! Fixed array dimensions (input)
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_ukca_mode,                                                            &
+       n_ukca_cpnt,                                                            &
+       npd_ukca_aod_wavel,                                                     &
+       ! Fixed array Prescribed ssa dimensions (input)
+       nd_prof_ssa,                                                            &
+       nd_layr_ssa,                                                            &
+       nd_band_ssa,                                                            &
+       ! UKCA_RADAER structure (input)
+       nmodes,                                                                 &
+       ncp_max,                                                                &
+       ncp_max_x_nmodes,                                                       &
+       i_cpnt_index,                                                           &
+       i_cpnt_type,                                                            &
+       n_cpnt_in_mode,                                                         &
+       l_nitrate,                                                              &
+       l_soluble,                                                              &
+       l_sustrat,                                                              &
+       i_mode_type,                                                            &
+       l_cornarrow_ins,                                                        &
+       ! Modal diameters from UKCA module
+       ukca_dry_diam_um,                                                       &
+       ukca_wet_diam_um,                                                       &
+       ! Mass thickness of layers
+       d_mass_theta_levels_um,                                                 &
+       ! Component volumes
+       ukca_comp_vol_um,                                                       &
+       ! Modal volumes, densities, and water content
+       ukca_modal_vol_um,                                                      &
+       ukca_modal_rho_um,                                                      &
+       ukca_modal_wtv_um,                                                      &
+       ! Modal mass-mixing ratios
+       ukca_mode_mix_ratio_um,                                                 &
+       ! Modal number concentrations
+       ukca_modal_number_um,                                                   &
+       ! Type selection
+       ip_ukca_mode_coarse,                                                    &
+       soluble_unwanted,                                                       &
+       ! Switch for if prescribed SSA is on
+       i_ukca_radaer_prescribe_ssa,                                            &
+       ! Model level of the tropopause
+       trindxrad_um,                                                           &
+       ! Prescription of single-scattering albedo
+       ukca_radaer_presc_ssa,                                                  &
+       ! Modal extinction aerosol opt depth - column (output)
+       aod_ukca_this_mode_um,                                                  &
+       ! Modal extinction aerosol opt depth - stratosphere (output)
+       sod_ukca_this_mode_um,                                                  &
+       ! Modal absorption aerosol opt depth (output)
+       aaod_ukca_this_mode_um,                                                 &
+       ! Fixed array dimensions
+       npd_profile,                                                            &
+       npd_layer,                                                              &
+       n_radaer_mode,                                                          &
+       npd_ukca_aod_wavel )
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aod_ukca_all_modes_um(i,k,mode_cor_insol-1) = aod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aod_ukca_all_modes_um(i,k,mode_cor_insol-1) = aod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-    DO k = 1, npd_ukca_aod_wavel
-      DO i = 1, npd_profile
-        aaod_ukca_all_modes_um(i,k,mode_cor_insol-1)=aaod_ukca_this_mode_um(i,k)
-      END DO
+  DO k = 1, npd_ukca_aod_wavel
+    DO i = 1, npd_profile
+      aaod_ukca_all_modes_um(i,k,mode_cor_insol-1)=aaod_ukca_this_mode_um(i,k)
     END DO
+  END DO
 
-  END IF ! Calculate AOD Coarse Insoluble mode
+END IF ! Calculate AOD Coarse Insoluble mode
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
 
