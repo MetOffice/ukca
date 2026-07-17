@@ -15,7 +15,7 @@ concurrency:
   # Automatically cancels the workflow run instantly before the
   # engine can parse empty jobs and generate notification emails
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event.pull_request.head.repo.full_name != 'MetOffice/shumlib' }}
+  cancel-in-progress: ${{ github.event.pull_request.head.repo.full_name != 'MetOffice/ukca' }}
 
 permissions: {}
 
