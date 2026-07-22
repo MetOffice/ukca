@@ -156,8 +156,8 @@ USE ukca_constants,       ONLY: pi, mmw
 USE ukca_config_constants_mod, ONLY: rho_water, avogadro, rho_so4
 
 USE ukca_mode_setup,      ONLY: nmodes, nanion, ncation,                       &
-                                cp_su, cp_oc, cp_cl,                           &
-                                cp_so, cp_nh4, cp_no3, cp_nn
+                                cp_su, cp_oc, cp_cl, cp_so,                    &
+                                cp_nh4, cp_no3, cp_nn
 
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
@@ -240,6 +240,7 @@ REAL    :: mm_rhocp(glomap_variables_local%ncp)
 REAL    :: mmwrhow
 REAL    :: f_ao
 REAL    :: cl(nbox,-nanion:ncation) !ION CONCS (MOL/CC OF AIR)
+REAL    :: mdcopy(nbox,nmodes,glomap_variables_local%ncp) !Redistributes ions for solinsol
 
 REAL    :: tmp1(nbox,nmodes)
 !
@@ -280,6 +281,7 @@ rhocomp   => glomap_variables_local%rhocomp
 soluble   => glomap_variables_local%soluble
 x         => glomap_variables_local%x
 
+
 !at this point in the code, the value of RP does not matter
 rp(:)=100.0e-9 ! dummy value
 CALL ukca_vapour(nbox,t,pmid,s,rp,wts,rhosol_strat)
@@ -297,6 +299,7 @@ mmwrhow    =mmw*rho_water
 
 denom(:)=0.0         ! define on all points to avoid error
 denom2(:)=0.0
+mdcopy(:,:,:) = md(:,:,:) ! assigning md input values to mdcopy
 
 ! Correct relative humidities to lie within the range of 10-90%
 corrh(:)=rh(:)
@@ -348,8 +351,21 @@ DO imode=1,nmodes
         cl(:,i)=0.0 ! set all concentrations to zero initially
       END DO
 
-      IF (component(imode,cp_su)) THEN ! assume all H2SO4 --> SO4
-        cl(:,-2)=md(:,imode,cp_su)/avogadro  ! [SO4] in moles/cc (air)
+      ! If SOLINSOL then redistribute sulphate md into other species
+      ! hygro_ratio(3) is black carbon which is important to include
+      ! in the ratio but isn't used in this routine
+      IF (glomap_config%i_mode_setup == 11) THEN
+        mdcopy(:,imode,cp_su) = glomap_config%solinsol_hygro_ratio(1)*         &
+                                (md(:,imode,cp_su))
+        mdcopy(:,imode,cp_cl) = glomap_config%solinsol_hygro_ratio(2)*         &
+                                (md(:,imode,cp_su))
+        mdcopy(:,imode,cp_oc) = glomap_config%solinsol_hygro_ratio(4)*         &
+                                (md(:,imode,cp_su))
+      END IF
+
+      IF (component(imode,cp_su) .OR. (glomap_config%i_mode_setup == 11)) THEN
+        ! assume all H2SO4 --> SO4
+        cl(:,-2)=mdcopy(:,imode,cp_su)/avogadro  ! [SO4] in moles/cc (air)
       END IF
 
       IF (component(imode,cp_so)) THEN
@@ -361,8 +377,8 @@ DO imode=1,nmodes
         ! .. whereas CL needs to be in moles of aged organic (MM=0.15kg/mol).
       END IF
 
-      IF (component(imode,cp_oc)) THEN
-        cl(:,-2)=cl(:,-2)+(fhyg_aom/avogadro)*(md(:,imode,cp_oc)/f_ao)
+      IF (component(imode,cp_oc) .OR. (glomap_config%i_mode_setup == 11)) THEN
+        cl(:,-2)=cl(:,-2)+(fhyg_aom/avogadro)*(mdcopy(:,imode,cp_oc)/f_ao)
         ! .. Increment concentration of SO4 ions to represent the
         ! .. presence of hygroscopic aged organic aerosol mass in CP_OC.
         ! .. Assume it has uptake behaviour at fraction FHYG_AOM of SO4.
@@ -376,9 +392,10 @@ DO imode=1,nmodes
         !
       END IF
 
-      IF (component(imode,cp_cl)) THEN ! assume complete dissociation
-        cl(:,3)=md(:,imode,cp_cl)/avogadro ! [Na] in moles per cc (air)
-        cl(:,-4)=md(:,imode,cp_cl)/avogadro ! [Cl] in moles per cc (air)
+      IF (component(imode,cp_cl) .OR. (glomap_config%i_mode_setup == 11)) THEN
+        ! assume complete dissociation
+        cl(:,3)=mdcopy(:,imode,cp_cl)/avogadro ! [Na] in moles per cc (air)
+        cl(:,-4)=mdcopy(:,imode,cp_cl)/avogadro ! [Cl] in moles per cc (air)
       END IF
 
       ! Nitrate scheme
