@@ -278,10 +278,15 @@ CHARACTER(LEN=*),   PARAMETER :: RoutineName='UKCA_RADAER_LFRIC_INTERFACE'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
-  !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
 
 
-  ! No nucleation mode
+! Note that these hard coded values are calculated in UM module
+! ukca_radaer_init-ukca.F90
+! Arrays with modes start on 2nd mode ( Aitkin Solvent )
+! Radaer expects data to be structured in this way.
+
+! No nucleation mode
 l_soluble(1:nmodes) =  [.TRUE., .TRUE., .TRUE., .FALSE.,                       &
                          .FALSE.,.FALSE.,.FALSE.,.FALSE.]
 
@@ -304,13 +309,13 @@ i_cpnt_index(cp_nh4,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
 
 i_cpnt_type(1:ncp_max_x_nmodes) =                                              &
                                   [ 1,  2,  3,  1,  2,  3,  4,  5,  1,         &
-                                     2,  3,  4,  5,  2,  3,  5,  5, -1,        &
-                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
-                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
-                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
-                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
-                                    -1, -1, -1, -1, -1, -1, -1, -1, -1,        &
-                                    -1, -1, -1, -1, -1, -1, -1, -1, -1 ]
+                                    2,  3,  4,  5,  2,  3,  5,  5, -1,         &
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1 ]
 
 !----------------------------------------------------------------------
 
@@ -526,6 +531,8 @@ IF ( l_aod_ukca_ait_sol .OR. l_aaod_ukca_ait_sol ) THEN
        n_radaer_mode,                                                          &
        npd_ukca_aod_wavel )
 
+  ! Note that we start from the second mode and so mode index has minus one.
+
   DO k = 1, npd_ukca_aod_wavel
     DO i = 1, npd_profile
       aod_ukca_all_modes(i,k,mode_ait_sol-1) = aod_ukca_this_mode(i,k)
@@ -603,6 +610,8 @@ IF ( l_aod_ukca_acc_sol .OR. l_aaod_ukca_acc_sol ) THEN
        npd_layer,                                                              &
        n_radaer_mode,                                                          &
        npd_ukca_aod_wavel )
+
+  ! Note that we start from the second mode and so mode index has minus one.
 
   DO k = 1, npd_ukca_aod_wavel
     DO i = 1, npd_profile
@@ -682,6 +691,8 @@ IF ( l_aod_ukca_cor_sol .OR. l_aaod_ukca_cor_sol ) THEN
        n_radaer_mode,                                                          &
        npd_ukca_aod_wavel )
 
+  ! Note that we start from the second mode and so mode index has minus one.
+
   DO k = 1, npd_ukca_aod_wavel
     DO i = 1, npd_profile
       aod_ukca_all_modes(i,k,mode_cor_sol-1) = aod_ukca_this_mode(i,k)
@@ -759,6 +770,8 @@ IF ( l_aod_ukca_ait_ins .OR. l_aaod_ukca_ait_ins ) THEN
        npd_layer,                                                              &
        n_radaer_mode,                                                          &
        npd_ukca_aod_wavel )
+
+  ! Note that we start from the second mode and so mode index has minus one.
 
   DO k = 1, npd_ukca_aod_wavel
     DO i = 1, npd_profile
@@ -838,6 +851,8 @@ IF ( l_aod_ukca_acc_ins .OR. l_aaod_ukca_acc_ins ) THEN
        n_radaer_mode,                                                          &
        npd_ukca_aod_wavel )
 
+  ! Note that we start from the second mode and so mode index has minus one.
+
   DO k = 1, npd_ukca_aod_wavel
     DO i = 1, npd_profile
       aod_ukca_all_modes(i,k,mode_acc_insol-1) = aod_ukca_this_mode(i,k)
@@ -914,6 +929,8 @@ IF ( l_aod_ukca_cor_ins .OR. l_aaod_ukca_cor_ins ) THEN
        npd_layer,                                                              &
        n_radaer_mode,                                                          &
        npd_ukca_aod_wavel )
+
+  ! Note that we start from the second mode and so mode index has minus one.
 
   DO k = 1, npd_ukca_aod_wavel
     DO i = 1, npd_profile
