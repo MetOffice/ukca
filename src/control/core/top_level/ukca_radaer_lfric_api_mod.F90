@@ -27,6 +27,14 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     npd_exclude_sw,                                                            &
     npd_ukca_aod_wavel,                                                        &
     ncp_max_x_nmodes,                                                          &
+    n_radaer_mode,                                                             &
+    ! Spectral Information
+    n_sw_band,                                                                 &
+    n_lw_band,                                                                 &
+    sw_n_band_exclude,                                                         &
+    lw_n_band_exclude,                                                         &
+    sw_index_exclude,                                                          &
+    lw_index_exclude,                                                          &
     ! Actual array dimensions (input)
     n_ukca_mode,                                                               &
     n_ukca_cpnt,                                                               &
@@ -82,13 +90,6 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     aod_ukca_all_modes,                                                        &
     aaod_ukca_all_modes )
 
-USE socrates_init_mod,                 ONLY: n_sw_band,                        &
-                                             sw_n_band_exclude,                &
-                                             sw_index_exclude,                 &
-                                             n_lw_band,                        &
-                                             lw_n_band_exclude,                &
-                                             lw_index_exclude
-
 USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              mode_cor_sol, mode_ait_insol,     &
                                              mode_acc_insol, mode_cor_insol,   &
@@ -107,8 +108,6 @@ USE ukca_radaer_compute_aod_mod,       ONLY: ukca_radaer_compute_aod
 
 USE ukca_radaer_prepare_mod,           ONLY: ukca_radaer_prepare
 
-USE um_physics_init_mod,               ONLY: n_radaer_mode
-
 USE parkind1,                          ONLY: jpim, jprb
 USE yomhook,                           ONLY: lhook, dr_hook
 
@@ -123,6 +122,15 @@ INTEGER, INTENT(IN) :: npd_exclude_lw
 INTEGER, INTENT(IN) :: npd_exclude_sw
 INTEGER, INTENT(IN) :: npd_ukca_aod_wavel
 INTEGER, INTENT(IN) :: ncp_max_x_nmodes
+INTEGER, INTENT(IN) :: n_radaer_mode
+
+! Spectral Information
+INTEGER, INTENT(IN) :: n_sw_band
+INTEGER, INTENT(IN) :: n_lw_band
+INTEGER, INTENT(IN) :: sw_n_band_exclude( n_sw_band )
+INTEGER, INTENT(IN) :: lw_n_band_exclude( n_lw_band )
+INTEGER, INTENT(IN) :: sw_index_exclude( npd_exclude_sw, n_sw_band )
+INTEGER, INTENT(IN) :: lw_index_exclude( npd_exclude_lw, n_lw_band )
 
 ! RADAER array dimensions (note that nucleation mode is excluded)
 INTEGER, INTENT(IN) :: n_ukca_mode, n_ukca_cpnt
