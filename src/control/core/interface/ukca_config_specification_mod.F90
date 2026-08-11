@@ -655,6 +655,7 @@ TYPE(glomap_config_spec_type), SAVE :: glomap_config
 
 TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables
 TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables_climatology
+TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables_radaer
 
 ! ---------------------------------------------------------------------------
 ! -- Templates for parent callback procedures to be used in UKCA --
