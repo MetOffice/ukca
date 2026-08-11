@@ -9,11 +9,20 @@
 ! Procedure:
 !   1) CALL the relevant mode setup subroutine from ukca_mode_setup
 !
+!   2) CALL 
+!
 ! This file belongs in section: UKCA
 !
 MODULE ukca_radaer_lfric_init_mod
 
 IMPLICIT NONE
+
+! Default private
+PRIVATE
+
+PUBLIC :: ukca_radaer_lfric_init
+
+PUBLIC :: n_ukca_mode , n_ukca_cpnt
 
 CHARACTER(LEN=*),PARAMETER,PRIVATE :: ModuleName = 'UKCA_RADAER_LFRIC_INIT_MOD'
 
@@ -21,7 +30,8 @@ CONTAINS
 
 SUBROUTINE ukca_radaer_lfric_init( i_mode_setup_in,                            &
                                    i_tune_bc_in,                               &
-                                   l_dust_mp_ageing )
+                                   l_dust_mp_ageing,                           &
+                                   l_ukca_radaer_sustrat )
 
 USE ereport_mod,                       ONLY:                                   &
     ereport
@@ -61,6 +71,11 @@ USE ukca_mode_setup,                   ONLY:                                   &
     ukca_mode_sussbcocdump_8mode,                                              &
     glomap_variables_type
 
+USE ukca_radaer_lfric_settings_mod,    ONLY:                                   &
+    ukca_radaer_lfric_settings
+
+USE ukca_radaer_saved_mod,             ONLY:                                   &
+    ukca_radaer
 
 USE umPrintMgr,                        ONLY:                                   &
     umPrint,                                                                   &
@@ -79,6 +94,10 @@ INTEGER, INTENT(IN) :: i_tune_bc_in
 LOGICAL, INTENT(IN) :: l_dust_mp_ageing
 
 ! Local variables
+
+! These are used in radaer_kernel_mod
+INTEGER, SAVE :: n_ukca_mode = 0
+INTEGER, SAVE :: n_ukca_cpnt = 0
 
 ! We are calling this module because radaer is on. Forced true
 LOGICAL, PARAMETER :: l_radaer_in = .true.
@@ -194,7 +213,12 @@ CASE DEFAULT
   CALL ereport(RoutineName,errcode,cmessage)
 END SELECT
 
-
+! Now call ukca_radaer_lfric_settings
+CALL ukca_radaer_lfric_settings ( l_ukca_radaer_sustrat,                       &
+                                  glomap_variables_radaer,                     &
+                                  ukca_radaer,                                 &
+                                  n_ukca_mode,                                 &
+                                  n_ukca_cpnt )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
 
