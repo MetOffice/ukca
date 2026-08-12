@@ -22,7 +22,8 @@ PRIVATE
 
 PUBLIC :: ukca_radaer_lfric_init
 
-PUBLIC :: n_ukca_mode , n_ukca_cpnt
+INTEGER, PUBLIC, SAVE :: n_ukca_mode
+INTEGER, PUBLIC, SAVE :: n_ukca_cpnt
 
 CHARACTER(LEN=*),PARAMETER,PRIVATE :: ModuleName = 'UKCA_RADAER_LFRIC_INIT_MOD'
 
@@ -54,7 +55,7 @@ USE ukca_config_specification_mod,     ONLY:                                   &
     i_sussbcocntnh_5mode_7cpt,                                                 &
     i_solinsol_6mode,                                                          &
     i_sussbcocduntnh_8mode_8cpt,                                               &
-    i_sussbcocdump_8mode
+    i_sussbcocdump_8mode,                                                      &
     glomap_variables_radaer
 
 USE ukca_mode_setup,                   ONLY:                                   &
@@ -92,12 +93,9 @@ IMPLICIT NONE
 INTEGER, INTENT(IN) :: i_mode_setup_in
 INTEGER, INTENT(IN) :: i_tune_bc_in
 LOGICAL, INTENT(IN) :: l_dust_mp_ageing
+LOGICAL, INTENT(IN) :: l_ukca_radaer_sustrat
 
 ! Local variables
-
-! These are used in radaer_kernel_mod
-INTEGER, SAVE :: n_ukca_mode = 0
-INTEGER, SAVE :: n_ukca_cpnt = 0
 
 ! We are calling this module because radaer is on. Forced true
 LOGICAL, PARAMETER :: l_radaer_in = .true.
@@ -212,6 +210,10 @@ CASE DEFAULT
   errcode = 1
   CALL ereport(RoutineName,errcode,cmessage)
 END SELECT
+
+! Initialise these to zero
+n_ukca_mode = 0
+n_ukca_cpnt = 0
 
 ! Now call ukca_radaer_lfric_settings
 CALL ukca_radaer_lfric_settings ( l_ukca_radaer_sustrat,                       &
