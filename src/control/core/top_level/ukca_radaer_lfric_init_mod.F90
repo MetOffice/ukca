@@ -74,8 +74,8 @@ USE ukca_mode_setup,                   ONLY:                                   &
 USE ukca_radaer_lfric_settings_mod,    ONLY:                                   &
     ukca_radaer_lfric_settings
 
-USE ukca_radaer_saved_mod,             ONLY:                                   &
-    ukca_radaer
+USE ukca_radaer_lfric_saved_mod,       ONLY:                                   &
+    ukca_radaer_lfric
 
 USE umPrintMgr,                        ONLY:                                   &
     umPrint,                                                                   &
@@ -216,7 +216,7 @@ END SELECT
 ! Now call ukca_radaer_lfric_settings
 CALL ukca_radaer_lfric_settings ( l_ukca_radaer_sustrat,                       &
                                   glomap_variables_radaer,                     &
-                                  ukca_radaer,                                 &
+                                  ukca_radaer_lfric,                           &
                                   n_ukca_mode,                                 &
                                   n_ukca_cpnt )
 

@@ -23,7 +23,7 @@ CONTAINS
 
 SUBROUTINE ukca_radaer_lfric_settings( l_ukca_radaer_sustrat,                  &
                                        glomap_variables_radaer,                &
-                                       ukca_radaer,                            &
+                                       ukca_radaer_lfric,                      &
                                        n_loc_mode,                             &
                                        n_loc_cpnt )
 
@@ -52,8 +52,9 @@ USE ukca_mode_setup,                   ONLY:                                   &
     cp_nn,                                                                     &
     cp_mp
 
-USE ukca_radaer_struct_mod,            ONLY:                                   &
-    ukca_radaer_struct
+USE ukca_radaer_lfric_struct_mod,      ONLY:                                   &
+    ukca_radaer_lfric_struct,                                                  &
+    allocate_radaer_lfric_struct
 
 USE parkind1,                          ONLY:                                   &
     jpim,                                                                      &
@@ -72,8 +73,8 @@ IMPLICIT NONE
 ! instead of ammonium sulphate.
 LOGICAL, INTENT(IN) :: l_ukca_radaer_sustrat
 
-TYPE(glomap_variables_type), INTENT(IN OUT) :: glomap_variables_radaer
-TYPE (ukca_radaer_struct),   INTENT(IN OUT) :: ukca_radaer
+TYPE(glomap_variables_type),     INTENT(IN OUT) :: glomap_variables_radaer
+TYPE (ukca_radaer_lfric_struct), INTENT(IN OUT) :: ukca_radaer_lfric
 
 ! Counters for number of modes and components
 INTEGER, INTENT(IN OUT) :: n_loc_mode
@@ -127,11 +128,11 @@ rhocomp         => glomap_variables_radaer%rhocomp
 sigmag          => glomap_variables_radaer%sigmag
 
 ! Allocate elements that depend on ncp or nmodes
-CALL allocate_radaer_struct(ukca_radaer, glomap_variables_radaer)
+CALL allocate_radaer_lfric_struct(ukca_radaer_lfric, glomap_variables_radaer)
 
 ! Loop over all modes and components per mode,
 ! and only retain included modes and components.
-ukca_radaer%idx_cpnt_mode(:,:)=-1
+ukca_radaer_lfric%idx_cpnt_mode(:,:)=-1
 DO i = 1, nmodes
   IF (mode(i)) THEN
       
@@ -168,12 +169,12 @@ DO i = 1, nmodes
     IF (this_type /= ip_ukca_mode_nucleation) THEN
 
       n_loc_mode = n_loc_mode + 1
-      ukca_radaer%i_mode_type(n_loc_mode) = this_type
-      ukca_radaer%l_soluble(n_loc_mode) = modesol(i) == 1
-      ukca_radaer%d0low(n_loc_mode) = ddplim0(i)
-      ukca_radaer%d0up(n_loc_mode) = ddplim1(i)
-      ukca_radaer%sigma(n_loc_mode) = sigmag(i)
-      ukca_radaer%n_cpnt_in_mode(n_loc_mode) = 0
+      ukca_radaer_lfric%i_mode_type(n_loc_mode) = this_type
+      ukca_radaer_lfric%l_soluble(n_loc_mode) = modesol(i) == 1
+      ukca_radaer_lfric%d0low(n_loc_mode) = ddplim0(i)
+      ukca_radaer_lfric%d0up(n_loc_mode) = ddplim1(i)
+      ukca_radaer_lfric%sigma(n_loc_mode) = sigmag(i)
+      ukca_radaer_lfric%n_cpnt_in_mode(n_loc_mode) = 0
 
       ! Loop on components within that mode.
       DO j = 1, ncp
@@ -184,17 +185,18 @@ DO i = 1, nmodes
           ! Update the number of components in that mode and
           ! retain the array index of the current component.
 
-          ukca_radaer%n_cpnt_in_mode(n_loc_mode) =                             &
-                                     ukca_radaer%n_cpnt_in_mode(n_loc_mode) + 1
+          ukca_radaer_lfric%n_cpnt_in_mode(n_loc_mode) =                       &
+                               ukca_radaer_lfric%n_cpnt_in_mode(n_loc_mode) + 1
 
-          ukca_radaer%i_cpnt_index(ukca_radaer%n_cpnt_in_mode(n_loc_mode),     &
-                                   n_loc_mode) = n_loc_cpnt
+          ukca_radaer_lfric%i_cpnt_index(                                      &
+                    ukca_radaer_lfric%n_cpnt_in_mode(n_loc_mode),n_loc_mode) = &
+                                          n_loc_cpnt
 
-          ukca_radaer%idx_cpnt_mode(i,j) = n_loc_cpnt
+          ukca_radaer_lfric%idx_cpnt_mode(i,j) = n_loc_cpnt
 
-          ukca_radaer%density(n_loc_cpnt) = rhocomp(j)
+          ukca_radaer_lfric%density(n_loc_cpnt) = rhocomp(j)
 
-          ukca_radaer%i_mode(n_loc_cpnt) = n_loc_mode
+          ukca_radaer_lfric%i_mode(n_loc_cpnt) = n_loc_mode
 
           ! Get the component type. Since there is no direct
           ! information, it is obtained from the component
@@ -203,34 +205,34 @@ DO i = 1, nmodes
           SELECT CASE ( component_names(j) )
 
           CASE ('h2so4  ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_su
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_su
 
           CASE ('bcarbon')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_bc
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_bc
 
           CASE ('ocarbon')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_oc
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_oc
 
           CASE ('nacl   ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_cl
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_cl
 
           CASE ('dust   ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_du
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_du
 
           CASE ('sec_org')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_so
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_so
 
           CASE ('no3    ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_no3
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_no3
 
           CASE ('nano3  ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_nn
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_nn
 
           CASE ('nh4    ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_nh4
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_nh4
 
           CASE ('mp     ')
-            ukca_radaer%i_cpnt_type(n_loc_cpnt) = cp_mp
+            ukca_radaer_lfric%i_cpnt_type(n_loc_cpnt) = cp_mp
 
           CASE DEFAULT
             ierr = 2
@@ -246,15 +248,15 @@ DO i = 1, nmodes
   END IF
 END DO ! i
 
-ukca_radaer%n_mode = n_loc_mode
-ukca_radaer%n_cpnt = n_loc_cpnt
-ukca_radaer%l_sustrat = l_ukca_radaer_sustrat
+ukca_radaer_lfric%n_mode = n_loc_mode
+ukca_radaer_lfric%n_cpnt = n_loc_cpnt
+ukca_radaer_lfric%l_sustrat = l_ukca_radaer_sustrat
 
 ! Ensure that the coarse narrow LUTs are used for the coarse insoluble mode
 ! if the super-coarse insoluble mode is selected
-ukca_radaer%l_cornarrow_ins = mode(mode_sup_insol)
+ukca_radaer_lfric%l_cornarrow_ins = mode(mode_sup_insol)
 
-IF (ukca_radaer%n_mode == 0 .OR. ukca_radaer%n_cpnt == 0) THEN
+IF (ukca_radaer_lfric%n_mode == 0 .OR. ukca_radaer_lfric%n_cpnt == 0) THEN
   ierr = 3
   cmessage = 'Setup includes no UKCA aerosols.'
   CALL ereport(RoutineName,errcode,cmessage)
