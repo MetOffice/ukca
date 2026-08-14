@@ -29,6 +29,9 @@ SUBROUTINE ukca_radaer_lfric_settings( l_ukca_radaer_sustrat,                  &
                                        n_loc_mode,                             &
                                        n_loc_cpnt )
 
+USE ereport_mod,                       ONLY:                                   &
+    ereport
+
 USE errormessagelength_mod,            ONLY:                                   &
     errormessagelength
 
