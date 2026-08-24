@@ -185,6 +185,8 @@ TYPE :: ukca_config_spec_type
                                        ! (2-50, 3 recommended)
   INTEGER :: ukca_chem_seg_size        ! Grid points per segment for the
                                        ! column-based chemical solver
+  INTEGER :: ukca_chem_full_chunk_size(3) ! Grid points per 3D chunk in the
+                                       ! full-domain-based chemical solver
   REAL :: max_z_for_offline_chem       ! Maximum height at which to integrate
                                        ! chemistry with the explicit B-E
                                        ! Offline Oxidants scheme
@@ -874,6 +876,7 @@ ukca_config%l_ukca_quasinewton = .FALSE.
 ukca_config%i_ukca_quasinewton_start = imdi
 ukca_config%i_ukca_quasinewton_end = imdi
 ukca_config%ukca_chem_seg_size = imdi
+ukca_config%ukca_chem_full_chunk_size(:) = [-1, -1, -1]
 ukca_config%max_z_for_offline_chem = rmdi
 ukca_config%nlev_above_trop_o3_env = imdi
 ukca_config%nlev_ch4_stratloss = imdi
@@ -1090,6 +1093,7 @@ SUBROUTINE ukca_get_config(                                                    &
    dts0, nit,                                                                  &
    i_ukca_quasinewton_start, i_ukca_quasinewton_end,                           &
    ukca_chem_seg_size,                                                         &
+   ukca_chem_full_chunk_size,                                                  &
    nlev_above_trop_o3_env,                                                     &
    nlev_ch4_stratloss,                                                         &
    i_ukca_topboundary,                                                         &
@@ -1284,6 +1288,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: nit
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_start
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_end
 INTEGER, OPTIONAL, INTENT(OUT) :: ukca_chem_seg_size
+INTEGER, OPTIONAL, INTENT(OUT) :: ukca_chem_full_chunk_size(3)
 INTEGER, OPTIONAL, INTENT(OUT) :: nlev_above_trop_o3_env
 INTEGER, OPTIONAL, INTENT(OUT) :: nlev_ch4_stratloss
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_topboundary
@@ -1572,6 +1577,8 @@ IF (PRESENT(i_ukca_quasinewton_end))                                           &
   i_ukca_quasinewton_end = ukca_config%i_ukca_quasinewton_end
 IF (PRESENT(ukca_chem_seg_size))                                               &
    ukca_chem_seg_size = ukca_config%ukca_chem_seg_size
+IF (PRESENT(ukca_chem_full_chunk_size))                                        &
+   ukca_chem_full_chunk_size = ukca_config%ukca_chem_full_chunk_size
 IF (PRESENT(max_z_for_offline_chem))                                           &
   max_z_for_offline_chem = ukca_config%max_z_for_offline_chem
 IF (PRESENT(nlev_above_trop_o3_env))                                           &

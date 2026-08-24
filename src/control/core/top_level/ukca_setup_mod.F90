@@ -81,6 +81,7 @@ SUBROUTINE ukca_setup(error_code,                                              &
                       i_ukca_quasinewton_start,                                &
                       i_ukca_quasinewton_end,                                  &
                       ukca_chem_seg_size,                                      &
+                      ukca_chem_full_chunk_size,                               &
                       nlev_above_trop_o3_env,                                  &
                       nlev_ch4_stratloss,                                      &
                       i_ukca_topboundary,                                      &
@@ -414,6 +415,7 @@ INTEGER, OPTIONAL, INTENT(IN) :: nit
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_quasinewton_start
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_quasinewton_end
 INTEGER, OPTIONAL, INTENT(IN) :: ukca_chem_seg_size
+INTEGER, OPTIONAL, INTENT(IN) :: ukca_chem_full_chunk_size(3)
 INTEGER, OPTIONAL, INTENT(IN) :: nlev_above_trop_o3_env
 INTEGER, OPTIONAL, INTENT(IN) :: nlev_ch4_stratloss
 INTEGER, OPTIONAL, INTENT(IN) :: i_ukca_topboundary
@@ -836,6 +838,13 @@ IF (ukca_config%i_ukca_chem /= i_ukca_chem_off) THEN
     IF (PRESENT(ukca_chem_seg_size))                                           &
       ukca_config%ukca_chem_seg_size = ukca_chem_seg_size
 
+  END IF
+
+  ! Full-domain-based run configuration
+  IF (ukca_config%l_ukca_asad_full) THEN
+    ukca_config%ukca_chem_full_chunk_size(:) = [-1, -1, -1]
+    IF (PRESENT(ukca_chem_full_chunk_size))                                    &
+      ukca_config%ukca_chem_full_chunk_size(:) = ukca_chem_full_chunk_size(:)
   END IF
 
   ! Configuration specific to explicit B-E Offline Oxidants scheme
