@@ -72,11 +72,14 @@ USE ukca_mode_setup,                   ONLY:                                   &
     ukca_mode_sussbcocdump_8mode,                                              &
     glomap_variables_type
 
-USE ukca_radaer_lfric_settings_mod,    ONLY:                                   &
-    ukca_radaer_lfric_settings
+USE ukca_radaer_lfric_list_mod,        ONLY:                                   &
+    ukca_radaer_lfric_list
 
 USE ukca_radaer_lfric_saved_mod,       ONLY:                                   &
     ukca_radaer_lfric
+
+USE ukca_radaer_lfric_settings_mod,    ONLY:                                   &
+    ukca_radaer_lfric_settings
 
 USE umPrintMgr,                        ONLY:                                   &
     umPrint,                                                                   &
@@ -221,6 +224,9 @@ CALL ukca_radaer_lfric_settings ( l_ukca_radaer_sustrat,                       &
                                   ukca_radaer_lfric,                           &
                                   n_ukca_mode,                                 &
                                   n_ukca_cpnt )
+
+! Allocate lists used in radaer kernel based on i_mode_setup_in
+CALL ukca_radaer_lfric_list( i_mode_setup_in )
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
 
