@@ -9,10 +9,12 @@
 ! Procedure:
 !   1) CALL the relevant mode setup subroutine from ukca_mode_setup
 !
-!   2) CALL 
+!   2) CALL ukca_radaer_lfric_settings to obtain runtime values
+!
+!   3) CALL ukca_radaer_lfric_list to allocate lists for radaer kernel
 !
 ! This file belongs in section: UKCA
-!
+
 MODULE ukca_radaer_lfric_init_mod
 
 IMPLICIT NONE
