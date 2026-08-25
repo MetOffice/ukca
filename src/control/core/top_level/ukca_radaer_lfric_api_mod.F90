@@ -55,6 +55,8 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     ukca_modal_wtv,                                                            &
     ! Logical to describe orientation
     l_inverted,                                                                &
+    ! Logical to account for optical properties of sulphate in atmosphere
+    l_sustrat,                                                                 &
     ! Control option for prescribed single scattering albedo array
     i_ukca_radaer_prescribe_ssa,                                               &
     ! Model level of the tropopause (input)
@@ -160,6 +162,9 @@ REAL, INTENT(IN) :: ukca_modal_wtv( npd_profile, npd_layer, n_ukca_mode )
 ! Logical to describe orientation
 LOGICAL, INTENT(IN) :: l_inverted
 
+! Logical to account for optical properties of sulphate in atmosphere
+LOGICAL, INTENT(IN) :: l_sustrat
+
 ! When > 0, use a prescribed single scattering albedo field
 INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 
@@ -241,9 +246,8 @@ REAL ::  sod_ukca_this_mode( npd_profile, npd_ukca_aod_wavel )
 
 ! -----------------------------------------------------------------
 
-LOGICAL, PARAMETER ::  l_nitrate = .FALSE. ! Make this a namelist option later
-LOGICAL, PARAMETER ::  l_sustrat = .TRUE.  ! Make this a namelist option later
-                                           ! l_sustrat=.true. for ga9
+! Make this a namelist option later
+LOGICAL, PARAMETER ::  l_nitrate = .FALSE.
 
 ! Make this a namelist option later
 LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
