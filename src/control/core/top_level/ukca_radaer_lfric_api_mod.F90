@@ -92,8 +92,6 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     aod_ukca_all_modes,                                                        &
     aaod_ukca_all_modes )
 
-USE ukca_config_specification_mod,     ONLY: glomap_variables_radaer
-
 USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              mode_cor_sol, mode_ait_insol,     &
                                              mode_acc_insol, mode_cor_insol,   &
@@ -109,6 +107,8 @@ USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
 USE ukca_radaer_band_average_mod,      ONLY: ukca_radaer_band_average
 
 USE ukca_radaer_compute_aod_mod,       ONLY: ukca_radaer_compute_aod
+
+USE ukca_radaer_lfric_saved_mod,       ONLY: ukca_radaer_lfric
 
 USE ukca_radaer_prepare_mod,           ONLY: ukca_radaer_prepare
 
@@ -265,12 +265,12 @@ INTEGER, PARAMETER :: ip_solar = 1
 LOGICAL, PARAMETER :: soluble_wanted   = .TRUE.
 LOGICAL, PARAMETER :: soluble_unwanted = .FALSE.
 
-! Local pointers to glomap_variables_radaer
+! Local pointers to ukca_radaer_lfric
 INTEGER :: i_cpnt_index( ncp_max, nmodes )
 INTEGER :: i_mode_type( nmodes )
 INTEGER :: n_cpnt_in_mode( nmodes )
 LOGICAL :: l_soluble( nmodes )
-INTEGER ::  i_cpnt_type( ncp_max_x_nmodes )
+INTEGER :: i_cpnt_type( ncp_max_x_nmodes )
 
 ! -----------------------------------------------------------------
 
@@ -283,11 +283,11 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 !-----------------------------------------------------------------------
 
-i_cpnt_index      => glomap_variables_radaer%i_cpnt_index
-i_cpnt_type       => glomap_variables_radaer%i_cpnt_type
-i_mode_type       => glomap_variables_radaer%i_mode_type
-n_cpnt_in_mode    => glomap_variables_radaer%n_cpnt_in_mode
-l_soluble         => glomap_variables_radaer%l_soluble
+i_cpnt_index      => ukca_radaer_lfric%i_cpnt_index
+i_cpnt_type       => ukca_radaer_lfric%i_cpnt_type
+i_mode_type       => ukca_radaer_lfric%i_mode_type
+n_cpnt_in_mode    => ukca_radaer_lfric%n_cpnt_in_mode
+l_soluble         => ukca_radaer_lfric%l_soluble
 
 !----------------------------------------------------------------------
 
