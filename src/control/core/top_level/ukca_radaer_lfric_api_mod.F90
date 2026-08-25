@@ -99,6 +99,7 @@ USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              ip_ukca_mode_accum,               &
                                              ip_ukca_mode_coarse,              &
                                              i_ukca_bc_tuned,                  &
+                                             i_ukca_tune_bc_off,               &
                                              cp_su,  cp_bc, cp_oc,             &
                                              cp_cl,  cp_du, cp_so,             &
                                              cp_no3, cp_nn, cp_nh4,            &
@@ -256,7 +257,7 @@ LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
 
 ! Maxwell-Garnett mixing approach logical control switches
 INTEGER, PARAMETER :: i_ukca_tune_bc = i_ukca_bc_tuned
-INTEGER, PARAMETER :: i_glomap_clim_tune_bc = 0 ! No tuning
+INTEGER, PARAMETER :: i_glomap_clim_tune_bc = i_ukca_tune_bc_off
 
 ! Spectral information
 INTEGER, PARAMETER :: ip_infra_red = 2
@@ -265,12 +266,12 @@ INTEGER, PARAMETER :: ip_solar = 1
 LOGICAL, PARAMETER :: soluble_wanted   = .TRUE.
 LOGICAL, PARAMETER :: soluble_unwanted = .FALSE.
 
-! Local pointers to ukca_radaer_lfric
+! Local copies from ukca_radaer_lfric
 INTEGER :: i_cpnt_index( ncp_max, nmodes )
+INTEGER :: i_cpnt_type( ncp_max_x_nmodes )
 INTEGER :: i_mode_type( nmodes )
 INTEGER :: n_cpnt_in_mode( nmodes )
 LOGICAL :: l_soluble( nmodes )
-INTEGER :: i_cpnt_type( ncp_max_x_nmodes )
 
 ! -----------------------------------------------------------------
 
@@ -283,11 +284,12 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 !-----------------------------------------------------------------------
 
-i_cpnt_index      => ukca_radaer_lfric%i_cpnt_index
-i_cpnt_type       => ukca_radaer_lfric%i_cpnt_type
-i_mode_type       => ukca_radaer_lfric%i_mode_type
-n_cpnt_in_mode    => ukca_radaer_lfric%n_cpnt_in_mode
-l_soluble         => ukca_radaer_lfric%l_soluble
+! Local copies to make the code easier to read
+i_cpnt_index   = ukca_radaer_lfric%i_cpnt_index
+i_cpnt_type    = ukca_radaer_lfric%i_cpnt_type
+i_mode_type    = ukca_radaer_lfric%i_mode_type
+n_cpnt_in_mode = ukca_radaer_lfric%n_cpnt_in_mode
+l_soluble      = ukca_radaer_lfric%l_soluble
 
 !----------------------------------------------------------------------
 
