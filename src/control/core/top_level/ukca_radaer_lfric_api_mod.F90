@@ -90,6 +90,8 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     aod_ukca_all_modes,                                                        &
     aaod_ukca_all_modes )
 
+USE ukca_config_specification_mod,     ONLY: glomap_variables_radaer
+
 USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              mode_cor_sol, mode_ait_insol,     &
                                              mode_acc_insol, mode_cor_insol,   &
@@ -196,33 +198,33 @@ REAL, INTENT(IN) :: d_mass_theta_levels( npd_profile, npd_layer )
 
 ! Modal mass-mixing ratios
 REAL, INTENT(IN OUT) ::  ukca_mode_mix_ratio( npd_profile, npd_layer,          &
-                                                 n_radaer_mode )
+                                              n_radaer_mode )
 
 ! Band-averaged modal optical properties
 REAL, INTENT(IN OUT) :: aer_lw_absorption( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_lw_band )
+                                           n_radaer_mode, n_lw_band )
 
 REAL, INTENT(IN OUT) :: aer_sw_absorption( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_sw_band )
+                                           n_radaer_mode, n_sw_band )
 
 REAL, INTENT(IN OUT) :: aer_lw_scattering( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_lw_band )
+                                           n_radaer_mode, n_lw_band )
 
 REAL, INTENT(IN OUT) :: aer_sw_scattering( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_sw_band )
+                                           n_radaer_mode, n_sw_band )
 
 REAL, INTENT(IN OUT) :: aer_lw_asymmetry( npd_profile, npd_layer,              &
-                                             n_radaer_mode, n_lw_band )
+                                          n_radaer_mode, n_lw_band )
 
 REAL, INTENT(IN OUT) :: aer_sw_asymmetry( npd_profile, npd_layer,              &
-                                             n_radaer_mode, n_sw_band )
+                                          n_radaer_mode, n_sw_band )
 
 ! Aerosol Optical Depth diagnostics
 REAL, INTENT(IN OUT) :: aod_ukca_all_modes( npd_profile, npd_ukca_aod_wavel,   &
-                                               n_ukca_mode )
+                                            n_ukca_mode )
 
 REAL, INTENT(IN OUT) :: aaod_ukca_all_modes(npd_profile, npd_ukca_aod_wavel,   &
-                                               n_ukca_mode )
+                                            n_ukca_mode )
 
 ! Local variables
 
@@ -243,8 +245,8 @@ LOGICAL, PARAMETER ::  l_nitrate = .FALSE. ! Make this a namelist option later
 LOGICAL, PARAMETER ::  l_sustrat = .TRUE.  ! Make this a namelist option later
                                            ! l_sustrat=.true. for ga9
 
-LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
 ! Make this a namelist option later
+LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
 
 ! -----------------------------------------------------------------
 
@@ -259,14 +261,11 @@ INTEGER, PARAMETER :: ip_solar = 1
 LOGICAL, PARAMETER :: soluble_wanted   = .TRUE.
 LOGICAL, PARAMETER :: soluble_unwanted = .FALSE.
 
+! Local pointers to glomap_variables_radaer
 INTEGER :: i_cpnt_index( ncp_max, nmodes )
-
 INTEGER :: i_mode_type( nmodes )
-
 INTEGER :: n_cpnt_in_mode( nmodes )
-
 LOGICAL :: l_soluble( nmodes )
-
 INTEGER ::  i_cpnt_type( ncp_max_x_nmodes )
 
 ! -----------------------------------------------------------------
@@ -280,42 +279,11 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 !-----------------------------------------------------------------------
 
-
-! Note that these hard coded values are calculated in UM module
-! ukca_radaer_init-ukca.F90
-! Arrays with modes start on 2nd mode ( Aitkin Solvent )
-! Radaer expects data to be structured in this way.
-
-! No nucleation mode
-l_soluble(1:nmodes) =  [.TRUE., .TRUE., .TRUE., .FALSE.,                       &
-                         .FALSE.,.FALSE.,.FALSE.,.FALSE.]
-
-! No nucleation mode
-n_cpnt_in_mode(1:nmodes) = [ 3, 5, 5, 2, 1, 1, -1, -1 ]
-
-! No nucleation mode
-i_mode_type(1:nmodes)    = [ 1, 2, 3, 1, 2, 3, -1, -1 ]
-
-! No nucleation mode
-i_cpnt_index(cp_su, 1:nmodes)=[  1,  4,  9, 14, 16, 17, -1, -1 ]
-i_cpnt_index(cp_bc, 1:nmodes)=[  2,  5, 10, 15, -1, -1, -1, -1 ]
-i_cpnt_index(cp_oc, 1:nmodes)=[  3,  6, 11, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_cl, 1:nmodes)=[ -1,  7, 12, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_du, 1:nmodes)=[ -1,  8, 13, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_so, 1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_no3,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_nn, 1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_nh4,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-
-i_cpnt_type(1:ncp_max_x_nmodes) =                                              &
-                                  [ 1,  2,  3,  1,  2,  3,  4,  5,  1,         &
-                                    2,  3,  4,  5,  2,  3,  5,  5, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1 ]
+i_cpnt_index      => glomap_variables_radaer%i_cpnt_index
+i_cpnt_type       => glomap_variables_radaer%i_cpnt_type
+i_mode_type       => glomap_variables_radaer%i_mode_type
+n_cpnt_in_mode    => glomap_variables_radaer%n_cpnt_in_mode
+l_soluble         => glomap_variables_radaer%l_soluble
 
 !----------------------------------------------------------------------
 
