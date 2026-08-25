@@ -140,7 +140,7 @@ ukca_radaer_lfric%idx_cpnt_mode(:,:)=-1
 DO i = 1, nmodes
 
   IF (mode(i)) THEN
-      
+
     this_name = mode_names(i)
 
     ! Get the mode type. Since there is no direct information,
@@ -248,7 +248,7 @@ DO i = 1, nmodes
             CALL ereport(RoutineName,ierr,cmessage)
 
           END SELECT
-         
+
         END IF
       END DO ! j
 

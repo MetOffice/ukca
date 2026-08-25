@@ -103,11 +103,11 @@ LOGICAL, INTENT(IN) :: l_ukca_radaer_sustrat
 ! Local variables
 
 ! We are calling this module because radaer is on. Forced true
-LOGICAL, PARAMETER :: l_radaer_in = .true.
+LOGICAL, PARAMETER :: l_radaer_in = .TRUE.
 
 ! Force existing temporary logicals to always be true from LFRic
-LOGICAL, PARAMETER :: l_fix_nacl_density_in = .true.
-LOGICAL, PARAMETER :: l_fix_ukca_hygroscopicities_in = .true.
+LOGICAL, PARAMETER :: l_fix_nacl_density_in = .TRUE.
+LOGICAL, PARAMETER :: l_fix_ukca_hygroscopicities_in = .TRUE.
 
 INTEGER                           :: errcode  ! error code
 CHARACTER(LEN=errormessagelength) :: cmessage ! error message
