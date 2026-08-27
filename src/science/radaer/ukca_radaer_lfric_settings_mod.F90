@@ -114,7 +114,7 @@ CHARACTER (LEN=errormessagelength) :: cmessage
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
 REAL(KIND=jprb)               :: zhook_handle
-CHARACTER(LEN=*),   PARAMETER :: RoutineName='UKCA_RADAER_LFRIC_INIT'
+CHARACTER(LEN=*),   PARAMETER :: RoutineName='UKCA_RADAER_LFRIC_SETTINGS'
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
