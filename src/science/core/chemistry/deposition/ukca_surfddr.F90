@@ -274,7 +274,6 @@ LOGICAL :: microb(row_length,rows)     ! True if T > 5 C and RH > 40%
 INTEGER  :: n_nosurf
 
 ! Temporary logicals (local copies)
-LOGICAL, SAVE :: l_fix_improve_drydep   ! True to fix dry deposition velocities
 LOGICAL, SAVE :: l_fix_ukca_h2dd_x      ! True to fix H2 depos. to shrub/soil
 LOGICAL, SAVE :: l_fix_drydep_so2_water ! True to use correct surface resistance
                                         ! of water when calculating dry
@@ -292,7 +291,6 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 IF (first) THEN
 
-  l_fix_improve_drydep = ukca_config%l_fix_improve_drydep
   l_fix_ukca_h2dd_x = ukca_config%l_fix_ukca_h2dd_x
   l_fix_drydep_so2_water = ukca_config%l_fix_drydep_so2_water
 
@@ -449,21 +447,12 @@ IF (first) THEN
 
   SELECT CASE (ntype)
   CASE (9)
-    IF (l_fix_improve_drydep) THEN
-      rooh =        [279.2,238.2,366.3,322.9,362.5,424.9,933.1,585.4,1156.1]
-    ELSE
-      rooh =        [30.0,10.0,10.0,10.0,10.0,10.0,10.0,10.0,10.0]
-    END IF
+    rooh =        [279.2,238.2,366.3,322.9,362.5,424.9,933.1,585.4,1156.1]
 
     aerosol =     [r_null,r_null,r_null,r_null,r_null,r_null,                  &
                     1000.0,r_null,20000.0]
 
-    IF (l_fix_improve_drydep) THEN
-      ! soil should behave as c3_grass not as shrub
-      ch4_up_flux = [39.5,50.0,30.0,37.0,27.5,0.0,0.0,30.0,0.0]
-    ELSE
-      ch4_up_flux = [39.5,50.0,30.0,37.0,27.5,0.0,0.0,27.5,0.0]
-    END IF
+    ch4_up_flux = [39.5,50.0,30.0,37.0,27.5,0.0,0.0,30.0,0.0]
 
     IF ( l_fix_ukca_h2dd_x ) THEN
       ! from Table 1 Sanderson, J. Atmos. Chem., v46, 15-28, 2003
@@ -608,49 +597,23 @@ IF (first) THEN
     ! Standard surface resistances (s m-1). Values are for 9 tiles in
     ! order: Broadleaved trees, Needleleaf trees, C3 Grass, C4 Grass,
     ! Shrub, Urban, Water, Bare Soil, Ice.
-    !
-    ! Nine tile dry deposition surface resistance have been updated April 2018
-    ! (behind l_fix_improve_drydep logical) to reflect 13/17/27 tiles
     n_nosurf = 0
     DO n = 1, ndepd
       SELECT CASE (speci(nldepd(n)))
       CASE ('O3        ','O3S       ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 219.3, 233.0, 355.0, 309.3, 358.2,                      &
+        rsurf(:,n)=[ 219.3, 233.0, 355.0, 309.3, 358.2,                      &
                         444.4,2000.0, 645.2,2000.0 ]
-        ELSE
-          rsurf(:,n)=[ 200.0, 200.0, 200.0, 200.0, 400.0,                      &
-                        800.0,2200.0, 800.0,2500.0 ]
-        END IF
 
       CASE ('NO2       ','NO3       ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 364.1, 291.3, 443.8, 386.6, 447.8,                      &
+        rsurf(:,n)=[ 364.1, 291.3, 443.8, 386.6, 447.8,                      &
                         555.6,2500.0, 806.5,2500.0 ]
-        ELSE
-          rsurf(:,n)=[ 225.0, 225.0, 400.0, 400.0, 600.0,                      &
-                       1200.0,2600.0,1200.0,3500.0 ]
-        END IF
       CASE ('NO        ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 2184.5, 1747.6, 3662.7, 2319.6, 2686.8,                 &
+        rsurf(:,n)=[ 2184.5, 1747.6, 3662.7, 2319.6, 2686.8,                 &
                         3333.3,15000.0, 4838.7,15000.0 ]
-        ELSE
-          rsurf(:,n)=[ 1350.0, 1350.0, 2400.0, 2400.0, 3600.0,                 &
-                       72000.0, r_null,72000.0,21000.0 ]
-        END IF
       CASE ('HNO3      ','HONO2     ','B2ndry    ','A2ndry    ','N2O5      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 8.5, 8.4, 13.2, 12.0, 62.3, 12.8, 13.9, 16.0, 19.4 ]
-        ELSE
-          rsurf(:,n)=tenpointzero
-        END IF
+        rsurf(:,n)=[ 8.5, 8.4, 13.2, 12.0, 62.3, 12.8, 13.9, 16.0, 19.4 ]
       CASE ('HNO4      ','HO2NO2    ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 17.0, 16.8, 26.4, 24.0, 24.9, 25.7, 27.7, 32.1, 38.8 ]
-        ELSE
-          rsurf(:,n)=tenpointzero
-        END IF
+        rsurf(:,n)=[ 17.0, 16.8, 26.4, 24.0, 24.9, 25.7, 27.7, 32.1, 38.8 ]
         ! CRI organic nitrates deposit as ISON
       CASE ('ISON      ',                                                      &
             'HOC2H4NO3 ','RTX24NO3  ','RN9NO3    ',                            &
@@ -658,31 +621,15 @@ IF (first) THEN
             'RTN28NO3  ','RTN25NO3  ','RTX28NO3  ','RTX22NO3  ',               &
             'RA22NO3   ','RA25NO3   ','RTN23NO3  ','RU12NO3   ',               &
             'RU10NO3   ','RA13NO3   ','RA16NO3   ','RA19NO3   ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 582.5, 466.0, 710.1, 618.6, 716.5,                      &
+        rsurf(:,n)=[ 582.5, 466.0, 710.1, 618.6, 716.5,                      &
                         888.9,4000.0,1290.3,4000.0 ]
-        ELSE
-          rsurf(:,n)=tenpointzero
-        END IF
       CASE ('HCl       ','HOCl      ','HBr       ','HOBr      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 8.5, 8.4, 13.2, 12.0, 62.3, 12.8, 13.9, 16.0, 19.4 ]
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
+        rsurf(:,n)=[ 8.5, 8.4, 13.2, 12.0, 62.3, 12.8, 13.9, 16.0, 19.4 ]
       CASE ('H2SO4     ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)= [  84.9,  83.8, 131.9, 120.0, 124.4,                     &
+        rsurf(:,n)= [  84.9,  83.8, 131.9, 120.0, 124.4,                     &
                          128.5, 138.6, 160.4, 194.2 ]
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
       CASE ('H2O2      ','HOOH      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 84.9,83.8,131.9,120.0,124.4,128.5,138.6,160.4,194.2 ]
-        ELSE
-          rsurf(:,n)=tenpointzero
-        END IF
+        rsurf(:,n)=[ 84.9,83.8,131.9,120.0,124.4,128.5,138.6,160.4,194.2 ]
         ! CRI R-OOH species deposit as MeOOH
         ! Also including hydroxy-ketones (CARB7-16) which deposit as HACET
       CASE ('CH3OOH    ','MeOOH     ','C2H5OOH   ','EtOOH     ',               &
@@ -709,44 +656,20 @@ IF (first) THEN
         ! CRI PAN-type species
       CASE ('PAN       ','PPAN      ',                                         &
             'PHAN      ','RU12PAN   ','RTN26PAN  ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 485.4, 388.4, 591.7, 515.5, 597.1,                      &
+        rsurf(:,n)=[ 485.4, 388.4, 591.7, 515.5, 597.1,                      &
                         740.7,3333.3,1075.3,3333.3 ]
-        ELSE
-          rsurf(:,n)=[ 500.0,  500.0, 500.0,  500.0, 500.0,                    &
-                       r_null,12500.0, 500.0,12500.0 ]
-        END IF
       CASE ('MPAN      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[  970.9,  776.7, 1183.4, 1030.9, 1194.2,                 &
+        rsurf(:,n)=[  970.9,  776.7, 1183.4, 1030.9, 1194.2,                 &
                         1481.5, 6666.7, 2150.5, 6666.7 ]
-        ELSE
-          rsurf(:,n)=[ 500.0,  500.0, 500.0,  500.0, 500.0,                    &
-                       r_null,12500.0, 500.0,12500.0 ]
-        END IF
       CASE ('OnitU     ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 582.5,  466.0, 710.1,  618.6, 716.5,                    &
+        rsurf(:,n)=[ 582.5,  466.0, 710.1,  618.6, 716.5,                    &
                         888.9, 4000.0,1290.3, 4000.0 ]
-        ELSE
-          rsurf(:,n)=[ 500.0,  500.0, 500.0,  500.0, 500.0,                    &
-                       r_null,12500.0, 500.0,12500.0 ]
-        END IF
       CASE ('NH3       ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 120.0, 130.9, 209.8, 196.1, 191.0,                      &
+        rsurf(:,n)=[ 120.0, 130.9, 209.8, 196.1, 191.0,                      &
                         180.7, 148.9, 213.5, 215.1 ]
-        ELSE
-          rsurf(:,n)=tenpointzero
-        END IF
       CASE ('CO        ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 3700.0, 7300.0, 4550.0, 1960.0, 4550.0,                 &
+        rsurf(:,n)=[ 3700.0, 7300.0, 4550.0, 1960.0, 4550.0,                 &
                         r_null, r_null, 4550.0, r_null ]
-        ELSE
-          rsurf(:,n)=[ 3700.0, 7300.0, 4550.0, 1960.0, 4550.0,                 &
-                        r_null, r_null, 4550.0, r_null ]
-        END IF
         ! Shrub+bare soil set to C3 grass (guess)
       CASE ('CH4       ')
         IF (ukca_config%l_ukca_emsdrvn_ch4) THEN
@@ -766,47 +689,25 @@ IF (first) THEN
           rsurf(:,n)=[ 120.0, 130.9, 209.8, 196.1, 191.0,                      &
                         180.7,   1.0, 213.5, 215.1 ]
         ELSE
-          IF (l_fix_improve_drydep) THEN
-            rsurf(:,n)=[ 120.0, 130.9, 209.8, 196.1, 191.0,                    &
+          rsurf(:,n)=[ 120.0, 130.9, 209.8, 196.1, 191.0,                    &
                           180.7,  10.0, 213.5, 215.1 ]
-          ELSE
-            rsurf(:,n)=[ 100.0, 100.0, 150.0, 350.0, 400.0,                    &
-                          400.0,  10.0, 700.0, r_null ]
-          END IF
         END IF
       CASE ('BSOA      ','ASOA      ','ISOSOA    ')
         rsurf(:,n)=aerosol
       CASE ('ORGNIT    ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 582.5, 466.0, 710.1, 618.6, 716.5,                      &
+        rsurf(:,n)=[ 582.5, 466.0, 710.1, 618.6, 716.5,                      &
                         888.9,4000.0,1290.3,4000.0 ]
-        ELSE
-          rsurf(:,n)=aerosol
-        END IF
       CASE ('Sec_Org   ','SEC_ORG_I ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=aerosol
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
+        rsurf(:,n)=aerosol
       CASE ('HCHO      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 136.0, 143.5, 228.5, 211.6, 210.5,                      &
+        rsurf(:,n)=[ 136.0, 143.5, 228.5, 211.6, 210.5,                      &
                         205.1, 182.7, 246.5, 261.8 ]
-        ELSE
-          rsurf(:,n)=[ 100.0, 100.0, 150.0, 350.0, 600.0,                      &
-                        400.0, 200.0, 700.0, 700.0 ]
-        END IF
         ! CRI alcohols deposit as MeOH
       CASE ('MeOH      ','EtOH      ','i-PrOH    ','n-PrOH    ',               &
             'AROH14    ','ARNOH14   ','AROH17    ','ARNOH17   ',               &
             'IEPOX     ','HMML      ','HUCARB9   ','DHCARB9   ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 187.1, 199.4, 318.3, 295.6, 292.2,                      &
+        rsurf(:,n)=[ 187.1, 199.4, 318.3, 295.6, 292.2,                      &
                         282.1, 245.1, 337.2, 352.2 ]
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
         ! CRI Carbonyls, copying MeCHO rates
         ! Second generation nitrates deposit as NALD
       CASE ('MeCHO     ','EtCHO     ','MACR      ','NALD      ',               &
@@ -818,22 +719,12 @@ IF (first) THEN
             'TXCARB22  ','UDCARB17  ','NOA       ','NUCARB12  ',               &
             'ANHY      '                                                       &
             )
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 5825.2, 4660.3, 7100.6, 6185.6, 7164.8,                 &
+        rsurf(:,n)=[ 5825.2, 4660.3, 7100.6, 6185.6, 7164.8,                 &
                         8888.9,40000.0,12903.2,40000.0 ]
-        ELSE
-          rsurf(:,n)=[ 1200.0, 1200.0, 1200.0, 1200.0, 1000.0,                 &
-                        2400.0, r_null, r_null, r_null ]
-        END IF
         ! CRI: CARB3 = GLY, CARB6 = MGLY etc.
       CASE ('MGLY      ','CARB3     ','CARB6     ','CARB9     ','CARB12    ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=[ 12001.2, 13086.3, 20979.0, 19607.8, 19091.9,            &
+        rsurf(:,n)=[ 12001.2, 13086.3, 20979.0, 19607.8, 19091.9,            &
                         18072.3, 14888.3, 21352.3, 21505.4 ]
-        ELSE
-          rsurf(:,n)=[ 1200.0, 1200.0, 1200.0, 1200.0, 1000.0,                 &
-                        2400.0, r_null, r_null, r_null ]
-        END IF
       CASE ('DMSO      ','Monoterp  ','APINENE   ','BPINENE   ')
         rsurf(:,n)=r_null_tile(:)
       CASE DEFAULT
@@ -872,17 +763,9 @@ IF (first) THEN
       CASE ('HNO3      ','HONO2     ','B2ndry    ','A2ndry    ','N2O5      ')
         rsurf(1:6,n)=[ 9.5,8.0,8.0,8.4,8.4,13.2 ]
       CASE ('HCl       ','HOCl      ','HBr       ','HOBr      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(1:6,n)=[ 9.5,8.0,8.0,8.4,8.4,13.2 ]
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
+        rsurf(1:6,n)=[ 9.5,8.0,8.0,8.4,8.4,13.2 ]
       CASE ('H2SO4     ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(1:6,n)=[ 94.8, 80.0, 80.0, 83.9, 83.7, 131.9 ]
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
+        rsurf(1:6,n)=[ 94.8, 80.0, 80.0, 83.9, 83.7, 131.9 ]
       CASE ('HNO4      ','HO2NO2    ')
         rsurf(1:6,n)=[ 19.0,16.0,16.0,16.8,16.7,26.4 ]
       CASE ('HONO      ')
@@ -943,11 +826,7 @@ IF (first) THEN
       CASE ('MeOH      ','EtOH      ','i-PrOH    ','n-PrOH    ',               &
             'AROH14    ','ARNOH14   ','AROH17    ','ARNOH17   ',               &
             'IEPOX     ','HMML      ','HUCARB9   ','DHCARB9   ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(1:6,n)=[ 212.6, 173.9, 174.9, 200.0, 198.0, 318.3 ]
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
+        rsurf(1:6,n)=[ 212.6, 173.9, 174.9, 200.0, 198.0, 318.3 ]
         ! CRI Carbonyls, copying MeCHO rates
         ! Second generation nitrates deposit as NALD
       CASE ('MeCHO     ','EtCHO     ','MACR      ','NALD      ',               &
@@ -971,11 +850,7 @@ IF (first) THEN
       CASE ('BSOA      ','ASOA      ','ISOSOA    ')
         rsurf(:,n)=aerosol
       CASE ('Sec_Org   ','SEC_ORG_I ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(:,n)=aerosol
-        ELSE
-          rsurf(:,n)=r_null_tile(:)
-        END IF
+        rsurf(:,n)=aerosol
       CASE ('DMSO      ','Monoterp  ','APINENE   ','BPINENE   ')
         rsurf(:,n)=r_null_tile(:)
       CASE DEFAULT
@@ -1036,13 +911,9 @@ IF (first) THEN
       CASE ('HNO3      ','HONO2     ','B2ndry    ','A2ndry    ','N2O5      ')
         rsurf(7:13,n)=[ 12.0,59.1,65.4,12.8,13.9,16.0,19.4 ]
       CASE ('HCl       ','HOCl      ','HBr       ','HOBr      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(7:13,n)=[ 12.0,59.1,65.4,12.8,13.9,16.0,19.4 ]
-        END IF
+        rsurf(7:13,n)=[ 12.0,59.1,65.4,12.8,13.9,16.0,19.4 ]
       CASE ('H2SO4     ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(7:13,n)=[ 120.0, 118.1, 130.7, 128.5, 138.6, 160.4, 194.2 ]
-        END IF
+        rsurf(7:13,n)=[ 120.0, 118.1, 130.7, 128.5, 138.6, 160.4, 194.2 ]
       CASE ('HNO4      ','HO2NO2    ')
         rsurf(7:13,n)=[ 24.0,23.6,26.1,25.7,27.7,32.1,38.8 ]
       CASE ('HONO      ')
@@ -1074,9 +945,7 @@ IF (first) THEN
       CASE ('MeOH      ','EtOH      ','i-PrOH    ','n-PrOH    ',               &
             'AROH14    ','ARNOH14   ','AROH17    ','ARNOH17   ',               &
             'IEPOX     ','HMML      ','HUCARB9   ','DHCARB9   ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(7:13,n)=[ 295.6, 282.7, 301.7, 282.1, 245.1, 337.2, 352.2 ]
-        END IF
+        rsurf(7:13,n)=[ 295.6, 282.7, 301.7, 282.1, 245.1, 337.2, 352.2 ]
         ! CRI Carbonyls, copying MeCHO rates
         !   Second generation nitrates deposit as NALD
       CASE ('MeCHO     ','EtCHO     ','MACR      ','NALD      ',               &
@@ -1140,15 +1009,11 @@ IF (first) THEN
         rsurf(7:17,n)=[ 13.2,13.2,12.0,12.0,12.0,                              &
                          59.1,65.4,12.8,13.9,16.0,19.4 ]
       CASE ('HCl       ','HOCl      ','HBr       ','HOBr      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(7:17,n)=[ 13.2,13.2,12.0,12.0,12.0,                            &
+        rsurf(7:17,n)=[ 13.2,13.2,12.0,12.0,12.0,                            &
                            59.1,65.4,12.8,13.9,16.0,19.4 ]
-        END IF
       CASE ('H2SO4     ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(7:17,n)=[ 131.9, 131.9, 120.0, 120.0, 120.0,                   &
+        rsurf(7:17,n)=[ 131.9, 131.9, 120.0, 120.0, 120.0,                   &
                            118.1, 130.7, 128.5, 138.6, 160.4, 194.2 ]
-        END IF
       CASE ('HNO4      ','HO2NO2    ')
         rsurf(7:17,n)=[ 26.4,26.4,24.0,24.0,24.0,                              &
                          23.6,26.1,25.7,27.7,32.1,38.8 ]
@@ -1189,10 +1054,8 @@ IF (first) THEN
       CASE ('MeOH      ','EtOH      ','i-PrOH    ','n-PrOH    ',               &
             'AROH14    ','ARNOH14   ','AROH17    ','ARNOH17   ',               &
             'IEPOX     ','HMML      ','HUCARB9   ','DHCARB9   ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(7:17,n)=[ 318.3, 318.3, 295.6, 295.6, 295.6,                   &
+        rsurf(7:17,n)=[ 318.3, 318.3, 295.6, 295.6, 295.6,                   &
                            282.7, 301.7, 282.1, 245.1, 337.2, 352.2 ]
-        END IF
         ! CRI Carbonyls, copying MeCHO rates
         !   Second generation nitrates deposit as NALD
       CASE ('MeCHO     ','EtCHO     ','MACR      ','NALD      ',               &
@@ -1239,15 +1102,11 @@ IF (first) THEN
         rsurf(18:27,n)=[ 19.4,19.4,19.4,19.4,19.4,                             &
                           19.4,19.4,19.4,19.4,19.4 ]
       CASE ('HCl       ','HOCl      ','HBr       ','HOBr      ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(18:27,n)=[ 19.4,19.4,19.4,19.4,19.4,                           &
+        rsurf(18:27,n)=[ 19.4,19.4,19.4,19.4,19.4,                           &
                             19.4,19.4,19.4,19.4,19.4 ]
-        END IF
       CASE ('H2SO4     ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(18:27,n)=[ 194.2, 194.2, 194.2, 194.2, 194.2,                  &
+        rsurf(18:27,n)=[ 194.2, 194.2, 194.2, 194.2, 194.2,                  &
                             194.2, 194.2, 194.2, 194.2, 194.2 ]
-        END IF
       CASE ('HNO4      ','HO2NO2    ')
         rsurf(18:27,n)=[ 38.8,38.8,38.8,38.8,38.8,                             &
                           38.8,38.8,38.8,38.8,38.8 ]
@@ -1288,10 +1147,8 @@ IF (first) THEN
       CASE ('MeOH      ','EtOH      ','i-PrOH    ','n-PrOH    ',               &
             'AROH14    ','ARNOH14   ','AROH17    ','ARNOH17   ',               &
             'IEPOX     ','HMML      ','HUCARB9   ','DHCARB9   ')
-        IF (l_fix_improve_drydep) THEN
-          rsurf(18:27,n)=[ 352.2, 352.2, 352.2, 352.2, 352.2,                  &
+        rsurf(18:27,n)=[ 352.2, 352.2, 352.2, 352.2, 352.2,                  &
                             352.2, 352.2, 352.2, 352.2, 352.2 ]
-        END IF
         ! CRI Carbonyls, copying MeCHO rates
         !   Second generation nitrates deposit as NALD
       CASE ('MeCHO     ','EtCHO     ','MACR      ','NALD      ',               &
@@ -2574,7 +2431,7 @@ DO j = 1, ndepd
           ((speci(nldepd(j)) == 'HCl       ' .OR.                              &
             speci(nldepd(j)) == 'HOCl      ' .OR.                              &
             speci(nldepd(j)) == 'HBr       ' .OR.                              &
-            speci(nldepd(j))== 'HOBr      ') .AND. (l_fix_improve_drydep))) THEN
+            speci(nldepd(j))== 'HOBr      ') )) THEN
 
     IF ( ( .NOT. l_fix_ukca_h2dd_x )                              .OR.         &
          ( (ntype == 9) .OR. (ntype == 13) .OR. (ntype == 17) ) ) THEN
@@ -2630,12 +2487,12 @@ DO j = 1, ndepd
     !       ORGNIT is treated as an aerosol.
     !       Assume vd is valid for all land types and aerosol types.
 
-  ELSE IF ((speci(nldepd(j)) == 'ORGNIT    '  .OR.                             &
+  ELSE IF ( speci(nldepd(j)) == 'ORGNIT    '  .OR.                             &
             speci(nldepd(j)) == 'BSOA      '  .OR.                             &
             speci(nldepd(j)) == 'ASOA      '  .OR.                             &
-            speci(nldepd(j)) == 'ISOSOA    ') .OR.                             &
-           (speci(nldepd(j)) =='Sec_Org   ' .AND. (l_fix_improve_drydep)) .OR. &
-           (speci(nldepd(j)) =='SEC_ORG_I ' .AND. (l_fix_improve_drydep))) THEN
+            speci(nldepd(j)) == 'ISOSOA    '  .OR.                             &
+            speci(nldepd(j)) == 'Sec_Org   '  .OR.                             &
+            speci(nldepd(j)) =='SEC_ORG_I ')  THEN
 
     DO n = 1, urban     ! for all the functional plant types as
                         ! well as for surface type urban (n=npft+1)

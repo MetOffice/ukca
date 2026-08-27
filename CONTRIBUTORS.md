@@ -12,3 +12,4 @@
 | yaswant           | Yaswant Pradhan     | Met Office                     | 2026-07-17 |
 | RobWatersMet      | Rob Waters          | NCAS & University of Cambridge | 2026-07-06 |
 | alanjhewitt       | Alan J Hewitt       | Met Office                     | 2026-07-12 |
+| angelamynard      | Angela Mynard       | Met Office                     | 2026-08-27 |
