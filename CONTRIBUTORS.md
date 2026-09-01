@@ -10,4 +10,5 @@
 | yg460-cam         | Yao Ge              | University of Cambridge        | 2026-04-17 |
 | theabro           | Nathan Luke Abraham | NCAS & University of Cambridge | 2026-03-19 |
 | yaswant           | Yaswant Pradhan     | Met Office                     | 2026-07-17 |
+| RobWatersMet      | Rob Waters          | NCAS & University of Cambridge | 2026-07-06 |
 | alanjhewitt       | Alan J Hewitt       | Met Office                     | 2026-07-12 |

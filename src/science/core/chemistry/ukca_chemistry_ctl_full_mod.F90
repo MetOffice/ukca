@@ -122,7 +122,11 @@ REAL, INTENT(IN) :: so4_sa(tot_n_pnts)              ! aerosol surface area
 REAL, INTENT(IN) :: zdryrt(theta_field_size,jpdd)   ! dry dep rate
 REAL, INTENT(IN) :: zwetrt(tot_n_pnts,jpdw)         ! wet dep rate
 REAL, INTENT(IN) :: photol_rates(tot_n_pnts,jppj)
-REAL, INTENT(IN) :: co2_interactive(tot_n_pnts)
+
+! must be allocatable as passed unallocated from main if l_chem_environ_co2_fld
+! is false
+REAL, INTENT(IN), ALLOCATABLE :: co2_interactive(:,:,:)
+
 REAL, INTENT(OUT) :: shno3(tot_n_pnts)
 REAL, INTENT(IN OUT) :: q(tot_n_pnts)               ! water vapour
 REAL, INTENT(IN OUT) :: tracer(tot_n_pnts,ntracers) ! tracer MMR
@@ -245,14 +249,23 @@ ELSE
   zprt1d(:,:) = photol_rates(:,:)
 END IF
 
+! CO2 as species
 IF (ANY(speci(:) == 'CO2       ')) THEN
   !  Copy the CO2 concentration into the asad module as VMR
   IF (ukca_config%l_chem_environ_co2_fld) THEN
-    co2_1d(:) = co2_interactive(:)/c_co2
+
+    ! co2_interactive should be allocated if config option on
+    IF (.NOT. ALLOCATED(co2_interactive)) THEN
+      errcode = 1
+      CALL ereport(ModuleName//':'//RoutineName, errcode,                      &
+        'ERROR: co2_interactive array not allocated')
+    END IF
+
+    co2_1d(:) = RESHAPE(co2_interactive, [tot_n_pnts]) / c_co2
   ELSE
     co2_1d(:) = rmdi
   END IF
-END IF       ! CO2 as species
+END IF
 
 ! Retrieve tropospheric heterogeneous rates from previous time step
 IF (ukca_config%l_ukca_trophet) THEN
