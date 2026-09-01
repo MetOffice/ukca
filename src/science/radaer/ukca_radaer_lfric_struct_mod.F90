@@ -8,11 +8,11 @@
 ! Defines maximum dimensions
 ! Defines type ukca_radaer_lfric_struct, the structure used by UKCA_RADAER
 !
-! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: UKCA
-!
 ! Contained subroutines:
 !      allocate_radaer_lfric_struct
+!
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file belongs in section: UKCA
 !
 ! Code description:
 !   Language: FORTRAN 90

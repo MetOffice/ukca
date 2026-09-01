@@ -7,6 +7,9 @@
 ! Purpose:
 !   To save structure ukca_radaer_lfric
 !
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file belongs in section: UKCA
+!
 ! ---------------------------------------------------------------------
 
 MODULE ukca_radaer_lfric_saved_mod

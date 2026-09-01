@@ -12,6 +12,7 @@
 !   2) Obtain number of modes and components for specific GLOMAP setting
 !   3) Populate structure ukca_radaer_lfric
 !
+! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: UKCA
 !
 MODULE ukca_radaer_lfric_settings_mod

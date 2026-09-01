@@ -13,6 +13,7 @@
 !
 !   3) CALL ukca_radaer_lfric_list to allocate lists for radaer kernel
 !
+! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: UKCA
 
 MODULE ukca_radaer_lfric_init_mod
