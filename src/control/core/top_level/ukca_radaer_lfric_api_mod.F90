@@ -55,6 +55,8 @@ SUBROUTINE ukca_radaer_lfric_interface(                                        &
     ukca_modal_wtv,                                                            &
     ! Logical to describe orientation
     l_inverted,                                                                &
+    ! Logical to account for optical properties of sulphate in atmosphere
+    l_sustrat,                                                                 &
     ! Control option for prescribed single scattering albedo array
     i_ukca_radaer_prescribe_ssa,                                               &
     ! Model level of the tropopause (input)
@@ -97,6 +99,7 @@ USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              ip_ukca_mode_accum,               &
                                              ip_ukca_mode_coarse,              &
                                              i_ukca_bc_tuned,                  &
+                                             i_ukca_tune_bc_off,               &
                                              cp_su,  cp_bc, cp_oc,             &
                                              cp_cl,  cp_du, cp_so,             &
                                              cp_no3, cp_nn, cp_nh4,            &
@@ -105,6 +108,8 @@ USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
 USE ukca_radaer_band_average_mod,      ONLY: ukca_radaer_band_average
 
 USE ukca_radaer_compute_aod_mod,       ONLY: ukca_radaer_compute_aod
+
+USE ukca_radaer_lfric_saved_mod,       ONLY: ukca_radaer_lfric
 
 USE ukca_radaer_prepare_mod,           ONLY: ukca_radaer_prepare
 
@@ -158,6 +163,9 @@ REAL, INTENT(IN) :: ukca_modal_wtv( npd_profile, npd_layer, n_ukca_mode )
 ! Logical to describe orientation
 LOGICAL, INTENT(IN) :: l_inverted
 
+! Logical to account for optical properties of sulphate in atmosphere
+LOGICAL, INTENT(IN) :: l_sustrat
+
 ! When > 0, use a prescribed single scattering albedo field
 INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 
@@ -196,33 +204,33 @@ REAL, INTENT(IN) :: d_mass_theta_levels( npd_profile, npd_layer )
 
 ! Modal mass-mixing ratios
 REAL, INTENT(IN OUT) ::  ukca_mode_mix_ratio( npd_profile, npd_layer,          &
-                                                 n_radaer_mode )
+                                              n_radaer_mode )
 
 ! Band-averaged modal optical properties
 REAL, INTENT(IN OUT) :: aer_lw_absorption( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_lw_band )
+                                           n_radaer_mode, n_lw_band )
 
 REAL, INTENT(IN OUT) :: aer_sw_absorption( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_sw_band )
+                                           n_radaer_mode, n_sw_band )
 
 REAL, INTENT(IN OUT) :: aer_lw_scattering( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_lw_band )
+                                           n_radaer_mode, n_lw_band )
 
 REAL, INTENT(IN OUT) :: aer_sw_scattering( npd_profile, npd_layer,             &
-                                              n_radaer_mode, n_sw_band )
+                                           n_radaer_mode, n_sw_band )
 
 REAL, INTENT(IN OUT) :: aer_lw_asymmetry( npd_profile, npd_layer,              &
-                                             n_radaer_mode, n_lw_band )
+                                          n_radaer_mode, n_lw_band )
 
 REAL, INTENT(IN OUT) :: aer_sw_asymmetry( npd_profile, npd_layer,              &
-                                             n_radaer_mode, n_sw_band )
+                                          n_radaer_mode, n_sw_band )
 
 ! Aerosol Optical Depth diagnostics
 REAL, INTENT(IN OUT) :: aod_ukca_all_modes( npd_profile, npd_ukca_aod_wavel,   &
-                                               n_ukca_mode )
+                                            n_ukca_mode )
 
 REAL, INTENT(IN OUT) :: aaod_ukca_all_modes(npd_profile, npd_ukca_aod_wavel,   &
-                                               n_ukca_mode )
+                                            n_ukca_mode )
 
 ! Local variables
 
@@ -239,18 +247,17 @@ REAL ::  sod_ukca_this_mode( npd_profile, npd_ukca_aod_wavel )
 
 ! -----------------------------------------------------------------
 
-LOGICAL, PARAMETER ::  l_nitrate = .FALSE. ! Make this a namelist option later
-LOGICAL, PARAMETER ::  l_sustrat = .TRUE.  ! Make this a namelist option later
-                                           ! l_sustrat=.true. for ga9
-
-LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
 ! Make this a namelist option later
+LOGICAL, PARAMETER ::  l_nitrate = .FALSE.
+
+! Make this a namelist option later
+LOGICAL, PARAMETER :: l_cornarrow_ins = .FALSE.
 
 ! -----------------------------------------------------------------
 
 ! Maxwell-Garnett mixing approach logical control switches
 INTEGER, PARAMETER :: i_ukca_tune_bc = i_ukca_bc_tuned
-INTEGER, PARAMETER :: i_glomap_clim_tune_bc = 0 ! No tuning
+INTEGER, PARAMETER :: i_glomap_clim_tune_bc = i_ukca_tune_bc_off
 
 ! Spectral information
 INTEGER, PARAMETER :: ip_infra_red = 2
@@ -259,15 +266,12 @@ INTEGER, PARAMETER :: ip_solar = 1
 LOGICAL, PARAMETER :: soluble_wanted   = .TRUE.
 LOGICAL, PARAMETER :: soluble_unwanted = .FALSE.
 
+! Local copies from ukca_radaer_lfric
 INTEGER :: i_cpnt_index( ncp_max, nmodes )
-
+INTEGER :: i_cpnt_type( ncp_max_x_nmodes )
 INTEGER :: i_mode_type( nmodes )
-
 INTEGER :: n_cpnt_in_mode( nmodes )
-
 LOGICAL :: l_soluble( nmodes )
-
-INTEGER ::  i_cpnt_type( ncp_max_x_nmodes )
 
 ! -----------------------------------------------------------------
 
@@ -280,42 +284,12 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_in, zhook_handle)
 
 !-----------------------------------------------------------------------
 
-
-! Note that these hard coded values are calculated in UM module
-! ukca_radaer_init-ukca.F90
-! Arrays with modes start on 2nd mode ( Aitkin Solvent )
-! Radaer expects data to be structured in this way.
-
-! No nucleation mode
-l_soluble(1:nmodes) =  [.TRUE., .TRUE., .TRUE., .FALSE.,                       &
-                         .FALSE.,.FALSE.,.FALSE.,.FALSE.]
-
-! No nucleation mode
-n_cpnt_in_mode(1:nmodes) = [ 3, 5, 5, 2, 1, 1, -1, -1 ]
-
-! No nucleation mode
-i_mode_type(1:nmodes)    = [ 1, 2, 3, 1, 2, 3, -1, -1 ]
-
-! No nucleation mode
-i_cpnt_index(cp_su, 1:nmodes)=[  1,  4,  9, 14, 16, 17, -1, -1 ]
-i_cpnt_index(cp_bc, 1:nmodes)=[  2,  5, 10, 15, -1, -1, -1, -1 ]
-i_cpnt_index(cp_oc, 1:nmodes)=[  3,  6, 11, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_cl, 1:nmodes)=[ -1,  7, 12, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_du, 1:nmodes)=[ -1,  8, 13, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_so, 1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_no3,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_nn, 1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-i_cpnt_index(cp_nh4,1:nmodes)=[ -1, -1, -1, -1, -1, -1, -1, -1 ]
-
-i_cpnt_type(1:ncp_max_x_nmodes) =                                              &
-                                  [ 1,  2,  3,  1,  2,  3,  4,  5,  1,         &
-                                    2,  3,  4,  5,  2,  3,  5,  5, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1,         &
-                                   -1, -1, -1, -1, -1, -1, -1, -1, -1 ]
+! Local copies to make the code easier to read
+i_cpnt_index   = ukca_radaer_lfric%i_cpnt_index
+i_cpnt_type    = ukca_radaer_lfric%i_cpnt_type
+i_mode_type    = ukca_radaer_lfric%i_mode_type
+n_cpnt_in_mode = ukca_radaer_lfric%n_cpnt_in_mode
+l_soluble      = ukca_radaer_lfric%l_soluble
 
 !----------------------------------------------------------------------
 
