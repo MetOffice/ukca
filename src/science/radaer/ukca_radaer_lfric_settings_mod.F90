@@ -103,10 +103,10 @@ REAL,               POINTER :: sigmag(:)
 INTEGER :: i, j
 
 ! In-loop copy of mode names
-CHARACTER(LEN=7) :: this_name
+CHARACTER(LEN=7) :: mode_name
 
 ! In-loop mode type
-INTEGER :: this_type
+INTEGER :: mode_type
 
 ! Error message
 INTEGER :: ierr
@@ -142,42 +142,42 @@ DO i = 1, nmodes
 
   IF (mode(i)) THEN
 
-    this_name = mode_names(i)
+    mode_name = mode_names(i)
 
     ! Get the mode type. Since there is no direct information,
     ! it is obtained from the mode names.
 
-    SELECT CASE ( this_name(1:3) )
+    SELECT CASE ( mode_name(1:3) )
 
     CASE ('Nuc')
-      this_type = ip_ukca_mode_nucleation
+      mode_type = ip_ukca_mode_nucleation
 
     CASE ('Ait')
-      this_type = ip_ukca_mode_aitken
+      mode_type = ip_ukca_mode_aitken
 
     CASE ('Acc')
-      this_type = ip_ukca_mode_accum
+      mode_type = ip_ukca_mode_accum
 
     CASE ('Cor')
-      this_type = ip_ukca_mode_coarse
+      mode_type = ip_ukca_mode_coarse
 
     CASE ('Sup')
-      this_type = ip_ukca_mode_supercoarse
+      mode_type = ip_ukca_mode_supercoarse
 
     CASE DEFAULT
       ierr = 1
-      cmessage = 'Unexpected mode name.' // this_name
+      cmessage = 'Unexpected mode name.' // mode_name
       CALL ereport(RoutineName,ierr,cmessage)
 
     END SELECT
 
     ! Interaction of nucleation modes with radiation is neglected.
-    IF ( this_type /= ip_ukca_mode_nucleation ) THEN
+    IF ( mode_type /= ip_ukca_mode_nucleation ) THEN
 
       ! Increase mode counter by one
       n_loc_mode = n_loc_mode + 1
 
-      ukca_radaer_lfric%i_mode_type(n_loc_mode) = this_type
+      ukca_radaer_lfric%i_mode_type(n_loc_mode) = mode_type
       ukca_radaer_lfric%l_soluble(n_loc_mode) = modesol(i) == 1
       ukca_radaer_lfric%d0low(n_loc_mode) = ddplim0(i)
       ukca_radaer_lfric%d0up(n_loc_mode) = ddplim1(i)
