@@ -1,0 +1,14 @@
+# This CODEOWNERS file includes a primary codeowner and a deputy for each section.
+# Codeowners who are not in a comment will be automatically notified of changes
+# to the listed files. All codeowners listed are valid points of contact
+# for discussing changes and seeking approval for work.
+
+rose-stem/                              @theabro                # @alanjhewitt
+src/                                    @theabro                # @alanjhewitt
+src/control/glomap_clim                 @alanjhewitt            # @theabro
+src/science/glomap_clim                 @alanjhewitt            # @theabro
+
+# Other areas
+.github/                                @MetOffice/ssdteam
+LICENSE                                 @yaswant
+README.md                               @MetOffice/ssdteam
