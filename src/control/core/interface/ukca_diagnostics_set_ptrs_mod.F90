@@ -169,19 +169,7 @@ IF (ALLOCATED(diagnostics%requests_ptr(dgroup_flat_real)%varnames)) THEN
 ELSE
 
   ! No request array set up for this group
-
   diagnostics%n_request(dgroup_flat_real) = 0
-
-  ! Check data array is absent
-  IF (PRESENT(data_flat_real)) THEN
-    error_code_ptr = errcode_diag_mismatch
-    IF (ASSOCIATED(diag2d_copy_out)) THEN
-      message_txt = message_txt_data_array_redundant // ' (flat real group)'
-    ELSE
-      message_txt =                                                            &
-        'Array present for unrequested diagnostic output (flat real group)'
-    END IF
-  END IF
 
 END IF
 
@@ -235,21 +223,7 @@ IF (ALLOCATED(diagnostics%requests_ptr(dgroup_fullht_real)%varnames)) THEN
 ELSE
 
   ! No request array set up for this group
-
   diagnostics%n_request(dgroup_fullht_real) = 0
-
-  ! Check data array is absent
-  IF (PRESENT(data_fullht_real)) THEN
-    error_code_ptr = errcode_diag_mismatch
-    IF (ASSOCIATED(diag3d_copy_out)) THEN
-      message_txt = message_txt_data_array_redundant //                        &
-                    ' (full height real group)'
-    ELSE
-      message_txt =                                                            &
-        'Array present for unrequested diagnostic output ' //                  &
-        '(full height real group)'
-    END IF
-  END IF
 
 END IF
 
@@ -261,7 +235,7 @@ IF (error_code_ptr > 0) THEN
 END IF
 
 ! Record number of spatial dimensions in use for each diagnostic group
-! and set pointers
+! and set pointers only if any diagnostics are requested in this call.
 
 IF (ASSOCIATED(diag2d_copy_out)) THEN
   diagnostics%dimension_out(dgroup_flat_real) = imdi
@@ -275,13 +249,15 @@ ELSE
   diagnostics%dimension_out(dgroup_fullht_real) = 1
 END IF
 
-IF (PRESENT(data_flat_real)) THEN
+IF ( PRESENT(data_flat_real) .AND.                                             &
+       diagnostics%n_request(dgroup_flat_real) > 0 ) THEN
   diagnostics%value_0d_real_ptr => data_flat_real
 ELSE
   NULLIFY(diagnostics%value_0d_real_ptr)
 END IF
 
-IF (PRESENT(data_fullht_real)) THEN
+IF ( PRESENT(data_fullht_real) .AND.                                           &
+       diagnostics%n_request(dgroup_fullht_real) > 0 ) THEN
   diagnostics%value_1d_real_ptr => data_fullht_real
 ELSE
   NULLIFY(diagnostics%value_1d_real_ptr)
@@ -408,19 +384,7 @@ IF (ALLOCATED(diagnostics%requests_ptr(dgroup_flat_real)%varnames)) THEN
 ELSE
 
   ! No request array set up for this group
-
   diagnostics%n_request(dgroup_flat_real) = 0
-
-  ! Check data array is absent
-  IF (PRESENT(data_flat_real)) THEN
-    error_code_ptr = errcode_diag_mismatch
-    IF (ASSOCIATED(diag2d_copy_out)) THEN
-      message_txt = message_txt_data_array_redundant // ' (flat real group)'
-    ELSE
-      message_txt =                                                            &
-        'Array present for unrequested diagnostic output (flat real group)'
-    END IF
-  END IF
 
 END IF
 
@@ -476,21 +440,7 @@ IF (ALLOCATED(diagnostics%requests_ptr(dgroup_fullht_real)%varnames)) THEN
 ELSE
 
   ! No request array set up for this group
-
   diagnostics%n_request(dgroup_fullht_real) = 0
-
-  ! Check data array is absent
-  IF (PRESENT(data_fullht_real)) THEN
-    error_code_ptr = errcode_diag_mismatch
-    IF (ASSOCIATED(diag3d_copy_out)) THEN
-      message_txt = message_txt_data_array_redundant //                        &
-                    ' (full height real group)'
-    ELSE
-      message_txt =                                                            &
-        'Array present for unrequested diagnostic output ' //                  &
-        '(full height real group)'
-    END IF
-  END IF
 
 END IF
 
@@ -502,7 +452,7 @@ IF (error_code_ptr > 0) THEN
 END IF
 
 ! Record number of spatial dimensions in use for each diagnostic group
-! and set pointers
+! and set pointers only if any diagnostics are requested in this call.
 
 IF (ASSOCIATED(diag2d_copy_out)) THEN
   diagnostics%dimension_out(dgroup_flat_real) = imdi
@@ -516,13 +466,15 @@ ELSE
   diagnostics%dimension_out(dgroup_fullht_real) = 3
 END IF
 
-IF (PRESENT(data_flat_real)) THEN
+IF (PRESENT(data_flat_real) .AND.                                              &
+      diagnostics%n_request(dgroup_flat_real) > 0 ) THEN
   diagnostics%value_2d_real_ptr => data_flat_real
 ELSE
   NULLIFY(diagnostics%value_2d_real_ptr)
 END IF
 
-IF (PRESENT(data_fullht_real)) THEN
+IF (PRESENT(data_fullht_real) .AND.                                            &
+      diagnostics%n_request(dgroup_fullht_real) > 0 ) THEN
   diagnostics%value_3d_real_ptr => data_fullht_real
 ELSE
   NULLIFY(diagnostics%value_3d_real_ptr)
