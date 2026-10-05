@@ -25,7 +25,12 @@ CONTAINS
 
 SUBROUTINE ukca_radaer_band_average_faster()
 
-! USE
+USE conversions_mod,        ONLY: pi
+USE ereport_mod,            ONLY: ereport
+USE errormessagelength_mod, ONLY: errormessagelength
+USE parkind1,               ONLY: jpim, jprb
+USE vectlib_mod,            ONLY: log_v
+USE yomhook,                ONLY: lhook, dr_hook
 
 IMPLICIT NONE
 
@@ -40,6 +45,13 @@ IMPLICIT NONE
 !
 INTEGER, PARAMETER :: one = 1
 
+REAL :: logs_array_in(one)
+REAL :: logs_array_out(one)
+REAL :: incr_ni(one)
+
+REAL, PARAMETER :: min_ni_c = 0.001 ! Lowest value of ni_c to accept
+REAL, PARAMETER :: max_ni_c = 5.0   ! Highest value of ni_c to accept
+REAL, PARAMETER :: inv_ln_10 = 1.0 / LOG(10.0)
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -113,6 +125,16 @@ DO i_mode = 1, n_ukca_mode
 
 END DO ! i_mode = 1, n_ukca_mode
 
+DO i_mode = 1, n_ukca_mode
+  IF (ni_c > max_ni_c) THEN
+
+    icode = 1
+    cmessage='UKCA RADAER Look-up table'//newline//'NI_C exceeds upper limit'
+    CALL ereport(RoutineName,icode,cmessage)
+
+  END IF   
+END DO
+
 DO i_layr = 1, n_layer
   DO i_prof = 1, n_profile
     IF (l_inverted) THEN
@@ -160,6 +182,9 @@ IF ( l_sustrat ) THEN
   END DO ! i_mode
 
 END IF
+
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! Part two - calculate the refractive index for real and optionally imaginary
 
 re_m( i_prof, i_layr, i_band, i_mode ) = 0.0
 im_m( i_prof, i_layr, i_band, i_mode ) = 0.0
@@ -231,7 +256,6 @@ ELSE
   DO i_mode = 1, n_ukca_mode
     DO i_band = 1, n_band
       DO i_layr = 1, n_layer
-
         DO i_prof = 1, n_profile
 
           IF (ukca_modal_mmr   (i_prof, i_layr, i_mode) > threshold_mmr .AND.  &
@@ -240,11 +264,11 @@ ELSE
 
             DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
-            ! Sum up refractive index, weighting by component volume
-            re_m( i_prof, i_layr, i_band, i_mode ) =                         &
-                 re_m( i_prof, i_layr, i_band, i_mode ) +                    &
-                 ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *              &
-                   precalc%realrefr( i_cmpt, one, i_band, isolir ) )
+              ! Sum up refractive index, weighting by component volume
+              re_m( i_prof, i_layr, i_band, i_mode ) =                         &
+                   re_m( i_prof, i_layr, i_band, i_mode ) +                    &
+                   ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *              &
+                     precalc%realrefr( i_cmpt, one, i_band, isolir ) )
 
             END DO ! i_cmpt
 
@@ -285,3 +309,73 @@ ELSE
   END DO ! i_mode
  
 END IF       
+
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! Part three - optionally obtain the imaginary component of SSA
+!              and the nearest neighbour index of ni
+
+DO i_mode = 1, n_ukca_mode
+
+  a(i_mode) = ni_max(i_mode) / ( ni_c_power(i_mode) ) - 1.0 )
+  b(i_mode) = REAL( nni(i_mode) ) / ni_c(i_mode)
+
+  incr_ni(i_mode) = ( ni_max(i_mode) - ni_min(i_mode) ) / REAL(nni(i_mode)-1)
+
+END DO
+
+IF (i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
+
+  DO i_mode = 1, n_ukca_mode
+
+    IF (ni_c(i_mode) > min_ni_c) THEN
+
+      DO i_band = 1, n_band
+        DO i_layr = 1, n_layer
+          DO i_prof = 1, n_profile
+
+            logs_array_in(one) = ( im_m( i_prof, i_layr, i_band, i_mode ) /    &
+                                   a( i_mode ) ) + 1.0
+
+            CALL log_v( one, logs_array_in(one), logs_array_out(one) )
+
+            ni_ind( i_prof, i_layr, i_band, i_mode ) =                         &
+                        NINT( b(i_mode) * logs_array_out(one) * inv_ln_10 ) + 1
+
+          END DO ! i_prof
+        END DO ! i_layr
+      END DO ! i_band
+
+   ELSE ! (ni_c(i_mode) > min_ni_c) THEN
+
+      DO i_band = 1, n_band
+        DO i_layr = 1, n_layer
+          DO i_prof = 1, n_profile
+
+            ni_ind( i_prof, i_layr, i_band, i_mode ) =                         &
+                 NINT( ( im_m( i_prof, i_layr, i_band, i_mode ) -              &
+                         ni_min( i_mode ) ) /                                  &
+                       incr_ni( i_mode ) ) + 1
+
+          END DO ! i_prof
+        END DO ! i_layr
+      END DO ! i_band
+
+    END IF ! (ni_c(i_mode) > min_ni_c) THEN
+
+  END DO ! i_mode
+
+  DO i_mode = 1, n_ukca_mode
+    DO i_band = 1, n_band
+      DO i_layr = 1, n_layer
+        DO i_prof = 1, n_profile
+
+          ni_ind( i_prof, i_layr, i_band, i_mode ) =                           &
+             MIN( nni(i_mode), MAX( 1, ni_indi_prof, i_layr, i_band, i_mode ) )
+
+        END DO ! i_prof
+      END DO ! i_layr
+    END DO ! i_band
+  END DO ! i_mode
+
+END IF
+
