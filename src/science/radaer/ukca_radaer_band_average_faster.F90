@@ -172,21 +172,29 @@ IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe ) THEN
     DO i_band = 1, n_band
       DO i_layr = 1, n_layer
         DO i_prof = 1, n_profile
-          DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
+            
+          IF (ukca_modal_mmr   (i_prof, i_layr, i_mode) > threshold_mmr .AND.  &
+              ukca_modal_number(i_prof, i_layr, i_mode) > threshold_nbr .AND.  &
+              ukca_modal_volume(i_prof, i_layr, i_mode) > threshold_vol) THEN
 
-            ! Sum up refractive index, weighting by component volume
-            re_m( i_prof, i_layr, i_band, i_mode ) =                           &
-                 re_m( i_prof, i_layr, i_band, i_mode ) +                      &
-                 ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *                &
-                   precalc%realrefr( i_cmpt, one, i_band, isolir ) )
+            DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
-            ! Sum up refractive index, weighting by component volume
-            im_m(i_prof,i_layr,i_band,i_mode) =                                &
-                 im_m(i_prof,i_layr,i_band,i_mode) +                           &
-                 ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *                &
-                 precalc%imagrefr( i_cmpt, one, i_band, isolir ) )
+              ! Sum up refractive index, weighting by component volume
+              re_m( i_prof, i_layr, i_band, i_mode ) =                         &
+                   re_m( i_prof, i_layr, i_band, i_mode ) +                    &
+                   ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *              &
+                     precalc%realrefr( i_cmpt, one, i_band, isolir ) )
 
-          END DO ! i_cmpt
+              ! Sum up refractive index, weighting by component volume
+              im_m(i_prof,i_layr,i_band,i_mode) =                              &
+                   im_m(i_prof,i_layr,i_band,i_mode) +                         &
+                   ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *              &
+                   precalc%imagrefr( i_cmpt, one, i_band, isolir ) )
+
+            END DO ! i_cmpt
+
+          END IF
+
         END DO ! i_prof
       END DO ! i_layr
     END DO ! i_band
@@ -198,12 +206,18 @@ IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe ) THEN
         DO i_layr = 1, n_layer
           DO i_prof = 1, n_profile
 
-            ! Account for refractive index of water
-            re_m(i_prof,i_layr,i_band,i_mode) =                                &
-                    re_m(i_prof,i_layr,i_band,i_mode) +                        &
-                    ( ukca_water_volume( i_prof, i_layr, i_mode ) *            &
-                      precalc%realrefr(ip_ukca_water, one, i_band, isolir ) )
+            IF (ukca_modal_mmr   (i_prof,i_layr,i_mode) > threshold_mmr .AND.  &
+                ukca_modal_number(i_prof,i_layr,i_mode) > threshold_nbr .AND.  &
+                ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
 
+              ! Account for refractive index of water
+              re_m(i_prof,i_layr,i_band,i_mode) =                              &
+                      re_m(i_prof,i_layr,i_band,i_mode) +                      &
+                      ( ukca_water_volume( i_prof, i_layr, i_mode ) *          &
+                        precalc%realrefr(ip_ukca_water, one, i_band, isolir ) )
+
+            END IF
+            
           END DO ! i_prof
         END DO ! i_layr
       END DO ! i_band
@@ -217,16 +231,25 @@ ELSE
   DO i_mode = 1, n_ukca_mode
     DO i_band = 1, n_band
       DO i_layr = 1, n_layer
+
         DO i_prof = 1, n_profile
-          DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
+
+          IF (ukca_modal_mmr   (i_prof, i_layr, i_mode) > threshold_mmr .AND.  &
+              ukca_modal_number(i_prof, i_layr, i_mode) > threshold_nbr .AND.  &
+              ukca_modal_volume(i_prof, i_layr, i_mode) > threshold_vol) THEN
+
+            DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
             ! Sum up refractive index, weighting by component volume
-            re_m( i_prof, i_layr, i_band, i_mode ) =                           &
-                 re_m( i_prof, i_layr, i_band, i_mode ) +                      &
-                 ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *                &
+            re_m( i_prof, i_layr, i_band, i_mode ) =                         &
+                 re_m( i_prof, i_layr, i_band, i_mode ) +                    &
+                 ( ukca_cpnt_volume( i_cmpt, i_prof, i_layr ) *              &
                    precalc%realrefr( i_cmpt, one, i_band, isolir ) )
 
-          END DO ! i_cmpt
+            END DO ! i_cmpt
+
+          END IF
+
         END DO ! i_prof
       END DO ! i_layr
     END DO ! i_band
@@ -238,16 +261,22 @@ ELSE
         DO i_layr = 1, n_layer
           DO i_prof = 1, n_profile
 
-            ! Account for refractive index of water
-            re_m(i_prof,i_layr,i_band,i_mode) =                                &
-                    re_m(i_prof,i_layr,i_band,i_mode) +                        &
-                    ( ukca_water_volume( i_prof, i_layr, i_mode ) *            &
-                      precalc%realrefr(ip_ukca_water, one, i_band, isolir ) )
+            IF (ukca_modal_mmr   (i_prof,i_layr,i_mode) > threshold_mmr .AND.  &
+                ukca_modal_number(i_prof,i_layr,i_mode) > threshold_nbr .AND.  &
+                ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
 
-            im_m(i_prof,i_layr,i_band,i_mode) =                                &
-                    im_m(i_prof,i_layr,i_band,i_mode) +                        &
-                    ( ukca_water_volume( i_prof, i_layr, i_mode ) * &
-                      precalc%imagrefr(ip_ukca_water, one, i_band, isolir ) )
+              ! Account for refractive index of water
+              re_m(i_prof,i_layr,i_band,i_mode) =                              &
+                      re_m(i_prof,i_layr,i_band,i_mode) +                      &
+                      ( ukca_water_volume( i_prof, i_layr, i_mode ) *          &
+                        precalc%realrefr(ip_ukca_water, one, i_band, isolir ) )
+
+              im_m(i_prof,i_layr,i_band,i_mode) =                              &
+                      im_m(i_prof,i_layr,i_band,i_mode) +                      &
+                      ( ukca_water_volume( i_prof, i_layr, i_mode ) *          &
+                        precalc%imagrefr(ip_ukca_water, one, i_band, isolir ) )
+
+            END IF
 
           END DO ! i_prof
         END DO ! i_layr
