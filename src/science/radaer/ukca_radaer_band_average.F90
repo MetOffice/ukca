@@ -541,20 +541,6 @@ DO i_band = 1, n_band
             ! volume-weighted component refractive indices.
             ! Get the LUT-array index of their nearest neighbours.
             !
-
-            ! why not calculate re_m and then n_nr together? e.g. here...
-            ! IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
-        ! re_m = re_m + ukca_cpnt_volume(this_cpnt) * refr_real(this_cpnt_type)
-            ! ELSE
-        ! re_m = re_m + ukca_cpnt_volume(this_cpnt) * refr_real(this_cpnt_type)
-        ! im_m = im_m + ukca_cpnt_volume(this_cpnt) * refr_imag(this_cpnt_type)
-            ! END IF
-            ! IF ( l_soluble(i_mode) ) THEN
-            ! re_m = re_m + ukca_water_volume * refr_real(ip_ukca_water)
-            ! im_m = im_m + ukca_water_volume * refr_imag(ip_ukca_water)
-            !
-            ! END IF
-            ! 
             
             n_nr = NINT( (re_m(i_intg) - nrmin) / incr_nr ) + 1
             n_nr = MIN(nnr, MAX(1, n_nr))

@@ -379,3 +379,187 @@ IF (i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
 
 END IF
 
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! Part four - Compute the Mie parameter
+
+IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
+  DO i_mode = 1, n_ukca_mode
+    DO i_band = 1, n_band
+      DO i_layr = 1, n_layer
+        DO i_prof = 1, n_profile
+
+          ! Fix index to one for prescribed SSA
+          ni_ind( i_prof, i_layr, i_band, i_mode ) = n_ni_fix
+
+        END DO ! i_prof
+      END DO ! i_layr
+    END DO ! i_band
+  END DO ! i_mode
+END IF
+
+          
+  DO i_mode = 1, n_ukca_mode
+    DO i_band = 1, n_band
+      DO i_layr = 1, n_layer
+        DO i_prof = 1, n_profile
+
+          ! Compute the Mie parameter from the wet diameter
+          ! and get the LUT-array index of its nearest neighbour.
+          x = pi * ukca_wet_diam( i_prof, i_layr, i_mode ) /                   &
+                   precalc%wavelength( one, i_band, isolir )
+
+          n_x = NINT( ( LOG(x) - logxmin ) / logxmaxmlogxmin * (nx-1) ) + 1
+
+          n_x = MIN( nx, MAX( 1, n_x ) )
+
+          ! Same for the dry diameter (needed to access the volume fraction)
+          x_dry = pi * ukca_dry_diam( i_prof, i_layr, i_mode ) /               &
+                       precalc%wavelength( one, i_band, isolir )
+
+          n_x_dry = NINT( ( LOG(x_dry) - logxmin ) /                           &
+                            logxmaxmlogxmin * (nx-1) ) + 1
+
+          n_x_dry = MIN( nx, MAX( 1, n_x_dry ) )
+
+          ! Compute the modal complex refractive index as
+          ! volume-weighted component refractive indices.
+          ! Get the LUT-array index of their nearest neighbours.
+          n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
+                                 NINT( ( re_m(i_intg) - nrmin ) / incr_nr ) + 1
+
+          n_nr( i_prof, i_layr, i_band, i_mode ) = &
+               MIN( nnr, MAX( 1, n_nr( i_prof, i_layr, i_band, i_mode ) ) )
+
+          ! Get local copies of the relevant look-up table entries.
+          loc_sca( i_prof, i_layr, i_band, i_mode ) =                          &
+                              ukca_lut(this_mode_type, isolir)%                &
+               ukca_scattering( n_x, ni_ind( i_prof, i_layr, i_band, i_mode ), &
+                                n_nr )
+
+          loc_asy( i_prof, i_layr, i_mode, i_band ) =                          &
+                              ukca_lut(this_mode_type, isolir)%                &
+               ukca_asymmetry(  n_x, ni_ind( i_prof, i_layr, i_band, i_mode ), &
+               n_nr )
+
+          loc_vol = ukca_lut(this_mode_type, isolir)%                        &
+               volume_fraction( n_x_dry )
+
+          factor( i_prof, i_layr, i_mode, i_band ) = 1.0 /                     &
+                   ( ukca_modal_density( i_prof, i_layr, i_mode) *         &
+                     loc_vol *                                             &
+                     precalc%wavelength( 1 , i_band, isolir) )
+
+
+        END DO ! i_prof
+      END DO ! i_layr
+    END DO ! i_band
+  END DO ! i_mode
+
+
+IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
+
+  DO i_mode = 1, n_ukca_mode
+    DO i_band = 1, n_band
+      DO i_layr = 1, n_layer
+        DO i_prof = 1, n_profile
+
+          IF (ukca_modal_mmr   (i_prof,i_layr,i_mode) > threshold_mmr .AND.    &
+              ukca_modal_number(i_prof,i_layr,i_mode) > threshold_nbr .AND.    &
+              ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
+           
+             loc_abs = ukca_lut( this_mode_type(i_mode), isolir )%             &
+                ukca_absorption(    n_x( i_prof, i_layr, i_band, i_mode ),     &
+                                 ni_ind( i_prof, i_layr, i_band, i_mode ),     &
+                                 n_nr( i_mode ) )
+
+             ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,     &
+                           loc_abs * factor( i_prof, i_layr, i_mode, i_band ) )
+
+             ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,     &
+                                   loc_sca( i_prof, i_layr, i_mode, i_band ) * &
+                                   factor( i_prof, i_layr, i_mode, i_band ) )
+
+          ELSE ! Below threshold
+
+            ukca_absorption( i_prof, i_layr, i_mode, i_band ) = 0.0
+
+            ukca_scattering( i_prof, i_layr, i_mode, i_band ) = 0.0
+             
+          END IF
+
+        END DO ! i_prof
+      END DO ! i_layr
+    END DO ! i_band
+  END DO ! i_mode
+
+ELSE ! ( i_ukca_radaer_prescribe_ssa == do_not_prescribe)
+
+  DO i_mode = 1, n_ukca_mode
+    DO i_band = 1, n_band
+      DO i_layr = 1, n_layer
+        DO i_prof = 1, n_profile
+
+          IF (ukca_modal_mmr   (i_prof,i_layr,i_mode) > threshold_mmr .AND.    &
+              ukca_modal_number(i_prof,i_layr,i_mode) > threshold_nbr .AND.    &
+              ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
+           
+            i_band_ssa = MIN( npd_band_ssa, i_band )
+
+            this_ssa = ukca_radaer_presc_ssa( i_prof, i_layr, i_band_ssa )
+
+            ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,      &
+               loc_sca( i_prof, i_layr, i_mode, i_band ) *                     &
+               factor( i_prof, i_layr, i_mode, i_band ) *                      &
+               ( 1.0 - this_ssa ) )
+
+            ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,      &
+               loc_sca( i_prof, i_layr, i_mode, i_band ) *                     &
+               factor( i_prof, i_layr, i_mode, i_band ) *                      &
+               this_ssa )
+
+          ELSE ! Below threshold
+
+            ukca_absorption( i_prof, i_layr, i_mode, i_band ) = 0.0
+
+            ukca_scattering( i_prof, i_layr, i_mode, i_band ) = 0.0
+
+          END IF
+            
+        END DO ! i_prof
+      END DO ! i_layr
+    END DO ! i_band
+  END DO ! i_mode           
+
+END IF ! ( i_ukca_radaer_prescribe_ssa == do_not_prescribe)
+
+
+DO i_mode = 1, n_ukca_mode
+  DO i_band = 1, n_band
+    DO i_layr = 1, n_layer
+      DO i_prof = 1, n_profile
+
+        IF (ukca_modal_mmr   (i_prof,i_layr,i_mode) > threshold_mmr .AND.    &
+            ukca_modal_number(i_prof,i_layr,i_mode) > threshold_nbr .AND.    &
+            ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
+           
+           ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) =                  &
+                MAX( minus1_plus_epsi1, MIN( one_minus_epsi1,                  &
+                loc_asy( i_prof, i_layr, i_mode, i_band ) ) )
+
+         ELSE ! Below threshold
+
+           ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) = 0.0
+
+         END IF
+                
+      END DO ! i_prof
+    END DO ! i_layr
+  END DO ! i_band
+END DO ! i_mode  
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName, zhook_out, zhook_handle)
+
+RETURN
+END SUBROUTINE ukca_radaer_band_average_faster
+
+END MODULE ukca_radaer_band_average_faster_mod
