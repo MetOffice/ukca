@@ -34,24 +34,174 @@ USE yomhook,                ONLY: lhook, dr_hook
 
 IMPLICIT NONE
 
-!
-! Arguments with intent(in)
-!
+! Arguments
 
-! INTEGER, INTENT(IN) :: blah
+! Current spectrum
+INTEGER, INTENT(IN) :: isolir
+
+! Fixed array dimensions
+INTEGER, INTENT(IN) :: npd_profile,                                            &
+                       npd_layer,                                              &
+                       npd_aerosol_mode,                                       &
+                       npd_band,                                               &
+                       npd_exclude
+
+! Actual array dimensions
+INTEGER, INTENT(IN) :: n_profile,                                              &
+                       n_layer,                                                &
+                       n_band,                                                 &
+                       n_ukca_mode,                                            &
+                       n_ukca_cpnt
+
+! Fixed array dimensions for prescribed SSA
+INTEGER, INTENT(IN) :: npd_prof_ssa,                                           &
+                       npd_layr_ssa,                                           &
+                       npd_band_ssa
+
+! Variables related to waveband exclusion
+LOGICAL, INTENT(IN) :: l_exclude
+INTEGER, INTENT(IN) :: n_band_exclude(npd_band)
+INTEGER, INTENT(IN) :: index_exclude(npd_exclude, npd_band)
+
+! From ukca_radaer Structure for UKCA/radiation interaction
+INTEGER, INTENT(IN) :: nmodes
+INTEGER, INTENT(IN) :: ncp_max
+INTEGER, INTENT(IN) :: ncp_max_x_nmodes
+INTEGER, INTENT(IN) :: i_cpnt_index( ncp_max, nmodes )
+INTEGER, INTENT(IN) :: i_cpnt_type( ncp_max_x_nmodes )
+INTEGER, INTENT(IN) :: i_mode_type( nmodes )
+LOGICAL, INTENT(IN) :: l_nitrate
+LOGICAL, INTENT(IN) :: l_soluble( nmodes )
+LOGICAL, INTENT(IN) :: l_sustrat
+LOGICAL, INTENT(IN) :: l_cornarrow_ins
+INTEGER, INTENT(IN) :: n_cpnt_in_mode( nmodes )
+
+! Modal mass-mixing ratios
+REAL, INTENT(IN) :: ukca_modal_mmr (npd_profile, npd_layer, npd_aerosol_mode)
+
+! Modal number concentrations (m-3)
+REAL, INTENT(IN) :: ukca_modal_number (npd_profile, npd_layer, n_ukca_mode)
+
+! Dry and wet modal diameters
+REAL, INTENT(IN) :: ukca_dry_diam (npd_profile, npd_layer, n_ukca_mode)
+REAL, INTENT(IN) :: ukca_wet_diam (npd_profile, npd_layer, n_ukca_mode)
+
+! Component volumes
+REAL, INTENT(IN) :: ukca_cpnt_volume (n_ukca_cpnt, npd_profile, npd_layer)
+
+! Modal volumes and densities
+REAL, INTENT(IN) :: ukca_modal_volume  (npd_profile, npd_layer, n_ukca_mode)
+REAL, INTENT(IN) :: ukca_modal_density (npd_profile, npd_layer, n_ukca_mode)
+
+! Volume of water in modes
+REAL, INTENT(IN) :: ukca_water_volume (npd_profile, npd_layer, n_ukca_mode)
+
+! When true, arrays have been inverted
+LOGICAL, INTENT(IN) :: l_inverted
+
+! When > 0, use a prescribed single scattering albedo field
+INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
+
+! Model level of tropopause
+! Note levels are inverted in LFRic so we have to do something different here
+INTEGER, INTENT(IN) :: trindxrad (npd_profile)
+
+! Get rid of these arguments
+!INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
+!INTEGER, INTENT(IN) :: i_ukca_tune_bc
+
+! Prescription of single-scattering albedo
+REAL, INTENT(IN) :: ukca_radaer_presc_ssa( npd_prof_ssa, npd_layr_ssa,         &
+                                           npd_band_ssa)
+
+! Band-averaged modal optical properties
+REAL, INTENT(IN OUT) :: ukca_absorption ( npd_profile, npd_layer,              &
+                                          npd_aerosol_mode, npd_band)
+
+REAL, INTENT(IN OUT) :: ukca_scattering ( npd_profile, npd_layer,              &
+                                          npd_aerosol_mode, npd_band)
+
+REAL, INTENT(IN OUT) :: ukca_asymmetry  ( npd_profile, npd_layer,              &
+                                          npd_aerosol_mode, npd_band)
 
 !
 ! Local variables
 !
+
 INTEGER, PARAMETER :: one = 1
+
+! Values at the point of integration:
+!      Mie parameter for the wet and dry diameters and the indices of
+!      their nearest neighbour
+!      Complex refractive index and the index of its nearest neighbour
+REAL :: x
+INTEGER :: n_x
+REAL :: x_dry
+INTEGER :: n_x_dry
+INTEGER :: n_nr
+
+! Real part of refractive index
+REAL    :: re_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+! Imaginary part of refractive index
+REAL    :: im_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+! Index
+INTEGER :: ni_ind( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+
+! Integrals
+REAL :: loc_abs
+REAL :: loc_sca( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL :: loc_asy( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL :: loc_vol
+REAL :: factor( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+
+! Local copy of single-scattering albedo to prescribe.
+REAL :: this_ssa
+
+! Local copies of typedef members
+INTEGER :: nx( npd_aerosol_mode )
+REAL :: logxmin( npd_aerosol_mode )         ! log(xmin)
+REAL :: logxmaxmlogxmin( npd_aerosol_mode ) ! log(xmax) - log(xmin)
+INTEGER :: nnr( npd_aerosol_mode )
+REAL :: nrmin( npd_aerosol_mode )
+REAL :: incr_nr( npd_aerosol_mode )
+INTEGER :: nni( npd_aerosol_mode )
+REAL :: ni_min( npd_aerosol_mode )
+REAL :: ni_max( npd_aerosol_mode )
+REAL :: ni_c( npd_aerosol_mode )
+REAL :: ni_c_power( npd_aerosol_mode )
+INTEGER, PARAMETER :: n_ni_fix = 1
+
+! Local copies of mode type, component index and component type
+INTEGER :: this_mode_type( npd_aerosol_mode )
+
+! Loop variables
+INTEGER :: i_mode ! loop on aerosol modes
+INTEGER :: i_band ! loop on wavebands
+INTEGER :: i_layr ! loop on vertical dimension
+INTEGER :: i_prof ! loop on horizontal dimension
+
+! Index for SSA array
+INTEGER :: i_band_ssa
 
 REAL :: logs_array_in(one)
 REAL :: logs_array_out(one)
-REAL :: incr_ni(one)
+REAL :: incr_ni(npd_aerosol_mode)
+
+REAL :: re_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL :: im_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 
 REAL, PARAMETER :: min_ni_c = 0.001 ! Lowest value of ni_c to accept
 REAL, PARAMETER :: max_ni_c = 5.0   ! Highest value of ni_c to accept
 REAL, PARAMETER :: inv_ln_10 = 1.0 / LOG(10.0)
+
+! Limits for the asymmetry parameter, since values of
+! exactly -1.0 or +1.0 can cause div-by-zero errors
+! further on in the Radiation code.
+REAL, PARAMETER :: minus1_plus_epsi1 = -1.0 + EPSILON(1.0)
+REAL, PARAMETER :: one_minus_epsi1 = 1.0 - EPSILON(1.0)
+
+! Indicates whether current level is above the tropopause.
+LOGICAL :: l_in_stratosphere( npd_profile, npd_layer )
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
