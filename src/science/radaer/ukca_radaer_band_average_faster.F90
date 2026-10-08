@@ -32,6 +32,31 @@ USE parkind1,               ONLY: jpim, jprb
 USE vectlib_mod,            ONLY: log_v
 USE yomhook,                ONLY: lhook, dr_hook
 
+USE ukca_radaer_lut,        ONLY:                                              &
+    ip_ukca_lut_accum,                                                         &
+    ip_ukca_lut_coarse,                                                        &
+    ip_ukca_lut_accnarrow,                                                     &
+    ip_ukca_lut_cornarrow,                                                     &
+    ip_ukca_lut_supercoarse,                                                   &
+    ukca_lut
+
+USE ukca_radaer_precalc,    ONLY:                                              &
+    precalc
+
+USE ukca_mode_setup,        ONLY:                                              &
+    ip_ukca_mode_aitken,                                                       &
+    ip_ukca_mode_accum,                                                        &
+    ip_ukca_mode_coarse,                                                       &
+    ip_ukca_mode_supercoarse
+
+USE ukca_radaer_struct_mod, ONLY:                                              &
+    threshold_mmr,                                                             &
+    threshold_vol,                                                             &
+    threshold_nbr
+
+USE ukca_option_mod,         ONLY:                                             &
+    do_not_prescribe
+
 IMPLICIT NONE
 
 ! Arguments
@@ -159,8 +184,8 @@ REAL :: this_ssa
 
 ! Local copies of typedef members
 INTEGER :: nx( npd_aerosol_mode )
-REAL :: logxmin( npd_aerosol_mode )         ! log(xmin)
-REAL :: logxmaxmlogxmin( npd_aerosol_mode ) ! log(xmax) - log(xmin)
+REAL :: logxmin( npd_aerosol_mode )
+REAL :: logxmaxmlogxmin( npd_aerosol_mode )
 INTEGER :: nnr( npd_aerosol_mode )
 REAL :: nrmin( npd_aerosol_mode )
 REAL :: incr_nr( npd_aerosol_mode )
@@ -173,6 +198,8 @@ INTEGER, PARAMETER :: n_ni_fix = 1
 
 ! Local copies of mode type, component index and component type
 INTEGER :: this_mode_type( npd_aerosol_mode )
+INTEGER :: this_cpnt_type(n_ukca_cpnt, npd_profile, npd_layer, npd_aerosol_mode)
+
 
 ! Loop variables
 INTEGER :: i_mode ! loop on aerosol modes
@@ -186,6 +213,19 @@ INTEGER :: i_band_ssa
 REAL :: logs_array_in(one)
 REAL :: logs_array_out(one)
 REAL :: incr_ni(npd_aerosol_mode)
+
+! ***************************************************************
+!
+! Need better variable names than `a` and `b`
+!
+! ***************************************************************
+REAL :: a(npd_aerosol_mode)
+REAL :: b(npd_aerosol_mode)
+! ***************************************************************
+!
+! Need better variable names than `a` and `b`
+!
+! ***************************************************************
 
 REAL :: re_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 REAL :: im_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
@@ -202,6 +242,12 @@ REAL, PARAMETER :: one_minus_epsi1 = 1.0 - EPSILON(1.0)
 
 ! Indicates whether current level is above the tropopause.
 LOGICAL :: l_in_stratosphere( npd_profile, npd_layer )
+
+! error message
+CHARACTER (LEN=errormessagelength) :: cmessage
+
+! error indicator
+INTEGER:: icode
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -319,7 +365,7 @@ IF ( l_sustrat ) THEN
           ! sulphate component to that for sulphuric acid
           ! for levels above the tropopause.
           !
-          IF ( ( i_cpnt_type(this_cpnt) == cp_su ) .AND.                       &
+          IF ( ( i_cpnt_index(i_cmpt, i_mode) == cp_su ) .AND.                 &
                l_in_stratosphere(i_prof,i_layr) .AND.                          &
                ( .NOT. l_nitrate ) ) THEN
 
@@ -464,6 +510,12 @@ END IF
 ! Part three - optionally obtain the imaginary component of SSA
 !              and the nearest neighbour index of ni
 
+
+! ***************************************************************
+!
+! Need better variable names than `a` and `b`
+!
+! ***************************************************************
 DO i_mode = 1, n_ukca_mode
 
   a(i_mode) = ni_max(i_mode) / ( ni_c_power(i_mode) ) - 1.0 )
@@ -472,6 +524,11 @@ DO i_mode = 1, n_ukca_mode
   incr_ni(i_mode) = ( ni_max(i_mode) - ni_min(i_mode) ) / REAL(nni(i_mode)-1)
 
 END DO
+! ***************************************************************
+!
+! Need better variable names than `a` and `b`
+!
+! ***************************************************************
 
 IF (i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
 
@@ -520,7 +577,7 @@ IF (i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
         DO i_prof = 1, n_profile
 
           ni_ind( i_prof, i_layr, i_band, i_mode ) =                           &
-             MIN( nni(i_mode), MAX( 1, ni_indi_prof, i_layr, i_band, i_mode ) )
+            MIN(nni(i_mode), MAX(1, ni_ind(i_prof, i_layr, i_band, i_mode ) ) )
 
         END DO ! i_prof
       END DO ! i_layr
@@ -558,38 +615,42 @@ END IF
           x = pi * ukca_wet_diam( i_prof, i_layr, i_mode ) /                   &
                    precalc%wavelength( one, i_band, isolir )
 
-          n_x = NINT( ( LOG(x) - logxmin ) / logxmaxmlogxmin * (nx-1) ) + 1
+          n_x = NINT( ( ( LOG(x) - logxmin(i_mode) ) /                         &
+                           logxmaxmlogxmin(i_mode) ) *                         &
+                      ( nx(i_mode) - 1 ) ) + 1
 
-          n_x = MIN( nx, MAX( 1, n_x ) )
+          n_x = MIN( nx(i_mode), MAX( 1, n_x ) )
 
           ! Same for the dry diameter (needed to access the volume fraction)
           x_dry = pi * ukca_dry_diam( i_prof, i_layr, i_mode ) /               &
                        precalc%wavelength( one, i_band, isolir )
 
-          n_x_dry = NINT( ( LOG(x_dry) - logxmin ) /                           &
-                            logxmaxmlogxmin * (nx-1) ) + 1
+          n_x_dry = NINT( ( LOG(x_dry) - logxmin(i_mode) ) /                   &
+                            logxmaxmlogxmin(i_mode) * (nx(i_mode)-1) ) + 1
 
-          n_x_dry = MIN( nx, MAX( 1, n_x_dry ) )
+          n_x_dry = MIN( nx(i_mode), MAX( 1, n_x_dry ) )
 
           ! Compute the modal complex refractive index as
           ! volume-weighted component refractive indices.
           ! Get the LUT-array index of their nearest neighbours.
           n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
-                                 NINT( ( re_m(i_intg) - nrmin ) / incr_nr ) + 1
+                 NINT( ( re_m(i_intg) - nrmin(i_mode) ) / incr_nr(i_mode) ) + 1
 
-          n_nr( i_prof, i_layr, i_band, i_mode ) = &
-               MIN( nnr, MAX( 1, n_nr( i_prof, i_layr, i_band, i_mode ) ) )
+          n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
+            MIN(nnr(i_mode), MAX(1, n_nr( i_prof, i_layr, i_band, i_mode ) ) )
 
           ! Get local copies of the relevant look-up table entries.
           loc_sca( i_prof, i_layr, i_band, i_mode ) =                          &
                               ukca_lut(this_mode_type, isolir)%                &
-               ukca_scattering( n_x, ni_ind( i_prof, i_layr, i_band, i_mode ), &
-                                n_nr )
+                    ukca_scattering( n_x,                                      &
+                                     ni_ind( i_prof, i_layr, i_band, i_mode ), &
+                                     n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
           loc_asy( i_prof, i_layr, i_mode, i_band ) =                          &
                               ukca_lut(this_mode_type, isolir)%                &
-               ukca_asymmetry(  n_x, ni_ind( i_prof, i_layr, i_band, i_mode ), &
-               n_nr )
+                    ukca_asymmetry(  n_x,                                      &
+                                     ni_ind( i_prof, i_layr, i_band, i_mode ), &
+                                     n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
           loc_vol = ukca_lut(this_mode_type, isolir)%                        &
                volume_fraction( n_x_dry )
@@ -618,7 +679,7 @@ IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
               ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
            
              loc_abs = ukca_lut( this_mode_type(i_mode), isolir )%             &
-                ukca_absorption(    n_x( i_prof, i_layr, i_band, i_mode ),     &
+                ukca_absorption( n_x(    i_prof, i_layr, i_band, i_mode ),     &
                                  ni_ind( i_prof, i_layr, i_band, i_mode ),     &
                                  n_nr( i_mode ) )
 
@@ -627,7 +688,7 @@ IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
 
              ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,     &
                                    loc_sca( i_prof, i_layr, i_mode, i_band ) * &
-                                   factor( i_prof, i_layr, i_mode, i_band ) )
+                                   factor(  i_prof, i_layr, i_mode, i_band ) )
 
           ELSE ! Below threshold
 
