@@ -426,8 +426,18 @@ END IF
 ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Part two - calculate the refractive index for real and optionally imaginary
 
-re_m( i_prof, i_layr, i_band, i_mode ) = 0.0
-im_m( i_prof, i_layr, i_band, i_mode ) = 0.0
+DO i_mode = 1, n_ukca_mode
+  DO i_band = 1, n_band
+    DO i_layr = 1, n_layer
+      DO i_prof = 1, n_profile
+
+        re_m( i_prof, i_layr, i_band, i_mode ) = 0.0
+        im_m( i_prof, i_layr, i_band, i_mode ) = 0.0
+
+      END DO ! i_prof
+    END DO ! i_layr
+  END DO ! i_band
+END DO ! i_mode
 
 ! If single scattering albedo is prescribed, calculate both the real and
 ! imagniary components of refractive index
