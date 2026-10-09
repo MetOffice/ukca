@@ -206,9 +206,9 @@ INTEGER, PARAMETER :: one = 1
 !      their nearest neighbour
 !      Complex refractive index and the index of its nearest neighbour
 REAL :: x
-INTEGER :: n_x( i_prof, i_layr, i_band, i_mode )
+INTEGER :: n_x( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 REAL :: x_dry
-INTEGER :: n_x_dry( i_prof, i_layr, i_band, i_mode )
+INTEGER :: n_x_dry( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 INTEGER :: n_nr
 
 ! Real part of refractive index
@@ -562,7 +562,7 @@ END IF
 ! ***************************************************************
 DO i_mode = 1, n_ukca_mode
 
-  a(i_mode) = ni_max(i_mode) / ( ni_c_power(i_mode) ) - 1.0 )
+  a(i_mode) = ni_max(i_mode) / ( ( ni_c_power(i_mode) ) - 1.0 )
   b(i_mode) = REAL( nni(i_mode) ) / ni_c(i_mode)
 
   incr_ni(i_mode) = ( ni_max(i_mode) - ni_min(i_mode) ) / REAL(nni(i_mode)-1)
@@ -730,7 +730,7 @@ IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
              loc_abs = ukca_lut( this_mode_type(i_mode), isolir )%             &
                 ukca_absorption( n_x(    i_prof, i_layr, i_band, i_mode ),     &
                                  ni_ind( i_prof, i_layr, i_band, i_mode ),     &
-                                 n_nr( i_mode ) )
+                                 n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
              ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,     &
                            loc_abs * factor( i_prof, i_layr, i_mode, i_band ) )
