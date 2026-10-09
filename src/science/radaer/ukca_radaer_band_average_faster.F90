@@ -16,6 +16,7 @@
 !
 MODULE ukca_radaer_band_average_faster_mod
 
+
 IMPLICIT NONE
 
 CHARACTER(LEN=*), PARAMETER, PRIVATE ::                                        &
@@ -23,8 +24,49 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE ::                                        &
 
 CONTAINS
 
-SUBROUTINE ukca_radaer_band_average_faster()
+SUBROUTINE ukca_radaer_band_average_faster(                                    &
+      ! Fixed array dimensions
+      npd_profile, npd_layer, npd_aerosol_mode, npd_band, npd_exclude          &
+      ! Spectral information
+   ,  n_band, isolir, l_exclude, n_band_exclude, index_exclude                 &
+      ! Actual array dimensions
+   ,  n_profile, n_layer, n_ukca_mode, n_ukca_cpnt                             &
+      ! Prescribed ssa dimensions (Fixed array)
+   ,  npd_prof_ssa, npd_layr_ssa, npd_band_ssa                                 &
+      ! From the structure ukca_radaer for UKCA/radiation interaction
+   ,  nmodes                                                                   &
+   ,  ncp_max                                                                  &
+   ,  ncp_max_x_nmodes                                                         &
+   ,  i_cpnt_index                                                             &
+   ,  i_cpnt_type                                                              &
+   ,  i_mode_type                                                              &
+   ,  l_nitrate                                                                &
+   ,  l_soluble                                                                &
+   ,  l_sustrat                                                                &
+   ,  l_cornarrow_ins                                                          &
+   ,  n_cpnt_in_mode                                                           &
+      ! Modal mass-mixing ratios from UKCA module
+   ,  ukca_modal_mmr                                                           &
+      ! Modal number concentrations from UKCA module
+   ,  ukca_modal_number                                                        &
+      ! Modal diameters from UKCA module
+   ,  ukca_dry_diam, ukca_wet_diam                                             &
+      ! Other inputs from UKCA module
+   ,  ukca_cpnt_volume, ukca_modal_volume, ukca_modal_density                  &
+   ,  ukca_water_volume                                                        &
+      ! Logical to describe orientation
+   ,  l_inverted                                                               &
+      ! Logical for prescribed single scattering albedo array
+   ,  i_ukca_radaer_prescribe_ssa                                              &
+      ! Model level of tropopause
+   ,  trindxrad                                                                &
+      ! Prescription of single-scattering albedo
+   ,  ukca_radaer_presc_ssa                                                    &
+      ! Band-averaged optical properties (outputs)
+   ,  ukca_absorption, ukca_scattering, ukca_asymmetry                         &
+   )
 
+  
 USE conversions_mod,        ONLY: pi
 USE ereport_mod,            ONLY: ereport
 USE errormessagelength_mod, ONLY: errormessagelength

@@ -367,8 +367,6 @@ CALL ukca_radaer_band_average(                                                 &
   trindxrad,                                                                   &
   ! Prescription of single-scattering albedo
   ukca_radaer_presc_ssa,                                                       &
-  ! Maxwell-Garnett mixing approach logical control switches
-  i_ukca_tune_bc, i_glomap_clim_tune_bc,                                       &
   ! Band-averaged optical properties (output)
   aer_lw_absorption,                                                           &
   aer_lw_scattering,                                                           &
@@ -432,8 +430,6 @@ IF ( l_any_lit_points ) THEN
       trindxrad,                                                               &
       ! Prescription of single-scattering albedo
       ukca_radaer_presc_ssa,                                                   &
-      ! Maxwell-Garnett mixing approach logical control switches
-      i_ukca_tune_bc, i_glomap_clim_tune_bc,                                   &
       ! Band-averaged optical properties (output)
       aer_sw_absorption,                                                       &
       aer_sw_scattering,                                                       &
