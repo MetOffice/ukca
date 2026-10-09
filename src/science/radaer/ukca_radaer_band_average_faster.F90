@@ -94,10 +94,18 @@ USE ukca_mode_setup,        ONLY:                                              &
 USE ukca_radaer_struct_mod, ONLY:                                              &
     threshold_mmr,                                                             &
     threshold_vol,                                                             &
-    threshold_nbr
+    threshold_nbr,                                                             &
+    ip_ukca_h2so4,                                                             &
+    ip_ukca_water
 
-USE ukca_option_mod,         ONLY:                                             &
+USE ukca_option_mod,        ONLY:                                              &
     do_not_prescribe
+
+USE ukca_mode_setup,        ONLY:                                              &
+    cp_su
+
+USE umprintmgr,             ONLY:                                              &
+    newline
 
 IMPLICIT NONE
 
@@ -173,10 +181,6 @@ INTEGER, INTENT(IN) :: i_ukca_radaer_prescribe_ssa
 ! Note levels are inverted in LFRic so we have to do something different here
 INTEGER, INTENT(IN) :: trindxrad (npd_profile)
 
-! Get rid of these arguments
-!INTEGER, INTENT(IN) :: i_glomap_clim_tune_bc
-!INTEGER, INTENT(IN) :: i_ukca_tune_bc
-
 ! Prescription of single-scattering albedo
 REAL, INTENT(IN) :: ukca_radaer_presc_ssa( npd_prof_ssa, npd_layr_ssa,         &
                                            npd_band_ssa)
@@ -202,9 +206,9 @@ INTEGER, PARAMETER :: one = 1
 !      their nearest neighbour
 !      Complex refractive index and the index of its nearest neighbour
 REAL :: x
-INTEGER :: n_x
+INTEGER :: n_x( i_prof, i_layr, i_band, i_mode )
 REAL :: x_dry
-INTEGER :: n_x_dry
+INTEGER :: n_x_dry( i_prof, i_layr, i_band, i_mode )
 INTEGER :: n_nr
 
 ! Real part of refractive index
@@ -248,6 +252,7 @@ INTEGER :: i_mode ! loop on aerosol modes
 INTEGER :: i_band ! loop on wavebands
 INTEGER :: i_layr ! loop on vertical dimension
 INTEGER :: i_prof ! loop on horizontal dimension
+INTEGER :: i_cmpt ! loop on aerosol components
 
 ! Index for SSA array
 INTEGER :: i_band_ssa
@@ -268,9 +273,6 @@ REAL :: b(npd_aerosol_mode)
 ! Need better variable names than `a` and `b`
 !
 ! ***************************************************************
-
-REAL :: re_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
-REAL :: im_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 
 REAL, PARAMETER :: min_ni_c = 0.001 ! Lowest value of ni_c to accept
 REAL, PARAMETER :: max_ni_c = 5.0   ! Highest value of ni_c to accept
@@ -364,7 +366,7 @@ DO i_mode = 1, n_ukca_mode
 END DO ! i_mode = 1, n_ukca_mode
 
 DO i_mode = 1, n_ukca_mode
-  IF (ni_c > max_ni_c) THEN
+  IF (ni_c(i_mode) > max_ni_c) THEN
 
     icode = 1
     cmessage='UKCA RADAER Look-up table'//newline//'NI_C exceeds upper limit'
@@ -646,7 +648,7 @@ IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
   END DO ! i_mode
 END IF
 
-          
+
   DO i_mode = 1, n_ukca_mode
     DO i_band = 1, n_band
       DO i_layr = 1, n_layer
@@ -657,20 +659,25 @@ END IF
           x = pi * ukca_wet_diam( i_prof, i_layr, i_mode ) /                   &
                    precalc%wavelength( one, i_band, isolir )
 
-          n_x = NINT( ( ( LOG(x) - logxmin(i_mode) ) /                         &
-                           logxmaxmlogxmin(i_mode) ) *                         &
+          n_x( i_prof, i_layr, i_band, i_mode ) =                              &
+               NINT( ( ( LOG(x) - logxmin(i_mode) ) /                          &
+                         logxmaxmlogxmin(i_mode) ) *                           &
                       ( nx(i_mode) - 1 ) ) + 1
 
-          n_x = MIN( nx(i_mode), MAX( 1, n_x ) )
+          n_x( i_prof, i_layr, i_band, i_mode ) =                              &
+             MIN( nx(i_mode), MAX( 1, n_x( i_prof, i_layr, i_band, i_mode ) ) )
 
           ! Same for the dry diameter (needed to access the volume fraction)
           x_dry = pi * ukca_dry_diam( i_prof, i_layr, i_mode ) /               &
                        precalc%wavelength( one, i_band, isolir )
 
-          n_x_dry = NINT( ( LOG(x_dry) - logxmin(i_mode) ) /                   &
+          n_x_dry( i_prof, i_layr, i_band, i_mode ) =                          &
+                    NINT( ( LOG(x_dry) - logxmin(i_mode) ) /                   &
                             logxmaxmlogxmin(i_mode) * (nx(i_mode)-1) ) + 1
 
-          n_x_dry = MIN( nx(i_mode), MAX( 1, n_x_dry ) )
+          n_x_dry( i_prof, i_layr, i_band, i_mode ) =                          &
+               MIN( nx(i_mode),                                                &
+               MAX( 1, n_x_dry( i_prof, i_layr, i_band, i_mode ) ) )
 
           ! Compute the modal complex refractive index as
           ! volume-weighted component refractive indices.
@@ -683,23 +690,23 @@ END IF
 
           ! Get local copies of the relevant look-up table entries.
           loc_sca( i_prof, i_layr, i_band, i_mode ) =                          &
-                              ukca_lut(this_mode_type, isolir)%                &
-                    ukca_scattering( n_x,                                      &
+                              ukca_lut( this_mode_type(i_mode), isolir )%      &
+                    ukca_scattering( n_x(    i_prof, i_layr, i_band, i_mode ), &
                                      ni_ind( i_prof, i_layr, i_band, i_mode ), &
                                      n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
           loc_asy( i_prof, i_layr, i_mode, i_band ) =                          &
-                              ukca_lut(this_mode_type, isolir)%                &
-                    ukca_asymmetry(  n_x,                                      &
+                              ukca_lut( this_mode_type(i_mode), isolir )%      &
+                    ukca_asymmetry(  n_x(    i_prof, i_layr, i_band, i_mode ), &
                                      ni_ind( i_prof, i_layr, i_band, i_mode ), &
                                      n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
-          loc_vol = ukca_lut(this_mode_type, isolir)%                        &
-               volume_fraction( n_x_dry )
+          loc_vol = ukca_lut( this_mode_type(i_mode), isolir )%                &
+               volume_fraction( n_x_dry( i_prof, i_layr, i_band, i_mode ) )
 
           factor( i_prof, i_layr, i_mode, i_band ) = 1.0 /                     &
-                   ( ukca_modal_density( i_prof, i_layr, i_mode) *         &
-                     loc_vol *                                             &
+                   ( ukca_modal_density( i_prof, i_layr, i_mode) *             &
+                     loc_vol *                                                 &
                      precalc%wavelength( 1 , i_band, isolir) )
 
 
