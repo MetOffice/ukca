@@ -225,7 +225,7 @@ END IF
 !       4.  Calculate reaction rate coefficients
 !           --------- -------- ---- ------------
 
-CALL asad_bimol (n_points)
+CALL asad_bimol (n_points, stratflag)
 CALL asad_trimol(n_points)
 
 ! Calculate aqueous-phase SO2 oxdn. and tropospheric heterogeneous rates

@@ -75,7 +75,7 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'ASAD_BIMOL_MOD'
 
 CONTAINS
 
-SUBROUTINE asad_bimol( n_points )
+SUBROUTINE asad_bimol( n_points, stratflag_opt )
 
 USE asad_mod,        ONLY: t, t300, specf, spb, ab, rk, tnd, p,                &
                            wp, f, peps, nbrkx, jpspb, jpcspf, jpbk
@@ -91,6 +91,8 @@ USE ereport_mod, ONLY: ereport
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: n_points
+! optional argument used for masking off the stratosphere
+LOGICAL, INTENT(IN), OPTIONAL :: stratflag_opt(n_points)
 
 ! Local variables
 
@@ -112,6 +114,7 @@ INTEGER, SAVE :: iso3h2o = 0
 INTEGER, SAVE :: ics2oh = 0
 INTEGER, SAVE :: ih2o = 0
 INTEGER, SAVE :: iho2no = 0
+INTEGER, SAVE :: in2o5_h2o = 0
 INTEGER :: jtr
 INTEGER :: j
 INTEGER :: jr
@@ -145,6 +148,10 @@ REAL :: tmp_out(1:n_points)
 REAL :: tmp1(1:n_points)
 REAL :: inv_t(1:n_points)
 
+! logical array for masking-off the stratosphere
+! default to False unless changed by stratflag_opt
+LOGICAL :: stratflag(n_points)
+
 ! ErrorStatus
 INTEGER                             :: errcode=0   ! Error flag (0 = OK)
 CHARACTER(LEN=errormessagelength)   :: cmessage    ! Error return message
@@ -166,6 +173,12 @@ z5(:) = 0.0
 z6(:) = 0.0
 ratioa2b(:) = 0.0
 ratiob2total(:) = 0.0
+
+! set stratflag from optional argument - only True in the stratosphere
+stratflag(:) = .FALSE.
+IF (PRESENT(stratflag_opt)) THEN
+  stratflag = stratflag_opt
+END IF
 
 !       1. Calculate bimolecular rate coefficients
 !          --------- ----------- ---- ------------
@@ -253,6 +266,14 @@ IF (first_pass) THEN
     r2 = 'NO        '
     prods(1) = 'HONO2     '
     iho2no    = asad_findreaction( r1, r2, prods, 1, spb, nbrkx,               &
+                                   jpbk+1, jpspb )
+
+    ! Find B85: N2O5 + H2O -> HONO2 + HONO2.
+    r1 = 'N2O5      '
+    r2 = 'H2O       '
+    prods(1) = 'HONO2     '
+    prods(2) = 'HONO2     '
+    in2o5_h2o = asad_findreaction( r1, r2, prods, 2, spb, nbrkx,               &
                                    jpbk+1, jpspb )
 
 
@@ -406,6 +427,13 @@ IF ( iho2no /= 0 ) THEN
   rk(1:n_points,iho2no)=rk(1:n_points,iho2no)*                                 &
    ((530.0*inv_t(1:n_points)) +                                                &
     8.53e-4*(1e-2*p(1:n_points))-1.73)/100.0
+END IF
+
+! Keep B85 (N2O5 + H2O) in the troposphere only when fix is enabled.
+IF (ukca_config%l_fix_ukca_n2o5_h2o .AND. in2o5_h2o > 0) THEN
+  WHERE (stratflag(1:n_points))
+    rk(1:n_points,in2o5_h2o) = 0.0
+  END WHERE
 END IF
 
 ! SO3 + H2O: 2nd H2O molecule dealt with here by multiplying rate by [H2O]

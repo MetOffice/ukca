@@ -581,6 +581,9 @@ REAL(KIND=jprb)               :: zhook_handle
 TYPE(autotune_type), ALLOCATABLE, SAVE :: autotune_state
 #endif
 
+! Full-domain chunk size in each dimension
+INTEGER :: full_chunk_x, full_chunk_y, full_chunk_z
+
 CHARACTER(LEN=*), PARAMETER :: RoutineName='UKCA_MAIN1'
 
 !- End of header
@@ -604,7 +607,29 @@ model_levels = ukca_config%model_levels
 theta_field_size = row_length * rows
 tot_n_pnts = theta_field_size * model_levels
 IF (ukca_config%l_ukca_asad_full) THEN
-  n_pnts = tot_n_pnts
+  ! Determine chunk size for full-domain 3D chunking
+  full_chunk_x = ukca_config%ukca_chem_full_chunk_size(1)
+  full_chunk_y = ukca_config%ukca_chem_full_chunk_size(2)
+  full_chunk_z = ukca_config%ukca_chem_full_chunk_size(3)
+  IF (full_chunk_x <= 0 .OR. full_chunk_x > row_length) THEN
+    WRITE(umMessage,'(A,I0)')                                                  &
+      'Setting chemistry chunk row length to ', row_length
+    CALL umPrint(umMessage,src=RoutineName)
+    full_chunk_x = row_length
+  END IF
+  IF (full_chunk_y <= 0 .OR. full_chunk_y > rows) THEN
+    WRITE(umMessage,'(A,I0)')                                                  &
+      'Setting chemistry rows-per-chunk to ', rows
+    CALL umPrint(umMessage,src=RoutineName)
+    full_chunk_y = rows
+  END IF
+  IF (full_chunk_z <= 0 .OR. full_chunk_z > model_levels) THEN
+    WRITE(umMessage,'(A,I0)')                                                  &
+      'Setting chemistry levels-per-chunk to ', model_levels
+    CALL umPrint(umMessage,src=RoutineName)
+    full_chunk_z = model_levels
+  END IF
+  n_pnts = full_chunk_x * full_chunk_y * full_chunk_z
 ELSE IF (ukca_config%l_ukca_asad_columns) THEN
   n_pnts = ukca_config%ukca_chem_seg_size
 ELSE
@@ -2340,6 +2365,7 @@ IF (ukca_config%l_ukca_chem) THEN
       CALL ukca_chemistry_ctl_full(                                            &
            row_length, rows, model_levels,                                     &
            theta_field_size, tot_n_pnts,                                       &
+           full_chunk_x, full_chunk_y, full_chunk_z,                           &
            n_chem_tracers+n_aero_tracers,                                      &
            istore_h2so4,                                                       &
            p_theta_levels,                                                     &
@@ -2368,8 +2394,8 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep, L_stratosphere, co2_interactive,    &
-           l_firstchem                                                         &
+           zdryrt, zwetrt, nlev_with_ddep, L_stratosphere,                     &
+           co2_interactive, l_firstchem                                        &
            )
 
     ELSE IF (ukca_config%l_ukca_asad_columns) THEN
@@ -2406,7 +2432,7 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep                                      &
+           zdryrt, zwetrt, nlev_with_ddep, co2_interactive                     &
            )
 
     ELSE
@@ -2442,7 +2468,8 @@ IF (ukca_config%l_ukca_chem) THEN
            atm_mebr_mol,                                                       &
            atm_h2_mol,                                                         &
            H_plus_3d_arr,                                                      &
-           zdryrt, zwetrt, nlev_with_ddep, co2_interactive, L_stratosphere,    &
+           zdryrt, zwetrt, nlev_with_ddep,                                     &
+           co2_interactive, L_stratosphere,                                    &
            l_firstchem                                                         &
            )
     END IF

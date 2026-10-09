@@ -4,15 +4,13 @@
 # under which the code may be used.
 # -----------------------------------------------------------------------------
 
-name: umdp3 Fixer
+name: Lint Fortran
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_dispatch:
 
 jobs:
-  umdp3_fixer:
+  fortitude-lint:
     permissions:
-      contents: read
-    uses: MetOffice/growss/.github/workflows/umdp3_fixer.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
+      contents: read  # Required to evaluate the event trigger metadata safely
+    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0

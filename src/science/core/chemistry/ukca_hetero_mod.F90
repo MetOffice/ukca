@@ -490,9 +490,18 @@ IF (ukca_config%i_ukca_hetconfig == 0) THEN
     rk(:,n_hocl_hcl) = hk(:,3)
   END IF
 
+  ! Optionally filter N2O5+H2O by stratflag to prevent double-counting.
   IF (n_n2o5_h2o > 0) THEN
     ! 4. N2O5 + H2O -> 2 HNO3
-    rk(:,n_n2o5_h2o) = hk(:,4)
+    IF (ukca_config%l_fix_ukca_n2o5_h2o) THEN
+      WHERE (stratflag)
+        rk(:,n_n2o5_h2o) = hk(:,4)
+      ELSE WHERE
+        rk(:,n_n2o5_h2o) = 0.0
+      END WHERE
+    ELSE
+      rk(:,n_n2o5_h2o) = hk(:,4)
+    END IF
   END IF
 
   IF (n_n2o5_hcl > 0) THEN
@@ -659,13 +668,26 @@ ELSE ! New config
 
   WHERE ( zh2o > peps )
     rk(:,n_clono2_h2o) = kpsc(:,2) / zh2o
-    rk(:,n_n2o5_h2o) = kpsc(:,4) / zh2o
     rk(:,n_brono2_h2o) = kpsc(:,8) / zh2o
   ELSE WHERE
     rk(:,n_clono2_h2o) = 0.0
-    rk(:,n_n2o5_h2o) = 0.0
     rk(:,n_brono2_h2o) = 0.0
   END WHERE
+
+  ! Optionally filter N2O5+H2O by stratflag to prevent double-counting.
+  IF (ukca_config%l_fix_ukca_n2o5_h2o) THEN
+    WHERE ( zh2o > peps .AND. stratflag )
+      rk(:,n_n2o5_h2o) = kpsc(:,4) / zh2o
+    ELSE WHERE
+      rk(:,n_n2o5_h2o) = 0.0
+    END WHERE
+  ELSE
+    WHERE ( zh2o > peps )
+      rk(:,n_n2o5_h2o) = kpsc(:,4) / zh2o
+    ELSE WHERE
+      rk(:,n_n2o5_h2o) = 0.0
+    END WHERE
+  END IF
 
   WHERE ( zhbr > peps )
     rk(:,n_hobr_hbr) = kpsc(:,9) / zhbr

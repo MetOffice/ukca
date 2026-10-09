@@ -16,6 +16,9 @@ contributing to this project. By working together under a shared understanding,
 we can continuously improve the project while creating a friendly, inclusive
 space for all contributors.
 
+The UKCA release schedule and deadlines can be viewed in the 
+[milestones](https://github.com/metoffice/ukca/milestones).
+
 ### Contributors Licence Agreement
 
 Please see the

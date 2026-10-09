@@ -185,6 +185,8 @@ TYPE :: ukca_config_spec_type
                                        ! (2-50, 3 recommended)
   INTEGER :: ukca_chem_seg_size        ! Grid points per segment for the
                                        ! column-based chemical solver
+  INTEGER :: ukca_chem_full_chunk_size(3) ! Grid points per 3D chunk in the
+                                       ! full-domain-based chemical solver
   REAL :: max_z_for_offline_chem       ! Maximum height at which to integrate
                                        ! chemistry with the explicit B-E
                                        ! Offline Oxidants scheme
@@ -360,6 +362,7 @@ TYPE :: ukca_config_spec_type
                                        ! B-E Offline Oxidants scheme
   LOGICAL :: l_fix_ukca_h2so4_ystore   ! True to fix storage of H2SO4 in ASAD
                                        ! N-R schemes for updating in GLOMAP
+  LOGICAL :: l_fix_ukca_n2o5_h2o       ! True to filter N2O5+H2O to strat and trop only
 
   ! Settings for managing photolysis environmental driver
   ! requirements on behalf of external UKCA Photolysis code
@@ -443,6 +446,10 @@ TYPE :: glomap_config_spec_type
   REAL :: acc_cor_scav_scaling         ! Scaling factor for scavenging
                                        ! parameters for the accumulation and
                                        ! coarse modes
+  REAL :: solinsol_hygro_ratio(4)      ! SOL/INSOL hygroscopicity ratios
+    				       ! cp_su, cp_cl, cp_bc, cp_oc
+    				       ! This ratio only affects the wet
+    				       ! part of the aerosol
 
   ! -- GLOMAP deposition configuration options --
   LOGICAL :: l_ddepaer                 ! True for aerosol dry deposition
@@ -650,6 +657,7 @@ TYPE(glomap_config_spec_type), SAVE :: glomap_config
 
 TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables
 TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables_climatology
+TYPE(glomap_variables_type), SAVE, TARGET :: glomap_variables_radaer
 
 ! ---------------------------------------------------------------------------
 ! -- Templates for parent callback procedures to be used in UKCA --
@@ -869,6 +877,7 @@ ukca_config%l_ukca_quasinewton = .FALSE.
 ukca_config%i_ukca_quasinewton_start = imdi
 ukca_config%i_ukca_quasinewton_end = imdi
 ukca_config%ukca_chem_seg_size = imdi
+ukca_config%ukca_chem_full_chunk_size(:) = [-1, -1, -1]
 ukca_config%max_z_for_offline_chem = rmdi
 ukca_config%nlev_above_trop_o3_env = imdi
 ukca_config%nlev_ch4_stratloss = imdi
@@ -949,6 +958,7 @@ ukca_config%l_fix_ukca_h2dd_x = .FALSE.
 ukca_config%l_fix_drydep_so2_water = .FALSE.
 ukca_config%l_fix_ukca_offox_h2o_fac = .FALSE.
 ukca_config%l_fix_ukca_h2so4_ystore = .FALSE.
+ukca_config%l_fix_ukca_n2o5_h2o = .FALSE.
 
 ! -- Settings for managing Photolysis driver requirements
 ukca_config%i_photol_scheme = imdi
@@ -996,6 +1006,7 @@ glomap_config%mode_activation_dryr = rmdi
 glomap_config%l_dust_mp_ageing = .FALSE.
 glomap_config%dry_depvel_acc_scaling = rmdi
 glomap_config%acc_cor_scav_scaling = rmdi
+glomap_config%solinsol_hygro_ratio(:) = rmdi
 
 ! -- GLOMAP deposition configuration options --
 glomap_config%l_ddepaer = .FALSE.
@@ -1083,6 +1094,7 @@ SUBROUTINE ukca_get_config(                                                    &
    dts0, nit,                                                                  &
    i_ukca_quasinewton_start, i_ukca_quasinewton_end,                           &
    ukca_chem_seg_size,                                                         &
+   ukca_chem_full_chunk_size,                                                  &
    nlev_above_trop_o3_env,                                                     &
    nlev_ch4_stratloss,                                                         &
    i_ukca_topboundary,                                                         &
@@ -1122,6 +1134,7 @@ SUBROUTINE ukca_get_config(                                                    &
    hno3_uptake_coeff,                                                          &
    sigwmin,                                                                    &
    sigma_updraught_scaling,                                                    &
+   solinsol_hygro_ratio,                                                       &
    l_cal360,                                                                   &
    l_ukca_chem_aero,                                                           &
    l_ukca_mode,                                                                &
@@ -1179,6 +1192,7 @@ SUBROUTINE ukca_get_config(                                                    &
    l_fix_drydep_so2_water,                                                     &
    l_fix_ukca_offox_h2o_fac,                                                   &
    l_fix_ukca_h2so4_ystore,                                                    &
+   l_fix_ukca_n2o5_h2o,                                                        &
    l_ukca_chem, l_ukca_trop, l_ukca_aerchem, l_ukca_raq, l_ukca_raqaero,       &
    l_ukca_offline_be, l_ukca_tropisop, l_ukca_strattrop, l_ukca_strat,         &
    l_ukca_offline, l_ukca_cristrat, l_ukca_stratcfc, l_ukca_achem,             &
@@ -1275,6 +1289,7 @@ INTEGER, OPTIONAL, INTENT(OUT) :: nit
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_start
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_quasinewton_end
 INTEGER, OPTIONAL, INTENT(OUT) :: ukca_chem_seg_size
+INTEGER, OPTIONAL, INTENT(OUT) :: ukca_chem_full_chunk_size(3)
 INTEGER, OPTIONAL, INTENT(OUT) :: nlev_above_trop_o3_env
 INTEGER, OPTIONAL, INTENT(OUT) :: nlev_ch4_stratloss
 INTEGER, OPTIONAL, INTENT(OUT) :: i_ukca_topboundary
@@ -1324,6 +1339,7 @@ REAL, OPTIONAL, INTENT(OUT) :: ph_fit_coeff_a
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_coeff_b
 REAL, OPTIONAL, INTENT(OUT) :: ph_fit_intercept
 REAL, OPTIONAL, INTENT(OUT) :: hno3_uptake_coeff
+REAL, OPTIONAL, INTENT(OUT) :: solinsol_hygro_ratio(4)
 
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_cal360
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem_aero
@@ -1395,6 +1411,7 @@ LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_h2dd_x
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_drydep_so2_water
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_offox_h2o_fac
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_h2so4_ystore
+LOGICAL, OPTIONAL, INTENT(OUT) :: l_fix_ukca_n2o5_h2o
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_chem
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_trop
 LOGICAL, OPTIONAL, INTENT(OUT) :: l_ukca_aerchem
@@ -1561,6 +1578,8 @@ IF (PRESENT(i_ukca_quasinewton_end))                                           &
   i_ukca_quasinewton_end = ukca_config%i_ukca_quasinewton_end
 IF (PRESENT(ukca_chem_seg_size))                                               &
    ukca_chem_seg_size = ukca_config%ukca_chem_seg_size
+IF (PRESENT(ukca_chem_full_chunk_size))                                        &
+   ukca_chem_full_chunk_size = ukca_config%ukca_chem_full_chunk_size
 IF (PRESENT(max_z_for_offline_chem))                                           &
   max_z_for_offline_chem = ukca_config%max_z_for_offline_chem
 IF (PRESENT(nlev_above_trop_o3_env))                                           &
@@ -1685,6 +1704,8 @@ IF (PRESENT(l_fix_ukca_offox_h2o_fac))                                         &
   l_fix_ukca_offox_h2o_fac = ukca_config%l_fix_ukca_offox_h2o_fac
 IF (PRESENT(l_fix_ukca_h2so4_ystore))                                          &
   l_fix_ukca_h2so4_ystore = ukca_config%l_fix_ukca_h2so4_ystore
+IF (PRESENT(l_fix_ukca_n2o5_h2o))                                              &
+  l_fix_ukca_n2o5_h2o = ukca_config%l_fix_ukca_n2o5_h2o
 
 ! -- UKCA internal configuration variables
 IF (PRESENT(l_ukca_chem)) l_ukca_chem = ukca_config%l_ukca_chem
@@ -1748,6 +1769,8 @@ IF (PRESENT(l_ddepaer))                                                        &
 IF (PRESENT(mode_incld_so2_rfrac))                                             &
   mode_incld_so2_rfrac = glomap_config%mode_incld_so2_rfrac
 IF (PRESENT(l_aero_rainout)) l_aero_rainout = glomap_config%l_aero_rainout
+IF (PRESENT(solinsol_hygro_ratio)) solinsol_hygro_ratio(:) =                   &
+  glomap_config%solinsol_hygro_ratio(:)
 IF (PRESENT(l_cv_rainout)) l_cv_rainout = glomap_config%l_cv_rainout
 IF (PRESENT(i_mode_nucscav)) i_mode_nucscav = glomap_config%i_mode_nucscav
 IF (PRESENT(l_impc_scav)) l_impc_scav = glomap_config%l_impc_scav
