@@ -209,7 +209,7 @@ REAL :: x
 INTEGER :: n_x( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 REAL :: x_dry
 INTEGER :: n_x_dry( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
-INTEGER :: n_nr
+INTEGER :: n_nr( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
 
 ! Real part of refractive index
 REAL    :: re_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
@@ -683,7 +683,9 @@ END IF
           ! volume-weighted component refractive indices.
           ! Get the LUT-array index of their nearest neighbours.
           n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
-                 NINT( ( re_m(i_intg) - nrmin(i_mode) ) / incr_nr(i_mode) ) + 1
+               NINT( ( re_m(i_prof, i_layr, i_band, i_mode) -                  &
+                       nrmin(i_mode) ) /                                       &
+                     incr_nr(i_mode) ) + 1
 
           n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
             MIN(nnr(i_mode), MAX(1, n_nr( i_prof, i_layr, i_band, i_mode ) ) )
