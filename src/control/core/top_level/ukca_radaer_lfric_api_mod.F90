@@ -105,7 +105,7 @@ USE ukca_mode_setup,                   ONLY: mode_ait_sol, mode_acc_sol,       &
                                              cp_no3, cp_nn, cp_nh4,            &
                                              nmodes, ncp_max
 
-USE ukca_radaer_band_average_mod,      ONLY: ukca_radaer_band_average
+USE ukca_radaer_band_average_faster_mod, ONLY: ukca_radaer_band_average_faster
 
 USE ukca_radaer_compute_aod_mod,       ONLY: ukca_radaer_compute_aod
 
@@ -313,7 +313,7 @@ CALL ukca_radaer_prepare(                                                      &
   )
 
 ! Long wave ( e.g. ip_infra_red )
-CALL ukca_radaer_band_average(                                                 &
+CALL ukca_radaer_band_average_faster(                                          &
   ! Fixed array dimensions (input)
   npd_profile,                                                                 &
   npd_layer,                                                                   &
@@ -367,8 +367,6 @@ CALL ukca_radaer_band_average(                                                 &
   trindxrad,                                                                   &
   ! Prescription of single-scattering albedo
   ukca_radaer_presc_ssa,                                                       &
-  ! Maxwell-Garnett mixing approach logical control switches
-  i_ukca_tune_bc, i_glomap_clim_tune_bc,                                       &
   ! Band-averaged optical properties (output)
   aer_lw_absorption,                                                           &
   aer_lw_scattering,                                                           &
@@ -378,7 +376,7 @@ CALL ukca_radaer_band_average(                                                 &
 ! Short wave (e.g. ip_solar ) - only calculate on lit points
 IF ( l_any_lit_points ) THEN
 
-  CALL ukca_radaer_band_average(                                               &
+  CALL ukca_radaer_band_average_faster(                                        &
       ! Fixed array dimensions (input)
       npd_profile,                                                             &
       npd_layer,                                                               &
@@ -432,8 +430,6 @@ IF ( l_any_lit_points ) THEN
       trindxrad,                                                               &
       ! Prescription of single-scattering albedo
       ukca_radaer_presc_ssa,                                                   &
-      ! Maxwell-Garnett mixing approach logical control switches
-      i_ukca_tune_bc, i_glomap_clim_tune_bc,                                   &
       ! Band-averaged optical properties (output)
       aer_sw_absorption,                                                       &
       aer_sw_scattering,                                                       &
