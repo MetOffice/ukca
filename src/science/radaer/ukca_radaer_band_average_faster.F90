@@ -707,7 +707,7 @@ END IF
                                      ni_ind( i_prof, i_layr, i_band, i_mode ), &
                                      n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
-          loc_asy( i_prof, i_layr, i_mode, i_band ) =                          &
+          loc_asy( i_prof, i_layr, i_band, i_mode ) =                          &
                               ukca_lut( this_mode_type(i_mode), isolir )%      &
                     ukca_asymmetry(  n_x(    i_prof, i_layr, i_band, i_mode ), &
                                      ni_ind( i_prof, i_layr, i_band, i_mode ), &
@@ -716,7 +716,7 @@ END IF
           loc_vol = ukca_lut( this_mode_type(i_mode), isolir )%                &
                volume_fraction( n_x_dry( i_prof, i_layr, i_band, i_mode ) )
 
-          factor( i_prof, i_layr, i_mode, i_band ) = 1.0 /                     &
+          factor( i_prof, i_layr, i_band, i_mode ) = 1.0 /                     &
                    ( ukca_modal_density( i_prof, i_layr, i_mode) *             &
                      loc_vol *                                                 &
                      precalc%wavelength( 1 , i_band, isolir) )
@@ -745,11 +745,11 @@ IF ( i_ukca_radaer_prescribe_ssa == do_not_prescribe) THEN
                                  n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
              ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,     &
-                           loc_abs * factor( i_prof, i_layr, i_mode, i_band ) )
+                           loc_abs * factor( i_prof, i_layr, i_band, i_mode ) )
 
              ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,     &
-                                   loc_sca( i_prof, i_layr, i_mode, i_band ) * &
-                                   factor(  i_prof, i_layr, i_mode, i_band ) )
+                                   loc_sca( i_prof, i_layr, i_band, i_mode ) * &
+                                   factor(  i_prof, i_layr, i_band, i_mode ) )
 
           ELSE ! Below threshold
 
@@ -780,13 +780,13 @@ ELSE ! ( i_ukca_radaer_prescribe_ssa == do_not_prescribe)
             this_ssa = ukca_radaer_presc_ssa( i_prof, i_layr, i_band_ssa )
 
             ukca_absorption( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,      &
-               loc_sca( i_prof, i_layr, i_mode, i_band ) *                     &
-               factor( i_prof, i_layr, i_mode, i_band ) *                      &
+               loc_sca( i_prof, i_layr, i_band, i_mode ) *                     &
+               factor( i_prof, i_layr, i_band, i_mode ) *                      &
                ( 1.0 - this_ssa ) )
 
             ukca_scattering( i_prof, i_layr, i_mode, i_band ) = MAX( 0.0,      &
-               loc_sca( i_prof, i_layr, i_mode, i_band ) *                     &
-               factor( i_prof, i_layr, i_mode, i_band ) *                      &
+               loc_sca( i_prof, i_layr, i_band, i_mode ) *                     &
+               factor( i_prof, i_layr, i_band, i_mode ) *                      &
                this_ssa )
 
           ELSE ! Below threshold
@@ -816,7 +816,7 @@ DO i_mode = 1, n_ukca_mode
            
            ukca_asymmetry( i_prof, i_layr, i_mode, i_band ) =                  &
                 MAX( minus1_plus_epsi1, MIN( one_minus_epsi1,                  &
-                loc_asy( i_prof, i_layr, i_mode, i_band ) ) )
+                loc_asy( i_prof, i_layr, i_band, i_mode ) ) )
 
          ELSE ! Below threshold
 
