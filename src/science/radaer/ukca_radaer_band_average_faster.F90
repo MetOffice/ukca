@@ -206,24 +206,24 @@ INTEGER, PARAMETER :: one = 1
 !      their nearest neighbour
 !      Complex refractive index and the index of its nearest neighbour
 REAL :: x
-INTEGER :: n_x( n_profile, n_layer, n_band, n_ukca_mode )
+INTEGER :: n_x(     n_profile, n_layer, n_band, n_ukca_mode )
 REAL :: x_dry
 INTEGER :: n_x_dry( n_profile, n_layer, n_band, n_ukca_mode )
-INTEGER :: n_nr( n_profile, n_layer, n_band, n_ukca_mode )
+INTEGER :: n_nr(    n_profile, n_layer, n_band, n_ukca_mode )
 
 ! Real part of refractive index
-REAL    :: re_m( n_profile, n_layer, n_band, n_ukca_mode )
+REAL    :: re_m(    n_profile, n_layer, n_band, n_ukca_mode )
 ! Imaginary part of refractive index
-REAL    :: im_m( n_profile, n_layer, n_band, n_ukca_mode )
+REAL    :: im_m(    n_profile, n_layer, n_band, n_ukca_mode )
 ! Index
-INTEGER :: ni_ind( n_profile, n_layer, n_band, n_ukca_mode )
+INTEGER :: ni_ind(  n_profile, n_layer, n_band, n_ukca_mode )
 
 ! Integrals
 REAL :: loc_abs
-REAL :: loc_sca( n_profile, n_layer, n_band, n_ukca_mode )
-REAL :: loc_asy( n_profile, n_layer, n_band, n_ukca_mode )
+REAL :: loc_sca(    n_profile, n_layer, n_band, n_ukca_mode )
+REAL :: loc_asy(    n_profile, n_layer, n_band, n_ukca_mode )
 REAL :: loc_vol
-REAL :: factor( n_profile, n_layer, n_band, n_ukca_mode )
+REAL :: factor(     n_profile, n_layer, n_band, n_ukca_mode )
 
 ! Local copy of single-scattering albedo to prescribe.
 REAL :: this_ssa
@@ -664,88 +664,118 @@ END IF
       DO i_layr = 1, n_layer
         DO i_prof = 1, n_profile
 
-          ! Compute the Mie parameter from the wet diameter
-          ! and get the LUT-array index of its nearest neighbour.
-          x = pi * ukca_wet_diam( i_prof, i_layr, i_mode ) /                   &
-               precalc%wavelength( one, i_band, isolir )
+          IF (ukca_modal_mmr   (i_prof,i_layr,i_mode) > threshold_mmr .AND.    &
+              ukca_modal_number(i_prof,i_layr,i_mode) > threshold_nbr .AND.    &
+              ukca_modal_volume(i_prof,i_layr,i_mode) > threshold_vol) THEN
+           
+            ! Compute the Mie parameter from the wet diameter
+            ! and get the LUT-array index of its nearest neighbour.
+            x = pi * ukca_wet_diam( i_prof, i_layr, i_mode ) /                 &
+                precalc%wavelength( one, i_band, isolir )
 
-          IF ( x <= 0.0 ) THEN
+            IF ( x <= 0.0 ) THEN
 
-            icode = 0 - i_prof
-            cmessage = 'i_prof value'
-            CALL ereport(RoutineName,icode,cmessage)
+              icode = 0 - i_prof
+              cmessage = 'i_prof value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-            icode = 0 - i_layr
-            cmessage = 'i_layr value'
-            CALL ereport(RoutineName,icode,cmessage)
+              icode = 0 - i_layr
+              cmessage = 'i_layr value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-            icode = 0 - i_band
-            cmessage = 'i_band value'
-            CALL ereport(RoutineName,icode,cmessage)
+              icode = 0 - i_band
+              cmessage = 'i_band value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-            icode = 0 - i_mode
-            cmessage = 'i_mode value'
-            CALL ereport(RoutineName,icode,cmessage)
+              icode = 0 - i_mode
+              cmessage = 'i_mode value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-            icode = 1
-            cmessage = 'Arithmetic error because log(negative)'
-            CALL ereport(RoutineName,icode,cmessage)
+              icode = 1
+              cmessage = '(x) Arithmetic error because log(negative)'
+              CALL ereport(RoutineName,icode,cmessage)
 
-          END IF
+            END IF
 
-          n_x( i_prof, i_layr, i_band, i_mode ) =                              &
-               NINT( ( ( LOG(x) - logxmin(i_mode) ) /                          &
-                         logxmaxmlogxmin(i_mode) ) *                           &
-                      ( nx(i_mode) - 1 ) ) + 1
+            n_x( i_prof, i_layr, i_band, i_mode ) =                            &
+                 NINT( ( ( LOG(x) - logxmin(i_mode) ) /                        &
+                           logxmaxmlogxmin(i_mode) ) *                         &
+                       ( nx(i_mode) - 1 ) ) + 1
 
-          n_x( i_prof, i_layr, i_band, i_mode ) =                              &
+            n_x( i_prof, i_layr, i_band, i_mode ) =                            &
              MIN( nx(i_mode), MAX( 1, n_x( i_prof, i_layr, i_band, i_mode ) ) )
 
-          ! Same for the dry diameter (needed to access the volume fraction)
-          x_dry = pi * ukca_dry_diam( i_prof, i_layr, i_mode ) /               &
-                       precalc%wavelength( one, i_band, isolir )
+            ! Same for the dry diameter (needed to access the volume fraction)
+            x_dry = pi * ukca_dry_diam( i_prof, i_layr, i_mode ) /             &
+                    precalc%wavelength( one, i_band, isolir )
 
-          n_x_dry( i_prof, i_layr, i_band, i_mode ) =                          &
-                    NINT( ( LOG(x_dry) - logxmin(i_mode) ) /                   &
-                            logxmaxmlogxmin(i_mode) * (nx(i_mode)-1) ) + 1
+            IF ( x_dry <= 0.0 ) THEN
 
-          n_x_dry( i_prof, i_layr, i_band, i_mode ) =                          &
-               MIN( nx(i_mode),                                                &
-               MAX( 1, n_x_dry( i_prof, i_layr, i_band, i_mode ) ) )
+              icode = 0 - i_prof
+              cmessage = 'i_prof value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-          ! Compute the modal complex refractive index as
-          ! volume-weighted component refractive indices.
-          ! Get the LUT-array index of their nearest neighbours.
-          n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
-               NINT( ( re_m(i_prof, i_layr, i_band, i_mode) -                  &
-                       nrmin(i_mode) ) /                                       &
-                     incr_nr(i_mode) ) + 1
+              icode = 0 - i_layr
+              cmessage = 'i_layr value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-          n_nr( i_prof, i_layr, i_band, i_mode ) =                             &
-            MIN(nnr(i_mode), MAX(1, n_nr( i_prof, i_layr, i_band, i_mode ) ) )
+              icode = 0 - i_band
+              cmessage = 'i_band value'
+              CALL ereport(RoutineName,icode,cmessage)
 
-          ! Get local copies of the relevant look-up table entries.
-          loc_sca( i_prof, i_layr, i_band, i_mode ) =                          &
+              icode = 0 - i_mode
+              cmessage = 'i_mode value'
+              CALL ereport(RoutineName,icode,cmessage)
+
+              icode = 1
+              cmessage = '(x_dry) Arithmetic error because log(negative)'
+              CALL ereport(RoutineName,icode,cmessage)
+
+            END IF
+          
+            n_x_dry( i_prof, i_layr, i_band, i_mode ) =                        &
+                      NINT( ( ( LOG(x_dry) - logxmin(i_mode) ) /               &
+                                logxmaxmlogxmin(i_mode) ) *                    &
+                            ( nx(i_mode) - 1 ) ) + 1
+
+            n_x_dry( i_prof, i_layr, i_band, i_mode ) =                        &
+                 MIN( nx(i_mode),                                              &
+                 MAX( 1, n_x_dry( i_prof, i_layr, i_band, i_mode ) ) )
+
+            ! Compute the modal complex refractive index as
+            ! volume-weighted component refractive indices.
+            ! Get the LUT-array index of their nearest neighbours.
+            n_nr( i_prof, i_layr, i_band, i_mode ) =                           &
+                 NINT( ( re_m(i_prof, i_layr, i_band, i_mode) -                &
+                         nrmin(i_mode) ) /                                     &
+                       incr_nr(i_mode) ) + 1
+
+            n_nr( i_prof, i_layr, i_band, i_mode ) =                           &
+             MIN(nnr(i_mode), MAX(1, n_nr( i_prof, i_layr, i_band, i_mode ) ) )
+
+            ! Get local copies of the relevant look-up table entries.
+            loc_sca( i_prof, i_layr, i_band, i_mode ) =                        &
                               ukca_lut( this_mode_type(i_mode), isolir )%      &
                     ukca_scattering( n_x(    i_prof, i_layr, i_band, i_mode ), &
                                      ni_ind( i_prof, i_layr, i_band, i_mode ), &
                                      n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
-          loc_asy( i_prof, i_layr, i_band, i_mode ) =                          &
+            loc_asy( i_prof, i_layr, i_band, i_mode ) =                        &
                               ukca_lut( this_mode_type(i_mode), isolir )%      &
                     ukca_asymmetry(  n_x(    i_prof, i_layr, i_band, i_mode ), &
                                      ni_ind( i_prof, i_layr, i_band, i_mode ), &
                                      n_nr(   i_prof, i_layr, i_band, i_mode ) )
 
-          loc_vol = ukca_lut( this_mode_type(i_mode), isolir )%                &
+            loc_vol = ukca_lut( this_mode_type(i_mode), isolir )%              &
                volume_fraction( n_x_dry( i_prof, i_layr, i_band, i_mode ) )
 
-          factor( i_prof, i_layr, i_band, i_mode ) = 1.0 /                     &
+            factor( i_prof, i_layr, i_band, i_mode ) = 1.0 /                   &
                    ( ukca_modal_density( i_prof, i_layr, i_mode) *             &
                      loc_vol *                                                 &
                      precalc%wavelength( 1 , i_band, isolir) )
 
-
+          END IF ! thresholds
+            
         END DO ! i_prof
       END DO ! i_layr
     END DO ! i_band
