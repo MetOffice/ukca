@@ -206,45 +206,45 @@ INTEGER, PARAMETER :: one = 1
 !      their nearest neighbour
 !      Complex refractive index and the index of its nearest neighbour
 REAL :: x
-INTEGER :: n_x( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+INTEGER :: n_x( n_profile, n_layer, n_band, n_ukca_mode )
 REAL :: x_dry
-INTEGER :: n_x_dry( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
-INTEGER :: n_nr( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+INTEGER :: n_x_dry( n_profile, n_layer, n_band, n_ukca_mode )
+INTEGER :: n_nr( n_profile, n_layer, n_band, n_ukca_mode )
 
 ! Real part of refractive index
-REAL    :: re_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL    :: re_m( n_profile, n_layer, n_band, n_ukca_mode )
 ! Imaginary part of refractive index
-REAL    :: im_m( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL    :: im_m( n_profile, n_layer, n_band, n_ukca_mode )
 ! Index
-INTEGER :: ni_ind( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+INTEGER :: ni_ind( n_profile, n_layer, n_band, n_ukca_mode )
 
 ! Integrals
 REAL :: loc_abs
-REAL :: loc_sca( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
-REAL :: loc_asy( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL :: loc_sca( n_profile, n_layer, n_band, n_ukca_mode )
+REAL :: loc_asy( n_profile, n_layer, n_band, n_ukca_mode )
 REAL :: loc_vol
-REAL :: factor( npd_profile, npd_layer, npd_band, npd_aerosol_mode )
+REAL :: factor( n_profile, n_layer, n_band, n_ukca_mode )
 
 ! Local copy of single-scattering albedo to prescribe.
 REAL :: this_ssa
 
 ! Local copies of typedef members
-INTEGER :: nx( npd_aerosol_mode )
-REAL :: logxmin( npd_aerosol_mode )
-REAL :: logxmaxmlogxmin( npd_aerosol_mode )
-INTEGER :: nnr( npd_aerosol_mode )
-REAL :: nrmin( npd_aerosol_mode )
-REAL :: incr_nr( npd_aerosol_mode )
-INTEGER :: nni( npd_aerosol_mode )
-REAL :: ni_min( npd_aerosol_mode )
-REAL :: ni_max( npd_aerosol_mode )
-REAL :: ni_c( npd_aerosol_mode )
-REAL :: ni_c_power( npd_aerosol_mode )
+INTEGER :: nx( n_ukca_mode )
+REAL :: logxmin( n_ukca_mode )
+REAL :: logxmaxmlogxmin( n_ukca_mode )
+INTEGER :: nnr( n_ukca_mode )
+REAL :: nrmin( n_ukca_mode )
+REAL :: incr_nr( n_ukca_mode )
+INTEGER :: nni( n_ukca_mode )
+REAL :: ni_min( n_ukca_mode )
+REAL :: ni_max( n_ukca_mode )
+REAL :: ni_c( n_ukca_mode )
+REAL :: ni_c_power( n_ukca_mode )
 INTEGER, PARAMETER :: n_ni_fix = 1
 
 ! Local copies of mode type, component index and component type
-INTEGER :: this_mode_type( npd_aerosol_mode )
-INTEGER :: this_cpnt_type(n_ukca_cpnt, npd_profile, npd_layer, npd_aerosol_mode)
+INTEGER :: this_mode_type( n_ukca_mode )
+INTEGER :: this_cpnt_type(n_ukca_cpnt, n_profile, n_layer, n_ukca_mode)
 
 
 ! Loop variables
@@ -259,15 +259,15 @@ INTEGER :: i_band_ssa
 
 REAL :: logs_array_in(one)
 REAL :: logs_array_out(one)
-REAL :: incr_ni(npd_aerosol_mode)
+REAL :: incr_ni(n_ukca_mode)
 
 ! ***************************************************************
 !
 ! Need better variable names than `a` and `b`
 !
 ! ***************************************************************
-REAL :: a(npd_aerosol_mode)
-REAL :: b(npd_aerosol_mode)
+REAL :: a(n_ukca_mode)
+REAL :: b(n_ukca_mode)
 ! ***************************************************************
 !
 ! Need better variable names than `a` and `b`
@@ -285,7 +285,7 @@ REAL, PARAMETER :: minus1_plus_epsi1 = -1.0 + EPSILON(1.0)
 REAL, PARAMETER :: one_minus_epsi1 = 1.0 - EPSILON(1.0)
 
 ! Indicates whether current level is above the tropopause.
-LOGICAL :: l_in_stratosphere( npd_profile, npd_layer )
+LOGICAL :: l_in_stratosphere( n_profile, n_layer )
 
 ! error message
 CHARACTER (LEN=errormessagelength) :: cmessage
@@ -667,7 +667,31 @@ END IF
           ! Compute the Mie parameter from the wet diameter
           ! and get the LUT-array index of its nearest neighbour.
           x = pi * ukca_wet_diam( i_prof, i_layr, i_mode ) /                   &
-                   precalc%wavelength( one, i_band, isolir )
+               precalc%wavelength( one, i_band, isolir )
+
+          IF ( x <= 0.0 ) THEN
+
+            icode = 0 - i_prof
+            cmessage = 'i_prof value'
+            CALL ereport(RoutineName,icode,cmessage)
+
+            icode = 0 - i_layr
+            cmessage = 'i_layr value'
+            CALL ereport(RoutineName,icode,cmessage)
+
+            icode = 0 - i_band
+            cmessage = 'i_band value'
+            CALL ereport(RoutineName,icode,cmessage)
+
+            icode = 0 - i_mode
+            cmessage = 'i_mode value'
+            CALL ereport(RoutineName,icode,cmessage)
+
+            icode = 1
+            cmessage = 'Arithmetic error because log(negative)'
+            CALL ereport(RoutineName,icode,cmessage)
+
+          END IF
 
           n_x( i_prof, i_layr, i_band, i_mode ) =                              &
                NINT( ( ( LOG(x) - logxmin(i_mode) ) /                          &
