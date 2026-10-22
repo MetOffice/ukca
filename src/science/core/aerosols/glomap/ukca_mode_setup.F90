@@ -102,6 +102,7 @@ INTEGER, PARAMETER :: ip_ukca_mode_accum       = 2
 INTEGER, PARAMETER :: ip_ukca_mode_coarse      = 3
 INTEGER, PARAMETER :: ip_ukca_mode_supercoarse = 4
 
+INTEGER, PARAMETER :: i_ukca_tune_bc_off      = 0 ! No BC density tuning
 INTEGER, PARAMETER :: i_ukca_bc_tuned         = 1 ! BC density tuned
 INTEGER, PARAMETER :: i_ukca_bc_mg_mix        = 2 ! BC density tuned, plus
                                                   ! Maxwell-Garnet mixing method
