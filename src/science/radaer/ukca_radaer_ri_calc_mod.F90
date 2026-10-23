@@ -151,6 +151,10 @@ l_mg_mix = .FALSE.
 ! real refractive index and do not account for MG mixing
 IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
+
+   ! This makes component the inner loop
+   ! I need to refactor to make spatial dimension the inner loop
+   
   DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
     this_cpnt = i_cpnt_index(i_cmpt, i_mode)
@@ -188,6 +192,9 @@ IF (i_ukca_radaer_prescribe_ssa /= do_not_prescribe) THEN
 
 ELSE
 
+   ! This makes component the inner loop
+   ! I need to refactor to make spatial dimension the inner loop
+
   DO i_cmpt = 1, n_cpnt_in_mode(i_mode)
 
     this_cpnt = i_cpnt_index(i_cmpt, i_mode)
@@ -210,28 +217,12 @@ ELSE
 
     END IF
 
+    ! MG mixing is not requested ...
+    ! sum up the RI, weighting by component volume
     !
-    ! Work out if Maxwell-Garnett mixing approach will be required
-    ! The decision is based on the integer value of
-    ! i_ukca_tune_bc or i_ukca_glomap_clim_tune_bc being set to
-    ! i_ukca_bc_mg_mix, and this component being BC with non-zero mass
-    !
-    IF ((i_ukca_tune_bc == i_ukca_bc_mg_mix .OR.                               &
-         i_glomap_clim_tune_bc == i_ukca_bc_mg_mix) .AND.                      &
-         this_cpnt_type == cp_bc .AND.                                         &
-         ukca_cpnt_volume(this_cpnt) > 0.0) THEN
+    re_m = re_m + ukca_cpnt_volume(this_cpnt) * refr_real(this_cpnt_type)
+    im_m = im_m + ukca_cpnt_volume(this_cpnt) * refr_imag(this_cpnt_type)
 
-       ! If yes set the BC volume and the logical switch to later use MG mixing
-       !
-      l_mg_mix = .TRUE.
-      ukca_modal_bc_vol = ukca_cpnt_volume(this_cpnt)
-    ELSE
-      ! If component is not BC, or MG mixing is not requested then
-      ! sum up the RI, weighting by component volume
-      !
-      re_m = re_m + ukca_cpnt_volume(this_cpnt) * refr_real(this_cpnt_type)
-      im_m = im_m + ukca_cpnt_volume(this_cpnt) * refr_imag(this_cpnt_type)
-    END IF
 
   END DO ! i_cmpt
 
@@ -245,45 +236,6 @@ ELSE
 
   END IF ! l_soluble
 
-  !
-  ! Mix in the BC via Maxwell-Garnett?
-  ! Only if the BC component type is allowed in this mode
-  ! and is present with non-zero volume, and i_ukca_tune_bc==2
-  ! or i_glomap_clim_tune_bc==2
-  !
-  IF (l_mg_mix) THEN
-
-    ! There is the potential for unphysical values or divide by zero errors in
-    ! refract_mix_mg if ukca_modal_volume =<  ukca_modal_bc_vol
-    ! or the RI assigned to the medium (re_m) <= zero. This would only occur
-    ! if the mode contained only pure BC. Therefore, if either those conditions
-    ! is true assign re_m and im_m to that of BC and do not call refract_mix_mg
-    !
-    IF ((ukca_modal_volume  <=  ukca_modal_bc_vol) .OR. (re_m  <=  0.0e+00)) THEN
-
-      re_m = refr_real(cp_bc)
-      im_m = refr_imag(cp_bc)
-
-    ELSE
-
-      re_m = re_m / (ukca_modal_volume - ukca_modal_bc_vol)
-      im_m = im_m / (ukca_modal_volume - ukca_modal_bc_vol)
-
-      refr_mix = refract_mix_mg(re_m, im_m,                                    &
-           refr_real(cp_bc), refr_imag(cp_bc),                                 &
-           ukca_modal_volume, ukca_modal_bc_vol)
-
-      re_m = REAL(refr_mix)
-      im_m = AIMAG(refr_mix)
-
-    END IF
-
-  ELSE
-
-    re_m = re_m / ukca_modal_volume
-    im_m = im_m / ukca_modal_volume
-
-  END IF ! l_mg_mix
 END IF ! i_ukca_radaer_prescribe_ssa /= do_not_prescribe
 
 RETURN
