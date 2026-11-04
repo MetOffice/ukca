@@ -284,7 +284,7 @@ CASE (i_solinsol_6mode)
 
   IF (.NOT. ALLOCATED(pvol_comp_names))       ALLOCATE(pvol_comp_names(5))
   IF (.NOT. ALLOCATED(comp_names))            ALLOCATE(comp_names(5))
-  IF (.NOT. ALLOCATED(mode_names))            ALLOCATE(mode_names(6))
+  IF (.NOT. ALLOCATED(mode_names))            ALLOCATE(mode_names(5))
   IF (.NOT. ALLOCATED(rhopar_mode_names))     ALLOCATE(rhopar_mode_names(5))
   IF (.NOT. ALLOCATED(dry_diam_mode_names))   ALLOCATE(dry_diam_mode_names(5))
   IF (.NOT. ALLOCATED(modal_volume_names))    ALLOCATE(modal_volume_names(5))
@@ -312,7 +312,6 @@ CASE (i_solinsol_6mode)
   mode_names = [ 'fldname_n_ait_sol' ,                                         &
                  'fldname_n_acc_sol' ,                                         &
                  'fldname_n_cor_sol' ,                                         &
-                 'fldname_n_ait_ins' ,                                         &
                  'fldname_n_acc_ins' ,                                         &
                  'fldname_n_cor_ins' ]
 
