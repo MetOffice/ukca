@@ -55,7 +55,8 @@ USE parkind1,                          ONLY:                                   &
 
 USE ukca_config_specification_mod,     ONLY:                                   &
     i_du_2mode,                                                                &
-    i_sussbcocdu_7mode
+    i_sussbcocdu_7mode,                                                        &
+    i_solinsol_6mode
 
 USE umPrintMgr,                        ONLY:                                   &
     umPrint,                                                                   &
@@ -276,6 +277,86 @@ CASE (i_sussbcocdu_7mode)
                           'fldname_wetdp_acc_sol' ,                            &
                           'fldname_wetdp_cor_sol' ,                            &
                           'fldname_wetdp_ait_ins' ,                            &
+                          'fldname_wetdp_acc_ins' ,                            &
+                          'fldname_wetdp_cor_ins' ]
+
+CASE (i_solinsol_6mode)
+
+  IF (.NOT. ALLOCATED(pvol_comp_names))       ALLOCATE(pvol_comp_names(5))
+  IF (.NOT. ALLOCATED(comp_names))            ALLOCATE(comp_names(5))
+  IF (.NOT. ALLOCATED(mode_names))            ALLOCATE(mode_names(5))
+  IF (.NOT. ALLOCATED(rhopar_mode_names))     ALLOCATE(rhopar_mode_names(5))
+  IF (.NOT. ALLOCATED(dry_diam_mode_names))   ALLOCATE(dry_diam_mode_names(5))
+  IF (.NOT. ALLOCATED(modal_volume_names))    ALLOCATE(modal_volume_names(5))
+  IF (.NOT. ALLOCATED(ait_sol_volume_names))  ALLOCATE(ait_sol_volume_names(2))
+  IF (.NOT. ALLOCATED(acc_sol_volume_names))  ALLOCATE(acc_sol_volume_names(2))
+  IF (.NOT. ALLOCATED(cor_sol_volume_names))  ALLOCATE(cor_sol_volume_names(2))
+  IF (.NOT. ALLOCATED(ait_ins_volume_names))  ALLOCATE(ait_ins_volume_names(1))
+  IF (.NOT. ALLOCATED(acc_ins_volume_names))  ALLOCATE(acc_ins_volume_names(1))
+  IF (.NOT. ALLOCATED(cor_ins_volume_names))  ALLOCATE(cor_ins_volume_names(1))
+  IF (.NOT. ALLOCATED(modal_wtv_names))       ALLOCATE(modal_wtv_names(5))
+  IF (.NOT. ALLOCATED(wet_diam_mode_names))   ALLOCATE(wet_diam_mode_names(5))
+
+  pvol_comp_names = [ 'fldname_pvol_su_ait_sol' ,                              &
+                      'fldname_pvol_su_acc_sol' ,                              &
+                      'fldname_pvol_su_cor_sol' ,                              &
+                      'fldname_pvol_du_acc_ins' ,                              &
+                      'fldname_pvol_du_cor_ins' ]
+
+  comp_names = [ 'fldname_ait_sol_su' ,                                        &
+                 'fldname_acc_sol_su' ,                                        &
+                 'fldname_cor_sol_su' ,                                        &
+                 'fldname_acc_ins_du' ,                                        &
+                 'fldname_cor_ins_du' ]
+
+  mode_names = [ 'fldname_n_ait_sol' ,                                         &
+                 'fldname_n_acc_sol' ,                                         &
+                 'fldname_n_cor_sol' ,                                         &
+                 'fldname_n_acc_ins' ,                                         &
+                 'fldname_n_cor_ins' ]
+
+  rhopar_mode_names = [ 'fldname_rhopar_ait_sol' ,                             &
+                        'fldname_rhopar_acc_sol' ,                             &
+                        'fldname_rhopar_cor_sol' ,                             &
+                        'fldname_rhopar_acc_ins' ,                             &
+                        'fldname_rhopar_cor_ins' ]
+
+  dry_diam_mode_names = [ 'fldname_drydp_ait_sol' ,                            &
+                          'fldname_drydp_acc_sol' ,                            &
+                          'fldname_drydp_cor_sol' ,                            &
+                          'fldname_drydp_acc_ins' ,                            &
+                          'fldname_drydp_cor_ins' ]
+
+  modal_volume_names = [ 'fldname_mod_vol_ait_sol' ,                           &
+                         'fldname_mod_vol_acc_sol' ,                           &
+                         'fldname_mod_vol_cor_sol' ,                           &
+                         'fldname_mod_vol_acc_ins' ,                           &
+                         'fldname_mod_vol_cor_ins' ]
+
+  ait_sol_volume_names = [ 'pvol_wat_ait_sol' ,                                &
+                           'pvol_su_ait_sol ' ]
+
+  acc_sol_volume_names = [ 'pvol_wat_acc_sol' ,                                &
+                           'pvol_su_acc_sol ' ]
+
+  cor_sol_volume_names = [ 'pvol_wat_cor_sol' ,                                &
+                           'pvol_su_cor_sol ' ]
+
+  ait_ins_volume_names = [ 'null' ]
+
+  acc_ins_volume_names = [ 'pvol_du_acc_ins' ]
+
+  cor_ins_volume_names = [ 'pvol_du_cor_ins' ]
+
+  modal_wtv_names = [ 'fldname_pvol_wat_ait_sol' ,                             &
+                      'fldname_pvol_wat_acc_sol' ,                             &
+                      'fldname_pvol_wat_cor_sol' ,                             &
+                      'fldname_pvol_wat_acc_ins' ,                             &
+                      'fldname_pvol_wat_cor_ins' ]
+
+  wet_diam_mode_names = [ 'fldname_wetdp_ait_sol' ,                            &
+                          'fldname_wetdp_acc_sol' ,                            &
+                          'fldname_wetdp_cor_sol' ,                            &
                           'fldname_wetdp_acc_ins' ,                            &
                           'fldname_wetdp_cor_ins' ]
 
