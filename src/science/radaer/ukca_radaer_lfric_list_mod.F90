@@ -55,7 +55,8 @@ USE parkind1,                          ONLY:                                   &
 
 USE ukca_config_specification_mod,     ONLY:                                   &
     i_du_2mode,                                                                &
-    i_sussbcocdu_7mode
+    i_sussbcocdu_7mode,                                                        &
+    i_solinsol_6mode
 
 USE umPrintMgr,                        ONLY:                                   &
     umPrint,                                                                   &
