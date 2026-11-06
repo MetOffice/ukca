@@ -15,3 +15,4 @@
 | mn416             | Matthew Naylor      | University of Cambridge        | 2026-07-24 |
 | t00sa             | Sam Clarke-Green    | Met Office                     | 2026-09-10 |
 | mcdalvi           | Mohit Dalvi         | Met Office                     | 2026-10-06 |
+| joewallwork       | Joseph Wallwork     | University of Cambridge        | 2026-11-06 |
